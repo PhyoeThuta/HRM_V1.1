@@ -56,7 +56,7 @@ export async function dbInsert(table, data) {
 export async function dbUpdate(table, id, data, idCol = 'id') {
   try {
     const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== null && v !== undefined)
+      Object.entries(data).filter(([, v]) => v !== undefined)
     );
     const { error } = await supabase.from(table).update(clean).eq(idCol, id);
     if (error) throw error;
