@@ -19,10 +19,15 @@ jobs:
         username: ${{ secrets.GCP_USERNAME }}
         key: ${{ secrets.GCP_SSH_KEY }}
         script: |
-          # 1. Navigate to project folder (Assume we clone into /var/www/hrm_react)
+          # 1. Navigate to project folder
           cd /var/www/hrm_react
           
-          # 2. Pull latest code from GitHub
+          # 2. Pull latest code from GitHub (init if first time)
+          if [ ! -d ".git" ]; then
+            git init
+            git remote add origin https://github.com/PhyoeThuta/HRM_V1.1.git
+          fi
+          
           git fetch --all
           git reset --hard origin/main
           
