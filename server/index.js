@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
+
 // Routes
 import authRouter from './routes/auth.js';
 import dashboardRouter from './routes/dashboard.js';
@@ -68,6 +70,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
 });
 
+// ── Test Endpoints ─────────────────────────────────────────────
+app.post('/api/test/trigger-birthdays', async (req, res) => {
+  const result = await checkAndNotifyBirthdays();
+  res.json(result);
+});
+
 // ── 404 ────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
@@ -82,4 +90,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`\n🚀 CorpHRM API Server running on http://localhost:${PORT}`);
   console.log(`📋 Health: http://localhost:${PORT}/api/health\n`);
+  
+  // Start background jobs
+  startBirthdayCron();
 });
