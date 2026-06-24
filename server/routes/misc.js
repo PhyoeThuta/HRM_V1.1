@@ -118,7 +118,7 @@ router.get('/sops', async (req, res) => {
       return {
         ...s,
         employee_name: emp?.Full_name || 'Unknown',
-        position_title: pos?.title || 'Individual Tasks'
+        position_title: pos?.title || 'No Position'
       };
     });
 
@@ -129,18 +129,21 @@ router.get('/sops', async (req, res) => {
 // POST /api/sops - Create SOP for Employees
 router.post('/sops', requireAdmin, async (req, res) => {
   try {
-    const { title, content, department_id, position_id, employee_id } = req.body;
+    const { title, content, department_id, position_id } = req.body;
     
+    if (!department_id && !position_id) {
+      return res.status(400).json({ error: 'Please select a Position or Department to assign the SOP.' });
+    }
+
     let query = {};
-    if (employee_id) query.id = employee_id;
-    else if (department_id) query.Dept_id = department_id;
-    else if (position_id) query.position_id = position_id;
+    if (department_id) query.Dept_id = department_id;
+    if (position_id) query.position_id = position_id;
     
     // Fetch target employees based on filters
     const employees = await dbFetch('Employees', 'id', query);
     
     if (employees.length === 0) {
-      return res.status(400).json({ error: 'No employees found matching the selected criteria.' });
+      return res.status(400).json({ error: 'No employees found matching the selected Department or Position.' });
     }
 
     const task_desc = title ? `${title}\n\n${content}` : content;
