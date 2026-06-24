@@ -1,51 +1,6 @@
-# 🏢 HRM Pro — AI-Powered Human Resource Management System
+# 🏢 HRM Pro — AI-Powered Human Resource Management System (V1.1)
 
-A full-featured, production-ready **Human Resource Management System** built with FastAPI and Supabase, enhanced with **Google Gemini AI** for automated recruitment screening.
-
----
-
-## ✨ Features
-
-### 👥 Employee Management
-- Employee directory with full CRUD operations
-- Department & position management
-- Role-based access control (Boss, HR Manager, Admin, Employee)
-
-### 📅 Attendance & Leave
-- QR code-based check-in / check-out
-- Biometric device integration
-- Leave request & approval workflow
-- Leave balance tracking
-
-### 💰 Payroll
-- Monthly payroll generation in **Myanmar Kyat (MMK)**
-- Payroll history and reporting
-
-### 📊 Performance (KPI)
-- KPI assignment and tracking
-- Boss-level KPI oversight
-- Peer voting / recognition system
-
-### 🤖 AI-Powered Recruitment *(Powered by Google Gemini)*
-- **Public career portal** (`/careers`) for candidates to apply
-- **Automated resume scoring** — AI reads the PDF resume and scores candidates 1-10
-- **Auto-routing** — High scorers (≥8) move to Screening automatically
-- **HR alert notifications** when a high-scoring candidate is detected
-- **AI Interview Guide** — Auto-generated in Burmese when a candidate reaches Interview stage
-- **Automated Offer Letter** — Generated in MMK when moving candidate to Offer stage
-
-### 📝 Document Management
-- Document vault with signature workflow
-- Boss → HR → Employee signature chain
-
-### 🎂 Onboarding / Offboarding
-- Structured onboarding task assignments
-- Exit interview & offboarding workflow
-- Birthday notifications
-
-### 🔔 Notifications
-- Real-time in-app notification bell
-- Role-based notifications (Boss, HR Manager, All)
+A full-featured, production-ready **Human Resource Management System** built with **React, Vite, Node.js (Express), and Supabase**, enhanced with **Google Gemini AI** for an omniscient HR Executive Assistant.
 
 ---
 
@@ -53,77 +8,50 @@ A full-featured, production-ready **Human Resource Management System** built wit
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python, FastAPI, Uvicorn |
-| Database | Supabase (PostgreSQL) |
-| Frontend | Jinja2 Templates, Vanilla CSS, JavaScript |
-| AI | Google Gemini 2.5 Flash |
-| Auth | Session-based with bcrypt password hashing |
+| **Frontend** | React (Vite), TailwindCSS, JavaScript |
+| **Backend** | Node.js, Express.js |
+| **Database** | Supabase (PostgreSQL) |
+| **AI** | Google Gemini 2.5 Pro |
+| **Auth** | JWT Token-based authentication via Supabase/Express |
+
+---
+
+## ✨ Features
+
+- **Omniscient AI Assistant (Boss Chat):** The Boss can chat with an AI that knows every piece of data in the company (Attendance, Payroll, Leaves, SOPs, KPIs).
+- **Employee Portal:** Employees can log in, view payslips, execute daily SOPs, scan QR codes for attendance, and request leaves.
+- **Biometric Integration:** Syncs with ZKTeco fingerprint devices for accurate attendance tracking.
+- **Automated Payroll Engine:** Automatically generates payroll based on base salary, late deductions, and KPI scores.
+- **Recruitment & Onboarding:** Manage job postings, applicants, and onboarding checklists.
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Clone the repository
+### 1. Backend (Node.js)
 ```bash
-git clone https://github.com/YOUR_USERNAME/hrm-pro.git
-cd hrm-pro
+cd server
+npm install
+node index.js # Runs on port 8080
 ```
+Make sure you have a `.env` file in the `server` directory with `SUPABASE_URL`, `SUPABASE_KEY`, and `GEMINI_API_KEY`.
 
-### 2. Install dependencies
+### 2. Frontend (React)
 ```bash
-pip install -r requirements.txt
+cd hrm-client
+npm install
+npm run dev # Runs on port 5173
 ```
-
-### 3. Configure environment variables
-
-Create a `.env` file (or set these directly in `app.py`):
-```
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-GEMINI_API_KEY=your_gemini_api_key
-SECRET_KEY=your_session_secret_key
-```
-
-### 4. Run the server
-```bash
-python app.py
-```
-
-Visit `http://localhost:5000` in your browser.
-
----
-
-## 🔐 Default Roles
-
-| Role | Access |
-|------|--------|
-| `boss` | Full access, KPI oversight, signature authority |
-| `hr_manager` | Recruitment, employees, payroll, leave approval |
-| `admin` | System settings, user management |
-| `employee` | Self-service portal (attendance, leave, payroll view) |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-hrm-pro/
-├── app.py                  # Main FastAPI application
-├── requirements.txt        # Python dependencies
-├── static/
-│   ├── css/               # Custom stylesheets
-│   └── js/                # JavaScript files
-├── templates/             # Jinja2 HTML templates
-│   ├── base.html
-│   ├── dashboard.html
-│   ├── recruitment.html
-│   ├── careers.html
-│   └── ...
-└── setup_db.py            # Database schema setup script
+HRM_V1.1/
+├── hrm-client/             # React (Vite) Frontend
+├── server/                 # Node.js (Express) Backend
+├── zk_agent.py             # ZKTeco Biometric background sync script
+├── Legacy_Python_Scripts_Archive/  # Archived legacy Python v1 codebase
+└── README.md
 ```
-
----
-
-## 📄 License
-
-MIT License — feel free to use and modify for your own projects.
