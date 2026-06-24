@@ -1,0 +1,230 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import Layout from '../components/layout/Layout';
+import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
+
+function StatusBadge({ status }) {
+  const cfg = {
+    Active: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+    'On Leave': 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+    Offboarding: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    Inactive: 'text-slate-400 bg-slate-400/10',
+  }[status] || 'text-slate-400 bg-slate-400/10';
+  const isActive = status === 'Active';
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg}`}>
+      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+      {status || '—'}
+    </span>
+  );
+}
+
+function EmployeeModal({ open, onClose, departments, positions, managers, candidates, onSave }) {
+  const [form, setForm] = useState({ employee_id: '', Full_name: '', email: '', phone: '', Dept_id: '', position_id: '', Manager_id: '', hire_date: '', date_of_birth: '', salary: '', national_id: '', address: '', employment_type: 'Full-Time', status: 'Active' });
+  if (!open) return null;
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    onSave(form);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <h2 className="text-base font-bold text-white">Add New Employee</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <form onSubmit={handleSave} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="form-label">Employee ID *</label><input required className="form-input" value={form.employee_id} onChange={e => set('employee_id', e.target.value)} placeholder="e.g. EMP001" /></div>
+            <div><label className="form-label">Full Name *</label><input required className="form-input" value={form.Full_name} onChange={e => set('Full_name', e.target.value)} placeholder="Full Name" /></div>
+            <div><label className="form-label">Email</label><input type="email" className="form-input" value={form.email} onChange={e => set('email', e.target.value)} placeholder="employee@company.com" /></div>
+            <div><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9..." /></div>
+            <div>
+              <label className="form-label">Department</label>
+              <select className="form-input" value={form.Dept_id} onChange={e => set('Dept_id', e.target.value)}>
+                <option value="">— Select Department —</option>
+                {departments?.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Position</label>
+              <select className="form-input" value={form.position_id} onChange={e => set('position_id', e.target.value)}>
+                <option value="">— Select Position —</option>
+                {positions?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Boss / Head</label>
+              <select className="form-input" value={form.Manager_id} onChange={e => set('Manager_id', e.target.value)}>
+                <option value="">— No Boss/Head —</option>
+                {managers?.map(m => <option key={m.id} value={m.id}>{m.Full_name} ({m.employee_id})</option>)}
+              </select>
+            </div>
+            <div><label className="form-label">Hire Date</label><input type="date" className="form-input" value={form.hire_date} onChange={e => set('hire_date', e.target.value)} /></div>
+            <div><label className="form-label">Date of Birth</label><input type="date" className="form-input" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} /></div>
+            <div><label className="form-label">Salary</label><input type="number" step="0.01" className="form-input" value={form.salary} onChange={e => set('salary', e.target.value)} placeholder="0.00" /></div>
+            <div><label className="form-label">National ID</label><input className="form-input" value={form.national_id} onChange={e => set('national_id', e.target.value)} placeholder="e.g. 12/A..." /></div>
+            <div>
+              <label className="form-label">Employment Type</label>
+              <select className="form-input" value={form.employment_type} onChange={e => set('employment_type', e.target.value)}>
+                {['Full-Time', 'Part-Time', 'Contract', 'Internship'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2"><label className="form-label">Address</label><input className="form-input" value={form.address} onChange={e => set('address', e.target.value)} placeholder="Full Address" /></div>
+            <div>
+              <label className="form-label">Status</label>
+              <select className="form-input" value={form.status} onChange={e => set('status', e.target.value)}>
+                {['Active', 'On Leave', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white px-4 py-2.5 rounded-xl transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
+            <button type="submit" className="text-sm font-semibold text-white px-5 py-2.5 rounded-xl transition-colors" style={{ background: '#4f46e5' }}>Save Employee</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default function Employees() {
+  const [showModal, setShowModal] = useState(false);
+  const [flash, setFlash] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { isAdmin } = useAuth();
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery({ queryKey: ['employees'], queryFn: () => api.get('/employees').then(r => r.data) });
+  const { data: formData } = useQuery({ queryKey: ['employees-form-data'], queryFn: () => api.get('/employees/form-data').then(r => r.data), enabled: showModal });
+
+  const addMutation = useMutation({
+    mutationFn: (body) => api.post('/employees', body),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['employees']);
+      setFlash({ type: 'success', msg: res.data.message || 'Employee added successfully' });
+      setTimeout(() => setFlash(null), 4000);
+    },
+    onError: (e) => setFlash({ type: 'error', msg: e.response?.data?.error || 'Failed to add employee' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/employees/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['employees']); setFlash({ type: 'success', msg: 'Employee deleted' }); setTimeout(() => setFlash(null), 3000); setDeleteTarget(null); },
+  });
+
+  const employees = data?.employees || [];
+
+  return (
+    <Layout title="Employee Management" subtitle="Add, edit, and manage your entire workforce">
+      {/* Flash */}
+      {flash && (
+        <div className={`mb-6 flex items-center gap-3 rounded-2xl px-5 py-3 animate-slide-in ${flash.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-rose-500/10 border border-rose-500/30'}`}>
+          <span className={`text-sm font-medium ${flash.type === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>{flash.msg}</span>
+          <button onClick={() => setFlash(null)} className="ml-auto text-slate-400 hover:text-white">✕</button>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <span className="text-sm text-slate-400">{employees.length} employee{employees.length !== 1 ? 's' : ''} total</span>
+        {isAdmin() && (
+          <button onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+            style={{ background: '#4f46e5' }}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            Add Employee
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead style={{ background: '#161929' }}>
+                <tr>
+                  {['Employee ID', 'Full Name', 'Department', 'Position', 'Status', 'Email', 'Hire Date', 'Actions'].map(h => (
+                    <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {employees.length > 0 ? employees.map(emp => (
+                  <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                    <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
+                        <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
+                    <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
+                    <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
+                    <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
+                    <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                    <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <Link to={`/employees/${emp.id}`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
+                          <span className="text-sm">📄</span>
+                          View
+                        </Link>
+                        <Link to={`/employees/${emp.id}/edit`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
+                          <span className="text-sm">🖊️</span>
+                          Edit
+                        </Link>
+                        <button className="flex flex-col items-center justify-center gap-1 h-12 px-2.5 rounded-xl text-[10px] font-bold text-amber-400 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 transition-colors whitespace-nowrap">
+                          <span className="text-sm">📄</span>
+                          Request Doc
+                        </button>
+                        {isAdmin() && (
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
+                            className="flex items-center justify-center w-8 h-8 ml-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 transition-colors">
+                            <span className="text-sm">🗑️</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan="8" className="py-16 text-center">
+                    <div className="text-4xl mb-3">👤</div>
+                    <p className="text-slate-400 text-sm">No employees yet.</p>
+                    <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-indigo-400 hover:underline">Add your first employee</button>
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <EmployeeModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        departments={formData?.departments}
+        positions={formData?.positions}
+        managers={formData?.managers}
+        candidates={formData?.candidates}
+        onSave={addMutation.mutate}
+      />
+
+      <ConfirmDeleteModal 
+        isOpen={!!deleteTarget} 
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        itemName={deleteTarget?.Full_name}
+      />
+    </Layout>
+  );
+}

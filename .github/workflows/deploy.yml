@@ -1,0 +1,43 @@
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Deploy via SSH to GCP
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.GCP_VM_IP }}
+        username: ${{ secrets.GCP_USERNAME }}
+        key: ${{ secrets.GCP_SSH_KEY }}
+        script: |
+          # 1. Navigate to project folder (Assume we clone into /var/www/hrm_react)
+          cd /var/www/hrm_react
+          
+          # 2. Pull latest code from GitHub
+          git fetch --all
+          git reset --hard origin/main
+          
+          # 3. Build React Frontend
+          echo "Building Frontend..."
+          cd hrm-client
+          npm install
+          npm run build
+          
+          # 4. Setup and Restart Node.js Backend
+          echo "Restarting Backend API..."
+          cd ../server
+          npm install
+          # Restart if PM2 process exists, otherwise start new
+          pm2 restart corphrm-api || pm2 start index.js --name "corphrm-api"
+          pm2 save
+          
+          echo "Deployment Successful!"

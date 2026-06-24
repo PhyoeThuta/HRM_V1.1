@@ -1,0 +1,163 @@
+import { useQuery } from '@tanstack/react-query';
+import { useParams, Link } from 'react-router-dom';
+import Layout from '../components/layout/Layout';
+import api from '../api/client';
+
+export default function EmployeeProfile() {
+  const { id } = useParams();
+  
+  const { data, isLoading } = useQuery({ 
+    queryKey: ['employee', id], 
+    queryFn: () => api.get(`/employees/${id}`).then(r => r.data) 
+  });
+
+  if (isLoading) return <Layout title="Employee Profile"><div className="p-8 text-slate-400">Loading profile...</div></Layout>;
+  if (!data?.emp) return <Layout title="Not Found"><div className="p-8 text-rose-400">Employee not found.</div></Layout>;
+
+  const { emp, attendance_records, leave_balances, kpi_records, vote_stats, total_paid } = data;
+
+  return (
+    <Layout title={`Profile: ${emp.Full_name}`} subtitle={`Employee ID: ${emp.employee_id}`}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Col: Info */}
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                {emp.Full_name[0]}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{emp.Full_name}</h2>
+                <p className="text-indigo-400 font-mono text-sm">{emp.employee_id}</p>
+                <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${emp.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                  {emp.status}
+                </span>
+              </div>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-slate-500">Department</span>
+                <span className="text-white font-medium">{emp.dept_name}</span>
+              </div>
+              <div className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-slate-500">Position</span>
+                <span className="text-white font-medium">{emp.pos_title}</span>
+              </div>
+              <div className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-slate-500">Manager</span>
+                <span className="text-white font-medium">{emp.manager_name || 'None'}</span>
+              </div>
+              <div className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-slate-500">Hire Date</span>
+                <span className="text-white font-medium">{emp.hire_date?.slice(0, 10) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-slate-500">Email</span>
+                <span className="text-white font-medium">{emp.email || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between pb-2">
+                <span className="text-slate-500">Phone</span>
+                <span className="text-white font-medium">{emp.phone || 'N/A'}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Link to={`/employees/${id}/edit`} className="flex-1 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-xl transition-colors">
+                Edit Profile
+              </Link>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Quick Stats</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-white/5 text-center">
+                <div className="text-2xl font-bold text-indigo-400">{vote_stats?.avg || 0}</div>
+                <div className="text-xs text-slate-500">Peer Rating</div>
+              </div>
+              <div className="p-4 rounded-xl bg-white/5 text-center">
+                <div className="text-2xl font-bold text-emerald-400">{(total_paid || 0).toLocaleString()} THB</div>
+                <div className="text-xs text-slate-500">Total Paid</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Col: Details */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Attendance Overview */}
+          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Recent Attendance</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-white/5">
+                    <th className="pb-3 font-medium">Date</th>
+                    <th className="pb-3 font-medium">Check In</th>
+                    <th className="pb-3 font-medium">Check Out</th>
+                    <th className="pb-3 font-medium">Method</th>
+                    <th className="pb-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendance_records?.slice(0, 5).map(r => (
+                    <tr key={r.id} className="border-b border-white/5 last:border-0">
+                      <td className="py-3 text-white">{r.check_in?.slice(0, 10)}</td>
+                      <td className="py-3 text-emerald-400 font-mono">{r.check_in?.slice(11, 16)}</td>
+                      <td className="py-3 text-rose-400 font-mono">{r.check_out?.slice(11, 16) || '—'}</td>
+                      <td className="py-3 text-slate-400">{r.attendance_method}</td>
+                      <td className="py-3">
+                        {r.is_late ? <span className="text-amber-400 bg-amber-400/10 px-2 py-1 rounded text-xs">Late</span> : <span className="text-emerald-400 text-xs">On Time</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {attendance_records?.length === 0 && (
+                    <tr><td colSpan="5" className="py-4 text-slate-500 text-center">No recent records</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Leave Balances */}
+          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Leave Balances</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {leave_balances?.map(lb => (
+                <div key={lb.id} className="p-4 rounded-xl border border-white/5 bg-[#161929]">
+                  <div className="text-xs text-slate-500 mb-1 line-clamp-1">{lb.type_name}</div>
+                  <div className="text-xl font-bold text-white">{lb.remaining_days} <span className="text-xs font-normal text-slate-500">days</span></div>
+                  <div className="text-[10px] text-slate-600 mt-1">Used: {lb.used_days}</div>
+                </div>
+              ))}
+              {leave_balances?.length === 0 && <p className="text-slate-500 text-sm col-span-full">No leave balances set.</p>}
+            </div>
+          </div>
+
+          {/* KPIs */}
+          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Assigned KPIs</h3>
+            <div className="space-y-3">
+              {kpi_records?.map(k => (
+                <div key={k.id} className="p-4 rounded-xl border border-white/5 bg-[#161929] flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-white text-sm">{k.title}</h4>
+                    <p className="text-xs text-slate-500 mt-1">Due: {k.due_date || 'N/A'}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${k.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                    {k.status}
+                  </span>
+                </div>
+              ))}
+              {kpi_records?.length === 0 && <p className="text-slate-500 text-sm">No KPIs assigned.</p>}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </Layout>
+  );
+}

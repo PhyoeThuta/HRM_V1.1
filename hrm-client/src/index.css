@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui;
+  background-color: var(--color-surface-950);
+  color: #f1f5f9;
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* Form inputs */
+.form-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  outline: none;
+}
+.form-input:focus {
+  border-color: #6366f1;
+  background: rgba(99,102,241,0.08);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.form-input option { background: #161929; }
+.form-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.375rem;
+}
+
+/* Theme toggle button */
+#theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #94a3b8;
+  transition: all 0.2s;
+}
+#theme-toggle:hover { background: rgba(255,255,255,0.08); color: white; }
+.toggle-track {
+  width: 28px; height: 15px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 9999px;
+  position: relative;
+  transition: background 0.2s;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 11px; height: 11px;
+  background: #6366f1;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+[data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #f59e0b; }
+[data-theme="light"] .toggle-track { background: rgba(245,158,11,0.2); }
+
+/* Light theme global filter */
+html[data-theme="light"] {
+  filter: invert(1) hue-rotate(180deg);
+  background-color: #0f172a; /* Inverts to light background */
+}
+
+/* Prevent double-inversion on specific elements */
+html[data-theme="light"] img,
+html[data-theme="light"] svg,
+html[data-theme="light"] .toggle-thumb,
+html[data-theme="light"] .no-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Fix some specific background conflicts if needed */
+html[data-theme="light"] body {
+  background-color: transparent;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse { animation: pulse-glow 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-in { animation: slide-in 0.3s ease-out; }
+
+/* Glass */
+.glass {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+}
