@@ -9,16 +9,8 @@ import fs from 'fs';
 const router = express.Router();
 router.use(verifyToken);
 
-// Multer config for SOP video uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
+// Multer config for SOP video uploads to Supabase
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // GET /api/notifications
@@ -205,7 +197,28 @@ router.post('/sops/:id/complete', upload.single('video'), async (req, res) => {
     
     let videoUrl = null;
     if (req.file) {
-      videoUrl = `/uploads/${req.file.filename}`;
+      // Upload to Supabase Storage
+      const ext = path.extname(req.file.originalname);
+      const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+      
+      const { data, error } = await supabase.storage
+        .from('sop_videos')
+        .upload(filename, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+        
+      if (error) {
+        console.error("Supabase upload error:", error);
+        throw new Error("Failed to upload video to storage");
+      }
+      
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('sop_videos')
+        .getPublicUrl(filename);
+        
+      videoUrl = publicUrlData.publicUrl;
     }
     
     await dbUpdate('daily_sops', id, { 
