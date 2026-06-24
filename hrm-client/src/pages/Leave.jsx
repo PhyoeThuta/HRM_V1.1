@@ -127,7 +127,15 @@ export default function Leave() {
                             <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs text-rose-400 bg-rose-400/10 px-2 py-1 rounded-lg hover:bg-rose-400/20">✗ Reject</button>
                           </div>
                         )}
-                        {isAdmin() && <button onClick={() => setDeleteTarget({ mode: 'request', item: r })} className="text-xs text-rose-400 bg-rose-500/10 px-2 py-1 rounded-lg ml-1">🗑</button>}
+                        {isAdmin() && (
+                          <button 
+                            onClick={() => setDeleteTarget({ mode: 'request', item: r })} 
+                            className="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 p-1.5 rounded-lg ml-2 transition-colors flex items-center justify-center"
+                            title="Delete Request"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )) : <tr><td colSpan="7" className="py-12 text-center text-slate-500 text-sm">No leave requests yet.</td></tr>}

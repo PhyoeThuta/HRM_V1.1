@@ -11,7 +11,7 @@ export default function SOPs() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
   const [tasks, setTasks] = useState(['']);
-  const [form, setForm] = useState({ position: '', department: '', date: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState({ position: '', department: '', employee: '', date: new Date().toISOString().slice(0, 10) });
   const [expandedGroups, setExpandedGroups] = useState({});
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
@@ -39,7 +39,8 @@ export default function SOPs() {
       title: `Daily SOP - ${form.date}`,
       content: validTasks.map((t, i) => `${i+1}. ${t}`).join('\n'),
       department_id: form.department || null,
-      position_id: form.position || null
+      position_id: form.position || null,
+      employee_id: form.employee || null
     };
     addMutation.mutate(body);
   };
@@ -59,6 +60,7 @@ export default function SOPs() {
   const { data: formData } = useQuery({ queryKey: ['employees-form-data'], queryFn: () => api.get('/employees/form-data').then(r => r.data) });
   const depts = formData?.departments || [];
   const positions = formData?.positions || [];
+  const employees = formData?.employees || [];
 
   return (
     <Layout title="Daily SOPs" subtitle="Task Assignment & Verification">
@@ -199,8 +201,16 @@ export default function SOPs() {
             
             <form onSubmit={handleSave} className="space-y-4">
               <div>
+                <label className="form-label text-xs tracking-wider uppercase">Employee (Direct Assign)</label>
+                <select className="form-input bg-[#11131f] border-white/5" value={form.employee} onChange={e => setForm({...form, employee: e.target.value})}>
+                  <option value="">All Employees</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
+                </select>
+              </div>
+
+              <div>
                 <label className="form-label text-xs tracking-wider uppercase">Position</label>
-                <select className="form-input bg-[#11131f] border-white/5" value={form.position} onChange={e => setForm({...form, position: e.target.value})}>
+                <select className="form-input bg-[#11131f] border-white/5" value={form.position} onChange={e => setForm({...form, position: e.target.value})} disabled={!!form.employee}>
                   <option value="">All Positions</option>
                   {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
@@ -208,7 +218,7 @@ export default function SOPs() {
               
               <div>
                 <label className="form-label text-xs tracking-wider uppercase">Department (Optional Filter)</label>
-                <select className="form-input bg-[#11131f] border-white/5" value={form.department} onChange={e => setForm({...form, department: e.target.value})}>
+                <select className="form-input bg-[#11131f] border-white/5" value={form.department} onChange={e => setForm({...form, department: e.target.value})} disabled={!!form.employee}>
                   <option value="">All Departments</option>
                   {depts.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
                 </select>

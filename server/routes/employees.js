@@ -45,7 +45,7 @@ router.get('/form-data', async (req, res) => {
       managerLevels.has(e.position_id) || 
       /manager|boss|ceo|head|lead|director/i.test(e.Full_name)
     );
-    return res.json({ departments: depts, positions, managers, candidates: hired });
+    return res.json({ departments: depts, positions, managers, candidates: hired, employees: allActive });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
