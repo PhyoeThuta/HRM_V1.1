@@ -48,7 +48,7 @@ export default function SOPs() {
   const sops = data?.sops || [];
   
   const groupedSops = sops.reduce((acc, sop) => {
-    const pt = sop.position_title || 'No Position';
+    const pt = sop.position_title || 'Individual Tasks';
     if (!acc[pt]) acc[pt] = [];
     acc[pt].push(sop);
     return acc;

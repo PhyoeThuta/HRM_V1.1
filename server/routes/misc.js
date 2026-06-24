@@ -118,7 +118,7 @@ router.get('/sops', async (req, res) => {
       return {
         ...s,
         employee_name: emp?.Full_name || 'Unknown',
-        position_title: pos?.title || 'No Position'
+        position_title: pos?.title || 'Individual Tasks'
       };
     });
 
