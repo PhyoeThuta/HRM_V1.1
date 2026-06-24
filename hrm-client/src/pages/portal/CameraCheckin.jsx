@@ -71,6 +71,11 @@ export default function CameraCheckin() {
               screenshotFormat="image/jpeg" 
               className="w-full h-full object-cover"
               videoConstraints={{ facingMode: "user" }} 
+              onUserMediaError={(err) => {
+                console.error(err);
+                toast.error('Camera access denied or unsupported. (Make sure you are using HTTPS!)', { duration: 5000 });
+                setIsCameraStarted(false);
+              }}
             />
           ) : (
             <>
