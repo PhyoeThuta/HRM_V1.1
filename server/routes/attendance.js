@@ -6,6 +6,51 @@ import { verifyToken, requireAdmin } from '../middleware/auth.js';
 const router = express.Router();
 router.use(verifyToken);
 
+async function checkIsLate(employee_id, check_in_time) {
+  try {
+    const dt = new Date(check_in_time);
+    const todayStr = dt.toISOString().split('T')[0];
+    
+    // 1. Check Roster
+    const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+    let activeShiftId = null;
+    for (const r of rosters) {
+      if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
+        activeShiftId = r.shift_id;
+        break;
+      }
+    }
+    
+    // 2. Check Default Shift
+    if (!activeShiftId) {
+      const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
+      if (emp && emp.default_shift_id) {
+        activeShiftId = emp.default_shift_id;
+      }
+    }
+    
+    // 3. Calculate Cutoff
+    if (activeShiftId) {
+      const shift = await dbFetchOne('shifts', '*', { id: activeShiftId });
+      if (shift) {
+        const [hours, minutes, seconds] = shift.start_time.split(':');
+        const graceMins = shift.grace_period_minutes || 15;
+        const cutoffDt = new Date(dt);
+        cutoffDt.setHours(parseInt(hours), parseInt(minutes) + graceMins, parseInt(seconds || 0), 0);
+        return dt > cutoffDt;
+      }
+    }
+    
+    // Fallback: 9:15 AM
+    const fallbackDt = new Date(dt);
+    fallbackDt.setHours(9, 15, 0, 0);
+    return dt > fallbackDt;
+  } catch (e) {
+    console.error('[checkIsLate error]', e);
+    return new Date(check_in_time).getHours() >= 9;
+  }
+}
+
 // GET /api/attendance
 router.get('/', async (req, res) => {
   try {
@@ -147,7 +192,7 @@ router.post('/scan', async (req, res) => {
         employee_id: qrData.employee_id,
         check_in: now,
         attendance_method: 'QR',
-        is_late: false // Could be calculated based on shift
+        is_late: await checkIsLate(qrData.employee_id, now)
       });
       return res.json({ success: true, message: 'QR Check-in successful' });
     }
@@ -176,7 +221,7 @@ router.post('/photo-checkin', async (req, res) => {
         employee_id,
         check_in: now,
         attendance_method: 'Photo',
-        is_late: req.body.is_late || false
+        is_late: await checkIsLate(employee_id, now)
       });
       return res.json({ success: true, message: 'Photo Check-in successful' });
     }
@@ -220,7 +265,7 @@ router.post('/biometric/sync', async (req, res) => {
         employee_id: empId,
         check_in: logTime,
         attendance_method: 'Biometric',
-        is_late: false, // In real world, logic would calculate this
+        is_late: await checkIsLate(empId, logTime),
         created_at: new Date().toISOString()
       });
       
