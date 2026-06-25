@@ -324,4 +324,60 @@ router.delete('/biometric/mapping/:id', async (req, res) => {
   }
 });
 
+// --- Rosters & Shifts API ---
+
+router.get('/shifts', async (req, res) => {
+  try {
+    const shifts = await dbFetch('shifts', '*', {}, { order: 'shift_name' });
+    return res.json({ success: true, shifts });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/rosters', async (req, res) => {
+  try {
+    const rosters = await dbFetch('employee_rosters');
+    return res.json({ success: true, rosters });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/rosters', async (req, res) => {
+  try {
+    const { employee_id, shift_id, start_date, end_date } = req.body;
+    if (!employee_id || !shift_id || !start_date) {
+      return res.status(400).json({ error: 'employee_id, shift_id, and start_date are required' });
+    }
+    const result = await dbInsert('employee_rosters', {
+      employee_id, shift_id, start_date, end_date: end_date || null
+    });
+    return res.json({ success: true, roster: result });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/rosters/:id', async (req, res) => {
+  try {
+    await dbDelete('employee_rosters', req.params.id);
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/default-shift', async (req, res) => {
+  try {
+    const { employee_id, shift_id } = req.body;
+    if (!employee_id) return res.status(400).json({ error: 'employee_id is required' });
+    
+    await dbUpdate('Employees', employee_id, { default_shift_id: shift_id || null });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
