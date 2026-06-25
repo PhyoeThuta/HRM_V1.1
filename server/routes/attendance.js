@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const [employees, records, bioDevices, bioRegs, tokens] = await Promise.all([
-      dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' }),
+      dbFetch('Employees', 'id,Full_name,employee_id,default_shift_id', { status: 'Active' }),
       dbFetch('attendance_records', '*', {}, { order: 'check_in', ascending: false }),
       dbFetch('biometric_device', '*'),
       dbFetch('biometric_employees', '*'),
