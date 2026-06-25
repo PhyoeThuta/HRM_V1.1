@@ -342,47 +342,80 @@ export default function Attendance() {
         {/* Records Tab */}
         {activeTab === 'records' && (
           <div className="p-4">
-            <div className="flex flex-wrap gap-3 mb-4">
-              <input value={filter.name} onChange={e => setFilter(f => ({ ...f, name: e.target.value }))} placeholder="Search employee..." className="form-input w-40" />
-              <input type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} className="form-input w-40" />
-              <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))} className="form-input w-36">
-                <option value="all">All Status</option>
-                <option value="late">Late</option>
-                <option value="ontime">On Time</option>
-              </select>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <input value={filter.name} onChange={e => setFilter(f => ({ ...f, name: e.target.value }))} placeholder="Search employee..." className="form-input w-40" />
+                <input type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} className="form-input w-40" />
+                <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))} className="form-input w-36">
+                  <option value="all">All Status</option>
+                  <option value="late">Late</option>
+                  <option value="ontime">On Time</option>
+                </select>
+              </div>
+              <button 
+                onClick={() => {
+                  if (records.length === 0) return toast.error('No records to export');
+                  const hdrs = ['Employee', 'Check In', 'Check Out', 'Method', 'Hours', 'Overtime', 'Status'];
+                  const rows = records.map(r => [
+                    `"${r.Full_name || '—'}"`,
+                    `"${r.check_in ? formatTimeByMethod(r.check_in, r.attendance_method) : '—'}"`,
+                    `"${r.check_out ? formatTimeByMethod(r.check_out, r.attendance_method) : '—'}"`,
+                    `"${r.attendance_method || '—'}"`,
+                    `"${r.work_hours_calc != null ? r.work_hours_calc : '—'}"`,
+                    `"${r.overtime_hours != null ? r.overtime_hours : '—'}"`,
+                    `"${r.is_late ? 'Late' : 'On time'}"`
+                  ]);
+                  const csv = [hdrs.join(','), ...rows.map(row => row.join(','))].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `attendance_records_${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                }}
+                className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+              >
+                <span>📥</span> Export CSV
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead style={{ background: '#161929' }}>
-                  <tr>{['Employee', 'Check In', 'Check Out', 'Method', 'Hours', 'Status', 'Actions'].map(h => <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+                  <tr>{['Employee', 'Photo', 'Check In', 'Check Out', 'Method', 'Hours', 'Overtime', 'Status', 'Actions'].map(h => <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {isLoading ? <tr><td colSpan="7" className="py-10 text-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
+                  {isLoading ? <tr><td colSpan="9" className="py-10 text-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
                   : records.length > 0 ? records.map(r => (
                     <tr key={r.id} className="border-t border-white/5 hover:bg-white/2 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(r.Full_name || '?')[0]}</div>
-                          <div><p className="font-medium text-white text-sm">{r.Full_name || '—'}</p><p className="text-xs text-slate-500 font-mono">{r.employee_code || '—'}</p></div>
+                          <div><p className="font-medium text-white text-sm whitespace-nowrap">{r.Full_name || '—'}</p><p className="text-xs text-slate-500 font-mono">{r.employee_code || '—'}</p></div>
                         </div>
                       </td>
-                      <td className="py-3 px-4"><span className="text-emerald-400 font-mono text-xs">{r.check_in ? formatTimeByMethod(r.check_in, r.attendance_method) : '—'}</span></td>
                       <td className="py-3 px-4">
+                        {r.check_in_photo_url ? (
+                          <img src={r.check_in_photo_url} alt="Photo" className="w-8 h-8 object-cover rounded border border-white/10" />
+                        ) : <span className="text-slate-500">—</span>}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap"><span className="text-emerald-400 font-mono text-xs">{r.check_in ? formatTimeByMethod(r.check_in, r.attendance_method) : '—'}</span></td>
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {r.check_out ? <span className="text-rose-400 font-mono text-xs">{formatTimeByMethod(r.check_out, r.attendance_method)}</span>
                           : <button onClick={() => checkoutMutation.mutate(r.id)} className="text-xs text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 px-2 py-0.5 rounded-lg">Check Out</button>}
                       </td>
-                      <td className="py-3 px-4">{methodBadge(r.attendance_method)}</td>
-                      <td className="py-3 px-4"><span className="font-mono text-white text-xs">{r.work_hours_calc != null ? `${r.work_hours_calc}h` : '—'}</span></td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">{methodBadge(r.attendance_method)}</td>
+                      <td className="py-3 px-4 whitespace-nowrap"><span className="font-mono text-white text-xs">{r.work_hours_calc != null ? `${r.work_hours_calc}h` : '—'}</span></td>
+                      <td className="py-3 px-4 whitespace-nowrap"><span className="font-mono text-white text-xs">{r.overtime_hours != null ? `${r.overtime_hours}h` : '—'}</span></td>
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {r.is_late
                           ? <span className="text-xs font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Late</span>
                           : <span className="text-xs text-emerald-400">On time</span>}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {isAdmin() && <button onClick={() => setDeleteTarget(r)} className="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded-lg">Delete</button>}
                       </td>
                     </tr>
-                  )) : <tr><td colSpan="7" className="py-12 text-center text-slate-500 text-sm">No records for selected filter.</td></tr>}
+                  )) : <tr><td colSpan="9" className="py-12 text-center text-slate-500 text-sm">No records for selected filter.</td></tr>}
                 </tbody>
               </table>
             </div>
