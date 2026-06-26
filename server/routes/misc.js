@@ -124,7 +124,7 @@ router.get('/sops/report', async (req, res) => {
     // Fetch daily_sops for that month
     const { data: sops, error: sopError } = await supabase
       .from('daily_sops')
-      .select('id, employee_id, is_completed, video_url, created_at')
+      .select('id, employee_id, is_completed, proof_video_url, created_at')
       .gte('created_at', startDate)
       .lte('created_at', endDate);
     if (sopError) throw sopError;

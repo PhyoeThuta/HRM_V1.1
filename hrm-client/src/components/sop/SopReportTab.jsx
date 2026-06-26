@@ -30,14 +30,14 @@ export default function SopReportTab({ positions }) {
       // If multiple SOPs per day exist, we want to know if ALL are completed, or at least track the status.
       // For simplicity: if it's completed, it's true. If not, it's false. If both exist, false wins (needs to complete all).
       if (map[s.employee_id][dateKey] === undefined) {
-        map[s.employee_id][dateKey] = { is_completed: s.is_completed, video_url: s.video_url };
+        map[s.employee_id][dateKey] = { is_completed: s.is_completed, proof_video_url: s.proof_video_url };
       } else {
         // If one is incomplete, mark the day as incomplete
         if (!s.is_completed) {
           map[s.employee_id][dateKey].is_completed = false;
         }
-        if (s.video_url) {
-          map[s.employee_id][dateKey].video_url = s.video_url; // keep any video
+        if (s.proof_video_url) {
+          map[s.employee_id][dateKey].proof_video_url = s.proof_video_url; // keep any video
         }
       }
     });
@@ -103,8 +103,8 @@ export default function SopReportTab({ positions }) {
                   if (dayData.is_completed) {
                     return (
                       <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-emerald-500/5">
-                        {dayData.video_url ? (
-                          <a href={dayData.video_url} target="_blank" rel="noreferrer" title="Watch Video" className="text-emerald-400 hover:text-emerald-300 text-lg">✅</a>
+                        {dayData.proof_video_url ? (
+                          <a href={dayData.proof_video_url} target="_blank" rel="noreferrer" title="Watch Video" className="text-emerald-400 hover:text-emerald-300 text-lg">✅</a>
                         ) : (
                           <span className="text-emerald-400 text-lg" title="Completed">✅</span>
                         )}
