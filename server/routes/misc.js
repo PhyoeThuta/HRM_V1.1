@@ -121,10 +121,10 @@ router.get('/sops/report', async (req, res) => {
     const { data: employees, error: empError } = await empQuery;
     if (empError) throw empError;
 
-    // Fetch daily_sops for that month
+    // Fetch daily_sops for that month (include task_description to show missed tasks)
     const { data: sops, error: sopError } = await supabase
       .from('daily_sops')
-      .select('id, employee_id, is_completed, proof_video_url, created_at')
+      .select('id, employee_id, is_completed, proof_video_url, created_at, task_description')
       .gte('created_at', startDate)
       .lte('created_at', endDate);
     if (sopError) throw sopError;
