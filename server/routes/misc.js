@@ -104,6 +104,115 @@ router.get('/portal', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ─── SOP TEMPLATES ───────────────────────────────────────────────
+
+// GET /api/sops/templates — Get all SOP templates with position info
+router.get('/sops/templates', async (req, res) => {
+  try {
+    const { data: templates, error } = await supabase
+      .from('sop_templates')
+      .select('id, position_id, task_description, updated_at');
+    if (error) throw error;
+    const positions = await dbFetch('positions', 'id,title');
+    const result = templates.map(t => ({
+      ...t,
+      position_title: positions.find(p => p.id === t.position_id)?.title || 'Unknown'
+    }));
+    return res.json({ success: true, templates: result });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/sops/templates — Create or update (upsert) a template for a position
+router.post('/sops/templates', requireAdmin, async (req, res) => {
+  try {
+    const { position_id, task_description } = req.body;
+    if (!position_id || !task_description) return res.status(400).json({ error: 'position_id and task_description required' });
+
+    // Check if template exists for this position
+    const { data: existing } = await supabase.from('sop_templates').select('id').eq('position_id', position_id).single();
+    if (existing) {
+      await supabase.from('sop_templates').update({ task_description, updated_at: new Date().toISOString() }).eq('id', existing.id);
+    } else {
+      await supabase.from('sop_templates').insert({ position_id, task_description });
+    }
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/sops/templates/:id
+router.delete('/sops/templates/:id', requireAdmin, async (req, res) => {
+  try {
+    await supabase.from('sop_templates').delete().eq('id', req.params.id);
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/sops/auto-assign — Auto-assign all templates for every day in a month
+router.post('/sops/auto-assign', requireAdmin, async (req, res) => {
+  try {
+    const { month } = req.body; // 'YYYY-MM'
+    if (!month) return res.status(400).json({ error: 'month required' });
+
+    const [year, monthStr] = month.split('-');
+    const lastDay = new Date(parseInt(year), parseInt(monthStr), 0).getDate();
+
+    // Get all templates
+    const { data: templates, error: tErr } = await supabase.from('sop_templates').select('*');
+    if (tErr) throw tErr;
+    if (!templates || templates.length === 0) return res.status(400).json({ error: 'No SOP templates found. Please set up templates first.' });
+
+    // Get all active employees
+    const { data: employees, error: eErr } = await supabase.from('Employees').select('id, position_id').eq('status', 'Active');
+    if (eErr) throw eErr;
+
+    let totalCreated = 0;
+    let totalSkipped = 0;
+    const records = [];
+
+    for (const template of templates) {
+      const positionEmployees = employees.filter(e => e.position_id === template.position_id);
+      if (positionEmployees.length === 0) continue;
+
+      for (let day = 1; day <= lastDay; day++) {
+        const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}T06:00:00.000Z`;
+
+        for (const emp of positionEmployees) {
+          // Check if record already exists for this employee on this day
+          const dayDate = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
+          const { data: existing } = await supabase
+            .from('daily_sops')
+            .select('id')
+            .eq('employee_id', emp.id)
+            .gte('created_at', `${dayDate}T00:00:00`)
+            .lte('created_at', `${dayDate}T23:59:59`)
+            .single();
+
+          if (existing) {
+            totalSkipped++;
+            continue;
+          }
+
+          records.push({
+            employee_id: emp.id,
+            task_description: template.task_description,
+            is_completed: false,
+            created_at: dateStr
+          });
+          totalCreated++;
+        }
+      }
+    }
+
+    // Bulk insert
+    if (records.length > 0) {
+      const { error: insertErr } = await supabase.from('daily_sops').insert(records);
+      if (insertErr) throw insertErr;
+    }
+
+    return res.json({ success: true, created: totalCreated, skipped: totalSkipped });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/sops/report — Fetch SOPs grouped by month for HR Tracking
 router.get('/sops/report', async (req, res) => {
   try {

@@ -9,28 +9,70 @@ import SopReportTab from '../components/sop/SopReportTab';
 
 export default function SOPs() {
   const [activeTab, setActiveTab] = useState('assign');
-  const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [editTarget, setEditTarget] = useState(null); // { ids, desc }
+  const [editTarget, setEditTarget] = useState(null);
   const [editText, setEditText] = useState('');
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
-  const [tasks, setTasks] = useState(['']);
-  const [form, setForm] = useState({ position: '', department: '', date: new Date().toISOString().slice(0, 10) });
   const [expandedGroups, setExpandedGroups] = useState({});
+
+  // Template form state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateForm, setTemplateForm] = useState({ position_id: '', task_description: '' });
+
+  // Auto-assign state
+  const [autoMonth, setAutoMonth] = useState(new Date().toISOString().slice(0, 7));
+
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({ queryKey: ['sops'], queryFn: () => api.get('/sops').then(r => r.data) });
+  // ─── Queries ──────────────────────────────────────────────────────
+  const { data, isLoading } = useQuery({
+    queryKey: ['sops'],
+    queryFn: () => api.get('/sops').then(r => r.data)
+  });
 
-  const addMutation = useMutation({
-    mutationFn: (body) => api.post('/sops', body),
-    onSuccess: () => { qc.invalidateQueries(['sops']); setShowModal(false); toast.success('SOP Assigned!'); },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to assign SOP')
+  const { data: templateData, isLoading: loadingTemplates } = useQuery({
+    queryKey: ['sop-templates'],
+    queryFn: () => api.get('/sops/templates').then(r => r.data)
+  });
+
+  const { data: formData } = useQuery({
+    queryKey: ['employees-form-data'],
+    queryFn: () => api.get('/employees/form-data').then(r => r.data)
+  });
+
+  const positions = formData?.positions || [];
+  const templates = templateData?.templates || [];
+
+  // ─── Mutations ────────────────────────────────────────────────────
+  const saveTplMutation = useMutation({
+    mutationFn: (body) => api.post('/sops/templates', body),
+    onSuccess: () => {
+      qc.invalidateQueries(['sop-templates']);
+      setShowTemplateModal(false);
+      setTemplateForm({ position_id: '', task_description: '' });
+      toast.success('Template saved!');
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to save template')
+  });
+
+  const deleteTplMutation = useMutation({
+    mutationFn: (id) => api.delete(`/sops/templates/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['sop-templates']); toast.success('Template deleted'); }
+  });
+
+  const autoAssignMutation = useMutation({
+    mutationFn: (month) => api.post('/sops/auto-assign', { month }),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['sops']);
+      toast.success(`✅ Created ${res.data.created} records! (${res.data.skipped} skipped - already existed)`);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Auto-assign failed')
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (ids) => api.post(`/sops/bulk-delete`, { ids }),
-    onSuccess: () => { qc.invalidateQueries(['sops']); setDeleteTarget(null); toast.success('SOP deleted for all assigned employees'); },
+    mutationFn: (ids) => api.post('/sops/bulk-delete', { ids }),
+    onSuccess: () => { qc.invalidateQueries(['sops']); setDeleteTarget(null); toast.success('SOP deleted'); }
   });
 
   const editMutation = useMutation({
@@ -39,60 +81,37 @@ export default function SOPs() {
     onError: () => toast.error('Failed to update task')
   });
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    const validTasks = tasks.filter(t => t.trim());
-    if (validTasks.length === 0) return alert('Please add at least one task');
-    
-    // Combine into title and content for backend
-    const body = {
-      title: `Daily SOP - ${form.date}`,
-      content: validTasks.map((t, i) => `${i+1}. ${t}`).join('\n'),
-      department_id: form.department || null,
-      position_id: form.position || null
-    };
-    addMutation.mutate(body);
-  };
-
+  // ─── Helpers ──────────────────────────────────────────────────────
   const sops = data?.sops || [];
-  
   const groupedSops = sops.reduce((acc, sop) => {
     const pt = sop.position_title || 'No Position';
     if (!acc[pt]) acc[pt] = [];
     acc[pt].push(sop);
     return acc;
   }, {});
+  const toggleGroup = (pt) => setExpandedGroups(prev => ({ ...prev, [pt]: !prev[pt] }));
 
-  const toggleGroup = (pt) => setExpandedGroups(prev => ({...prev, [pt]: !prev[pt]}));
-  
-  // Need lists for dropdowns
-  const { data: formData } = useQuery({ queryKey: ['employees-form-data'], queryFn: () => api.get('/employees/form-data').then(r => r.data) });
-  const depts = formData?.departments || [];
-  const positions = formData?.positions || [];
+  const openEditTemplate = (tpl) => {
+    setTemplateForm({ position_id: tpl.position_id, task_description: tpl.task_description });
+    setShowTemplateModal(true);
+  };
+
+  const tabMonths = [
+    { label: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }), value: new Date().toISOString().slice(0, 7) },
+  ];
 
   return (
-    <Layout title="Daily SOPs" subtitle="Task Assignment & Verification">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-white mb-1">SOP Tracking</h2>
-          <p className="text-sm text-slate-400">Assign daily standard operating procedures and review video proofs.</p>
-        </div>
-        {isAdmin() && activeTab === 'assign' && (
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-xl">
-            + Assign SOP
-          </button>
-        )}
-      </div>
+    <Layout title="Daily SOPs" subtitle="Template Setup & Monthly Tracking">
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-6 border-b border-white/5 hide-scrollbar">
+      {/* ── Tabs ── */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-6 border-b border-white/5">
         {[
-          { id: 'assign', icon: '📝', label: 'Assign & Verify' },
+          { id: 'assign', icon: '📋', label: 'Assign & Verify' },
           { id: 'report', icon: '📊', label: 'Tracking Report' }
         ].map(t => (
-          <button 
-            key={t.id} 
-            onClick={() => setActiveTab(t.id)} 
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all duration-200 ${
               activeTab === t.id ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
             }`}
@@ -102,215 +121,297 @@ export default function SOPs() {
         ))}
       </div>
 
+      {/* ══════════════════════════════════════
+          TAB: ASSIGN & VERIFY
+      ══════════════════════════════════════ */}
       {activeTab === 'assign' && (
-        <div className="space-y-4">
-        {isLoading ? <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
-        : Object.entries(groupedSops).map(([posTitle, groupSops]) => {
-          const total = groupSops.length;
-          const completed = groupSops.filter(s => s.is_completed).length;
-          const isExpanded = expandedGroups[posTitle];
-          
-          return (
-            <div key={posTitle} className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div className="flex justify-between items-center p-5 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => toggleGroup(posTitle)}>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-lg">
-                    {posTitle.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-white font-bold text-base">{posTitle}</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">{total} Tasks Assigned</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-5">
-                  <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    {completed} / {total} Completed
-                  </span>
-                  <span className="text-slate-400 transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : '' }}>▼</span>
-                </div>
+        <div className="space-y-8">
+
+          {/* ── Section 1: SOP Templates ── */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-white">📋 SOP Templates</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Set standard daily tasks per position. Enter once, auto-assign every month.</p>
               </div>
-              
-              {isExpanded && (
-                <div className="p-5 border-t border-white/5 bg-[#161929]/50 space-y-3">
-                  {Object.entries(
-                    groupSops.reduce((acc, sop) => {
-                      if (!acc[sop.task_description]) acc[sop.task_description] = [];
-                      acc[sop.task_description].push(sop);
-                      return acc;
-                    }, {})
-                  ).map(([desc, taskSops]) => {
-                    const taskTotal = taskSops.length;
-                    const taskCompleted = taskSops.filter(s => s.is_completed).length;
-                    
-                    return (
-                      <div key={desc} className="p-4 rounded-xl bg-[#1e2235] border border-white/5">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <p className="text-sm text-white font-medium whitespace-pre-line">{desc}</p>
-                            <p className="text-xs text-slate-400 mt-1.5">Assigned to {taskTotal} employee{taskTotal !== 1 && 's'}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold px-2 py-1 bg-white/5 text-slate-300 rounded">{taskCompleted} / {taskTotal} Completed</span>
-                            {isAdmin() && (
-                              <>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setEditText(desc); setEditTarget({ ids: taskSops.map(t => t.id), desc }); }}
-                                  className="text-indigo-400 text-xs hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                  ✏️ Edit
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(taskSops.map(t => t.id)); }} className="text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors">
-                                  Delete
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* List individual employees */}
-                        <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
-                          {taskSops.map(s => (
-                            <div key={s.id} className="flex justify-between items-center bg-[#161929] p-3 rounded-lg border border-white/5">
-                              <div className="flex items-center gap-3">
-                                <span className={`w-2 h-2 rounded-full ${s.is_completed ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                                <span className="text-sm text-slate-300 font-medium">{s.employee_name}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                {s.is_completed && s.completed_at && (
-                                  <span className="text-xs text-slate-500">{new Date(s.completed_at).toLocaleDateString()}</span>
-                                )}
-                                {s.proof_video_url ? (
-                                  <button onClick={(e) => { e.stopPropagation(); setActiveVideoUrl(s.proof_video_url); }} className="text-xs px-3 py-1.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded font-bold transition-colors flex items-center gap-1.5">
-                                    <span>▶</span> View Video
-                                  </button>
-                                ) : (
-                                  <span className="text-[10px] text-slate-500 italic">No video</span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {isAdmin() && (
+                <button
+                  onClick={() => { setTemplateForm({ position_id: '', task_description: '' }); setShowTemplateModal(true); }}
+                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  + New Template
+                </button>
               )}
             </div>
-          );
-        })}
+
+            {loadingTemplates ? (
+              <div className="py-8 text-center text-slate-400 text-sm">Loading templates...</div>
+            ) : templates.length === 0 ? (
+              <div className="py-10 text-center bg-[#1e2235] rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
+                No SOP templates yet. Click "+ New Template" to add one.
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {templates.map(tpl => (
+                  <div key={tpl.id} className="bg-[#1e2235] rounded-2xl border border-white/5 p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-base">
+                          {tpl.position_title?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-white font-bold text-sm">{tpl.position_title}</p>
+                          <p className="text-xs text-slate-500">Last updated: {new Date(tpl.updated_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      {isAdmin() && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openEditTemplate(tpl)}
+                            className="text-indigo-400 text-xs hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => deleteTplMutation.mutate(tpl.id)}
+                            className="text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-[#0f121b] rounded-xl p-4 border border-white/5">
+                      <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed">{tpl.task_description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Section 2: Auto-Assign Month ── */}
+          {isAdmin() && (
+            <section>
+              <h2 className="text-lg font-bold text-white mb-4">🗓️ Monthly Auto-Assign</h2>
+              <div className="bg-[#1e2235] rounded-2xl border border-white/5 p-6">
+                <p className="text-sm text-slate-400 mb-5">
+                  Select a month and click the button. The system will automatically create SOP tasks for <strong className="text-white">every day of the month</strong> for all employees based on the templates above. Already-existing records will be skipped.
+                </p>
+                <div className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Month</label>
+                    <input
+                      type="month"
+                      value={autoMonth}
+                      onChange={e => setAutoMonth(e.target.value)}
+                      className="bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={() => autoAssignMutation.mutate(autoMonth)}
+                    disabled={autoAssignMutation.isPending || templates.length === 0}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    {autoAssignMutation.isPending ? (
+                      <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Assigning...</>
+                    ) : (
+                      <><span>⚡</span> Auto-Assign {autoMonth}</>
+                    )}
+                  </button>
+                </div>
+                {templates.length === 0 && (
+                  <p className="text-xs text-amber-400 mt-3">⚠️ No templates found. Please add at least one SOP template first.</p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* ── Section 3: Daily SOP View (current month records) ── */}
+          <section>
+            <h2 className="text-lg font-bold text-white mb-4">📅 Daily SOP Records</h2>
+            <div className="space-y-4">
+              {isLoading ? (
+                <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
+              ) : Object.entries(groupedSops).length === 0 ? (
+                <div className="py-12 text-center bg-[#1e2235] rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
+                  No SOP records found. Use the Auto-Assign button above to generate this month's records.
+                </div>
+              ) : Object.entries(groupedSops).map(([posTitle, groupSops]) => {
+                const total = groupSops.length;
+                const completed = groupSops.filter(s => s.is_completed).length;
+                const isExpanded = expandedGroups[posTitle];
+
+                return (
+                  <div key={posTitle} className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div className="flex justify-between items-center p-5 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => toggleGroup(posTitle)}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-lg">
+                          {posTitle.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="text-white font-bold text-base">{posTitle}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">{total} Tasks Assigned</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-5">
+                        <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          {completed} / {total} Completed
+                        </span>
+                        <span className="text-slate-400 transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : '' }}>▼</span>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="p-5 border-t border-white/5 bg-[#161929]/50 space-y-3">
+                        {Object.entries(
+                          groupSops.reduce((acc, sop) => {
+                            const key = `${sop.task_description}__${sop.title}`;
+                            if (!acc[key]) acc[key] = { desc: sop.task_description, title: sop.title, sops: [] };
+                            acc[key].sops.push(sop);
+                            return acc;
+                          }, {})
+                        ).map(([key, { desc, title, sops: taskSops }]) => {
+                          const taskTotal = taskSops.length;
+                          const taskCompleted = taskSops.filter(s => s.is_completed).length;
+
+                          return (
+                            <div key={key} className="p-4 rounded-xl bg-[#1e2235] border border-white/5">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <p className="text-xs text-indigo-400 font-semibold mb-1">{title}</p>
+                                  <p className="text-sm text-white font-medium whitespace-pre-line">{desc}</p>
+                                  <p className="text-xs text-slate-400 mt-1.5">Assigned to {taskTotal} employee{taskTotal !== 1 && 's'}</p>
+                                </div>
+                                <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                                  <span className="text-xs font-bold px-2 py-1 bg-white/5 text-slate-300 rounded">{taskCompleted} / {taskTotal} Completed</span>
+                                  {isAdmin() && (
+                                    <>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setEditText(desc); setEditTarget({ ids: taskSops.map(t => t.id), desc }); }}
+                                        className="text-indigo-400 text-xs hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                      >
+                                        ✏️ Edit
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(taskSops.map(t => t.id)); }}
+                                        className="text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                                {taskSops.map(s => (
+                                  <div key={s.id} className="flex justify-between items-center bg-[#161929] p-3 rounded-lg border border-white/5">
+                                    <div className="flex items-center gap-3">
+                                      <span className={`w-2 h-2 rounded-full ${s.is_completed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                      <span className="text-sm text-slate-300 font-medium">{s.employee_name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      {s.is_completed && s.completed_at && (
+                                        <span className="text-xs text-slate-500">{new Date(s.completed_at).toLocaleDateString()}</span>
+                                      )}
+                                      {s.proof_video_url ? (
+                                        <button onClick={() => setActiveVideoUrl(s.proof_video_url)} className="text-xs px-3 py-1.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded font-bold transition-colors flex items-center gap-1.5">
+                                          ▶ View Video
+                                        </button>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-500 italic">No video</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         </div>
       )}
 
-      {activeTab === 'report' && (
-        <SopReportTab positions={positions} />
-      )}
+      {/* ══════════════════════════════════════
+          TAB: TRACKING REPORT
+      ══════════════════════════════════════ */}
+      {activeTab === 'report' && <SopReportTab positions={positions} />}
 
-      {/* Video Player Modal */}
+      {/* ── Video Modal ── */}
       {activeVideoUrl && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setActiveVideoUrl(null)} />
           <div className="relative bg-[#161929] rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b border-white/5 bg-[#12141d]">
-              <h3 className="text-white font-bold">Video Proof</h3>
-              <button onClick={() => setActiveVideoUrl(null)} className="text-slate-400 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div className="flex justify-between items-center p-4 border-b border-white/10">
+              <h3 className="text-white font-bold">SOP Proof Video</h3>
+              <button onClick={() => setActiveVideoUrl(null)} className="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
-            <div className="w-full bg-black flex justify-center items-center" style={{ maxHeight: '75vh' }}>
-              <video 
-                src={activeVideoUrl} 
-                controls 
-                autoPlay 
-                className="max-w-full max-h-[75vh] object-contain"
-              />
-            </div>
+            <video src={activeVideoUrl} controls className="w-full max-h-[70vh]" autoPlay />
           </div>
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-white">Assign Daily SOP</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">✕</button>
+      {/* ── Template Save Modal ── */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowTemplateModal(false)}>
+          <div className="bg-[#1e2235] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-700 bg-indigo-500/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-bold text-base">📋 SOP Template</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Define standard daily tasks for a position</p>
+                </div>
+                <button onClick={() => setShowTemplateModal(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
+              </div>
             </div>
-            
-            <form onSubmit={handleSave} className="space-y-4">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="form-label text-xs tracking-wider uppercase">Position</label>
-                <select className="form-input bg-[#11131f] border-white/5" value={form.position} onChange={e => setForm({...form, position: e.target.value})}>
-                  <option value="">All Positions</option>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Position</label>
+                <select
+                  value={templateForm.position_id}
+                  onChange={e => setTemplateForm(f => ({ ...f, position_id: e.target.value }))}
+                  className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl p-2.5 focus:border-indigo-500 outline-none"
+                >
+                  <option value="">Select position...</option>
                   {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
-              
               <div>
-                <label className="form-label text-xs tracking-wider uppercase">Department (Optional Filter)</label>
-                <select className="form-input bg-[#11131f] border-white/5" value={form.department} onChange={e => setForm({...form, department: e.target.value})}>
-                  <option value="">All Departments</option>
-                  {depts.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
-                </select>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Standard Daily Tasks</label>
+                <textarea
+                  rows={8}
+                  value={templateForm.task_description}
+                  onChange={e => setTemplateForm(f => ({ ...f, task_description: e.target.value }))}
+                  placeholder={"1. Clean the kitchen\n2. Wash the dishes\n3. Help the chef"}
+                  className="w-full bg-[#0f121b] border border-slate-700 focus:border-indigo-500 text-white text-sm rounded-xl p-3 resize-none outline-none transition-colors"
+                />
+                <p className="text-xs text-slate-500 mt-1">These tasks will be auto-assigned to all employees in this position every day of the selected month.</p>
               </div>
-
-              <div>
-                <label className="form-label text-xs tracking-wider uppercase">Date</label>
-                <input type="date" className="form-input bg-[#11131f] border-white/5" value={form.date} onChange={e => setForm({...form, date: e.target.value})} />
-              </div>
-
-              <div>
-                <label className="form-label text-xs tracking-wider uppercase mb-2 block">Tasks To Complete</label>
-                <div className="space-y-2">
-                  {tasks.map((task, idx) => (
-                    <div key={idx} className="flex gap-3 items-center">
-                      <span className="text-indigo-400 font-bold w-4">{idx + 1}.</span>
-                      <input 
-                        type="text" 
-                        value={task} 
-                        onChange={e => {
-                          const n = [...tasks];
-                          n[idx] = e.target.value;
-                          setTasks(n);
-                        }} 
-                        className="form-input bg-[#11131f] border-white/5 flex-1" 
-                        placeholder="e.g. Clean the kitchen" 
-                      />
-                      {tasks.length > 1 && (
-                        <button type="button" onClick={() => setTasks(tasks.filter((_, i) => i !== idx))} className="text-rose-400 text-xs">✕</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button 
-                  type="button" 
-                  onClick={() => setTasks([...tasks, ''])} 
-                  className="text-indigo-400 text-sm font-semibold mt-3 hover:text-indigo-300 transition-colors flex items-center gap-1"
-                >
-                  + Add Another Task
-                </button>
-              </div>
-
-              <div className="pt-4">
-                <button type="submit" className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors text-base shadow-lg shadow-indigo-500/20">
-                  Assign Task
-                </button>
-              </div>
-            </form>
+            </div>
+            <div className="p-5 pt-0 flex gap-3">
+              <button onClick={() => setShowTemplateModal(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => saveTplMutation.mutate(templateForm)}
+                disabled={saveTplMutation.isPending || !templateForm.position_id || !templateForm.task_description.trim()}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition-colors"
+              >
+                {saveTplMutation.isPending ? 'Saving...' : 'Save Template'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      <ConfirmDeleteModal 
-        isOpen={!!deleteTarget} 
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteMutation.mutate(deleteTarget)}
-        itemName="this Daily SOP for all assigned employees"
-      />
-
-      {/* Edit Task Modal */}
+      {/* ── Edit Task Modal ── */}
       {editTarget && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditTarget(null)}>
           <div className="bg-[#1e2235] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -318,9 +419,9 @@ export default function SOPs() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-white font-bold text-base">✏️ Edit SOP Task</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Changes will apply to all {editTarget.ids.length} assigned employees</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Changes apply to all {editTarget.ids.length} assigned employees</p>
                 </div>
-                <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+                <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
               </div>
             </div>
             <div className="p-5">
@@ -330,13 +431,10 @@ export default function SOPs() {
                 value={editText}
                 onChange={e => setEditText(e.target.value)}
                 className="w-full bg-[#0f121b] border border-slate-700 focus:border-indigo-500 text-white text-sm rounded-xl p-3 resize-none outline-none transition-colors"
-                placeholder="Enter updated task description..."
               />
             </div>
             <div className="p-5 pt-0 flex gap-3">
-              <button onClick={() => setEditTarget(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">
-                Cancel
-              </button>
+              <button onClick={() => setEditTarget(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">Cancel</button>
               <button
                 onClick={() => editMutation.mutate({ ids: editTarget.ids, task_description: editText })}
                 disabled={editMutation.isPending || !editText.trim()}
@@ -348,6 +446,13 @@ export default function SOPs() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteMutation.mutate(deleteTarget)}
+        itemName="this Daily SOP for all assigned employees"
+      />
     </Layout>
   );
 }
