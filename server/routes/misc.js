@@ -104,6 +104,37 @@ router.get('/portal', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/sops/report — Fetch SOPs grouped by month for HR Tracking
+router.get('/sops/report', async (req, res) => {
+  try {
+    const { month, position_id } = req.query; // month format: 'YYYY-MM'
+    if (!month) return res.status(400).json({ error: 'Month is required' });
+
+    const [year, monthStr] = month.split('-');
+    const startDate = `${month}-01`;
+    const lastDay = new Date(year, parseInt(monthStr), 0).getDate();
+    const endDate = `${month}-${lastDay}T23:59:59`;
+
+    // Fetch active employees (filtered by position if provided)
+    let empQuery = supabase.from('Employees').select('id, Full_name, position_id').eq('status', 'Active');
+    if (position_id) empQuery = empQuery.eq('position_id', position_id);
+    const { data: employees, error: empError } = await empQuery;
+    if (empError) throw empError;
+
+    // Fetch daily_sops for that month
+    const { data: sops, error: sopError } = await supabase
+      .from('daily_sops')
+      .select('id, employee_id, is_completed, video_url, created_at')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+    if (sopError) throw sopError;
+
+    return res.json({ success: true, employees, sops });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/sops — Daily SOPs
 router.get('/sops', async (req, res) => {
   try {

@@ -5,8 +5,10 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import SopReportTab from '../components/sop/SopReportTab';
 
 export default function SOPs() {
+  const [activeTab, setActiveTab] = useState('assign');
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
@@ -67,14 +69,33 @@ export default function SOPs() {
           <h2 className="text-xl font-bold text-white mb-1">SOP Tracking</h2>
           <p className="text-sm text-slate-400">Assign daily standard operating procedures and review video proofs.</p>
         </div>
-        {isAdmin() && (
+        {isAdmin() && activeTab === 'assign' && (
           <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-xl">
             + Assign SOP
           </button>
         )}
       </div>
 
-      <div className="space-y-4">
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-6 border-b border-white/5 hide-scrollbar">
+        {[
+          { id: 'assign', icon: '📝', label: 'Assign & Verify' },
+          { id: 'report', icon: '📊', label: 'Tracking Report' }
+        ].map(t => (
+          <button 
+            key={t.id} 
+            onClick={() => setActiveTab(t.id)} 
+            className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all duration-200 ${
+              activeTab === t.id ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>{t.icon}</span> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'assign' && (
+        <div className="space-y-4">
         {isLoading ? <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
         : Object.entries(groupedSops).map(([posTitle, groupSops]) => {
           const total = groupSops.length;
@@ -161,7 +182,12 @@ export default function SOPs() {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
+
+      {activeTab === 'report' && (
+        <SopReportTab positions={positions} />
+      )}
 
       {/* Video Player Modal */}
       {activeVideoUrl && (
