@@ -37,6 +37,7 @@ export default function SopReportTab({ positions }) {
 
   // Build monthly summary per employee
   const monthlySummary = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10); // local compare string
     return employees.map(emp => {
       const empSops = sopsByEmp[emp.id] || {};
       const missedDays = [];
@@ -48,7 +49,9 @@ export default function SopReportTab({ positions }) {
         const completed = records.filter(r => r.is_completed);
         totalCount += records.length;
         completedCount += completed.length;
-        if (missed.length > 0) {
+        
+        // Only count as missed if the date is today or in the past
+        if (missed.length > 0 && dateKey <= todayStr) {
           const d = new Date(dateKey + 'T12:00:00');
           missedDays.push({
             dateKey,
@@ -67,6 +70,11 @@ export default function SopReportTab({ positions }) {
         missedDays: missedDays.sort((a, b) => a.dateKey.localeCompare(b.dateKey))
       };
     });
+  }, [employees, sopsByEmp]);
+
+  // Filter employees who actually have tasks assigned this month
+  const activeEmployees = useMemo(() => {
+    return employees.filter(emp => sopsByEmp[emp.id] && Object.keys(sopsByEmp[emp.id]).length > 0);
   }, [employees, sopsByEmp]);
 
   const monthLabel = (() => {
@@ -133,8 +141,11 @@ export default function SopReportTab({ positions }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
-                  {employees.map(emp => {
+                  {activeEmployees.length === 0 ? (
+                    <tr><td colSpan={daysArray.length + 2} className="p-8 text-center text-slate-500">No SOPs assigned to any employee this month.</td></tr>
+                  ) : activeEmployees.map(emp => {
                     let missedCount = 0;
+                    const todayStr = new Date().toISOString().slice(0, 10);
                     const rowCells = daysArray.map(d => {
                       const dateStr = `${month}-${String(d).padStart(2, '0')}`;
                       const dayRecords = sopsByEmp[emp.id]?.[dateStr];
@@ -158,6 +169,15 @@ export default function SopReportTab({ positions }) {
                           </td>
                         );
                       } else {
+                        // Check if it's a future date
+                        if (dateStr > todayStr) {
+                          return (
+                            <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-slate-800/30">
+                              <span className="text-slate-500 text-xs" title="Pending">⏳</span>
+                            </td>
+                          );
+                        }
+                        
                         missedCount++;
                         const missedTasks = dayRecords.filter(r => !r.is_completed).map(r => r.task_description).filter(Boolean);
                         const dateObj = new Date(dateStr + 'T12:00:00');
@@ -205,7 +225,7 @@ export default function SopReportTab({ positions }) {
               <span className="text-amber-400">📋</span> Monthly Summary — {monthLabel}
             </h3>
             <div className="space-y-4">
-              {monthlySummary.map(({ emp, totalCount, completedCount, missedCount, missedDays }) => {
+              {monthlySummary.filter(s => s.totalCount > 0).map(({ emp, totalCount, completedCount, missedCount, missedDays }) => {
                 const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
                 const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
@@ -272,12 +292,15 @@ export default function SopReportTab({ positions }) {
                       <div className="p-4 text-center text-emerald-400 text-sm">
                         🎉 All SOP tasks completed for {monthLabel}!
                       </div>
-                    ) : (
-                      <div className="p-4 text-center text-slate-500 text-xs">No SOPs assigned this month.</div>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
+              {monthlySummary.filter(s => s.totalCount > 0).length === 0 && (
+                 <div className="p-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-[#1e2235]">
+                   No SOP assignments for the selected month.
+                 </div>
+              )}
             </div>
           </div>
         </>
