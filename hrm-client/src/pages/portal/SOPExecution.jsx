@@ -73,20 +73,29 @@ export default function SOPExecution() {
   });
 
   const attRecords = portalData?.attendance_records || [];
-  const sops = sopsData?.sops?.filter(s => s.employee_id === user.employee_id) || [];
+  
+  // Filter SOPs for this employee, and EXCLUDE future dates
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const sops = sopsData?.sops?.filter(s => {
+    if (s.employee_id !== user.employee_id) return false;
+    const dateStr = s.created_at ? s.created_at.slice(0, 10) : '';
+    return dateStr <= todayStr;
+  }) || [];
   
   // Sort and enhance SOPs
   const enhancedSops = sops.map(s => {
-    const isAttended = attRecords.some(r => r.check_in && r.check_in.startsWith(s.assigned_date));
-    const isPast = new Date(s.assigned_date).setHours(0,0,0,0) < new Date().setHours(0,0,0,0);
+    const dateStr = s.created_at ? s.created_at.slice(0, 10) : '';
+    const isAttended = attRecords.some(r => r.check_in && r.check_in.startsWith(dateStr));
+    const isPast = dateStr < todayStr;
     const tasks = (s.task_description || s.content || 'Complete daily procedure').split('\n').filter(t => t.trim());
     
     return {
       ...s,
-      isAbsent: isPast && !isAttended,
+      dateStr,
+      isAbsent: isPast && !isAttended && !s.is_completed, // if it's not completed, past, and no attendance
       taskList: tasks
     };
-  }).sort((a, b) => new Date(b.assigned_date) - new Date(a.assigned_date));
+  }).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const handleCheckbox = (sopId, taskIndex) => {
     setCheckedItems(prev => ({
@@ -230,7 +239,7 @@ export default function SOPExecution() {
                 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
-                  <span className="text-sm font-bold text-slate-400">{sop.assigned_date}</span>
+                  <span className="text-sm font-bold text-slate-400">{sop.dateStr}</span>
                   {isDone ? (
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                       ✓ Done
