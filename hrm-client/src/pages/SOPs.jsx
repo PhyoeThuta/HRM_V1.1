@@ -14,6 +14,7 @@ export default function SOPs() {
   const [editText, setEditText] = useState('');
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [viewDate, setViewDate] = useState(new Date().toISOString().slice(0, 10));
 
   // Template form state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -83,7 +84,11 @@ export default function SOPs() {
 
   // ─── Helpers ──────────────────────────────────────────────────────
   const sops = data?.sops || [];
-  const groupedSops = sops.reduce((acc, sop) => {
+  
+  // Filter for ONLY the currently selected date in Daily View
+  const filteredSops = sops.filter(sop => sop.created_at && sop.created_at.startsWith(viewDate));
+
+  const groupedSops = filteredSops.reduce((acc, sop) => {
     const pt = sop.position_title || 'No Position';
     if (!acc[pt]) acc[pt] = [];
     acc[pt].push(sop);
@@ -227,9 +232,20 @@ export default function SOPs() {
             </section>
           )}
 
-          {/* ── Section 3: Daily SOP View (current month records) ── */}
+          {/* ── Section 3: Daily SOP View (Filtered by Date) ── */}
           <section>
-            <h2 className="text-lg font-bold text-white mb-4">📅 Daily SOP Records</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">📅 Daily SOP Records</h2>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-slate-400">View Date:</label>
+                <input
+                  type="date"
+                  value={viewDate}
+                  onChange={e => setViewDate(e.target.value)}
+                  className="bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 outline-none"
+                />
+              </div>
+            </div>
             <div className="space-y-4">
               {isLoading ? (
                 <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
