@@ -25,8 +25,8 @@ export default function SopReportTab({ positions }) {
     const map = {};
     sops.forEach(s => {
       if (!map[s.employee_id]) map[s.employee_id] = {};
-      const dateKey = s.created_at.split('T')[0]; // assuming UTC/local match roughly
-      
+      const d = new Date(s.created_at);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       // If multiple SOPs per day exist, we want to know if ALL are completed, or at least track the status.
       // For simplicity: if it's completed, it's true. If not, it's false. If both exist, false wins (needs to complete all).
       if (map[s.employee_id][dateKey] === undefined) {
