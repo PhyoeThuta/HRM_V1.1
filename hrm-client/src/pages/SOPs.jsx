@@ -11,6 +11,8 @@ export default function SOPs() {
   const [activeTab, setActiveTab] = useState('assign');
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null); // { ids, desc }
+  const [editText, setEditText] = useState('');
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
   const [tasks, setTasks] = useState(['']);
   const [form, setForm] = useState({ position: '', department: '', date: new Date().toISOString().slice(0, 10) });
@@ -29,6 +31,12 @@ export default function SOPs() {
   const deleteMutation = useMutation({
     mutationFn: (ids) => api.post(`/sops/bulk-delete`, { ids }),
     onSuccess: () => { qc.invalidateQueries(['sops']); setDeleteTarget(null); toast.success('SOP deleted for all assigned employees'); },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ ids, task_description }) => api.patch('/sops/bulk-update', { ids, task_description }),
+    onSuccess: () => { qc.invalidateQueries(['sops']); setEditTarget(null); toast.success('Task updated!'); },
+    onError: () => toast.error('Failed to update task')
   });
 
   const handleSave = (e) => {
@@ -144,9 +152,17 @@ export default function SOPs() {
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-bold px-2 py-1 bg-white/5 text-slate-300 rounded">{taskCompleted} / {taskTotal} Completed</span>
                             {isAdmin() && (
-                              <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(taskSops.map(t => t.id)); }} className="text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors">
-                                Delete
-                              </button>
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditText(desc); setEditTarget({ ids: taskSops.map(t => t.id), desc }); }}
+                                  className="text-indigo-400 text-xs hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(taskSops.map(t => t.id)); }} className="text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors">
+                                  Delete
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -293,6 +309,45 @@ export default function SOPs() {
         onConfirm={() => deleteMutation.mutate(deleteTarget)}
         itemName="this Daily SOP for all assigned employees"
       />
+
+      {/* Edit Task Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditTarget(null)}>
+          <div className="bg-[#1e2235] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-700 bg-indigo-500/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-bold text-base">✏️ Edit SOP Task</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Changes will apply to all {editTarget.ids.length} assigned employees</p>
+                </div>
+                <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+              </div>
+            </div>
+            <div className="p-5">
+              <label className="block text-xs font-semibold text-slate-400 mb-2">Task Description</label>
+              <textarea
+                rows={6}
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                className="w-full bg-[#0f121b] border border-slate-700 focus:border-indigo-500 text-white text-sm rounded-xl p-3 resize-none outline-none transition-colors"
+                placeholder="Enter updated task description..."
+              />
+            </div>
+            <div className="p-5 pt-0 flex gap-3">
+              <button onClick={() => setEditTarget(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => editMutation.mutate({ ids: editTarget.ids, task_description: editText })}
+                disabled={editMutation.isPending || !editText.trim()}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition-colors"
+              >
+                {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

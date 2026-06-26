@@ -204,6 +204,18 @@ router.post('/sops', requireAdmin, async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// PATCH /api/sops/bulk-update — Update task_description for a group of SOP IDs
+router.patch('/sops/bulk-update', requireAdmin, async (req, res) => {
+  try {
+    const { ids, task_description } = req.body;
+    if (!Array.isArray(ids) || !task_description) return res.status(400).json({ error: 'ids and task_description required' });
+    for (const id of ids) {
+      await dbUpdate('daily_sops', id, { task_description });
+    }
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
 // DELETE /api/sops/:id
 router.delete('/sops/:id', requireAdmin, async (req, res) => {
   try {
