@@ -35,10 +35,19 @@ export default function SopReportTab({ positions }) {
     return map;
   }, [sops]);
 
+  // Filter employees to exclude Boss/CEO from the grid/summary
+  const activeEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      const pos = positions.find(p => p.id === emp.position_id);
+      const isBoss = pos && pos.title.toLowerCase().includes('boss');
+      return !isBoss;
+    });
+  }, [employees, positions]);
+
   // Build monthly summary per employee
   const monthlySummary = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10); // local compare string
-    return employees.map(emp => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return activeEmployees.map(emp => {
       const empSops = sopsByEmp[emp.id] || {};
       const missedDays = [];
       let completedCount = 0;
@@ -70,12 +79,7 @@ export default function SopReportTab({ positions }) {
         missedDays: missedDays.sort((a, b) => a.dateKey.localeCompare(b.dateKey))
       };
     });
-  }, [employees, sopsByEmp]);
-
-  // Filter employees who actually have tasks assigned this month
-  const activeEmployees = useMemo(() => {
-    return employees.filter(emp => sopsByEmp[emp.id] && Object.keys(sopsByEmp[emp.id]).length > 0);
-  }, [employees, sopsByEmp]);
+  }, [activeEmployees, sopsByEmp]);
 
   const monthLabel = (() => {
     const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -225,12 +229,12 @@ export default function SopReportTab({ positions }) {
               <span className="text-amber-400">📋</span> Monthly Summary — {monthLabel}
             </h3>
             <div className="space-y-4">
-              {monthlySummary.filter(s => s.totalCount > 0).map(({ emp, totalCount, completedCount, missedCount, missedDays }) => {
+              {monthlySummary.map(({ emp, totalCount, completedCount, missedCount, missedDays }) => {
                 const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-                const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+                const barColor = totalCount === 0 ? 'bg-slate-600' : pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
                 return (
-                  <div key={emp.id} className="bg-[#1e2235] rounded-xl border border-slate-700 overflow-hidden">
+                  <div key={emp.id} className={`bg-[#1e2235] rounded-xl border ${totalCount === 0 ? 'border-slate-700/50 opacity-70' : 'border-slate-700'} overflow-hidden`}>
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
                       <div className="flex items-center gap-3">
@@ -249,7 +253,7 @@ export default function SopReportTab({ positions }) {
                           </span>
                         )}
                         <div className="text-right">
-                          <p className={`text-lg font-bold ${pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</p>
+                          <p className={`text-lg font-bold ${totalCount === 0 ? 'text-slate-500' : pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</p>
                         </div>
                       </div>
                     </div>
@@ -296,9 +300,9 @@ export default function SopReportTab({ positions }) {
                   </div>
                 );
               })}
-              {monthlySummary.filter(s => s.totalCount > 0).length === 0 && (
+              {monthlySummary.length === 0 && (
                  <div className="p-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-[#1e2235]">
-                   No SOP assignments for the selected month.
+                   No employees found to report on.
                  </div>
               )}
             </div>
