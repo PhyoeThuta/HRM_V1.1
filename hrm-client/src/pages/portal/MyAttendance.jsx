@@ -39,7 +39,8 @@ export default function MyAttendance() {
       hrs = hrs % 12 || 12;
       const mins = String(d.getMinutes()).padStart(2, '0');
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return `${months[d.getMonth()]} ${d.getDate()}, ${hrs}:${mins} ${ampm}`;
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()} ${hrs}:${mins} ${ampm}`;
     } catch {
       return isoString;
     }
@@ -100,7 +101,9 @@ export default function MyAttendance() {
                         </thead>
                         <tbody>
                           {monthRecords.map(r => {
-                            const dateOnly = String(r.check_in || '').split('T')[0];
+                            const d = r.check_in ? new Date(r.check_in) : null;
+                            const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                            const dateOnly = d ? `${dayNames[d.getDay()]}, ${String(r.check_in || '').split('T')[0]}` : null;
                             return (
                               <tr key={r.id} className="border-t border-white/5 hover:bg-white/2 transition-colors">
                                 <td className="py-3 px-5 text-slate-300 font-medium">{dateOnly || '—'}</td>

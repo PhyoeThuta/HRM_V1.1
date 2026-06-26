@@ -162,7 +162,8 @@ export default function Attendance() {
       hrs = hrs % 12 || 12;
       const mins = String(d.getMinutes()).padStart(2, '0');
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return `${months[d.getMonth()]} ${d.getDate()}, ${hrs}:${mins} ${ampm}`;
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()} ${hrs}:${mins} ${ampm}`;
     } catch {
       return isoString;
     }
