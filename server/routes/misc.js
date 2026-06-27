@@ -450,7 +450,8 @@ router.get('/peer-voting', async (req, res) => {
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
     votes.forEach(v => {
       v.nominee_name = (empMap[v.nominee_id] || {}).Full_name || '—';
-      v.voter_name = (empMap[v.voter_id] || {}).Full_name || '—';
+      v.voter_name = 'Anonymous Peer';
+      delete v.voter_id; // Delete from payload for true anonymity
     });
     return res.json({ votes, employees });
   } catch (e) { return res.status(500).json({ error: e.message }); }
