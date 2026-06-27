@@ -89,7 +89,7 @@ export default function WeeklyRosterPlanner() {
                 {days.map(date => {
                   const key = `${emp.id}-${date}`;
                   const existing = scheduleMap[key];
-                  const dynamic = isDynamic(emp.position);
+                  const dynamic = isDynamic(emp.pos_title);
                   const displayShift = existing ? (existing.is_off_day ? 'OFF' : existing.shift_name) : (dynamic ? '' : 'Static');
                   const badgeColor = existing?.is_off_day ? 'bg-red-600/20 text-red-400' : existing ? 'bg-indigo-600/20 text-indigo-400' : 'bg-gray-600/20 text-gray-400';
                   return (
