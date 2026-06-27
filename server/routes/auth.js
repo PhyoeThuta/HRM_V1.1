@@ -1,7 +1,8 @@
 import express from 'express';
 import bcryptjs from 'bcryptjs';
 import { dbFetchOne, dbUpdate } from '../lib/supabase.js';
-import { generateToken, verifyToken, hashPassword } from '../middleware/auth.js';
+import { generateToken, generateRefreshToken, verifyToken, hashPassword, JWT_SECRET } from '../middleware/auth.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
@@ -52,6 +53,14 @@ router.post('/login', async (req, res) => {
     };
 
     const token = generateToken(payload);
+    const refreshToken = generateRefreshToken(user);
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
 
     return res.json({
       token,
@@ -63,6 +72,35 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/refresh
+router.post('/refresh', async (req, res) => {
+  const refreshToken = req.cookies.refresh_token;
+  if (!refreshToken) return res.status(401).json({ error: 'No refresh token' });
+
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+    const user = await dbFetchOne('sys_users', '*', { id: decoded.id });
+    if (!user || !user.is_active) return res.status(401).json({ error: 'User invalid' });
+
+    let stored = user.password_hash || '';
+    let mustChange = stored.startsWith('MUST_CHANGE:');
+
+    const payload = {
+      id: String(user.id),
+      username: user.username,
+      role: user.role,
+      full_name: user.full_name || user.username,
+      employee_id: String(user.employee_id || ''),
+      must_change_password: mustChange,
+    };
+
+    const newToken = generateToken(payload);
+    return res.json({ token: newToken, user: payload });
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid refresh token' });
+  }
+});
+
 // GET /api/auth/me
 router.get('/me', verifyToken, (req, res) => {
   return res.json({ user: req.user });
@@ -70,7 +108,7 @@ router.get('/me', verifyToken, (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  // JWT is stateless; client just deletes the token
+  res.clearCookie('refresh_token');
   return res.json({ message: 'Logged out successfully' });
 });
 

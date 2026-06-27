@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hrm-secret-key-fallback';
+export const JWT_SECRET = process.env.JWT_SECRET || 'hrm-secret-key-fallback';
 
 export function hashPassword(plainText) {
   return crypto.createHash('sha256').update(plainText).digest('hex');
@@ -19,7 +19,15 @@ export function generateToken(user) {
       employee_id: user.employee_id,
     },
     JWT_SECRET,
-    { expiresIn: '8h' }
+    { expiresIn: '15m' } // Short-lived access token
+  );
+}
+
+export function generateRefreshToken(user) {
+  return jwt.sign(
+    { id: user.id },
+    JWT_SECRET,
+    { expiresIn: '7d' } // Long-lived refresh token
   );
 }
 
