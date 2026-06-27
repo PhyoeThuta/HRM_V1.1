@@ -82,7 +82,7 @@ router.post('/change-password', verifyToken, async (req, res) => {
     
     // 2. Hash new password and update
     const newHash = hashPassword(newPassword);
-    await dbUpdate('sys_users', { password_hash: newHash }, { id: user.id });
+    await dbUpdate('sys_users', user.id, { password_hash: newHash });
     
     return res.json({ message: 'Password updated successfully' });
   } catch (e) {
