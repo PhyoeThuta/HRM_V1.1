@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
+import { utils, writeFile } from 'xlsx';
 
 export default function Payroll() {
   const [showModal, setShowModal] = useState(false);
@@ -166,32 +167,27 @@ export default function Payroll() {
   const employees = data?.employees || [];
   const totalPaid = data?.total_paid || 0;
 
-  const exportToCSV = () => {
+  const exportToExcel = () => {
     if (!payrolls || payrolls.length === 0) return toast.error('No data to export');
     
-    const headers = ['Employee Name', 'Employee Code', 'Month', 'Basic Salary', 'Allowances', 'Deductions', 'Bonus', 'Net Salary', 'KPI Score', 'Payment Status'];
-    const rows = payrolls.map(p => [
-      `"${p.employee_name}"`, 
-      `"${p.employee_code}"`, 
-      `"${p.month}"`, 
-      p.basic_salary, 
-      p.allowances, 
-      p.deductions, 
-      p.bonus, 
-      p.net_salary, 
-      p.kpi_score, 
-      `"${p.payment_status}"`
-    ]);
+    const data = payrolls.map(p => ({
+      'Employee Name': p.employee_name,
+      'Employee Code': p.employee_code,
+      'Month': p.month,
+      'Basic Salary': parseFloat(p.basic_salary),
+      'Allowances': parseFloat(p.allowances),
+      'Deductions': parseFloat(p.deductions),
+      'Bonus': parseFloat(p.bonus),
+      'Net Salary': parseFloat(p.net_salary),
+      'KPI Score': p.kpi_score,
+      'Payment Status': p.payment_status
+    }));
+
+    const ws = utils.json_to_sheet(data);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Payroll");
     
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Payroll_Export_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    writeFile(wb, `Payroll_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
   return (
@@ -202,8 +198,8 @@ export default function Payroll() {
           <p className="text-3xl font-black text-white">{totalPaid.toLocaleString()} THB</p>
         </div>
         <div className="md:col-span-2 flex items-center justify-end gap-3 flex-wrap">
-          <button onClick={exportToCSV} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors flex items-center gap-2">
-            <span>📊</span> Export CSV
+          <button onClick={exportToExcel} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors flex items-center gap-2">
+            <span>📊</span> Export Excel
           </button>
           <button onClick={() => setShowModal(true)} className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
             + Add Payroll Record
