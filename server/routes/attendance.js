@@ -1,5 +1,5 @@
 import express from 'express';
-import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
+import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete, supabase } from '../lib/supabase.js';
 import crypto from 'crypto';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 
