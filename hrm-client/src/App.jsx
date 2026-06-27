@@ -44,8 +44,6 @@ import MyProfile from './pages/portal/MyProfile';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
 import BossKPI from './pages/BossKPI';
-import AuditLogs from './pages/AuditLogs';
-
 import Layout from './components/layout/Layout';
 
 // Protected route wrapper

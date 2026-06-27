@@ -197,7 +197,7 @@ export default function Employees() {
               </thead>
               <tbody>
                 {(tab === 'active' ? employees : recycleData?.employees || []).length > 0 ? (tab === 'active' ? employees : recycleData?.employees || []).map(emp => (
-                  <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => tab === 'active' && window.location.href = `/employees/${emp.id}`}>
+                  <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => { if (tab === 'active') window.location.href = `/employees/${emp.id}` }}>
                     <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-2.5">
