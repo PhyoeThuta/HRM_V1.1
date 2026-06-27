@@ -465,9 +465,9 @@ router.post('/peer-voting/submit', async (req, res) => {
     if (!voter_id) return res.status(400).json({ error: 'You must be linked to an employee profile to vote' });
     if (!nominee_id) return res.status(400).json({ error: 'Nominee required' });
     
-    // Average out the 5 parameters to get a score out of 5
+    // Average out the 5 parameters to get an integer score out of 5
     const total = parseFloat(attendance) + parseFloat(punctuality) + parseFloat(sops) + parseFloat(peer) + parseFloat(initiative);
-    const score = (total / 5).toFixed(1);
+    const score = Math.round(total / 5);
     
     await dbInsert('peer_voting_records', {
       voter_id,
