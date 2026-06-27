@@ -22,7 +22,7 @@ export default function WeeklyRosterPlanner() {
   // fetch employees (only active)
   const { data: employees = [], isLoading: empLoading } = useQuery({
     queryKey: ['employees','active'],
-    queryFn: () => api.get('/employees?status=Active').then(r => r.data)
+    queryFn: () => api.get('/employees?status=Active').then(r => r.data.employees)
   });
 
   // fetch schedules for the week
