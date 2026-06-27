@@ -57,6 +57,8 @@ export default function WeeklyRosterPlanner() {
     days.push(d.toISOString().slice(0,10));
   }
 
+  const officeRegularShift = shifts?.find(s => s.shift_name?.toLowerCase().includes('office regular'));
+
   const isDynamic = (position) => {
     const pos = position?.toLowerCase() || '';
     return pos.includes('housekeeping') || pos.includes('kitchen');
@@ -92,7 +94,7 @@ export default function WeeklyRosterPlanner() {
                   const key = `${emp.id}-${date}`;
                   const existing = scheduleMap[key];
                   const dynamic = isDynamic(emp.pos_title);
-                  const fallbackShiftId = dynamic ? '' : (emp.default_shift_id || '');
+                  const fallbackShiftId = dynamic ? '' : (emp.default_shift_id || officeRegularShift?.id || '');
                   const currentValue = existing ? (existing.is_off_day ? 'off' : existing.shift_id) : fallbackShiftId;
                   
                   return (
