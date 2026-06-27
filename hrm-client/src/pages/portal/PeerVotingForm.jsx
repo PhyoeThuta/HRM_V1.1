@@ -21,7 +21,7 @@ export default function PeerVotingForm() {
 
   const { data: colleagues, isLoading } = useQuery({ 
     queryKey: ['colleagues'], 
-    queryFn: () => api.get('/employees').then(r => r.data) 
+    queryFn: () => api.get('/employees').then(r => r.data?.employees || []) 
   });
 
   const voteMutation = useMutation({
