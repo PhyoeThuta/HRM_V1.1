@@ -1,7 +1,8 @@
 import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
-
+import { validate } from '../middleware/validate.js';
+import { createEmployeeSchema } from '../schemas/index.js';
 const router = express.Router();
 router.use(verifyToken);
 
@@ -115,7 +116,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/employees
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) => {
   try {
     const d = req.body;
     const result = await dbInsert('Employees', {

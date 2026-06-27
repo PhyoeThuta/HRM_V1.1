@@ -2,6 +2,8 @@ import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { validate } from '../middleware/validate.js';
+import { createUserSchema } from '../schemas/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -143,7 +145,7 @@ EMPLOYEE MASTER DATA & PERFORMANCE:
 });
 
 // User Management
-router.post('/users/add', async (req, res) => {
+router.post('/users/add', validate(createUserSchema), async (req, res) => {
   try {
     const d = req.body;
     const existing = await dbFetchOne('sys_users', 'id', { username: d.username });
