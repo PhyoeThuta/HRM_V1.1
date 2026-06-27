@@ -91,10 +91,28 @@ router.get('/portal', async (req, res) => {
 
     // Filter announcements
     const role = req.user.role;
-    const filteredAnn = announcements.filter(a => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const parsedAnnouncements = announcements.map(a => {
+      let content = a.content || '';
+      let expiry = null;
+      const expIndex = content.indexOf('___EXPIRY:');
+      if (expIndex !== -1) {
+        expiry = content.substring(expIndex + 10).trim();
+        content = content.substring(0, expIndex);
+      }
+      return { ...a, content, expiry_date: expiry };
+    });
+
+    const filteredAnn = parsedAnnouncements.filter(a => {
       const tr = a.target_role || 'All';
       if (tr === 'Pending HR Review') return false;
-      return ['All', role].includes(tr);
+      if (!['All', role].includes(tr)) return false;
+      
+      // Filter out expired announcements for employees
+      if (a.expiry_date && a.expiry_date < today) return false;
+      
+      return true;
     });
 
     return res.json({
@@ -507,8 +525,19 @@ router.get('/boss/users', requireAdmin, async (req, res) => {
 router.post('/boss/announcements', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
+    
+    // Default to 7 days if no expiry date provided
+    let expiry = d.expiry_date;
+    if (!expiry) {
+      const dt = new Date();
+      dt.setDate(dt.getDate() + 7);
+      expiry = dt.toISOString().split('T')[0];
+    }
+    
+    const finalContent = `${d.content || ''}___EXPIRY:${expiry}`;
+
     const result = await dbInsert('announcements', {
-      title: d.title, content: d.content,
+      title: d.title, content: finalContent,
       priority: d.priority || 'Medium',
       target_role: d.target_role || 'All',
       is_pinned: d.is_pinned || false,

@@ -50,8 +50,19 @@ router.get('/', verifyToken, async (req, res) => {
 
     const leaveChart = { Pending: pendingLeaves, Approved: approvedLeaves, Rejected: rejectedLeaves };
 
+    const parsedAnnouncements = rawAnnouncements.map(a => {
+      let content = a.content || '';
+      let expiry = null;
+      const expIndex = content.indexOf('___EXPIRY:');
+      if (expIndex !== -1) {
+        expiry = content.substring(expIndex + 10).trim();
+        content = content.substring(0, expIndex);
+      }
+      return { ...a, content, expiry_date: expiry };
+    });
+
     // Announcements with role filter
-    const announcements = rawAnnouncements.filter(a => {
+    const announcements = parsedAnnouncements.filter(a => {
       const tr = a.target_role || 'All';
       if (tr === 'Pending HR Review') return false;
       if (['boss', 'hr_manager', 'admin'].includes(role)) return true;

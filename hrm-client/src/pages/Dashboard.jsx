@@ -198,9 +198,15 @@ export default function Dashboard() {
             {/* Announcements */}
             <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
               <h2 className="text-sm font-bold text-white mb-4">Company Announcements</h2>
-              {annList.length > 0 ? (
+              {annList.filter(a => {
+                const today = new Date().toISOString().split('T')[0];
+                return !a.expiry_date || a.expiry_date >= today;
+              }).length > 0 ? (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                  {[...annList].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(a => (
+                  {[...annList].filter(a => {
+                    const today = new Date().toISOString().split('T')[0];
+                    return !a.expiry_date || a.expiry_date >= today;
+                  }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(a => (
                     <div key={a.id} className="flex items-start gap-3 rounded-xl p-3 transition-colors" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
                       {a.is_pinned && <span className="text-sm flex-shrink-0">📌</span>}
                       <div>

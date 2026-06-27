@@ -7,9 +7,10 @@ import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 
 export default function Announcements() {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ title: '', content: '', priority: 'Medium', target_role: 'All', is_pinned: false });
+  const [form, setForm] = useState({ title: '', content: '', priority: 'Medium', target_role: 'All', is_pinned: false, expiry_date: '' });
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [activeTab, setActiveTab] = useState('active'); // active, past
 
   const { data: announcements, isLoading } = useQuery({ 
     queryKey: ['boss-announcements'], 
@@ -22,7 +23,7 @@ export default function Announcements() {
       qc.invalidateQueries(['boss-announcements']);
       toast.success('Announcement Posted');
       setShowModal(false);
-      setForm({ title: '', content: '', priority: 'Medium', target_role: 'All', is_pinned: false });
+      setForm({ title: '', content: '', priority: 'Medium', target_role: 'All', is_pinned: false, expiry_date: '' });
     },
     onError: (e) => toast.error(e.response?.data?.error || 'Failed to post')
   });
@@ -44,7 +45,21 @@ export default function Announcements() {
 
   return (
     <Layout title="Announcements" subtitle="Manage company-wide communications">
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
+          <button 
+            onClick={() => setActiveTab('active')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'active' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            Active
+          </button>
+          <button 
+            onClick={() => setActiveTab('past')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'past' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            Past Records
+          </button>
+        </div>
         <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-500/20">
           + New Announcement
         </button>
@@ -52,7 +67,11 @@ export default function Announcements() {
 
       <div className="space-y-4">
         {isLoading ? <div className="text-center text-slate-400 py-8">Loading...</div> : (
-          announcements?.map(a => (
+          announcements?.filter(a => {
+            const today = new Date().toISOString().split('T')[0];
+            const isPast = a.expiry_date && a.expiry_date < today;
+            return activeTab === 'active' ? !isPast : isPast;
+          }).map(a => (
             <div key={a.id} className="p-6 rounded-2xl border border-white/5 bg-[#1e2235] relative">
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -64,6 +83,7 @@ export default function Announcements() {
                   <div className="text-xs text-slate-500 mt-1 flex gap-3">
                     <span>Target: <strong className="text-slate-300">{a.target_role}</strong></span>
                     <span>Date: {a.created_at?.slice(0, 10)}</span>
+                    {a.expiry_date && <span>Expires: {a.expiry_date}</span>}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -109,6 +129,10 @@ export default function Announcements() {
                     <option value="Medium">Medium</option>
                     <option value="High">High (Urgent)</option>
                   </select>
+                </div>
+                <div>
+                  <label className="form-label">Expiry Date *</label>
+                  <input type="date" required className="form-input" value={form.expiry_date} onChange={e => setForm({...form, expiry_date: e.target.value})} />
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-2">
