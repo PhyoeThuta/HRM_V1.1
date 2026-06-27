@@ -460,7 +460,10 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert }) {
           <span className="text-amber-400 text-xs">⭐</span>
           <span className="text-white text-xs font-bold">AI Match: {c.ai_score || 0}/10</span>
         </div>
-        <p className="text-slate-400 text-[10px] leading-tight line-clamp-2 mb-2">
+        <p 
+          className="text-slate-400 text-[10px] leading-tight line-clamp-2 mb-2 cursor-help"
+          title={c.ai_reasoning || 'No AI reasoning available.'}
+        >
           {c.ai_reasoning || 'No AI reasoning available.'}
         </p>
         <button 
