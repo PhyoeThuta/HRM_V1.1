@@ -3,6 +3,7 @@ import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supaba
 import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { createEmployeeSchema } from '../schemas/index.js';
+import { supabase } from '../lib/supabase.js';
 const router = express.Router();
 router.use(verifyToken);
 
@@ -23,9 +24,42 @@ async function enrichEmployees(employees) {
 // GET /api/employees
 router.get('/', async (req, res) => {
   try {
-    const employees = await dbFetch('Employees', '*', {}, { order: 'created_at', ascending: false });
-    const enriched = await enrichEmployees(employees);
-    return res.json({ employees: enriched });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50; // Use high limit by default for legacy UI compat, but can be scaled
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let q = supabase
+      .from('Employees')
+      .select('*', { count: 'exact' })
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+      
+    const { data: employees, count, error } = await q;
+    if (error) throw error;
+
+    const enriched = await enrichEmployees(employees || []);
+    return res.json({ employees: enriched, total: count, page, limit });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/employees/recycle-bin
+router.get('/recycle-bin', requireAdmin, async (req, res) => {
+  try {
+    let q = supabase
+      .from('Employees')
+      .select('*', { count: 'exact' })
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false });
+      
+    const { data: employees, count, error } = await q;
+    if (error) throw error;
+
+    const enriched = await enrichEmployees(employees || []);
+    return res.json({ employees: enriched, total: count });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -209,19 +243,45 @@ router.put('/:id', requireAdmin, async (req, res) => {
 // DELETE /api/employees/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
+    // Check if sys_user exists
+    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
+    if (user) await dbUpdate('sys_users', user.id, { is_active: false });
+
+    // Soft delete employee
+    await dbUpdate('Employees', req.params.id, { status: 'Inactive', deleted_at: new Date().toISOString() });
+    
+    return res.json({ success: true, message: 'Employee soft-deleted' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/employees/:id/restore
+router.put('/:id/restore', requireAdmin, async (req, res) => {
+  try {
+    await dbUpdate('Employees', req.params.id, { status: 'Active', deleted_at: null });
+    
+    // Reactivate sys_user if exists
+    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
+    if (user) await dbUpdate('sys_users', user.id, { is_active: true });
+
+    return res.json({ success: true, message: 'Employee restored' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/employees/:id/hard (Permanent Delete)
+router.delete('/:id/hard', requireAdmin, async (req, res) => {
+  try {
+    // Delete sys_user explicitly
+    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
+    if (user) await dbDelete('sys_users', user.id);
+    
+    // Delete employee permanently
     await dbDelete('Employees', req.params.id);
-
-    // Audit log
-    await dbInsert('sys_audit_logs', {
-      user_id: req.user.id,
-      user_name: req.user.full_name || req.user.username,
-      action: 'DELETE',
-      module: 'Employees',
-      details: `Deleted employee ID ${req.params.id}`,
-      created_at: new Date().toISOString()
-    }).catch(console.error);
-
-    return res.json({ success: true });
+    
+    return res.json({ success: true, message: 'Employee permanently deleted' });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

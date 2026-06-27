@@ -100,10 +100,23 @@ export default function Employees() {
   const [showModal, setShowModal] = useState(false);
   const [flash, setFlash] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState(null);
+  const [page, setPage] = useState(1);
+  const [tab, setTab] = useState('active'); // 'active' | 'recycle'
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({ queryKey: ['employees'], queryFn: () => api.get('/employees').then(r => r.data) });
+  const { data, isLoading } = useQuery({ 
+    queryKey: ['employees', page], 
+    queryFn: () => api.get(`/employees?page=${page}&limit=20`).then(r => r.data),
+    enabled: tab === 'active'
+  });
+
+  const { data: recycleData, isLoading: recycleLoading } = useQuery({ 
+    queryKey: ['employees-recycle'], 
+    queryFn: () => api.get('/employees/recycle-bin').then(r => r.data),
+    enabled: tab === 'recycle'
+  });
   const { data: formData } = useQuery({ queryKey: ['employees-form-data'], queryFn: () => api.get('/employees/form-data').then(r => r.data), enabled: showModal });
 
   const addMutation = useMutation({
@@ -118,7 +131,17 @@ export default function Employees() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/employees/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['employees']); setFlash({ type: 'success', msg: 'Employee deleted' }); setTimeout(() => setFlash(null), 3000); setDeleteTarget(null); },
+    onSuccess: () => { qc.invalidateQueries(['employees']); qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee soft-deleted' }); setTimeout(() => setFlash(null), 3000); setDeleteTarget(null); },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id) => api.put(`/employees/${id}/restore`),
+    onSuccess: () => { qc.invalidateQueries(['employees']); qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee restored' }); setTimeout(() => setFlash(null), 3000); },
+  });
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/employees/${id}/hard`),
+    onSuccess: () => { qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee permanently deleted' }); setTimeout(() => setFlash(null), 3000); setHardDeleteTarget(null); },
   });
 
   const employees = data?.employees || [];
@@ -134,8 +157,22 @@ export default function Employees() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <span className="text-sm text-slate-400">{employees.length} employee{employees.length !== 1 ? 's' : ''} total</span>
-        {isAdmin() && (
+        <div className="flex gap-4 border-b border-white/10 w-full sm:w-auto">
+          <button 
+            onClick={() => setTab('active')} 
+            className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'active' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'}`}
+          >
+            Active Directory
+          </button>
+          <button 
+            onClick={() => setTab('recycle')} 
+            className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'recycle' ? 'text-rose-400 border-b-2 border-rose-400' : 'text-slate-400 hover:text-white'}`}
+          >
+            Recycle Bin
+          </button>
+        </div>
+        
+        {isAdmin() && tab === 'active' && (
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
             style={{ background: '#4f46e5' }}>
@@ -146,7 +183,7 @@ export default function Employees() {
       </div>
 
       <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
-        {isLoading ? (
+        {(tab === 'active' ? isLoading : recycleLoading) ? (
           <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
           <div className="overflow-x-auto">
@@ -159,8 +196,8 @@ export default function Employees() {
                 </tr>
               </thead>
               <tbody>
-                {employees.length > 0 ? employees.map(emp => (
-                  <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                {(tab === 'active' ? employees : recycleData?.employees || []).length > 0 ? (tab === 'active' ? employees : recycleData?.employees || []).map(emp => (
+                  <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => tab === 'active' && window.location.href = `/employees/${emp.id}`}>
                     <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-2.5">
@@ -174,26 +211,35 @@ export default function Employees() {
                     <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
                     <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
                     <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        <Link to={`/employees/${emp.id}`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
-                          <span className="text-sm">📄</span>
-                          View
-                        </Link>
-                        <Link to={`/employees/${emp.id}/edit`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
-                          <span className="text-sm">🖊️</span>
-                          Edit
-                        </Link>
-                        <button className="flex flex-col items-center justify-center gap-1 h-12 px-2.5 rounded-xl text-[10px] font-bold text-amber-400 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 transition-colors whitespace-nowrap">
-                          <span className="text-sm">📄</span>
-                          Request Doc
-                        </button>
-                        {isAdmin() && (
-                          <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
-                            className="flex items-center justify-center w-8 h-8 ml-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 transition-colors">
-                            <span className="text-sm">🗑️</span>
+                      {tab === 'active' ? (
+                        <div className="flex items-center gap-2">
+                          <Link to={`/employees/${emp.id}`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
+                            <span className="text-sm">📄</span>
+                            View
+                          </Link>
+                          <Link to={`/employees/${emp.id}/edit`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
+                            <span className="text-sm">🖊️</span>
+                            Edit
+                          </Link>
+                          {isAdmin() && (
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
+                              className="flex items-center justify-center w-10 h-10 ml-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 transition-colors text-rose-400" title="Soft Delete">
+                              <span className="text-sm">🗑️</span>
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => restoreMutation.mutate(emp.id)} className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-colors">
+                            <span>♻️</span> Restore
                           </button>
-                        )}
-                      </div>
+                          {isAdmin() && (
+                            <button onClick={() => setHardDeleteTarget(emp)} className="flex items-center gap-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-xl transition-colors">
+                              <span>🔥</span> Hard Delete
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )) : (
@@ -205,6 +251,31 @@ export default function Employees() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* Pagination Controls */}
+        {tab === 'active' && data?.total > 0 && !isLoading && (
+          <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              Showing <span className="font-bold text-white">{(page - 1) * 20 + 1}</span> to <span className="font-bold text-white">{Math.min(page * 20, data.total)}</span> of <span className="font-bold text-white">{data.total}</span> employees
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors"
+              >
+                Previous
+              </button>
+              <button 
+                disabled={page * 20 >= data.total}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -224,6 +295,13 @@ export default function Employees() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
         itemName={deleteTarget?.Full_name}
+      />
+
+      <ConfirmDeleteModal 
+        isOpen={!!hardDeleteTarget} 
+        onClose={() => setHardDeleteTarget(null)}
+        onConfirm={() => hardDeleteMutation.mutate(hardDeleteTarget.id)}
+        itemName={`${hardDeleteTarget?.Full_name} (PERMANENTLY)`}
       />
     </Layout>
   );

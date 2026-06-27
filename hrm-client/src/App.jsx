@@ -44,6 +44,7 @@ import MyProfile from './pages/portal/MyProfile';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
 import BossKPI from './pages/BossKPI';
+import AuditLogs from './pages/AuditLogs';
 
 import Layout from './components/layout/Layout';
 
@@ -105,6 +106,7 @@ function AppRoutes() {
       <Route path="/boss/announcements" element={<Protected allowedRoles={['boss', 'hr_manager', 'admin']}><Announcements /></Protected>} />
       <Route path="/boss/users" element={<Protected allowedRoles={['boss', 'hr_manager', 'admin']}><UserAccounts /></Protected>} />
       <Route path="/finance" element={<Protected allowedRoles={['boss', 'finance', 'admin']}><FinanceDashboard /></Protected>} />
+      <Route path="/audit-logs" element={<Protected allowedRoles={['boss', 'admin']}><AuditLogs /></Protected>} />
 
       {/* Employee portal */}
       <Route path="/portal" element={<EmployeeRoute><Portal /></EmployeeRoute>} />
