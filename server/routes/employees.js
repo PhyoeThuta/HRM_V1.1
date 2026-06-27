@@ -128,9 +128,20 @@ router.post('/', requireAdmin, async (req, res) => {
       employment_type: d.employment_type || 'Full-Time',
       status: d.status || 'Active',
       salary: d.salary ? parseFloat(d.salary) : null,
+      salary: d.salary ? parseFloat(d.salary) : null,
       created_at: new Date().toISOString(),
     });
     if (!result) return res.status(500).json({ error: 'Failed to add employee' });
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      user_name: req.user.full_name || req.user.username,
+      action: 'CREATE',
+      module: 'Employees',
+      details: `Created employee ${d.Full_name} (${d.employee_id})`,
+      created_at: new Date().toISOString()
+    }).catch(console.error);
 
     // Auto-create sys_users
     try {
@@ -173,9 +184,21 @@ router.put('/:id', requireAdmin, async (req, res) => {
       employment_type: d.employment_type || 'Full-Time',
       status: d.status || 'Active',
       salary: d.salary ? parseFloat(d.salary) : null,
+      salary: d.salary ? parseFloat(d.salary) : null,
       updated_at: new Date().toISOString(),
     });
     if (!ok) return res.status(500).json({ error: 'Update failed' });
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      user_name: req.user.full_name || req.user.username,
+      action: 'UPDATE',
+      module: 'Employees',
+      details: `Updated employee ${d.Full_name} (${d.employee_id})`,
+      created_at: new Date().toISOString()
+    }).catch(console.error);
+
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -186,6 +209,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('Employees', req.params.id);
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      user_name: req.user.full_name || req.user.username,
+      action: 'DELETE',
+      module: 'Employees',
+      details: `Deleted employee ID ${req.params.id}`,
+      created_at: new Date().toISOString()
+    }).catch(console.error);
+
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });

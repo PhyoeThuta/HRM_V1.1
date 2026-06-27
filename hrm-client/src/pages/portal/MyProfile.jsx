@@ -1,4 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import api from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
@@ -10,12 +12,34 @@ export default function MyProfile() {
 
   const emp = data?.emp || {};
 
+  const [pwdData, setPwdData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+
+  const pwdMutation = useMutation({
+    mutationFn: (body) => api.post('/auth/change-password', body),
+    onSuccess: () => {
+      toast.success('Password updated successfully!');
+      setPwdData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error || 'Failed to update password');
+    }
+  });
+
+  const handlePasswordChange = (e) => {
+    e.preventDefault();
+    if (pwdData.newPassword !== pwdData.confirmPassword) {
+      return toast.error('New passwords do not match');
+    }
+    pwdMutation.mutate({ oldPassword: pwdData.oldPassword, newPassword: pwdData.newPassword });
+  };
+
   return (
     <Layout title="My Profile" subtitle="Your corporate identity and details">
       {isLoading ? (
         <div className="flex justify-center p-20"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Identity Card */}
           <div className="md:col-span-1 rounded-2xl p-8 flex flex-col items-center text-center" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -81,8 +105,33 @@ export default function MyProfile() {
             </div>
 
           </div>
-
         </div>
+
+        {/* Security / Password Change */}
+        <div className="rounded-2xl p-8" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2"><span>🔒</span> Security Settings</h3>
+          <form onSubmit={handlePasswordChange} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Current Password</label>
+              <input type="password" required className="form-input" value={pwdData.oldPassword} onChange={e => setPwdData({...pwdData, oldPassword: e.target.value})} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">New Password</label>
+              <input type="password" required className="form-input" value={pwdData.newPassword} onChange={e => setPwdData({...pwdData, newPassword: e.target.value})} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Confirm New Password</label>
+              <input type="password" required className="form-input" value={pwdData.confirmPassword} onChange={e => setPwdData({...pwdData, confirmPassword: e.target.value})} />
+            </div>
+            <div className="md:col-span-3 flex justify-end mt-2">
+              <button type="submit" disabled={pwdMutation.isLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-xl text-sm transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                {pwdMutation.isLoading ? 'Updating...' : 'Update Password'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
       )}
     </Layout>
   );

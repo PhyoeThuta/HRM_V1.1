@@ -67,4 +67,28 @@ router.post('/logout', (req, res) => {
   return res.json({ message: 'Logged out successfully' });
 });
 
+// POST /api/auth/change-password
+router.post('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) return res.status(400).json({ error: 'Missing required fields' });
+    
+    // 1. Fetch user to verify old password
+    const user = await dbFetchOne('sys_users', '*', { id: req.user.id });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const valid = verifyPassword(oldPassword, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Incorrect current password' });
+    
+    // 2. Hash new password and update
+    const newHash = hashPassword(newPassword);
+    await dbUpdate('sys_users', { password_hash: newHash }, { id: user.id });
+    
+    return res.json({ message: 'Password updated successfully' });
+  } catch (e) {
+    console.error('[AUTH CHANGE PASSWORD]', e);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

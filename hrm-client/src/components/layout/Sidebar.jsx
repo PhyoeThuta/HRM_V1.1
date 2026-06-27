@@ -154,6 +154,7 @@ export default function Sidebar({ isOpen, close }) {
             {isBoss() && <NavItem to="/boss" end label="Executive Overview" icon={ICONS.boss} />}
             {isBoss() && <NavItem to="/boss/chat" label="AI Assistant" icon={ICONS.chat} />}
             {isBoss() && <NavItem to="/boss/kpi" label="KPI Assignments" icon={ICONS.attendance} />}
+            <NavItem to="/audit-logs" label="System Audit Logs" icon={ICONS.documents} />
             <NavItem to="/boss/announcements" label="Announcements" icon={ICONS.announcements} />
             <NavItem to="/boss/users" label="User Accounts" icon={ICONS.users} />
             {isFinance() && <NavItem to="/finance" label="Finance Dashboard" icon={ICONS.finance} />}

@@ -21,6 +21,7 @@ import Offboarding from './pages/Offboarding';
 import Documents from './pages/Documents';
 import SOPs from './pages/SOPs';
 import PeerVoting from './pages/PeerVoting';
+import AuditLogs from './pages/AuditLogs';
 import Birthdays from './pages/Birthdays';
 import BossDashboard from './pages/BossDashboard';
 import BossChat from './pages/BossChat';
@@ -89,6 +90,7 @@ function AppRoutes() {
       <Route path="/documents" element={<Protected allowedRoles={adminRoles}><Documents /></Protected>} />
       <Route path="/sops" element={<Protected allowedRoles={adminRoles}><SOPs /></Protected>} />
       <Route path="/peer-voting" element={<Protected allowedRoles={adminRoles}><PeerVoting /></Protected>} />
+      <Route path="/audit-logs" element={<Protected allowedRoles={adminRoles}><AuditLogs /></Protected>} />
       <Route path="/birthdays" element={<Protected allowedRoles={adminRoles}><Birthdays /></Protected>} />
       <Route path="/onboarding" element={<Protected allowedRoles={adminRoles}><Onboarding /></Protected>} />
       <Route path="/onboarding/:id" element={<Protected allowedRoles={adminRoles}><OnboardingDetail /></Protected>} />

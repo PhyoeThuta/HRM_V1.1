@@ -13,6 +13,16 @@ router.use(verifyToken);
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// GET /api/audit-logs
+router.get('/audit-logs', requireAdmin, async (req, res) => {
+  try {
+    const logs = await dbFetch('sys_audit_logs', '*', {}, { order: 'created_at', ascending: false });
+    return res.json(logs);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/notifications
 router.get('/notifications', async (req, res) => {
   try {

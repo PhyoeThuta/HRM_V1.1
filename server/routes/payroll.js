@@ -74,6 +74,17 @@ router.post('/', requireAdmin, async (req, res) => {
       kpi_id: kpi_id,
       created_at: new Date().toISOString(),
     });
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      user_name: req.user.full_name || req.user.username,
+      action: 'CREATE',
+      module: 'Payroll',
+      details: `Generated payroll for employee ID ${d.employee_id} (Month: ${d.month})`,
+      created_at: new Date().toISOString()
+    }).catch(console.error);
+
     return res.json({ success: !!result, payroll: result });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -94,6 +105,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
       notes: d.notes || null,
       updated_at: new Date().toISOString(),
     });
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      user_name: req.user.full_name || req.user.username,
+      action: 'UPDATE',
+      module: 'Payroll',
+      details: `Updated payroll ID ${req.params.id}`,
+      created_at: new Date().toISOString()
+    }).catch(console.error);
+
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -104,6 +126,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('payrolls', req.params.id);
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      user_name: req.user.full_name || req.user.username,
+      action: 'DELETE',
+      module: 'Payroll',
+      details: `Deleted payroll ID ${req.params.id}`,
+      created_at: new Date().toISOString()
+    }).catch(console.error);
+
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
