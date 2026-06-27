@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 // Create a custom axios instance for public APIs without intercepting for auth
 const publicApi = axios.create({
@@ -25,11 +26,11 @@ export default function Careers() {
   const applyMutation = useMutation({
     mutationFn: (body) => publicApi.post('/apply', body).then(r => r.data),
     onSuccess: () => {
-      alert('Application submitted successfully! We will be in touch.');
+      toast.success('Application submitted successfully! We will be in touch.');
       setSelectedJob(null);
       setFormData({ candidate_name: '', email: '', phone: '', cover_letter: '' });
     },
-    onError: (err) => alert(err.response?.data?.error || 'Failed to submit application')
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to submit application')
   });
 
   const handleSubmit = (e) => {
