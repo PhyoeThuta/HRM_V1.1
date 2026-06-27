@@ -57,10 +57,7 @@ export default function WeeklyRosterPlanner() {
     days.push(d.toISOString().slice(0,10));
   }
 
-  const isDynamic = (position) => {
-    const pos = position?.toLowerCase() || '';
-    return pos.includes('housekeeping') || pos.includes('kitchen');
-  };
+
 
   const handleChange = (empId, date, newShiftId, isOff) => {
     const payload = [{ employee_id: empId, schedule_date: date, shift_id: newShiftId || null, is_off_day: !!isOff }];
@@ -89,30 +86,26 @@ export default function WeeklyRosterPlanner() {
                 {days.map(date => {
                   const key = `${emp.id}-${date}`;
                   const existing = scheduleMap[key];
-                  const dynamic = isDynamic(emp.pos_title);
-                  const displayShift = existing ? (existing.is_off_day ? 'OFF' : existing.shift_name) : (dynamic ? '' : 'Static');
-                  const badgeColor = existing?.is_off_day ? 'bg-red-600/20 text-red-400' : existing ? 'bg-indigo-600/20 text-indigo-400' : 'bg-gray-600/20 text-gray-400';
+                  const fallbackShiftId = emp.default_shift_id || '';
+                  const currentValue = existing ? (existing.is_off_day ? 'off' : existing.shift_id) : fallbackShiftId;
+                  
                   return (
                     <td key={date} className="p-2 text-center">
-                      {dynamic ? (
-                        <select
-                          className="bg-[#0f121b] border border-slate-700 text-white rounded p-1"
-                          value={existing?.is_off_day ? 'off' : existing?.shift_id || ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === 'off') handleChange(emp.id, date, null, true);
-                            else handleChange(emp.id, date, val, false);
-                          }}
-                        >
-                          <option value="">—</option>
-                          <option value="off">OFF</option>
-                          {shifts.map(s => (
-                            <option key={s.id} value={s.id}>{s.shift_name}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className={`px-2 py-0.5 rounded text-xs ${badgeColor}`}>Static</span>
-                      )}
+                      <select
+                        className="bg-[#0f121b] border border-slate-700 text-white rounded p-1 text-xs w-full max-w-[100px]"
+                        value={currentValue || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === 'off') handleChange(emp.id, date, null, true);
+                          else handleChange(emp.id, date, val, false);
+                        }}
+                      >
+                        <option value="">—</option>
+                        <option value="off">OFF</option>
+                        {shifts.map(s => (
+                          <option key={s.id} value={s.id}>{s.shift_name}</option>
+                        ))}
+                      </select>
                     </td>
                   );
                 })}
