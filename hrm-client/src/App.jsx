@@ -28,6 +28,7 @@ import BossChat from './pages/BossChat';
 import Announcements from './pages/Announcements';
 import UserAccounts from './pages/UserAccounts';
 import FinanceDashboard from './pages/FinanceDashboard';
+import ForceChangePassword from './pages/ForceChangePassword';
 
 import CameraCheckin from './pages/portal/CameraCheckin';
 import QRScanner from './pages/portal/QRScanner';
@@ -50,6 +51,7 @@ import Layout from './components/layout/Layout';
 function Protected({ children, allowedRoles }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+  if (user.must_change_password) return <Navigate to="/force-change-password" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return user.role === 'employee' ? <Navigate to="/portal" replace /> : <Navigate to="/dashboard" replace />;
   }
@@ -60,6 +62,7 @@ function Protected({ children, allowedRoles }) {
 function EmployeeRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+  if (user.must_change_password) return <Navigate to="/force-change-password" replace />;
   return children;
 }
 
@@ -74,7 +77,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/careers" element={<Careers />} />
-      <Route path="/login" element={user ? <Navigate to={user.role === 'employee' ? '/portal' : '/dashboard'} replace /> : <Login />} />
+      <Route path="/login" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Login />} />
+      <Route path="/force-change-password" element={user?.must_change_password ? <ForceChangePassword /> : <Navigate to="/" replace />} />
 
       {/* Admin routes */}
       <Route path="/dashboard" element={<Protected allowedRoles={adminRoles}><Dashboard /></Protected>} />
@@ -116,7 +120,7 @@ function AppRoutes() {
       <Route path="/portal/exit-survey" element={<EmployeeRoute><ExitSurvey /></EmployeeRoute>} />
 
       {/* Default redirect */}
-      <Route path="/" element={user ? <Navigate to={user.role === 'employee' ? '/portal' : '/dashboard'} replace /> : <Navigate to="/login" replace />} />
+      <Route path="/" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

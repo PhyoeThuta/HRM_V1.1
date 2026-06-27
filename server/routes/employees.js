@@ -158,7 +158,7 @@ router.post('/', requireAdmin, async (req, res) => {
         }
       }
       await dbInsert('sys_users', {
-        username, password_hash: hashPassword('123456'),
+        username, password_hash: 'MUST_CHANGE:' + hashPassword('123456'),
         role, employee_id: result.id, full_name: d.Full_name,
       });
       return res.json({ success: true, employee: result, message: `Employee added! Login: ${username} / 123456` });

@@ -150,7 +150,7 @@ router.post('/users/add', async (req, res) => {
     if (existing) return res.status(400).json({ error: 'Username already exists' });
     
     // Hash the password with SHA-256 for compatibility with auth.js
-    const hash = hashPassword(d.password);
+    const hash = 'MUST_CHANGE:' + hashPassword(d.password);
 
     await dbInsert('sys_users', {
       username: d.username,
@@ -175,7 +175,7 @@ router.put('/users/:id/toggle', async (req, res) => {
 router.put('/users/:id/reset-password', async (req, res) => {
   try {
     const { new_password } = req.body;
-    const hash = hashPassword(new_password);
+    const hash = 'MUST_CHANGE:' + hashPassword(new_password);
     await dbUpdate('sys_users', req.params.id, { password_hash: hash });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }

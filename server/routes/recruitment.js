@@ -155,7 +155,7 @@ router.post('/:id/convert', requireAdmin, async (req, res) => {
 
     // 3. Auto-create sys_users
     const username = cand.email ? cand.email.split('@')[0].toLowerCase() : empId.toLowerCase();
-    const defaultPassword = hashPassword('password123'); // Default password
+    const defaultPassword = 'MUST_CHANGE:' + hashPassword('password123'); // Default password
 
     await dbInsert('sys_users', {
       username: username,

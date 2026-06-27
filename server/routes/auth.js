@@ -29,7 +29,13 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    const stored = user.password_hash || '';
+    let stored = user.password_hash || '';
+    let mustChange = false;
+    if (stored.startsWith('MUST_CHANGE:')) {
+      mustChange = true;
+      stored = stored.substring(12);
+    }
+
     const valid = verifyPassword(password, stored);
 
     if (!valid) {
@@ -42,6 +48,7 @@ router.post('/login', async (req, res) => {
       role: user.role,
       full_name: user.full_name || user.username,
       employee_id: String(user.employee_id || ''),
+      must_change_password: mustChange,
     };
 
     const token = generateToken(payload);
@@ -77,7 +84,12 @@ router.post('/change-password', verifyToken, async (req, res) => {
     const user = await dbFetchOne('sys_users', '*', { id: req.user.id });
     if (!user) return res.status(404).json({ error: 'User not found' });
     
-    const valid = verifyPassword(oldPassword, user.password_hash);
+    let stored = user.password_hash || '';
+    if (stored.startsWith('MUST_CHANGE:')) {
+      stored = stored.substring(12);
+    }
+    
+    const valid = verifyPassword(oldPassword, stored);
     if (!valid) return res.status(401).json({ error: 'Incorrect current password' });
     
     // 2. Hash new password and update

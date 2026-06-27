@@ -24,13 +24,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateUser = (updates) => {
+    const updatedUser = { ...user, ...updates };
+    localStorage.setItem('hrm_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   const isAdmin = () => ['boss', 'hr_manager', 'general_manager', 'admin'].includes(user?.role);
   const isBoss = () => ['boss', 'admin'].includes(user?.role);
   const isFinance = () => ['boss', 'finance', 'admin'].includes(user?.role);
   const isEmployee = () => user?.role === 'employee';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isBoss, isFinance, isEmployee }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin, isBoss, isFinance, isEmployee }}>
       {children}
     </AuthContext.Provider>
   );
