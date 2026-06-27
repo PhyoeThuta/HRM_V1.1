@@ -90,9 +90,9 @@ export default function WeeklyRosterPlanner() {
                   const currentValue = existing ? (existing.is_off_day ? 'off' : existing.shift_id) : fallbackShiftId;
                   
                   return (
-                    <td key={date} className="p-2 text-center">
+                    <td key={date} className="p-2 text-center align-middle">
                       <select
-                        className="bg-[#0f121b] border border-slate-700 text-white rounded p-1 text-xs w-full max-w-[100px]"
+                        className="bg-[#0f121b] border border-slate-600 hover:border-slate-500 text-slate-200 rounded-lg py-1.5 pl-2 pr-6 text-xs font-medium w-full min-w-[130px] focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer"
                         value={currentValue || ''}
                         onChange={e => {
                           const val = e.target.value;
