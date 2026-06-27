@@ -137,17 +137,49 @@ router.post('/onboarding/:id/task/:assign_id/complete', requireAdmin, async (req
 // Offboarding
 router.get('/offboarding', async (req, res) => {
   try {
-    const [offboarding, employees] = await Promise.all([
+    const [offboarding, employees, tasks, departments] = await Promise.all([
       dbFetch('corporate_offboarding', '*', {}, { order: 'created_at', ascending: false }),
-      dbFetch('Employees', 'id,Full_name,employee_id'),
+      dbFetch('Employees', 'id,Full_name,employee_id,Dept_id,position_id'),
+      dbFetch('offboarding_tasks', 'offboarding_id,status'),
+      dbFetch('departments', 'id,name'),
     ]);
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+    const deptMap = Object.fromEntries(departments.map(d => [d.id, d.name]));
+
+    // Task counts per offboarding
+    const taskMap = {};
+    tasks.forEach(t => {
+      if (!taskMap[t.offboarding_id]) taskMap[t.offboarding_id] = { total: 0, done: 0 };
+      taskMap[t.offboarding_id].total += 1;
+      if (t.status === 'Completed') taskMap[t.offboarding_id].done += 1;
+    });
+
     offboarding.forEach(o => {
       const emp = empMap[o.employee_id] || {};
       o.employee_name = emp.Full_name || '—';
       o.employee_code = emp.employee_id || '—';
+      o.department = deptMap[emp.Dept_id] || '—';
+      const st = taskMap[o.id] || { total: 0, done: 0 };
+      o.tasks_total = st.total;
+      o.tasks_done = st.done;
+      o.completion_pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
     });
     return res.json({ offboarding, employees });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+router.get('/offboarding/:id/detail', async (req, res) => {
+  try {
+    const ob = await dbFetchOne('corporate_offboarding', '*', { id: req.params.id });
+    if (!ob) return res.status(404).json({ error: 'Not found' });
+    const employees = await dbFetch('Employees', 'id,Full_name,employee_id');
+    const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+    const emp = empMap[ob.employee_id] || {};
+    ob.employee_name = emp.Full_name || '—';
+    ob.employee_code = emp.employee_id || '—';
+
+    const tasks = await dbFetch('offboarding_tasks', '*', { offboarding_id: req.params.id });
+    return res.json({ offboarding: ob, tasks });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
@@ -167,10 +199,42 @@ router.post('/offboarding', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
     const result = await dbInsert('corporate_offboarding', {
-      employee_id: d.employee_id, last_working_day: d.last_working_day || null,
-      reason: d.reason || null, settlement_status: d.settlement_status || 'Pending',
-      notes: d.notes || null, created_at: new Date().toISOString(),
+      employee_id: d.employee_id,
+      last_working_day: d.last_working_day || null,
+      reason: d.reason || null,
+      exit_type: d.exit_type || null,
+      resignation_date: d.resignation_date || null,
+      settlement_status: 'Hold',
+      created_at: new Date().toISOString(),
     });
+
+    // Auto-create default offboarding tasks
+    if (result) {
+      const defaultTasks = [
+        { task_name: 'Return Laptop & Equipment', category: 'IT', responsible: 'IT' },
+        { task_name: 'Revoke All System Access', category: 'IT', responsible: 'IT' },
+        { task_name: 'Return Access Card & Keys', category: 'Facilities', responsible: 'Facilities' },
+        { task_name: 'Sign NDA Exit Confirmation', category: 'Legal', responsible: 'HR' },
+        { task_name: 'Complete Knowledge Transfer Doc', category: 'Knowledge Transfer', responsible: 'Manager' },
+        { task_name: 'Handover Projects & Tasks', category: 'Knowledge Transfer', responsible: 'Manager' },
+        { task_name: 'Clear Outstanding Expenses', category: 'Finance', responsible: 'Finance' },
+        { task_name: 'Final Payroll Calculation', category: 'Finance', responsible: 'Finance' },
+        { task_name: 'Return Company Documents', category: 'HR', responsible: 'HR' },
+        { task_name: 'Schedule Exit Interview', category: 'HR', responsible: 'HR' },
+      ];
+      for (const task of defaultTasks) {
+        await dbInsert('offboarding_tasks', {
+          offboarding_id: result.id,
+          task_name: task.task_name,
+          category: task.category,
+          responsible: task.responsible,
+          status: 'Pending',
+          due_date: d.last_working_day || null,
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+
     return res.json({ success: !!result, offboarding: result });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -179,6 +243,64 @@ router.put('/offboarding/:id', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
     await dbUpdate('corporate_offboarding', req.params.id, { settlement_status: d.settlement_status, notes: d.notes, updated_at: new Date().toISOString() });
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// Toggle individual clearance field
+router.patch('/offboarding/:id/clearance', requireAdmin, async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    const allowed = ['laptop_returned', 'access_card_returned', 'nda_signed', 'knowledge_transfer'];
+    if (!allowed.includes(field)) return res.status(400).json({ error: 'Invalid field' });
+    await dbUpdate('corporate_offboarding', req.params.id, { [field]: value, updated_at: new Date().toISOString() });
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// Release final settlement
+router.patch('/offboarding/:id/release', requireAdmin, async (req, res) => {
+  try {
+    await dbUpdate('corporate_offboarding', req.params.id, { settlement_status: 'Released', updated_at: new Date().toISOString() });
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// Toggle a task complete/pending
+router.post('/offboarding/:id/task/:taskId/toggle', requireAdmin, async (req, res) => {
+  try {
+    const task = await dbFetchOne('offboarding_tasks', '*', { id: req.params.taskId });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const isDone = task.status === 'Completed';
+    await dbUpdate('offboarding_tasks', req.params.taskId, {
+      status: isDone ? 'Pending' : 'Completed',
+      completed_at: isDone ? null : new Date().toISOString(),
+    });
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// Save exit interview
+router.post('/offboarding/:id/exit-interview', requireAdmin, async (req, res) => {
+  try {
+    const d = req.body;
+    const ei = await dbFetchOne('exit_interviews', '*', { offboarding_id: req.params.id });
+    const dataObj = {
+      offboarding_id: req.params.id,
+      interviewer_name: d.interviewer_name,
+      interview_date: d.interview_date,
+      reason_for_leaving: d.reason_for_leaving,
+      job_satisfaction: d.job_satisfaction,
+      management_rating: d.management_rating,
+      recommend_company: d.recommend_company,
+      additional_comments: d.additional_comments,
+      updated_at: new Date().toISOString()
+    };
+    if (ei) {
+      await dbUpdate('exit_interviews', ei.id, dataObj);
+    } else {
+      await dbInsert('exit_interviews', { ...dataObj, created_at: new Date().toISOString() });
+    }
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
