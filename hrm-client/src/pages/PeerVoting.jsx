@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 
 export default function PeerVoting() {
-  const { data, isLoading } = useQuery({ queryKey: ['peer-voting'], queryFn: () => api.get('/peerVoting/admin').then(r => r.data) });
+  const { data, isLoading } = useQuery({ queryKey: ['peer-voting'], queryFn: () => api.get('/peer-voting').then(r => r.data) });
 
   const votes = data?.votes || [];
 
@@ -16,16 +16,17 @@ export default function PeerVoting() {
           </thead>
           <tbody>
             {isLoading ? <tr><td colSpan="5" className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></td></tr>
+            : votes.length === 0 ? <tr><td colSpan="5" className="py-10 text-center text-slate-500">No peer votes recorded yet.</td></tr>
             : votes.map(v => (
               <tr key={v.id} className="border-t border-white/5 hover:bg-white/5">
-                <td className="py-3 px-5 font-medium text-slate-300">{v.voter_name}</td>
-                <td className="py-3 px-5 font-bold text-white">{v.voted_for_name}</td>
+                <td className="py-3 px-5 font-medium text-slate-300">{v.voter_name || '—'}</td>
+                <td className="py-3 px-5 font-bold text-white">{v.nominee_name || '—'}</td>
                 <td className="py-3 px-5">
-                  <span className={`px-2 py-1 rounded-lg font-mono font-bold text-xs ${v.score >= 8 ? 'bg-emerald-500/20 text-emerald-400' : v.score >= 5 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                    {v.score} / 10
+                  <span className={`px-2 py-1 rounded-lg font-mono font-bold text-xs ${v.score >= 4 ? 'bg-emerald-500/20 text-emerald-400' : v.score >= 2.5 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    {v.score} / 5.0
                   </span>
                 </td>
-                <td className="py-3 px-5 text-xs text-slate-400 italic max-w-xs truncate">{v.comments || '—'}</td>
+                <td className="py-3 px-5 text-xs text-slate-400 italic max-w-xs truncate">{v.comment || '—'}</td>
                 <td className="py-3 px-5 text-xs text-slate-500">{(v.created_at || '').slice(0, 10)}</td>
               </tr>
             ))}
