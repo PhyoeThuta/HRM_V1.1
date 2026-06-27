@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 export default function PeerVotingForm() {
   const { user } = useAuth();
@@ -27,10 +28,10 @@ export default function PeerVotingForm() {
   const voteMutation = useMutation({
     mutationFn: (body) => api.post('/peer-voting/submit', body),
     onSuccess: () => {
-      alert('Thank you for voting!');
+      toast.success('Thank you for voting!');
       navigate('/portal');
     },
-    onError: (err) => alert(err.response?.data?.error || 'Failed to submit vote')
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to submit vote')
   });
 
   const handleSubmit = (e) => {
