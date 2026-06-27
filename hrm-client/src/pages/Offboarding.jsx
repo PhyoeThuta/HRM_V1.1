@@ -8,16 +8,22 @@ import api from '../api/client';
 // ─── Helper: category icons ───────────────────────────────────────────────────
 const catIcon = { IT: '💻', Finance: '💰', Legal: '⚖️', 'Knowledge Transfer': '📚', Facilities: '🏢', HR: '📌' };
 
-// ─── Exit Interview Modal ─────────────────────────────────────────────────────
-function ExitInterviewModal({ ob, onClose }) {
+// ─── Exit Interview Page ────────────────────────────────────────────────────────
+function ExitInterviewPage({ ob, onClose }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     interviewer_name: ob.interviewer_name || '',
     interview_date: ob.interview_date || '',
     reason_for_leaving: ob.reason_for_leaving || '',
-    job_satisfaction: ob.job_satisfaction || 3,
-    management_rating: ob.management_rating || 3,
-    recommend_company: ob.recommend_company || 3,
+    job_satisfaction: ob.job_satisfaction || null,
+    management_rating: ob.management_rating || null,
+    work_environment: ob.work_environment || null,
+    compensation_benefits: ob.compensation_benefits || null,
+    career_growth: ob.career_growth || null,
+    return_future: ob.return_future || 'Yes',
+    recommend_company: ob.recommend_company || 'Yes',
+    highlights: ob.highlights || '',
+    improvements: ob.improvements || '',
     additional_comments: ob.additional_comments || '',
   });
 
@@ -31,104 +37,186 @@ function ExitInterviewModal({ ob, onClose }) {
     onError: () => toast.error('Failed to save exit interview'),
   });
 
-  const RatingRow = ({ label, field }) => (
-    <div>
-      <p className="text-sm font-semibold text-white mb-2">{label}</p>
-      <p className="text-xs text-slate-400 mb-3">1 = Poor · 5 = Excellent</p>
-      <div className="flex gap-2">
-        {[1,2,3,4,5].map(n => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setForm(f => ({ ...f, [field]: n }))}
-            className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
-              form[field] === n
-                ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white scale-110 shadow-lg shadow-indigo-500/30'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >{n}</button>
-        ))}
+  const RatingRow = ({ title, desc, field }) => (
+    <div className="rounded-2xl p-6 mb-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <h3 className="text-base font-bold text-white mb-1">{title}</h3>
+      <p className="text-xs text-slate-400 mb-5">{desc}</p>
+      <div className="flex items-center gap-3">
+        {[1,2,3,4,5].map(n => {
+          const labels = ['Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+          const selected = form[field] === n;
+          return (
+            <div key={n} className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, [field]: n }))}
+                className={`w-14 h-14 rounded-2xl font-black text-xl transition-all duration-300 ${
+                  selected
+                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white scale-110 shadow-lg shadow-indigo-500/30'
+                    : 'bg-white/5 text-indigo-300/50 border border-white/5 hover:bg-white/10 hover:text-white'
+                }`}
+              >{n}</button>
+              <span className={`text-[10px] font-semibold tracking-wide uppercase ${selected ? 'text-indigo-400' : 'text-slate-500'}`}>{labels[n-1]}</span>
+            </div>
+          );
+        })}
+        <div className="ml-auto text-xs text-slate-500 flex gap-2">
+          <span>1 = Poor</span><span>·</span><span>5 = Excellent</span>
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
-        <div className="p-6 border-b border-white/5">
-          <h2 className="text-lg font-bold text-white">📋 Exit Interview</h2>
-          <p className="text-xs text-slate-400 mt-1">{ob.employee_name} · Comprehensive feedback form</p>
-        </div>
-        <div className="p-6 space-y-6">
-          {/* Interview Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Interviewer</label>
-              <input
-                value={form.interviewer_name}
-                onChange={e => setForm(f => ({ ...f, interviewer_name: e.target.value }))}
-                placeholder="HR Interviewer name"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Interview Date</label>
-              <input
-                type="date"
-                value={form.interview_date}
-                onChange={e => setForm(f => ({ ...f, interview_date: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
+    <div className="max-w-4xl mx-auto space-y-6 pb-20">
+      <div className="flex items-center gap-3">
+        <button onClick={onClose} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">
+          ← Back to Offboarding
+        </button>
+      </div>
+
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-black text-white">Exit Interview</h2>
+        <p className="text-sm text-slate-400 mt-1">{ob.employee_name} · Comprehensive feedback form</p>
+      </div>
+
+      {/* Interview Details */}
+      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h3 className="text-base font-bold text-white mb-5">Interview Details</h3>
+        <div className="grid grid-cols-2 gap-5 mb-5">
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Primary Reason for Leaving</label>
-            <textarea
-              value={form.reason_for_leaving}
-              onChange={e => setForm(f => ({ ...f, reason_for_leaving: e.target.value }))}
-              placeholder="What is the main reason for your departure?"
-              rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500 resize-none"
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Interviewer</label>
+            <input
+              value={form.interviewer_name}
+              onChange={e => setForm(f => ({ ...f, interviewer_name: e.target.value }))}
+              placeholder="— Select HR Interviewer —"
+              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
-          {/* Ratings */}
-          <div className="bg-white/3 rounded-xl p-4 space-y-5">
-            <RatingRow label="Job Satisfaction" field="job_satisfaction" />
-            <hr className="border-white/5" />
-            <RatingRow label="Management & Leadership" field="management_rating" />
-            <hr className="border-white/5" />
-            <RatingRow label="Would Recommend Company" field="recommend_company" />
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Interview Date</label>
+            <input
+              type="date"
+              value={form.interview_date}
+              onChange={e => setForm(f => ({ ...f, interview_date: e.target.value }))}
+              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Primary Reason for Leaving</label>
+          <textarea
+            value={form.reason_for_leaving}
+            onChange={e => setForm(f => ({ ...f, reason_for_leaving: e.target.value }))}
+            placeholder="What is the main reason for your departure?"
+            rows={3}
+            className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Ratings */}
+      <RatingRow title="Job Satisfaction" desc="How satisfied were you with your overall role and responsibilities?" field="job_satisfaction" />
+      <RatingRow title="Management & Leadership" desc="How would you rate the quality of management and leadership?" field="management_rating" />
+      <RatingRow title="Work Environment" desc="How would you rate the overall work culture and environment?" field="work_environment" />
+      <RatingRow title="Compensation & Benefits" desc="How satisfied were you with your salary and benefits package?" field="compensation_benefits" />
+      <RatingRow title="Career Growth" desc="How would you rate opportunities for career development and advancement?" field="career_growth" />
+
+      {/* Final Questions */}
+      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h3 className="text-base font-bold text-white mb-5">Final Questions</h3>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">Would you consider returning to the company in the future?</p>
+              <p className="text-xs text-slate-500 mt-1">Indicates if the employee is a potential boomerang hire</p>
+            </div>
+            <div className="flex gap-4">
+              {['Yes', 'No'].map(opt => (
+                <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${form.return_future === opt ? 'border-indigo-500' : 'border-slate-600'}`}>
+                    {form.return_future === opt && <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full" />}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-300">{opt}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">Would you recommend the company to others as a great place to work?</p>
+              <p className="text-xs text-slate-500 mt-1">Net Promoter Score indicator</p>
+            </div>
+            <div className="flex gap-4">
+              {['Yes', 'No'].map(opt => (
+                <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${form.recommend_company === opt ? 'border-rose-500' : 'border-slate-600'}`}>
+                    {form.recommend_company === opt && <div className="w-2.5 h-2.5 bg-rose-500 rounded-full" />}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-300">{opt}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Open Feedback */}
+      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h3 className="text-base font-bold text-white mb-5">Open Feedback</h3>
+        <div className="space-y-5">
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">What did you enjoy most about working here? (Highlights)</label>
+            <textarea
+              value={form.highlights}
+              onChange={e => setForm(f => ({ ...f, highlights: e.target.value }))}
+              placeholder="Positive experiences, achievements, team dynamics..."
+              rows={3}
+              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+            />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Additional Comments</label>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">What could be improved? (Constructive feedback)</label>
+            <textarea
+              value={form.improvements}
+              onChange={e => setForm(f => ({ ...f, improvements: e.target.value }))}
+              placeholder="Processes, culture, management, systems..."
+              rows={3}
+              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Any additional comments?</label>
             <textarea
               value={form.additional_comments}
               onChange={e => setForm(f => ({ ...f, additional_comments: e.target.value }))}
-              placeholder="Any other feedback..."
+              placeholder="Anything else you'd like to share..."
               rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500 resize-none"
+              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
         </div>
-        <div className="p-6 border-t border-white/5 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
-          <button
-            onClick={() => mutation.mutate(form)}
-            disabled={mutation.isPending}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
-          >
-            {mutation.isPending ? 'Saving...' : 'Save Interview'}
-          </button>
-        </div>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="flex gap-4">
+        <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-semibold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
+        <button
+          onClick={() => mutation.mutate(form)}
+          disabled={mutation.isPending}
+          className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #8b5cf6, #d946ef)' }}
+        >
+          {mutation.isPending ? 'Saving...' : '💾 Submit Exit Interview'}
+        </button>
       </div>
     </div>
   );
 }
 
 // ─── Detail View ──────────────────────────────────────────────────────────────
-function OffboardingDetail({ obId, onBack }) {
+function OffboardingDetail({ obId, onBack, onShowEI }) {
   const qc = useQueryClient();
   const [showEI, setShowEI] = useState(false);
 
@@ -194,7 +282,7 @@ function OffboardingDetail({ obId, onBack }) {
         </button>
         <span className="text-slate-600">|</span>
         <button
-          onClick={() => setShowEI(true)}
+          onClick={() => onShowEI(ob)}
           className="text-sm font-semibold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1.5 rounded-xl transition-colors"
         >
           📋 Conduct Exit Interview →
@@ -333,8 +421,6 @@ function OffboardingDetail({ obId, onBack }) {
           No tasks found. The offboarding task list will appear here.
         </div>
       )}
-
-      {showEI && <ExitInterviewModal ob={ob} onClose={() => setShowEI(false)} />}
     </div>
   );
 }
@@ -342,7 +428,9 @@ function OffboardingDetail({ obId, onBack }) {
 // ─── Main List View ───────────────────────────────────────────────────────────
 export default function Offboarding() {
   const [showModal, setShowModal] = useState(false);
-  const [detailId, setDetailId] = useState(null);
+  const [activeObId, setActiveObId] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'detail' | 'exit'
+  const [eiData, setEiData] = useState(null);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -369,10 +457,22 @@ export default function Offboarding() {
     addMutation.mutate(Object.fromEntries(fd));
   };
 
-  if (detailId) {
+  if (viewMode === 'exit' && eiData) {
     return (
       <Layout title="Offboarding" subtitle="Asset clearance, task tracking, and exit interviews">
-        <OffboardingDetail obId={detailId} onBack={() => setDetailId(null)} />
+        <ExitInterviewPage ob={eiData} onClose={() => setViewMode('detail')} />
+      </Layout>
+    );
+  }
+
+  if (viewMode === 'detail' && activeObId) {
+    return (
+      <Layout title="Offboarding" subtitle="Asset clearance, task tracking, and exit interviews">
+        <OffboardingDetail
+          obId={activeObId}
+          onBack={() => setViewMode('list')}
+          onShowEI={(ob) => { setEiData(ob); setViewMode('exit'); }}
+        />
       </Layout>
     );
   }
@@ -492,13 +592,13 @@ export default function Offboarding() {
                     </span>
                   )}
                   <button
-                    onClick={() => setDetailId(o.id)}
+                    onClick={() => { setActiveObId(o.id); setViewMode('detail'); }}
                     className="text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl hover:bg-indigo-500/20 transition-colors"
                   >
                     Details →
                   </button>
                   <button
-                    onClick={() => setDetailId(o.id)}
+                    onClick={() => { setEiData(o); setViewMode('exit'); }}
                     className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl hover:bg-amber-500/20 transition-colors"
                   >
                     Exit Interview

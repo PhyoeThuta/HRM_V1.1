@@ -292,7 +292,13 @@ router.post('/offboarding/:id/exit-interview', requireAdmin, async (req, res) =>
       reason_for_leaving: d.reason_for_leaving,
       job_satisfaction: d.job_satisfaction,
       management_rating: d.management_rating,
+      work_environment: d.work_environment,
+      compensation_benefits: d.compensation_benefits,
+      career_growth: d.career_growth,
+      return_future: d.return_future,
       recommend_company: d.recommend_company,
+      highlights: d.highlights,
+      improvements: d.improvements,
       additional_comments: d.additional_comments,
       updated_at: new Date().toISOString()
     };
@@ -335,7 +341,13 @@ router.post('/exit-survey', async (req, res) => {
       reason_for_leaving: d.reason_for_leaving,
       job_satisfaction: d.job_satisfaction,
       management_rating: d.management_rating,
+      work_environment: d.work_environment,
+      compensation_benefits: d.compensation_benefits,
+      career_growth: d.career_growth,
+      return_future: d.return_future,
       recommend_company: d.recommend_company,
+      highlights: d.highlights,
+      improvements: d.improvements,
       additional_comments: d.additional_comments,
       updated_at: new Date().toISOString()
     };
