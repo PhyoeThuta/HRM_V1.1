@@ -10,6 +10,8 @@ export default function UserAccounts() {
   const [form, setForm] = useState({ username: '', password: '', role: 'employee', full_name: '', employee_id: '' });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTargetId, setEditTargetId] = useState(null);
+  const [resetTargetId, setResetTargetId] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
 
   const { data: users, isLoading } = useQuery({ queryKey: ['sys-users'], queryFn: () => api.get('/boss/users').then(r => r.data.users) });
   const { data: employees } = useQuery({ queryKey: ['employees-active'], queryFn: () => api.get('/employees').then(r => r.data.employees.filter(e => e.status === 'Active')) });
@@ -75,10 +77,16 @@ export default function UserAccounts() {
     setEditTargetId(null);
   };
 
-  const handleReset = (id) => {
-    const np = window.prompt("Enter new password:");
-    if (np && np.trim()) {
-      resetMutation.mutate({ id, new_password: np.trim() });
+  const handleResetClick = (id) => {
+    setResetTargetId(id);
+    setNewPassword('');
+  };
+
+  const handleConfirmReset = (e) => {
+    e.preventDefault();
+    if (newPassword.trim()) {
+      resetMutation.mutate({ id: resetTargetId, new_password: newPassword.trim() });
+      setResetTargetId(null);
     }
   };
 
@@ -173,7 +181,7 @@ export default function UserAccounts() {
                       {u.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                     <button onClick={() => handleEdit(u)} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300">Edit</button>
-                    <button onClick={() => handleReset(u.id)} className="text-[10px] font-bold text-slate-400 hover:text-white">Reset PW</button>
+                    <button onClick={() => handleResetClick(u.id)} className="text-[10px] font-bold text-slate-400 hover:text-white">Reset PW</button>
                     <button onClick={() => setDeleteTarget(u)} className="text-[10px] font-bold text-rose-400 hover:text-rose-300">Delete</button>
                   </div>
                 </div>
@@ -189,6 +197,46 @@ export default function UserAccounts() {
         onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
         itemName={deleteTarget?.username}
       />
+
+      {/* Reset Password Modal */}
+      {resetTargetId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1e2235] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
+            <h3 className="text-lg font-bold text-white mb-2">Reset Password</h3>
+            <p className="text-slate-400 text-xs mb-6">Enter a new password for this user account.</p>
+            
+            <form onSubmit={handleConfirmReset}>
+              <div className="mb-6">
+                <input
+                  type="text"
+                  autoFocus
+                  required
+                  className="w-full bg-[#0f121b] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="New password..."
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setResetTargetId(null)}
+                  className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetMutation.isPending || !newPassword.trim()}
+                  className="flex-1 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+                >
+                  Save Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
