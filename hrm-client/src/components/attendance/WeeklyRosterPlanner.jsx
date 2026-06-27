@@ -93,8 +93,14 @@ export default function WeeklyRosterPlanner() {
                 {days.map(date => {
                   const key = `${emp.id}-${date}`;
                   const existing = scheduleMap[key];
+                  const hasPosition = !!emp.pos_title && emp.pos_title.trim() !== '' && emp.pos_title !== '—';
                   const dynamic = isDynamic(emp.pos_title);
-                  const fallbackShiftId = dynamic ? '' : (emp.default_shift_id || officeRegularShift?.id || '');
+                  
+                  let fallbackShiftId = emp.default_shift_id || '';
+                  if (!dynamic && hasPosition && !emp.default_shift_id) {
+                    fallbackShiftId = officeRegularShift?.id || '';
+                  }
+                  
                   const currentValue = existing ? (existing.is_off_day ? 'off' : existing.shift_id) : fallbackShiftId;
                   
                   return (
