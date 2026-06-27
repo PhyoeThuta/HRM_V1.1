@@ -6,6 +6,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 import RostersTab from '../components/attendance/RostersTab';
+import WeeklyRosterPlanner from '../components/attendance/WeeklyRosterPlanner';
 
 function StatCard({ label, value, color }) {
   return (
@@ -599,7 +600,7 @@ export default function Attendance() {
 
         {/* Rosters Tab */}
         {activeTab === 'rosters' && (
-          <RostersTab employees={employees} />
+          <WeeklyRosterPlanner />
         )}
       </div>
 

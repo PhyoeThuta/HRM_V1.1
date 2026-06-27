@@ -109,12 +109,23 @@ router.post('/', async (req, res) => {
     if (d.check_out && ci && new Date(d.check_out) < new Date(ci)) {
       return res.status(400).json({ error: 'Check-out time cannot be before check-in time' });
     }
+    // Determine shift for today (dynamic schedule overrides static default)
+    const today = new Date().toISOString().split('T')[0];
+    // Try to fetch a schedule for this employee and date
+    const schedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
+      employee_id: d.employee_id,
+      schedule_date: today,
+      is_off_day: false
+    });
+    const shiftId = schedule?.shift_id || null; // may be null if off day or no schedule
     const result = await dbInsert('attendance_records', {
       employee_id: d.employee_id,
-      check_in: ci, check_out: d.check_out || null,
+      check_in: ci,
+      check_out: d.check_out || null,
       overtime_hours: d.overtime_hours ? parseFloat(d.overtime_hours) : 0,
       attendance_method: d.attendance_method || 'Manual',
       is_late: d.is_late === true || d.is_late === 'true',
+      shift_id: shiftId,
       created_at: now,
     });
     return res.json({ success: !!result, record: result });
@@ -325,6 +336,46 @@ router.delete('/biometric/mapping/:id', async (req, res) => {
 });
 
 // --- Rosters & Shifts API ---
+
+// GET schedules for a date range
+router.get('/schedules', async (req, res) => {
+  try {
+    const { start, end } = req.query; // expect YYYY-MM-DD
+    if (!start || !end) return res.status(400).json({ error: 'start and end query params required' });
+    const schedules = await dbFetch('employee_daily_schedules', '*', {
+      schedule_date: { gte: start, lte: end }
+    }, { order: 'schedule_date', ascending: true });
+    return res.json({ success: true, schedules });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST bulk upsert schedules (array of {employee_id, schedule_date, shift_id, is_off_day})
+router.post('/schedules', requireAdmin, async (req, res) => {
+  try {
+    const entries = req.body; // expect array
+    if (!Array.isArray(entries)) return res.status(400).json({ error: 'Array of schedules required' });
+    // Use Supabase upsert with conflict on employee_id + schedule_date
+    const { error, data } = await supabase.from('employee_daily_schedules')
+      .upsert(entries, { onConflict: ['employee_id', 'schedule_date'] });
+    if (error) throw error;
+    return res.json({ success: true, schedules: data });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE schedule by id
+router.delete('/schedules/:id', requireAdmin, async (req, res) => {
+  try {
+    const { error } = await supabase.from('employee_daily_schedules').delete().eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
 router.get('/shifts', async (req, res) => {
   try {
