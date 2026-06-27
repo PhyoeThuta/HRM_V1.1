@@ -342,10 +342,15 @@ router.get('/schedules', async (req, res) => {
   try {
     const { start, end } = req.query; // expect YYYY-MM-DD
     if (!start || !end) return res.status(400).json({ error: 'start and end query params required' });
-    const schedules = await dbFetch('employee_daily_schedules', '*', {
-      schedule_date: { gte: start, lte: end }
-    }, { order: 'schedule_date', ascending: true });
-    return res.json({ success: true, schedules });
+    const { data: schedules, error } = await supabase
+      .from('employee_daily_schedules')
+      .select('*')
+      .gte('schedule_date', start)
+      .lte('schedule_date', end)
+      .order('schedule_date', { ascending: true });
+    
+    if (error) throw error;
+    return res.json({ success: true, schedules: schedules || [] });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
