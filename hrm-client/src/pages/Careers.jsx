@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // Create a custom axios instance for public APIs without intercepting for auth
 const publicApi = axios.create({
-  baseURL: 'http://localhost:8080/api/public',
+  baseURL: '/api/public',
 });
 
 export default function Careers() {
