@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 
@@ -9,6 +10,11 @@ export default function PeerVoting() {
 
   return (
     <Layout title="Peer Voting Results" subtitle="Employee 360-degree feedback and peer reviews">
+      <div className="flex justify-end mb-4">
+        <Link to="/portal/vote" className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2">
+          <span>🗳️</span> Submit a Peer Vote
+        </Link>
+      </div>
       <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
         <table className="w-full text-sm text-left">
           <thead style={{ background: '#161929' }}>
