@@ -32,11 +32,28 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
-  const markRead = async (id, url) => {
+  const markRead = async (id, url, e) => {
+    if (e) e.stopPropagation();
     try { await api.post(`/notifications/${id}/read`); } catch {}
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
     if (url) window.location.href = url;
+  };
+
+  const markAllRead = async () => {
+    try { await api.post('/notifications/read-all'); } catch {}
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
+  const deleteNotif = async (id, e) => {
+    if (e) e.stopPropagation();
+    try { await api.delete(`/notifications/${id}`); } catch {}
+    setNotifications(prev => {
+      const notif = prev.find(n => n.id === id);
+      if (notif && !notif.is_read) setUnreadCount(c => Math.max(0, c - 1));
+      return prev.filter(n => n.id !== id);
+    });
   };
 
   const handleLogout = () => {
@@ -91,20 +108,38 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           {notifOpen && (
             <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <h3 className="text-sm font-bold text-white">Notifications</h3>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="text-[10px] font-bold tracking-widest uppercase bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">{unreadCount} New</span>
+                  )}
+                </h3>
                 {unreadCount > 0 && (
-                  <span className="text-[10px] font-bold tracking-widest uppercase bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">{unreadCount} New</span>
+                  <button onClick={markAllRead} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-wider">
+                    Mark All Read
+                  </button>
                 )}
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {notifications.length > 0 ? notifications.map(n => (
                   <div key={n.id}
                     onClick={() => markRead(n.id, n.link_url)}
-                    className="px-4 py-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative group"
+                    className="px-4 py-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative group flex items-start justify-between gap-2"
                     style={{ background: n.is_read ? 'transparent' : 'rgba(99,102,241,0.04)' }}
                   >
-                    <p className={`text-sm font-semibold pr-4 ${n.is_read ? 'text-slate-300' : 'text-white'}`}>{n.title}</p>
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2 pr-4">{n.message}</p>
+                    <div className="flex-1">
+                      <p className={`text-sm font-semibold pr-4 ${n.is_read ? 'text-slate-300' : 'text-white'}`}>{n.title}</p>
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2 pr-4">{n.message}</p>
+                    </div>
+                    <button 
+                      onClick={(e) => deleteNotif(n.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                      title="Delete notification"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 )) : (
                   <div className="px-4 py-8 text-center">

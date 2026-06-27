@@ -49,6 +49,32 @@ router.post('/notifications/:id/read', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/notifications/read-all
+router.post('/notifications/read-all', async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const role = req.user.role;
+    const { data } = await supabase
+      .from('system_notifications')
+      .select('id')
+      .or(`recipient_user_id.eq.${uid},recipient_role.eq.${role},recipient_role.eq.All`)
+      .eq('is_read', false);
+    
+    if (data && data.length > 0) {
+      await Promise.all(data.map(n => dbUpdate('system_notifications', n.id, { is_read: true })));
+    }
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/notifications/:id
+router.delete('/notifications/:id', async (req, res) => {
+  try {
+    await dbDelete('system_notifications', req.params.id);
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/portal — Employee self-service data
 router.get('/portal', async (req, res) => {
   try {
