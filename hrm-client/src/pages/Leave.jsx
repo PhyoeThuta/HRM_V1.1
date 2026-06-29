@@ -121,21 +121,23 @@ export default function Leave() {
                         <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_CFG[r.status] || 'text-slate-400 bg-white/5'}`}>{r.status}</span>
                       </td>
                       <td className="py-3 px-5">
-                        {isAdmin() && r.status === 'Pending' && (
-                          <div className="flex gap-2">
-                            <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Approved' })} className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-lg hover:bg-emerald-400/20">✓ Approve</button>
-                            <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs text-rose-400 bg-rose-400/10 px-2 py-1 rounded-lg hover:bg-rose-400/20">✗ Reject</button>
-                          </div>
-                        )}
-                        {isAdmin() && (
-                          <button 
-                            onClick={() => setDeleteTarget({ mode: 'request', item: r })} 
-                            className="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 p-1.5 rounded-lg ml-2 transition-colors flex items-center justify-center"
-                            title="Delete Request"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {isAdmin() && r.status === 'Pending' && (
+                            <>
+                              <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Approved' })} className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-400/20 transition-colors">✓ Approve</button>
+                              <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2.5 py-1.5 rounded-lg hover:bg-rose-400/20 transition-colors">✗ Reject</button>
+                            </>
+                          )}
+                          {isAdmin() && (
+                            <button 
+                              onClick={() => setDeleteTarget({ mode: 'request', item: r })} 
+                              className="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                              title="Delete Request"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )) : <tr><td colSpan="7" className="py-12 text-center text-slate-500 text-sm">No leave requests yet.</td></tr>}
