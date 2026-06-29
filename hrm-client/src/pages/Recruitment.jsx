@@ -287,11 +287,9 @@ export default function Recruitment() {
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold text-slate-400 mb-1">LEVEL</label>
                   <select name="level" className="w-full bg-[#1e2235] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                    <option value="Junior">Junior</option>
                     <option value="Mid">Mid</option>
-                    <option value="Senior">Senior</option>
+                    <option value="Supervisor">Supervisor</option>
                     <option value="Manager">Manager</option>
-                    <option value="Executive">Executive</option>
                   </select>
                 </div>
                 <div className="flex-1">

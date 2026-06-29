@@ -65,7 +65,7 @@ router.get('/positions', async (req, res) => {
 router.post('/positions', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
-    const result = await dbInsert('positions', { title: d.title, level: d.level || 'Junior', team: d.department || null, base_salary: parseFloat(d.base_salary || 0), created_at: new Date().toISOString() });
+    const result = await dbInsert('positions', { title: d.title, level: d.level || 'Mid', team: d.department || null, base_salary: parseFloat(d.base_salary || 0), created_at: new Date().toISOString() });
     return res.json({ success: !!result, position: result });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });

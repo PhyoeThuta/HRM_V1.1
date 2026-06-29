@@ -42,11 +42,9 @@ export default function Positions() {
   const positions = data?.positions || [];
 
   const levelColor = {
-    Junior: 'text-slate-400 bg-slate-400/10',
     Mid: 'text-indigo-400 bg-indigo-400/10',
-    Senior: 'text-purple-400 bg-purple-400/10',
+    Supervisor: 'text-emerald-400 bg-emerald-400/10',
     Manager: 'text-amber-400 bg-amber-400/10',
-    Executive: 'text-rose-400 bg-rose-400/10',
   };
 
   return (
@@ -113,7 +111,7 @@ export default function Positions() {
               <div><label className="form-label">Title *</label><input name="title" required defaultValue={editTarget?.title || ''} className="form-input" /></div>
               <div>
                 <label className="form-label">Level</label>
-                <select name="level" className="form-input" defaultValue={editTarget?.level || 'Junior'}>
+                <select name="level" className="form-input" defaultValue={editTarget?.level || 'Mid'}>
                   {Object.keys(levelColor).map(l => <option key={l}>{l}</option>)}
                 </select>
               </div>
