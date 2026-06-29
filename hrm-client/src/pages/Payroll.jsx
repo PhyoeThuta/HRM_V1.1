@@ -32,7 +32,7 @@ export default function Payroll() {
   });
 
   const calcMutation = useMutation({
-    mutationFn: ({ employee_id, month }) => api.get(`/payroll-engine/calculate/${employee_id}/${month}`).then(r => r.data),
+    mutationFn: ({ employee_id, month, working_days }) => api.get(`/payroll-engine/calculate/${employee_id}/${month}?working_days=${working_days}`).then(r => r.data),
     onSuccess: (data) => {
       setCalcData(data);
       const form = document.getElementById('payslip-form');
@@ -351,14 +351,16 @@ export default function Payroll() {
               </div>
               <div className="col-span-2 flex gap-3">
                 <div className="flex-1"><label className="form-label">Month</label><input type="month" name="month" id="month_input" required className="form-input" /></div>
+                <div className="w-1/3"><label className="form-label">Working Days</label><input type="number" id="working_days_input" defaultValue="26" required className="form-input" /></div>
                 <div className="flex items-end">
                   <button 
                     type="button" 
                     onClick={() => {
                       const emp = document.getElementById('emp_select').value;
                       const mth = document.getElementById('month_input').value;
-                      if (!emp || !mth) return alert('Select employee and month first');
-                      calcMutation.mutate({ employee_id: emp, month: mth });
+                      const wd = document.getElementById('working_days_input').value;
+                      if (!emp || !mth || !wd) return alert('Select employee, month, and working days first');
+                      calcMutation.mutate({ employee_id: emp, month: mth, working_days: wd });
                     }}
                     className="px-6 py-2.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 font-bold rounded-xl whitespace-nowrap h-[42px] transition-colors"
                   >

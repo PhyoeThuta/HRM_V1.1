@@ -63,7 +63,7 @@ router.get('/calculate/:employee_id/:month', async (req, res) => {
     
     // In actual system, salary might come from position. Using employee.salary for now, fallback to 3000
     const base_salary = parseFloat(employee.salary || 3000.0);
-    const working_days = 21; // Generically 21 days for the month
+    const working_days = parseInt(req.query.working_days || 26);
     
     // Fetch Settings
     const settings = getSettings();
@@ -72,20 +72,46 @@ router.get('/calculate/:employee_id/:month', async (req, res) => {
     const w_sops = settings.auto_weights.sops || 0;
     const w_peer = settings.auto_weights.peer_voting || 0;
     
-    // 1. Attendance
+    // 1. Attendance & Leaves
     const all_attendance = await dbFetch('attendance_records', '*', { employee_id });
     const monthly_attendance = all_attendance.filter(a => String(a.check_in).startsWith(month));
-    const actual_attendance = monthly_attendance.length;
+    
+    // Fetch approved leaves
+    let approved_leave_days = 0;
+    try {
+      const leaves = await dbFetch('Leave_Request', '*', { employee_id, status: 'Approved' });
+      leaves.forEach(l => {
+        if (String(l.start_date).startsWith(month) || String(l.end_date).startsWith(month)) {
+          const lStart = new Date(l.start_date);
+          const lEnd = new Date(l.end_date);
+          const mStart = new Date(`${month}-01`);
+          const mEnd = new Date(mStart.getFullYear(), mStart.getMonth() + 1, 0);
+          
+          const effectiveStart = lStart < mStart ? mStart : lStart;
+          const effectiveEnd = lEnd > mEnd ? mEnd : lEnd;
+          
+          if (effectiveStart <= effectiveEnd) {
+             const diffTime = Math.abs(effectiveEnd - effectiveStart);
+             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+             approved_leave_days += diffDays;
+          }
+        }
+      });
+    } catch(e) { console.error('Leave fetch error', e); }
+
+    const actual_attendance = monthly_attendance.length + approved_leave_days;
     const attendance_score = Math.min(100.0, (actual_attendance / working_days) * 100);
     
     let on_time_count = 0;
     monthly_attendance.forEach(a => {
-      const check_in_time = a.check_in;
-      if (check_in_time && check_in_time.includes('T')) {
-        const time_part = check_in_time.split('T')[1];
-        if (time_part <= '09:15:00') on_time_count++;
+      // is_late comes straight from attendance_records which correctly checks their shift!
+      if (a.is_late === false || a.is_late === 'false') {
+        on_time_count++;
       }
     });
+    // Leaves are treated as "on-time" for punctuality so they don't lose punctuality score for being on leave
+    on_time_count += approved_leave_days;
+    
     const punctuality_score = actual_attendance > 0 ? (on_time_count / actual_attendance * 100) : 0;
     
     // 2. SOPs (Assuming table exists, if not just default to 100)
