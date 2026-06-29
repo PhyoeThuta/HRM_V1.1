@@ -15,7 +15,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // GET /api/boss/overview
 router.get('/overview', async (req, res) => {
   try {
-    const employees = await dbFetch('Employees', 'id');
+    const employees = await dbFetch('Employees', 'id', { status: 'Active' });
     const positions = await dbFetch('Positions', 'id, title');
     const leaveRequests = await dbFetch('leave_requests', 'id, status', { status: 'Pending' });
     
@@ -48,7 +48,7 @@ router.post('/chat', async (req, res) => {
       departments, positions, leaves, leaveTypes,
       announcements, sops, peerVotes
     ] = await Promise.all([
-      dbFetch('Employees', '*'),
+      dbFetch('Employees', '*', { status: 'Active' }),
       dbFetch('boss_kpi_assignments', '*'),
       dbFetch('payrolls', '*', {}, { order: 'month', ascending: false }),
       dbFetch('attendance_records', '*', {}, { order: 'check_in', ascending: false }),
