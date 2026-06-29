@@ -51,6 +51,48 @@ async function checkIsLate(employee_id, check_in_time) {
   }
 }
 
+async function calcOvertime(employee_id, check_out_time) {
+  try {
+    const dt = new Date(check_out_time);
+    const todayStr = dt.toISOString().split('T')[0];
+    
+    const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+    let activeShiftId = null;
+    for (const r of rosters) {
+      if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
+        activeShiftId = r.shift_id;
+        break;
+      }
+    }
+    
+    if (!activeShiftId) {
+      const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
+      if (emp && emp.default_shift_id) activeShiftId = emp.default_shift_id;
+    }
+    
+    if (activeShiftId) {
+      const shift = await dbFetchOne('shifts', '*', { id: activeShiftId });
+      if (shift && shift.end_time) {
+        const [hours, minutes, seconds] = shift.end_time.split(':');
+        const endDt = new Date(dt);
+        endDt.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds || 0), 0);
+        
+        const diffMs = dt - endDt;
+        if (diffMs > 0) {
+          const diffHours = diffMs / 3600000;
+          if (diffHours >= 1) { // Only count if >= 1 hour
+             return Math.round(diffHours * 10) / 10;
+          }
+        }
+      }
+    }
+    return 0;
+  } catch (e) {
+    console.error('[calcOvertime error]', e);
+    return 0;
+  }
+}
+
 // GET /api/attendance
 router.get('/', async (req, res) => {
   try {
@@ -122,7 +164,7 @@ router.post('/', async (req, res) => {
       employee_id: d.employee_id,
       check_in: ci,
       check_out: d.check_out || null,
-      overtime_hours: d.overtime_hours ? parseFloat(d.overtime_hours) : 0,
+      overtime_hours: d.overtime_hours ? parseFloat(d.overtime_hours) : (d.check_out ? await calcOvertime(d.employee_id, d.check_out) : 0),
       attendance_method: d.attendance_method || 'Manual',
       is_late: d.is_late === true || d.is_late === 'true',
       shift_id: shiftId,
@@ -137,7 +179,11 @@ router.post('/', async (req, res) => {
 // POST /api/attendance/:id/checkout
 router.post('/:id/checkout', async (req, res) => {
   try {
-    await dbUpdate('attendance_records', req.params.id, { check_out: new Date().toISOString() });
+    const now = new Date().toISOString();
+    const record = await dbFetchOne('attendance_records', '*', { id: req.params.id });
+    const overtime_hours = record ? await calcOvertime(record.employee_id, now) : 0;
+    
+    await dbUpdate('attendance_records', req.params.id, { check_out: now, overtime_hours });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -196,7 +242,8 @@ router.post('/scan', async (req, res) => {
     const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
     
     if (todayOpen) {
-      await dbUpdate('attendance_records', todayOpen.id, { check_out: now });
+      const overtime_hours = await calcOvertime(qrData.employee_id, now);
+      await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
       return res.json({ success: true, message: 'QR Check-out successful' });
     } else {
       await dbInsert('attendance_records', {
@@ -225,7 +272,8 @@ router.post('/photo-checkin', async (req, res) => {
     const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
     
     if (todayOpen) {
-      await dbUpdate('attendance_records', todayOpen.id, { check_out: now });
+      const overtime_hours = await calcOvertime(employee_id, now);
+      await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
       return res.json({ success: true, message: 'Photo Check-out successful' });
     } else {
       await dbInsert('attendance_records', {
