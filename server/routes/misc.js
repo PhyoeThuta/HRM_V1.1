@@ -580,6 +580,24 @@ router.post('/boss/announcements', requireAdmin, async (req, res) => {
         is_read: false,
         created_at: new Date().toISOString()
       });
+      
+      // Send to Telegram if configured
+      if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+        try {
+          const text = `📢 *${d.title}*\n\n${d.content}\n\n_Priority: ${d.priority || 'Medium'}_`;
+          fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: process.env.TELEGRAM_CHAT_ID,
+              text: text,
+              parse_mode: 'Markdown'
+            })
+          }).catch(err => console.error('Telegram API error:', err));
+        } catch (err) {
+          console.error('Failed to send Telegram message:', err);
+        }
+      }
     }
 
     return res.json({ success: !!result, announcement: result });
