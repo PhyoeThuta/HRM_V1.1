@@ -23,6 +23,8 @@ export default function Attendance() {
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('attendanceTab', tab); };
   const [filter, setFilter] = useState({ name: '', date: new Date().toISOString().split('T')[0], status: 'all' });
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteMappingTarget, setDeleteMappingTarget] = useState(null);
+  const [editMappingTarget, setEditMappingTarget] = useState(null);
   const [generatedQrToken, setGeneratedQrToken] = useState(null);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -36,6 +38,26 @@ export default function Attendance() {
 
   const { data, isLoading } = useQuery({ queryKey: ['attendance'], queryFn: () => api.get('/attendance').then(r => r.data) });
 
+  const addMappingMutation = useMutation({
+    mutationFn: (body) => api.post('/attendance/biometric/mapping', body),
+    onSuccess: () => { qc.invalidateQueries(['attendance']); toast.success('Mapping saved'); },
+  });
+
+  const editMappingMutation = useMutation({
+    mutationFn: ({ id, body }) => api.put(`/attendance/biometric/mapping/${id}`, body),
+    onSuccess: () => { qc.invalidateQueries(['attendance']); setEditMappingTarget(null); toast.success('Mapping updated'); },
+  });
+
+  const deleteMappingMutation = useMutation({
+    mutationFn: (id) => api.delete(`/attendance/biometric/mapping/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['attendance']); setDeleteMappingTarget(null); toast.success('Mapping deleted'); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/attendance/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['attendance']); setDeleteTarget(null); },
+  });
+
   const addMutation = useMutation({
     mutationFn: (body) => api.post('/attendance', body),
     onSuccess: () => qc.invalidateQueries(['attendance']),
@@ -46,10 +68,6 @@ export default function Attendance() {
     onSuccess: () => qc.invalidateQueries(['attendance']),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/attendance/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['attendance']); setDeleteTarget(null); },
-  });
 
   const records = (data?.records || []).filter(r => {
     const nameMatch = !filter.name || (r.Full_name || '').toLowerCase().includes(filter.name.toLowerCase());
@@ -116,23 +134,6 @@ export default function Attendance() {
     onError: () => toast.error('Failed to delete device')
   });
 
-  const addMappingMutation = useMutation({
-    mutationFn: (body) => api.post('/attendance/biometric/mapping', body),
-    onSuccess: () => {
-      toast.success('Mapping saved successfully');
-      qc.invalidateQueries(['attendance']);
-    },
-    onError: () => toast.error('Failed to save mapping')
-  });
-
-  const deleteMappingMutation = useMutation({
-    mutationFn: (id) => api.delete(`/attendance/biometric/mapping/${id}`),
-    onSuccess: () => {
-      toast.success('Mapping deleted');
-      qc.invalidateQueries(['attendance']);
-    },
-    onError: () => toast.error('Failed to delete mapping')
-  });
 
   const methodBadge = (m) => {
     const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-purple-400 bg-purple-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
@@ -585,8 +586,8 @@ export default function Attendance() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">✓ Enrolled</span>
-                          <button className="text-xs text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
-                          <button onClick={() => deleteMappingMutation.mutate(r.id)} className="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                          <button onClick={() => setEditMappingTarget(r)} className="text-xs text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
+                          <button onClick={() => setDeleteMappingTarget(r)} className="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
                         </div>
                       </div>
                     )) : <p className="text-sm text-slate-500">No employees mapped yet.</p>}
@@ -610,6 +611,49 @@ export default function Attendance() {
         onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
         itemName={`Attendance for ${deleteTarget?.Full_name || 'Employee'}`}
       />
+
+      <ConfirmDeleteModal 
+        isOpen={!!deleteMappingTarget} 
+        onClose={() => setDeleteMappingTarget(null)}
+        onConfirm={() => deleteMappingMutation.mutate(deleteMappingTarget.id)}
+        itemName={`Biometric Mapping for ${deleteMappingTarget?.Full_name || 'Unknown Employee'}`}
+      />
+
+      {editMappingTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditMappingTarget(null)} />
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h2 className="text-base font-bold text-white mb-4">Edit Mapping</h2>
+            <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              editMappingMutation.mutate({ id: editMappingTarget.id, body: Object.fromEntries(new FormData(e.target)) }); 
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">EMPLOYEE *</label>
+                <select name="employee_id" required defaultValue={editMappingTarget.employee_id} className="form-input">
+                  <option value="">— Select Employee —</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">DEVICE *</label>
+                <select name="device_id" required defaultValue={editMappingTarget.device_id} className="form-input">
+                  <option value="">— Select Device —</option>
+                  {data?.biometric_devices?.map(d => <option key={d.id} value={d.id}>{d.device_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">BIOMETRIC ID ON DEVICE *</label>
+                <input name="biometric_id" required defaultValue={editMappingTarget.biometric_id} className="form-input" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditMappingTarget(null)} className="flex-1 px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl">Cancel</button>
+                <button type="submit" disabled={editMappingMutation.isPending} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl">Update</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

@@ -397,6 +397,17 @@ router.post('/biometric/mapping', async (req, res) => {
   }
 });
 
+// PUT /api/attendance/biometric/mapping/:id
+router.put('/biometric/mapping/:id', async (req, res) => {
+  try {
+    const { employee_id, device_id, biometric_id } = req.body;
+    await dbUpdate('biometric_registrations', req.params.id, { employee_id, device_id, biometric_id });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // DELETE /api/attendance/biometric/mapping/:id
 router.delete('/biometric/mapping/:id', async (req, res) => {
   try {
