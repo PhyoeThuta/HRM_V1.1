@@ -1,11 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 
 export default function BossChat() {
-  const [messages, setMessages] = useState([{ role: 'ai', text: 'Hello! I am CorpHRM Assistant. How can I help you manage your organization today?' }]);
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('bossChatMessages');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [{ role: 'ai', text: 'Hello! I am CorpHRM Assistant. How can I help you manage your organization today?' }];
+  });
   const [input, setInput] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem('bossChatMessages', JSON.stringify(messages));
+  }, [messages]);
+
 
   const chatMutation = useMutation({
     mutationFn: (msg) => api.post('/boss/chat', { message: msg }).then(r => r.data),
