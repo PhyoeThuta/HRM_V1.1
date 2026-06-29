@@ -491,8 +491,8 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
   try {
     const eid = req.params.id;
     // Helper to throw on error, but ignore table missing errors
-    const cascade = async (table) => {
-      const { error } = await supabase.from(table).delete().eq('employee_id', eid);
+    const cascade = async (table, col = 'employee_id') => {
+      const { error } = await supabase.from(table).delete().eq(col, eid);
       // PGRST205: table doesn't exist. We can safely ignore this.
       if (error && error.code !== '42P01' && error.code !== 'PGRST205') { 
         console.error(`Error deleting from ${table}:`, error);
@@ -511,7 +511,8 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     await cascade('document_vault');
     await cascade('schedules');
     await cascade('roster_shifts');
-    await cascade('peer_voting_records');
+    await cascade('peer_voting_records', 'nominee_id');
+    await cascade('peer_voting_records', 'voter_id');
     await cascade('employee_onboarding');
 
     // Also nullify Manager_id in Employees where this user is the manager
