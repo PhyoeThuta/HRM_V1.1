@@ -513,6 +513,7 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     await cascade('roster_shifts');
     await cascade('peer_voting_records', 'nominee_id');
     await cascade('peer_voting_records', 'voter_id');
+    await cascade('employee_daily_schedules');
     await cascade('employee_onboarding');
 
     // Also nullify Manager_id in Employees where this user is the manager
