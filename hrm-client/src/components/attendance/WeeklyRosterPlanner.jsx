@@ -105,9 +105,9 @@ export default function WeeklyRosterPlanner() {
                   
                   return (
                     <td key={date} className="p-2 text-center align-middle">
-                      <select
-                        className="bg-[#0f121b] border border-slate-600 hover:border-slate-500 text-slate-200 rounded-lg py-1.5 pl-2 pr-6 text-xs font-medium w-full min-w-[130px] focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer"
-                        value={currentValue || ''}
+                        <select
+                          className="bg-[#0f121b] border border-slate-600 hover:border-slate-500 text-slate-200 rounded-lg py-1.5 pl-2 pr-6 text-xs font-medium w-full min-w-[180px] focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer"
+                          value={currentValue || ''}
                         onChange={e => {
                           const val = e.target.value;
                           if (val === 'off') handleChange(emp.id, date, null, true);
