@@ -12,7 +12,7 @@ const STATUS_CFG = {
 };
 
 export default function Leave() {
-  const [activeTabState, setActiveTabState] = useState(localStorage.getItem('leaveTab') || 'requests');
+  const [activeTabState, setActiveTabState] = useState(localStorage.getItem('leaveTab') || 'balances');
   const activeTab = activeTabState;
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('leaveTab', tab); };
   const [showModal, setShowModal] = useState(false);
@@ -52,8 +52,13 @@ export default function Leave() {
   const requests = data?.requests || [];
   const leaveTypes = data?.leave_types || [];
   const employees = data?.employees || [];
+  const balances = data?.balances || [];
 
-  const TABS = [{ id: 'requests', label: '📋 Requests' }, { id: 'types', label: '⚙️ Leave Types' }];
+  const TABS = [
+    { id: 'balances', label: '📊 Total Leaves' },
+    { id: 'requests', label: '📋 Leave Requests' },
+    { id: 'types', label: '⚙️ Leave Types' }
+  ];
 
   const handleRequestSubmit = (e) => {
     e.preventDefault();
@@ -93,6 +98,64 @@ export default function Leave() {
           )
         )}
       </div>
+
+      {/* Leave Balances Table */}
+      {activeTab === 'balances' && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+          {isLoading ? <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
+          : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead style={{ background: '#161929' }}>
+                  <tr>
+                    <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee</th>
+                    <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Type</th>
+                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Entitled</th>
+                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Used</th>
+                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-emerald-400 uppercase tracking-wider">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {balances.length > 0 ? balances.map(b => {
+                    const emp = employees.find(e => e.id === b.employee_id);
+                    const empName = emp ? emp.Full_name : 'Unknown';
+                    const empIdStr = emp ? emp.employee_id : '';
+                    const used = parseInt(b.used_days || 0);
+                    const entitled = parseInt(b.entitled_days || 0);
+                    const pct = entitled > 0 ? Math.round((used / entitled) * 100) : 0;
+                    return (
+                      <tr key={b.id} className="hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
+                              {empName[0]}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium text-sm">{empName}</p>
+                              {empIdStr && <p className="text-xs text-slate-500 font-mono">{empIdStr}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-5 text-slate-300 font-medium">{b.type_name}</td>
+                        <td className="py-3 px-5 text-center text-slate-300">{b.entitled_days}</td>
+                        <td className="py-3 px-5 text-center text-slate-300">
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{b.used_days}</span>
+                            <div className="w-16 h-1 rounded-full bg-white/5 overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct > 80 ? '#f43f5e' : pct > 50 ? '#f59e0b' : '#10b981' }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-5 text-center font-bold text-emerald-400">{b.remain_days}</td>
+                      </tr>
+                    );
+                  }) : <tr><td colSpan="5" className="py-12 text-center text-slate-500 text-sm">No leave balances found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Requests Table */}
       {activeTab === 'requests' && (
