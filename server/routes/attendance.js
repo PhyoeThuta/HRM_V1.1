@@ -11,13 +11,25 @@ async function checkIsLate(employee_id, check_in_time) {
     const dt = new Date(check_in_time);
     const todayStr = dt.toISOString().split('T')[0];
     
-    // 1. Check Roster
-    const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+    // 1. Check Daily Schedule (New System)
     let activeShiftId = null;
-    for (const r of rosters) {
-      if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
-        activeShiftId = r.shift_id;
-        break;
+    const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
+      employee_id: employee_id,
+      schedule_date: todayStr,
+      is_off_day: false
+    });
+    if (dailySchedule && dailySchedule.shift_id) {
+      activeShiftId = dailySchedule.shift_id;
+    }
+    
+    // 2. Check Legacy Roster if no daily schedule
+    if (!activeShiftId) {
+      const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+      for (const r of rosters) {
+        if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
+          activeShiftId = r.shift_id;
+          break;
+        }
       }
     }
     
@@ -56,12 +68,25 @@ async function calcOvertime(employee_id, check_out_time) {
     const dt = new Date(check_out_time);
     const todayStr = dt.toISOString().split('T')[0];
     
-    const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+    // 1. Check Daily Schedule (New System)
     let activeShiftId = null;
-    for (const r of rosters) {
-      if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
-        activeShiftId = r.shift_id;
-        break;
+    const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
+      employee_id: employee_id,
+      schedule_date: todayStr,
+      is_off_day: false
+    });
+    if (dailySchedule && dailySchedule.shift_id) {
+      activeShiftId = dailySchedule.shift_id;
+    }
+    
+    // 2. Check Legacy Roster if no daily schedule
+    if (!activeShiftId) {
+      const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+      for (const r of rosters) {
+        if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
+          activeShiftId = r.shift_id;
+          break;
+        }
       }
     }
     
