@@ -7,8 +7,8 @@ import api from '../api/client';
 
 Chart.register(...registerables);
 
-function StatCard({ label, value, gradient, iconPath, color }) {
-  return (
+function StatCard({ label, value, gradient, iconPath, color, href }) {
+  const card = (
     <div className="relative overflow-hidden rounded-2xl p-5 hover:border-white/10 transition-all duration-300"
       style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-5 translate-x-6 -translate-y-6"
@@ -24,6 +24,7 @@ function StatCard({ label, value, gradient, iconPath, color }) {
       <p className="text-xs text-slate-400 font-medium">{label}</p>
     </div>
   );
+  return href ? <Link to={href} className="block">{card}</Link> : card;
 }
 
 function MiniCard({ label, value, iconColor, icon }) {
@@ -110,10 +111,10 @@ export default function Dashboard() {
         <>
           {/* KPI Row 1 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-            <StatCard label="Total Staff" value={stats.total_staff} gradient="linear-gradient(to br, #6366f1, #4338ca)" iconPath={ICONS.staff} color="#818cf8" />
-            <StatCard label="Active Staff" value={stats.active_staff} gradient="linear-gradient(to br, #10b981, #059669)" iconPath={ICONS.active} color="#34d399" />
-            <StatCard label="Present Today" value={stats.today_present} gradient="linear-gradient(to br, #06b6d4, #0891b2)" iconPath={ICONS.present} color="#22d3ee" />
-            <StatCard label="Total Leaves" value={stats.total_leaves} gradient="linear-gradient(to br, #f59e0b, #d97706)" iconPath={ICONS.leave} color="#fbbf24" />
+            <StatCard label="Total Staff" value={stats.total_staff} gradient="linear-gradient(to br, #6366f1, #4338ca)" iconPath={ICONS.staff} color="#818cf8" href="/employees" />
+            <StatCard label="Active Staff" value={stats.active_staff} gradient="linear-gradient(to br, #10b981, #059669)" iconPath={ICONS.active} color="#34d399" href="/employees?status=active" />
+            <StatCard label="Present Today" value={stats.today_present} gradient="linear-gradient(to br, #06b6d4, #0891b2)" iconPath={ICONS.present} color="#22d3ee" href="/attendance" />
+            <StatCard label="Total Leaves" value={stats.total_leaves} gradient="linear-gradient(to br, #f59e0b, #d97706)" iconPath={ICONS.leave} color="#fbbf24" href="/leave" />
           </div>
 
           {/* KPI Row 2 */}
