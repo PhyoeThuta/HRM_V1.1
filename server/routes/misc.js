@@ -584,7 +584,9 @@ router.post('/boss/announcements', requireAdmin, async (req, res) => {
       // Send to Telegram if configured
       if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
         try {
-          const text = `📢 *${d.title}*\n\n${d.content}\n\n_Priority: ${d.priority || 'Medium'}_`;
+          const dateStr = new Date().toISOString().split('T')[0];
+          const prioEmoji = d.priority === 'Urgent' ? '🚨' : d.priority === 'High' ? '🔴' : '🟡';
+          const text = `🏢 *CORPHRM ANNOUNCEMENT* 🏢\n➖➖➖➖➖➖➖➖➖➖➖➖\n📌 *Subject:* ${d.title}\n${prioEmoji} *Priority:* ${d.priority || 'Medium'}\n📅 *Date:* ${dateStr}\n\n💬 *Message:*\n${d.content}\n➖➖➖➖➖➖➖➖➖➖➖➖`;
           fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
