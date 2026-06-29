@@ -180,7 +180,7 @@ router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) 
 
     // Auto-create sys_users
     try {
-      const username = d.email ? d.email.split('@')[0].toLowerCase() : d.employee_id.toLowerCase();
+      const username = d.employee_id.toLowerCase();
       let role = 'employee';
       if (d.position_id) {
         const pos = await dbFetchOne('positions', '*', { id: d.position_id });
@@ -375,7 +375,7 @@ router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) 
 
     // Auto-create sys_users
     try {
-      const username = d.email ? d.email.split('@')[0].toLowerCase() : d.employee_id.toLowerCase();
+      const username = d.employee_id.toLowerCase();
       let role = 'employee';
       if (d.position_id) {
         const pos = await dbFetchOne('positions', '*', { id: d.position_id });
