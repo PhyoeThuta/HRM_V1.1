@@ -117,7 +117,9 @@ export default function WeeklyRosterPlanner() {
                         <option value="">—</option>
                         <option value="off">OFF</option>
                         {shifts.map(s => (
-                          <option key={s.id} value={s.id}>{s.shift_name}</option>
+                          <option key={s.id} value={s.id}>
+                            {s.shift_name} {s.start_time && s.end_time ? `(${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)})` : ''}
+                          </option>
                         ))}
                       </select>
                     </td>
