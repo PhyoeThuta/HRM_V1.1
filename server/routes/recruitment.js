@@ -139,6 +139,34 @@ router.post('/:id/convert', requireAdmin, async (req, res) => {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const empId = `EMP-${randomNum}`;
 
+    // 1.5 Determine Default Shift based on Position
+    let defaultShiftId = null;
+    if (cand.position_id) {
+      const pos = await dbFetchOne('positions', 'title', { id: cand.position_id });
+      if (pos && pos.title) {
+        const shifts = await dbFetch('shifts', 'id, shift_name');
+        const posTitle = pos.title.toLowerCase();
+        
+        let matchedShift = null;
+        if (posTitle.includes('reception')) {
+          matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('reception'));
+        } else if (posTitle.includes('kitchen')) {
+          matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('kitchen'));
+        } else if (posTitle.includes('housekeep')) {
+          matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('housekeep'));
+        }
+        
+        if (!matchedShift) {
+          // Fallback to Office Regular
+          matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('office'));
+        }
+        
+        if (matchedShift) {
+          defaultShiftId = matchedShift.id;
+        }
+      }
+    }
+
     // 2. Insert into Employees
     const empResult = await dbInsert('Employees', {
       employee_id: empId,
@@ -146,6 +174,7 @@ router.post('/:id/convert', requireAdmin, async (req, res) => {
       email: cand.email || null,
       phone: cand.phone || null,
       position_id: cand.position_id || null,
+      default_shift_id: defaultShiftId,
       status: 'Active',
       employment_type: 'Full-Time',
       created_at: new Date().toISOString()
