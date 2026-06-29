@@ -490,10 +490,11 @@ router.put('/:id/restore', requireAdmin, async (req, res) => {
 router.delete('/:id/hard', requireAdmin, async (req, res) => {
   try {
     const eid = req.params.id;
-    // Helper to throw on error
+    // Helper to throw on error, but ignore table missing errors
     const cascade = async (table) => {
       const { error } = await supabase.from(table).delete().eq('employee_id', eid);
-      if (error && error.code !== '42P01') { // Ignore "table does not exist" errors
+      // PGRST205: table doesn't exist. We can safely ignore this.
+      if (error && error.code !== '42P01' && error.code !== 'PGRST205') { 
         console.error(`Error deleting from ${table}:`, error);
         throw new Error(`Cannot delete: referenced in ${table}`);
       }
@@ -501,15 +502,17 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
 
     // Delete all related records across modules first to prevent foreign key errors
     await cascade('sys_users');
-    await cascade('leave_balances');
-    await cascade('leave_requests');
+    await cascade('Leave_balances');
+    await cascade('Leave_Request');
     await cascade('attendance_records');
     await cascade('biometric_registrations');
-    await cascade('boss_kpi_assignments');
-    await cascade('payroll_records');
+    await cascade('kpis');
+    await cascade('payrolls');
     await cascade('document_vault');
     await cascade('schedules');
     await cascade('roster_shifts');
+    await cascade('peer_voting_records');
+    await cascade('employee_onboarding');
 
     // Also nullify Manager_id in Employees where this user is the manager
     await supabase.from('Employees').update({ Manager_id: null }).eq('Manager_id', eid);
