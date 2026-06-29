@@ -142,6 +142,7 @@ export default function Employees() {
   const hardDeleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/employees/${id}/hard`),
     onSuccess: () => { qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee permanently deleted' }); setTimeout(() => setFlash(null), 3000); setHardDeleteTarget(null); },
+    onError: (err) => { setFlash({ type: 'error', msg: err.response?.data?.error || 'Failed to hard delete employee' }); setTimeout(() => setFlash(null), 5000); setHardDeleteTarget(null); }
   });
 
   const employees = data?.employees || [];

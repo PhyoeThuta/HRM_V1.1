@@ -490,19 +490,33 @@ router.put('/:id/restore', requireAdmin, async (req, res) => {
 router.delete('/:id/hard', requireAdmin, async (req, res) => {
   try {
     const eid = req.params.id;
+    // Helper to throw on error
+    const cascade = async (table) => {
+      const { error } = await supabase.from(table).delete().eq('employee_id', eid);
+      if (error && error.code !== '42P01') { // Ignore "table does not exist" errors
+        console.error(`Error deleting from ${table}:`, error);
+        throw new Error(`Cannot delete: referenced in ${table}`);
+      }
+    };
+
     // Delete all related records across modules first to prevent foreign key errors
-    await supabase.from('sys_users').delete().eq('employee_id', eid);
-    await supabase.from('leave_balances').delete().eq('employee_id', eid);
-    await supabase.from('leave_requests').delete().eq('employee_id', eid);
-    await supabase.from('attendance_records').delete().eq('employee_id', eid);
-    await supabase.from('biometric_registrations').delete().eq('employee_id', eid);
-    await supabase.from('boss_kpi_assignments').delete().eq('employee_id', eid);
-    await supabase.from('payroll_records').delete().eq('employee_id', eid);
-    await supabase.from('document_vault').delete().eq('employee_id', eid);
-    await supabase.from('schedules').delete().eq('employee_id', eid);
+    await cascade('sys_users');
+    await cascade('leave_balances');
+    await cascade('leave_requests');
+    await cascade('attendance_records');
+    await cascade('biometric_registrations');
+    await cascade('boss_kpi_assignments');
+    await cascade('payroll_records');
+    await cascade('document_vault');
+    await cascade('schedules');
+    await cascade('roster_shifts');
+
+    // Also nullify Manager_id in Employees where this user is the manager
+    await supabase.from('Employees').update({ Manager_id: null }).eq('Manager_id', eid);
     
     // Delete employee permanently
-    await dbDelete('Employees', eid);
+    const { error: deleteErr } = await supabase.from('Employees').delete().eq('id', eid);
+    if (deleteErr) throw new Error(`Cannot delete employee: ${deleteErr.message}`);
     
     // Audit log
     await dbInsert('sys_audit_logs', {
