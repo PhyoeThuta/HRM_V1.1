@@ -11,19 +11,24 @@ router.get('/', async (req, res) => {
     const [requests, leaveTypes, employees, balances] = await Promise.all([
       dbFetch('Leave_Request', '*', {}, { order: 'created_at', ascending: false }),
       dbFetch('Leave_type', '*'),
-      dbFetch('Employees', 'id,Full_name,employee_id'),
+      dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' }),
       dbFetch('Leave_balances', '*'),
     ]);
     const ltMap = Object.fromEntries(leaveTypes.map(t => [t.id, t.type_name]));
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+    
+    // Filter balances to only include active employees
+    const activeBalances = balances.filter(b => empMap[b.employee_id]);
+    
     requests.forEach(r => {
       r.type_name = ltMap[r.leave_type_id] || '—';
       const emp = empMap[r.employee_id] || {};
       r.employee_name = emp.Full_name || '—';
       r.employee_code = emp.employee_id || '—';
     });
-    balances.forEach(b => { b.type_name = ltMap[b.leave_type_id] || '—'; });
-    return res.json({ requests, leave_types: leaveTypes, employees, balances });
+    activeBalances.forEach(b => { b.type_name = ltMap[b.leave_type_id] || '—'; });
+    
+    return res.json({ requests, leave_types: leaveTypes, employees, balances: activeBalances });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
