@@ -489,12 +489,20 @@ router.put('/:id/restore', requireAdmin, async (req, res) => {
 // DELETE /api/employees/:id/hard (Permanent Delete)
 router.delete('/:id/hard', requireAdmin, async (req, res) => {
   try {
-    // Delete sys_user explicitly
-    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
-    if (user) await dbDelete('sys_users', user.id);
+    const eid = req.params.id;
+    // Delete all related records across modules first to prevent foreign key errors
+    await supabase.from('sys_users').delete().eq('employee_id', eid);
+    await supabase.from('leave_balances').delete().eq('employee_id', eid);
+    await supabase.from('leave_requests').delete().eq('employee_id', eid);
+    await supabase.from('attendance_records').delete().eq('employee_id', eid);
+    await supabase.from('biometric_registrations').delete().eq('employee_id', eid);
+    await supabase.from('boss_kpi_assignments').delete().eq('employee_id', eid);
+    await supabase.from('payroll_records').delete().eq('employee_id', eid);
+    await supabase.from('document_vault').delete().eq('employee_id', eid);
+    await supabase.from('schedules').delete().eq('employee_id', eid);
     
     // Delete employee permanently
-    await dbDelete('Employees', req.params.id);
+    await dbDelete('Employees', eid);
     
     // Audit log
     await dbInsert('sys_audit_logs', {
