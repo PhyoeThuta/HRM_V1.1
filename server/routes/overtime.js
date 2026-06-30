@@ -49,10 +49,20 @@ router.get('/my', async (req, res) => {
 // POST /api/overtime/request - Create a new OT request
 router.post('/request', async (req, res) => {
   try {
-    const { employee_id, ot_date, reason, requested_by } = req.body;
+    const { employee_id, ot_date, start_time, end_time, reason, requested_by } = req.body;
     
-    if (!employee_id || !ot_date || !requested_by) {
+    if (!employee_id || !ot_date || !start_time || !end_time || !requested_by) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    let requested_hours = 0;
+    try {
+      const start = new Date(`1970-01-01T${start_time}:00Z`);
+      const end = new Date(`1970-01-01T${end_time}:00Z`);
+      requested_hours = (end - start) / 3600000;
+      if (requested_hours < 0) requested_hours += 24; // Handle overnight shift
+    } catch (e) {
+      console.error(e);
     }
 
     const status = requested_by === 'hr_boss' ? 'Pending_Employee_Acceptance' : 'Pending_Boss_Approval';
@@ -60,6 +70,9 @@ router.post('/request', async (req, res) => {
     const newRequest = await dbInsert('overtime_requests', {
       employee_id,
       ot_date,
+      start_time,
+      end_time,
+      requested_hours,
       reason,
       requested_by,
       status

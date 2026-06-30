@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 export default function OvertimeTab() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ employee_id: '', ot_date: '', reason: '' });
+  const [formData, setFormData] = useState({ employee_id: '', ot_date: '', start_time: '', end_time: '', reason: '' });
 
   const { data: requests = [], isLoading: loadingRequests } = useQuery({
     queryKey: ['overtime'],
@@ -25,7 +25,7 @@ export default function OvertimeTab() {
     onSuccess: () => {
       qc.invalidateQueries(['overtime']);
       setShowModal(false);
-      setFormData({ employee_id: '', ot_date: '', reason: '' });
+      setFormData({ employee_id: '', ot_date: '', start_time: '', end_time: '', reason: '' });
       toast.success('Overtime assigned successfully!');
     },
     onError: (err) => {
@@ -84,6 +84,7 @@ export default function OvertimeTab() {
             <tr>
               <th className="py-4 px-5">Employee</th>
               <th className="py-4 px-5">Date</th>
+              <th className="py-4 px-5">Time</th>
               <th className="py-4 px-5">Reason</th>
               <th className="py-4 px-5">Origin</th>
               <th className="py-4 px-5">Status</th>
@@ -105,6 +106,7 @@ export default function OvertimeTab() {
                     <p className="text-[10px] text-slate-400">{r.position_name}</p>
                   </td>
                   <td className="py-4 px-5 text-emerald-400 font-mono text-xs">{r.ot_date}</td>
+                  <td className="py-4 px-5 text-cyan-400 font-mono text-xs">{r.start_time ? `${r.start_time.slice(0,5)} - ${r.end_time.slice(0,5)}` : '—'}</td>
                   <td className="py-4 px-5 text-slate-300 max-w-[200px] truncate" title={r.reason}>{r.reason || '—'}</td>
                   <td className="py-4 px-5">
                     {r.requested_by === 'hr_boss' 
@@ -178,6 +180,28 @@ export default function OvertimeTab() {
                   onChange={e => setFormData({...formData, ot_date: e.target.value})}
                   className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Start Time *</label>
+                  <input 
+                    type="time" 
+                    required
+                    value={formData.start_time} 
+                    onChange={e => setFormData({...formData, start_time: e.target.value})}
+                    className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">End Time *</label>
+                  <input 
+                    type="time" 
+                    required
+                    value={formData.end_time} 
+                    onChange={e => setFormData({...formData, end_time: e.target.value})}
+                    className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Reason / Task</label>
