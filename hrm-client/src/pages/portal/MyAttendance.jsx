@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
 import Layout from '../../components/layout/Layout';
+import MyOvertimeTab from './MyOvertimeTab';
 
 export default function MyAttendance() {
+  const [activeTab, setActiveTab] = useState('records');
   const [expandedMonths, setExpandedMonths] = useState({});
   
   const { data, isLoading } = useQuery({ 
@@ -60,8 +62,26 @@ export default function MyAttendance() {
 
   return (
     <Layout title="My Attendance" subtitle="Your complete attendance history">
-      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      
+      {/* Tabs */}
+      <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-2">
+        <button 
+          onClick={() => setActiveTab('records')}
+          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${activeTab === 'records' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+        >
+          📅 My Records
+        </button>
+        <button 
+          onClick={() => setActiveTab('overtime')}
+          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${activeTab === 'overtime' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+        >
+          ⏱️ Overtime
+        </button>
+      </div>
+
+      {activeTab === 'records' && (
+        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h3 className="text-sm font-bold text-white">Attendance Records</h3>
           <p className="text-xs text-slate-400">{records.length} records total</p>
         </div>
@@ -128,7 +148,14 @@ export default function MyAttendance() {
             })}
           </div>
         )}
-      </div>
+        </div>
+      )}
+
+      {activeTab === 'overtime' && (
+        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <MyOvertimeTab />
+        </div>
+      )}
     </Layout>
   );
 }

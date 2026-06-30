@@ -68,6 +68,18 @@ async function calcOvertime(employee_id, check_out_time) {
     const dt = new Date(check_out_time);
     const todayStr = dt.toISOString().split('T')[0];
     
+    // 0. Check if there is an APPROVED overtime request for this date
+    const otRequest = await dbFetchOne('overtime_requests', 'id', {
+      employee_id: employee_id,
+      ot_date: todayStr,
+      status: 'Approved'
+    });
+    
+    // If no approved OT request exists, return 0
+    if (!otRequest) {
+      return 0;
+    }
+    
     // 1. Check Daily Schedule (New System)
     let activeShiftId = null;
     const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {

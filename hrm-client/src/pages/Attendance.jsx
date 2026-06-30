@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 import RostersTab from '../components/attendance/RostersTab';
 import WeeklyRosterPlanner from '../components/attendance/WeeklyRosterPlanner';
+import OvertimeTab from './OvertimeTab';
 
 function StatCard({ label, value, color }) {
   return (
@@ -87,6 +88,7 @@ export default function Attendance() {
     { id: 'qr', icon: '📱', label: 'QR Code' },
     { id: 'biometric', icon: '👆', label: 'Biometric' },
     { id: 'rosters', icon: '📅', label: 'Rosters & Shifts' },
+    { id: 'overtime', icon: '⏱️', label: 'Overtime Requests' },
   ];
 
   const handleManualSubmit = (e) => {
@@ -602,6 +604,11 @@ export default function Attendance() {
         {/* Rosters Tab */}
         {activeTab === 'rosters' && (
           <WeeklyRosterPlanner />
+        )}
+
+        {/* Overtime Tab */}
+        {activeTab === 'overtime' && (
+          <OvertimeTab />
         )}
       </div>
 
