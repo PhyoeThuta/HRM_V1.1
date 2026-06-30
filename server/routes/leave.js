@@ -1,5 +1,6 @@
 import express from 'express';
-import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
+import multer from 'multer';
+import { supabase, dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -34,14 +35,37 @@ router.get('/', async (req, res) => {
   }
 });
 
+const upload = multer({ storage: multer.memoryStorage() });
+
 // POST /api/leave/request
-router.post('/request', async (req, res) => {
+router.post('/request', upload.single('attachment'), async (req, res) => {
   try {
     const d = req.body;
+    let documentUrl = null;
+
+    if (req.file) {
+      const fileExt = req.file.originalname.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('leave_documents')
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true
+        });
+      
+      if (error) {
+        console.error('[STORAGE UPLOAD ERROR]', error);
+      } else {
+        const { data: pubData } = supabase.storage.from('leave_documents').getPublicUrl(fileName);
+        documentUrl = pubData.publicUrl;
+      }
+    }
+
     const result = await dbInsert('Leave_Request', {
       employee_id: d.employee_id, leave_type_id: d.leave_type_id,
       start_date: d.start_date, end_date: d.end_date,
       reason: d.reason, status: 'Pending',
+      document_url: documentUrl,
       created_at: new Date().toISOString(),
     });
     
@@ -66,8 +90,8 @@ router.post('/request', async (req, res) => {
 // PUT /api/leave/:id/status  (approve/reject)
 router.put('/:id/status', requireAdmin, async (req, res) => {
   try {
-    const { status } = req.body;
-    await dbUpdate('Leave_Request', req.params.id, { status });
+    const { status, e_signature } = req.body;
+    await dbUpdate('Leave_Request', req.params.id, { status, e_signature });
     
     // Notify Employee
     const reqData = await dbFetchOne('Leave_Request', 'employee_id', { id: req.params.id });

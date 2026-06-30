@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import SignatureCanvas from 'react-signature-canvas';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
@@ -19,6 +20,8 @@ export default function Leave() {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [editTypeData, setEditTypeData] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [signatureModalTarget, setSignatureModalTarget] = useState(null);
+  const sigCanvas = useRef({});
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
@@ -179,7 +182,14 @@ export default function Leave() {
                       <td className="py-3 px-5 text-slate-300">{r.type_name}</td>
                       <td className="py-3 px-5 text-slate-300">{(r.start_date || '').slice(0, 10)}</td>
                       <td className="py-3 px-5 text-slate-300">{(r.end_date || '').slice(0, 10)}</td>
-                      <td className="py-3 px-5 text-slate-400 text-xs max-w-[200px] truncate">{r.reason || '—'}</td>
+                      <td className="py-3 px-5 text-slate-400 text-xs max-w-[200px] truncate">
+                        {r.reason || '—'}
+                        {r.document_url && (
+                          <a href={r.document_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-indigo-400 hover:text-indigo-300 font-bold" title="View Attachment">
+                            📎 View
+                          </a>
+                        )}
+                      </td>
                       <td className="py-3 px-5">
                         <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_CFG[r.status] || 'text-slate-400 bg-white/5'}`}>{r.status}</span>
                       </td>
@@ -187,8 +197,8 @@ export default function Leave() {
                         <div className="flex items-center gap-2">
                           {isAdmin() && r.status === 'Pending' && (
                             <>
-                              <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Approved' })} className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-400/20 transition-colors">✓ Approve</button>
-                              <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2.5 py-1.5 rounded-lg hover:bg-rose-400/20 transition-colors">✗ Reject</button>
+                              <button onClick={() => setSignatureModalTarget(r)} className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-400/20 transition-colors">✔️ Approve</button>
+                              <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2.5 py-1.5 rounded-lg hover:bg-rose-400/20 transition-colors">❌ Reject</button>
                             </>
                           )}
                           {isAdmin() && (
@@ -326,6 +336,55 @@ export default function Leave() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Modal */}
+      {signatureModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#1e2235] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
+            <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
+              <h2 className="text-lg font-bold text-white">E-Signature Required</h2>
+              <button onClick={() => setSignatureModalTarget(null)} className="text-slate-400 hover:text-white transition-colors">
+                ✕
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-300">Please provide your signature to approve this leave request for <span className="font-bold text-white">{signatureModalTarget.employee_name}</span>.</p>
+              <div className="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <SignatureCanvas 
+                  ref={sigCanvas} 
+                  penColor="#ffffff"
+                  canvasProps={{ width: 500, height: 200, className: 'w-full h-[200px] cursor-crosshair' }} 
+                />
+              </div>
+              <div className="flex justify-end">
+                <button onClick={() => sigCanvas.current.clear()} className="text-xs text-slate-400 hover:text-white transition-colors">Clear Signature</button>
+              </div>
+            </div>
+            <div className="p-5 border-t border-white/5 flex justify-end gap-3 bg-black/20">
+              <button 
+                onClick={() => setSignatureModalTarget(null)} 
+                className="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  if (sigCanvas.current.isEmpty()) {
+                    alert("Please provide a signature first.");
+                    return;
+                  }
+                  const e_signature = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+                  statusMutation.mutate({ id: signatureModalTarget.id, status: 'Approved', e_signature });
+                  setSignatureModalTarget(null);
+                }}
+                className="px-5 py-2 text-sm font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/25"
+              >
+                Confirm Approval
+              </button>
+            </div>
           </div>
         </div>
       )}

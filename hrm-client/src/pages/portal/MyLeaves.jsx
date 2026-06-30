@@ -30,9 +30,8 @@ export default function MyLeaves() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const body = Object.fromEntries(fd);
-    body.employee_id = empId;
-    requestMutation.mutate(body);
+    fd.append('employee_id', empId);
+    requestMutation.mutate(fd);
   };
 
   const statusColor = {
@@ -120,6 +119,10 @@ export default function MyLeaves() {
               <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">REASON</label>
               <textarea name="reason" rows="3" className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors resize-none" placeholder="Brief reason (optional)..."></textarea>
             </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">ATTACHMENT (e.g. Medical Cert)</label>
+              <input type="file" name="attachment" className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20" />
+            </div>
             <div className="pt-2">
               <button
                 type="submit"
@@ -159,6 +162,11 @@ export default function MyLeaves() {
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="text-xs font-bold text-slate-300">{typeName}</h4>
+                          {r.document_url && (
+                            <a href={r.document_url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition-colors" title="View Attachment">
+                              📎
+                            </a>
+                          )}
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${statusColor[r.status] || 'text-slate-400'} ${statusBgColor[r.status] || 'bg-slate-400/10'}`}>
                             {r.status || 'Unknown'}
                           </span>
