@@ -13,10 +13,12 @@ export default function OvertimeTab() {
     queryFn: () => api.get('/overtime').then(r => r.data)
   });
 
-  const { data: employees = [] } = useQuery({
+  const { data: employeesData } = useQuery({
     queryKey: ['employees'],
     queryFn: () => api.get('/employees').then(r => r.data)
   });
+  
+  const employees = employeesData?.employees || [];
 
   const createMutation = useMutation({
     mutationFn: (body) => api.post('/overtime/request', body),
@@ -163,7 +165,7 @@ export default function OvertimeTab() {
                 >
                   <option value="" disabled>-- Select Employee --</option>
                   {employees.map(e => (
-                    <option key={e.id} value={e.id}>{e.full_name} ({e.Positions?.title})</option>
+                    <option key={e.id} value={e.id}>{e.Full_name} ({e.pos_title || 'No Position'})</option>
                   ))}
                 </select>
               </div>
