@@ -390,7 +390,8 @@ router.post('/biometric/mapping', async (req, res) => {
   try {
     const { employee_id, device_id, biometric_id } = req.body;
     if (!employee_id || !biometric_id) return res.status(400).json({ error: 'employee_id and biometric_id required' });
-    const newMapping = await dbInsert('biometric_registrations', { employee_id, device_id, biometric_id });
+    const newMapping = await dbInsert('biometric_employees', { employee_id, device_id, biometric_id });
+    if (!newMapping) return res.status(500).json({ error: 'Failed to insert mapping' });
     return res.json({ success: true, mapping: newMapping });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -401,7 +402,8 @@ router.post('/biometric/mapping', async (req, res) => {
 router.put('/biometric/mapping/:id', async (req, res) => {
   try {
     const { employee_id, device_id, biometric_id } = req.body;
-    await dbUpdate('biometric_registrations', req.params.id, { employee_id, device_id, biometric_id });
+    const ok = await dbUpdate('biometric_employees', req.params.id, { employee_id, device_id, biometric_id });
+    if (!ok) return res.status(500).json({ error: 'Failed to update mapping' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -411,7 +413,7 @@ router.put('/biometric/mapping/:id', async (req, res) => {
 // DELETE /api/attendance/biometric/mapping/:id
 router.delete('/biometric/mapping/:id', async (req, res) => {
   try {
-    const { error } = await supabase.from('biometric_registrations').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('biometric_employees').delete().eq('id', req.params.id);
     if (error) throw error;
     return res.json({ success: true });
   } catch (e) {

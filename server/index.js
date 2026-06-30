@@ -86,7 +86,7 @@ app.use((req, res) => {
 // ── Error Handler ──────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('[SERVER ERROR]', err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: err.stack || err.message || 'Internal server error' });
 });
 
 app.listen(PORT, () => {
