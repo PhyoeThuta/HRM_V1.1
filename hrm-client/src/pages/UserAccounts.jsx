@@ -96,7 +96,7 @@ export default function UserAccounts() {
     }
   };
 
-  const roleEmoji = { boss: '👑 Boss', hr_manager: '🤝 HR Manager', finance: '💰 Finance', admin: '⚙️ Admin', employee: '👤 Employee' };
+  const roleEmoji = { boss: '👑 Boss', manager: '🧑‍💼 Manager', hr_manager: '🤝 HR Manager', finance: '💰 Finance', admin: '⚙️ Admin', employee: '👤 Employee' };
   
   const filteredUsers = (users || []).filter(u => 
     (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -104,19 +104,50 @@ export default function UserAccounts() {
   );
 
   const groupedUsers = filteredUsers.reduce((acc, u) => {
-    if (!acc[u.role]) acc[u.role] = [];
-    acc[u.role].push(u);
+    let groupKey = u.role;
+
+    if (u.role === 'employee') {
+      if (u.employee_id && employees) {
+        const empRecord = employees.find(e => e.id === u.employee_id);
+        if (empRecord && empRecord.dept_name && empRecord.dept_name !== '—') {
+          groupKey = `employee_${empRecord.dept_name}`;
+        } else {
+          groupKey = 'employee_unassigned';
+        }
+      } else {
+        groupKey = 'employee_unassigned';
+      }
+    }
+
+    if (!acc[groupKey]) acc[groupKey] = [];
+    acc[groupKey].push(u);
     return acc;
   }, {});
 
-  const roleOrder = ['boss', 'admin', 'hr_manager', 'finance', 'employee'];
+  const roleOrder = ['boss', 'admin', 'manager', 'hr_manager', 'finance'];
   const sortedRoles = Object.keys(groupedUsers).sort((a, b) => {
     let ia = roleOrder.indexOf(a);
     let ib = roleOrder.indexOf(b);
-    if (ia === -1) ia = 99;
-    if (ib === -1) ib = 99;
-    return ia - ib;
+    
+    // Both standard roles
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+
+    // Both employee sub-groups
+    if (a === 'employee_unassigned') return 1;
+    if (b === 'employee_unassigned') return -1;
+    return a.localeCompare(b);
   });
+
+  const getGroupTitle = (key) => {
+    if (key.startsWith('employee_')) {
+      const dept = key.replace('employee_', '');
+      if (dept === 'unassigned') return '👤 Employee (No Department)';
+      return `👤 Employee - ${dept}`;
+    }
+    return roleEmoji[key] || key;
+  };
 
   return (
     <Layout title="User Accounts 🔓" subtitle="Manage system access — create accounts, assign roles, reset passwords">
@@ -144,7 +175,7 @@ export default function UserAccounts() {
           sortedRoles.map(role => (
             <div key={role}>
               <h2 className="text-sm font-bold text-slate-300 mb-4 uppercase tracking-wider flex items-center gap-2">
-                {roleEmoji[role] || role} 
+                {getGroupTitle(role)}
                 <span className="text-xs bg-white/5 text-slate-400 px-2 py-0.5 rounded-full">{groupedUsers[role].length}</span>
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -221,12 +252,13 @@ export default function UserAccounts() {
               <div>
                 <label className="form-label text-xs tracking-wider uppercase mb-2 block">Role *</label>
                 <select className="form-input bg-[#11131f] border-white/5 w-full" value={form.role} onChange={e => setForm({...form, role: e.target.value})}>
-                  <option value="employee">Employee (Portal only)</option>
-                  <option value="boss">Boss</option>
-                  <option value="hr_manager">HR Manager</option>
-                  <option value="finance">Finance</option>
-                  <option value="admin">System Admin</option>
-                </select>
+                <option value="employee">Employee (Portal only)</option>
+                <option value="boss">Boss</option>
+                <option value="manager">Manager</option>
+                <option value="hr_manager">HR Manager</option>
+                <option value="finance">Finance</option>
+                <option value="admin">System Admin</option>
+              </select>
               </div>
               <div>
                 <label className="form-label text-xs tracking-wider uppercase mb-2 block">Link to Employee Record</label>
