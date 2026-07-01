@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
@@ -103,8 +103,13 @@ export default function Employees() {
   const [hardDeleteTarget, setHardDeleteTarget] = useState(null);
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState('active'); // 'active' | 'recycle'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [deptFilter, setDeptFilter] = useState('');
+  const [collapsedDepts, setCollapsedDepts] = useState({});
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
+
+  const toggleDept = (dept) => setCollapsedDepts(prev => ({ ...prev, [dept]: !prev[dept] }));
 
   const { data, isLoading } = useQuery({ 
     queryKey: ['employees', page], 
@@ -146,6 +151,22 @@ export default function Employees() {
   });
 
   const employees = data?.employees || [];
+  const departments = formData?.departments || [];
+
+  // Filter and group employees
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = (emp.Full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (emp.employee_id || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDept = deptFilter ? emp.Dept_id === deptFilter : true;
+    return matchesSearch && matchesDept;
+  });
+
+  const groupedEmployees = filteredEmployees.reduce((acc, emp) => {
+    const dept = emp.dept_name || 'Unassigned';
+    if (!acc[dept]) acc[dept] = [];
+    acc[dept].push(emp);
+    return acc;
+  }, {});
 
   return (
     <Layout title="Employee Management" subtitle="Add, edit, and manage your entire workforce">
@@ -183,6 +204,27 @@ export default function Employees() {
         )}
       </div>
 
+      {/* Toolbar for Search & Filters */}
+      {tab === 'active' && (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <input 
+            type="text" 
+            placeholder="Search by name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 bg-[#1e2235] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+          />
+          <select 
+            value={deptFilter} 
+            onChange={(e) => setDeptFilter(e.target.value)}
+            className="w-full sm:w-48 bg-[#1e2235] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+          >
+            <option value="">All Departments</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
+          </select>
+        </div>
+      )}
+
       <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
         {(tab === 'active' ? isLoading : recycleLoading) ? (
           <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -197,39 +239,81 @@ export default function Employees() {
                 </tr>
               </thead>
               <tbody>
-                {(tab === 'active' ? employees : recycleData?.employees || []).length > 0 ? (tab === 'active' ? employees : recycleData?.employees || []).map(emp => (
-                  <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => { if (tab === 'active') window.location.href = `/employees/${emp.id}` }}>
-                    <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
-                    <td className="py-3.5 px-5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
-                        <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
-                    <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
-                    <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
-                    <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
-                    <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
-                    <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
-                      {tab === 'active' ? (
-                        <div className="flex items-center gap-2">
-                          <Link to={`/employees/${emp.id}`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
-                            <span className="text-sm">📄</span>
-                            View
-                          </Link>
-                          <Link to={`/employees/${emp.id}/edit`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
-                            <span className="text-sm">🖊️</span>
-                            Edit
-                          </Link>
-                          {isAdmin() && (
-                            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
-                              className="flex items-center justify-center w-10 h-10 ml-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 transition-colors text-rose-400" title="Soft Delete">
-                              <span className="text-sm">🗑️</span>
-                            </button>
-                          )}
+                {tab === 'active' ? (
+                  Object.keys(groupedEmployees).length > 0 ? (
+                    Object.entries(groupedEmployees).map(([dept, emps]) => (
+                      <React.Fragment key={dept}>
+                        <tr 
+                          className="cursor-pointer bg-[#161929] hover:bg-white/5 transition-colors border-t border-white/5"
+                          onClick={() => toggleDept(dept)}
+                        >
+                          <td colSpan="8" className="py-3 px-5">
+                            <div className="flex items-center gap-2 text-indigo-300 font-semibold text-sm">
+                              <span className="text-xs transition-transform duration-200" style={{ transform: collapsedDepts[dept] ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                              {dept} <span className="bg-white/10 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">{emps.length}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {!collapsedDepts[dept] && emps.map(emp => (
+                          <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                            <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                            <td className="py-3.5 px-5">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
+                                <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
+                            <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
+                            <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
+                            <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
+                            <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                            <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
+                                <Link to={`/employees/${emp.id}`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
+                                  <span className="text-sm">📄</span>
+                                  View
+                                </Link>
+                                <Link to={`/employees/${emp.id}/edit`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
+                                  <span className="text-sm">🖊️</span>
+                                  Edit
+                                </Link>
+                                {isAdmin() && (
+                                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
+                                    className="flex items-center justify-center w-10 h-10 ml-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 transition-colors text-rose-400" title="Soft Delete">
+                                    <span className="text-sm">🗑️</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <tr><td colSpan="8" className="py-16 text-center">
+                      <div className="text-4xl mb-3">👤</div>
+                      <p className="text-slate-400 text-sm">No employees found.</p>
+                      <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-indigo-400 hover:underline">Add your first employee</button>
+                    </td></tr>
+                  )
+                ) : (
+                  /* Recycle Bin Rendering */
+                  (recycleData?.employees || []).length > 0 ? recycleData.employees.map(emp => (
+                    <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group">
+                      <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
+                          <span className="font-medium text-white">{emp.Full_name || '—'}</span>
                         </div>
-                      ) : (
+                      </td>
+                      <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
+                      <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
+                      <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
+                      <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
+                      <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                      <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2">
                           <button onClick={() => restoreMutation.mutate(emp.id)} className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-colors">
                             <span>♻️</span> Restore
@@ -240,15 +324,11 @@ export default function Employees() {
                             </button>
                           )}
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                )) : (
-                  <tr><td colSpan="8" className="py-16 text-center">
-                    <div className="text-4xl mb-3">👤</div>
-                    <p className="text-slate-400 text-sm">No employees yet.</p>
-                    <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-indigo-400 hover:underline">Add your first employee</button>
-                  </td></tr>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="8" className="py-16 text-center text-slate-400 text-sm">Recycle bin is empty.</td></tr>
+                  )
                 )}
               </tbody>
             </table>
