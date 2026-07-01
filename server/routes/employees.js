@@ -4,6 +4,10 @@ import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { createEmployeeSchema } from '../schemas/index.js';
 import { supabase } from '../lib/supabase.js';
+import multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
+
 const router = express.Router();
 router.use(verifyToken);
 
@@ -78,7 +82,8 @@ router.get('/form-data', async (req, res) => {
     const managerLevels = new Set(posWithLevel.filter(p => ['Manager', 'Executive', 'Senior'].includes(p.level)).map(p => p.id));
     const managers = allActive.filter(e => 
       managerLevels.has(e.position_id) || 
-      /manager|boss|ceo|head|lead|director/i.test(e.Full_name)
+      /manager|boss|ceo|head|lead|director/i.test(e.Full_name || '') ||
+      /manager|boss|ceo|head|lead|director/i.test(e.employee_id || '')
     );
     return res.json({ departments: depts, positions, managers, candidates: hired });
   } catch (e) {
@@ -236,6 +241,55 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
     return res.json({ success: true });
   } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/employees/:id/avatar
+router.post('/:id/avatar', upload.single('avatar'), async (req, res) => {
+  try {
+    const eid = req.params.id;
+    // Only allow if user is admin, boss, or the employee themselves
+    const isAdmin = ['boss', 'hr_manager', 'general_manager'].includes(req.user.role);
+    if (!isAdmin && req.user.employee_id !== parseInt(eid) && req.user.employee_id !== eid) {
+      return res.status(403).json({ error: 'Not authorized to update this avatar' });
+    }
+
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    const fileExt = req.file.originalname.split('.').pop();
+    const fileName = `avatar_${eid}_${Date.now()}.${fileExt}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
+
+    const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+    const avatar_url = publicUrlData.publicUrl;
+
+    const ok = await dbUpdate('Employees', eid, {
+      avatar_url: avatar_url,
+      updated_at: new Date().toISOString()
+    });
+
+    if (!ok) throw new Error('Failed to update employee record');
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'UPDATE',
+      module: 'Employees',
+      details: `Updated avatar for employee ID ${eid}`,
+      ip_address: req.ip || '0.0.0.0'
+    }).catch(console.error);
+
+    return res.json({ success: true, avatar_url });
+  } catch (e) {
+    console.error('Avatar upload error:', e);
     return res.status(500).json({ error: e.message });
   }
 });

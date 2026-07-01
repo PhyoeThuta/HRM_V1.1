@@ -190,8 +190,10 @@ router.post('/sops/templates', requireAdmin, async (req, res) => {
     const { data: existing } = await supabase.from('sop_templates').select('id').eq('position_id', position_id).single();
     if (existing) {
       await supabase.from('sop_templates').update({ task_description, updated_at: new Date().toISOString() }).eq('id', existing.id);
+      await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'SOPs', details: `Updated SOP template for position ${position_id}`, ip_address: req.ip || '0.0.0.0' });
     } else {
       await supabase.from('sop_templates').insert({ position_id, task_description });
+      await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'SOPs', details: `Created SOP template for position ${position_id}`, ip_address: req.ip || '0.0.0.0' });
     }
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
@@ -201,6 +203,7 @@ router.post('/sops/templates', requireAdmin, async (req, res) => {
 router.delete('/sops/templates/:id', requireAdmin, async (req, res) => {
   try {
     await supabase.from('sop_templates').delete().eq('id', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'SOPs', details: `Deleted SOP template ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -265,6 +268,7 @@ router.post('/sops/auto-assign', requireAdmin, async (req, res) => {
     if (records.length > 0) {
       const { error: insertErr } = await supabase.from('daily_sops').insert(records);
       if (insertErr) throw insertErr;
+      await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'SOPs', details: `Auto-assigned ${totalCreated} SOPs for month ${month}`, ip_address: req.ip || '0.0.0.0' });
     }
 
     return res.json({ success: true, created: totalCreated, skipped: totalSkipped });
@@ -366,7 +370,7 @@ router.post('/sops', requireAdmin, async (req, res) => {
         });
       }
     }
-
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'SOPs', details: `Assigned SOP "${title || 'Daily Task'}" to ${employees.length} employees`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, assigned_count: employees.length });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -379,6 +383,7 @@ router.patch('/sops/bulk-update', requireAdmin, async (req, res) => {
     for (const id of ids) {
       await dbUpdate('daily_sops', id, { task_description });
     }
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'SOPs', details: `Bulk updated ${ids.length} SOPs`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -388,6 +393,7 @@ router.delete('/sops/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await dbDelete('daily_sops', id);
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'SOPs', details: `Deleted SOP ID: ${id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -400,6 +406,7 @@ router.post('/sops/bulk-delete', requireAdmin, async (req, res) => {
     for (const id of ids) {
       await dbDelete('daily_sops', id);
     }
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'SOPs', details: `Bulk deleted ${ids.length} SOPs`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -463,7 +470,7 @@ router.post('/sops/:id/complete', upload.single('video'), async (req, res) => {
         created_at: new Date().toISOString()
       });
     }
-
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'SOPs', details: `SOP marked as completed by employee (ID: ${id})`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, message: 'SOP marked as completed' });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -539,6 +546,8 @@ router.post('/peer-voting/submit', async (req, res) => {
       });
     }
     
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Peer Voting', details: `Submitted peer vote for employee ID: ${nominee_id}`, ip_address: req.ip || '0.0.0.0' });
+    
     return res.json({ success: true, message: 'Vote submitted successfully' });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -604,6 +613,7 @@ router.post('/boss/announcements', requireAdmin, async (req, res) => {
           console.error('Failed to send Telegram message:', err);
         }
       }
+      await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Announcements', details: `Created announcement "${d.title}"`, ip_address: req.ip || '0.0.0.0' });
     }
 
     return res.json({ success: !!result, announcement: result });
@@ -613,6 +623,7 @@ router.post('/boss/announcements', requireAdmin, async (req, res) => {
 router.delete('/boss/announcements/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('announcements', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Announcements', details: `Deleted announcement ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -620,6 +631,7 @@ router.delete('/boss/announcements/:id', requireAdmin, async (req, res) => {
 router.put('/boss/announcements/:id/publish', requireAdmin, async (req, res) => {
   try {
     await dbUpdate('announcements', req.params.id, { target_role: 'All' });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Announcements', details: `Published announcement ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });

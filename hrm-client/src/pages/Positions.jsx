@@ -8,6 +8,7 @@ export default function Positions() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
@@ -41,29 +42,70 @@ export default function Positions() {
 
   const positions = data?.positions || [];
 
+  const filteredPositions = positions.filter(p => 
+    p.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.level?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const groupedPositions = filteredPositions.reduce((acc, p) => {
+    const level = p.level || 'Unassigned';
+    if (!acc[level]) acc[level] = [];
+    acc[level].push(p);
+    return acc;
+  }, {});
+
+  const levelOrder = { Executive: 1, Manager: 2, Supervisor: 3, Senior: 4, Mid: 5, Junior: 6 };
+  const sortedLevels = Object.keys(groupedPositions).sort((a, b) => {
+    const orderA = levelOrder[a] || 99;
+    const orderB = levelOrder[b] || 99;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.localeCompare(b);
+  });
+
   const levelColor = {
-    Mid: 'text-indigo-400 bg-indigo-400/10',
-    Supervisor: 'text-emerald-400 bg-emerald-400/10',
+    Executive: 'text-purple-400 bg-purple-400/10',
     Manager: 'text-amber-400 bg-amber-400/10',
+    Supervisor: 'text-emerald-400 bg-emerald-400/10',
+    Senior: 'text-blue-400 bg-blue-400/10',
+    Mid: 'text-indigo-400 bg-indigo-400/10',
+    Junior: 'text-slate-400 bg-slate-400/10',
   };
 
   return (
     <Layout title="Positions" subtitle="Manage job titles and seniority levels">
-      <div className="flex justify-between items-center mb-6">
-        <span className="text-sm text-slate-400">{positions.length} Positions</span>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <span className="text-sm text-slate-400 whitespace-nowrap">{positions.length} Positions</span>
+          <input 
+            type="text" 
+            placeholder="Search positions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:w-64 bg-[#1e2235] text-slate-300 text-sm rounded-xl px-4 py-2 border border-white/5 outline-none focus:border-indigo-500"
+          />
+        </div>
         {isAdmin() && (
-          <button onClick={() => { setEditTarget(null); setShowModal(true); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">
+          <button onClick={() => { setEditTarget(null); setShowModal(true); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl whitespace-nowrap">
             + New Position
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-8">
         {isLoading ? (
-          <div className="col-span-full py-10 text-center">
+          <div className="py-10 text-center">
             <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" />
           </div>
-        ) : positions.map(p => (
+        ) : sortedLevels.length > 0 ? (
+          sortedLevels.map(level => (
+            <div key={level}>
+              <h2 className="text-sm font-bold text-slate-300 mb-4 uppercase tracking-wider flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${levelColor[level] ? levelColor[level].split(' ')[1] : 'bg-slate-500'}`}></span>
+                {level} Level
+                <span className="text-xs bg-white/5 text-slate-400 px-2 py-0.5 rounded-full">{groupedPositions[level].length}</span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {groupedPositions[level].map(p => (
           <div key={p.id} className="p-6 rounded-2xl border border-white/5 bg-[#1e2235] hover:bg-white/5 transition-colors flex flex-col h-full">
             <div className="flex justify-between items-start mb-4">
               <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
@@ -88,15 +130,27 @@ export default function Positions() {
               </p>
             </div>
             
-            <div className="mt-6 flex">
+            <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4">
               <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-full">
                 {p.emp_count || 0} staff
               </span>
+              <div className="flex items-center gap-2" title="Publish to Career Page">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hiring</span>
+                <button 
+                  onClick={() => editMutation.mutate({ id: p.id, body: { is_hiring: !p.is_hiring } })}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${p.is_hiring ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-600'}`}
+                >
+                  <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform" style={{ transform: p.is_hiring ? 'translateX(18px)' : 'translateX(2px)' }} />
+                </button>
+              </div>
             </div>
           </div>
-        ))}
-        {positions.length === 0 && !isLoading && (
-          <div className="col-span-full py-16 text-center text-slate-500 border border-white/5 rounded-2xl border-dashed">
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="py-16 text-center text-slate-500 border border-white/5 rounded-2xl border-dashed">
             No positions found.
           </div>
         )}

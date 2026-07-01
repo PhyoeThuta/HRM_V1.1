@@ -68,6 +68,18 @@ async function calcOvertime(employee_id, check_out_time) {
     const dt = new Date(check_out_time);
     const todayStr = dt.toISOString().split('T')[0];
     
+    // 0. Check if there is an APPROVED overtime request for this date
+    const otRequest = await dbFetchOne('overtime_requests', 'id', {
+      employee_id: employee_id,
+      ot_date: todayStr,
+      status: 'Approved'
+    });
+    
+    // If no approved OT request exists, return 0
+    if (!otRequest) {
+      return 0;
+    }
+    
     // 1. Check Daily Schedule (New System)
     let activeShiftId = null;
     const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
@@ -195,6 +207,7 @@ router.post('/', async (req, res) => {
       shift_id: shiftId,
       created_at: now,
     });
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Manual attendance check-in for employee ID: ${d.employee_id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: !!result, record: result });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -209,6 +222,7 @@ router.post('/:id/checkout', async (req, res) => {
     const overtime_hours = record ? await calcOvertime(record.employee_id, now) : 0;
     
     await dbUpdate('attendance_records', req.params.id, { check_out: now, overtime_hours });
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Manual check-out for attendance record ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -219,6 +233,7 @@ router.post('/:id/checkout', async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('attendance_records', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted attendance record ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -269,6 +284,7 @@ router.post('/scan', async (req, res) => {
     if (todayOpen) {
       const overtime_hours = await calcOvertime(qrData.employee_id, now);
       await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
+      await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `QR check-out for employee ID: ${qrData.employee_id}`, ip_address: req.ip || '0.0.0.0' });
       return res.json({ success: true, message: 'QR Check-out successful' });
     } else {
       await dbInsert('attendance_records', {
@@ -277,6 +293,7 @@ router.post('/scan', async (req, res) => {
         attendance_method: 'QR',
         is_late: await checkIsLate(qrData.employee_id, now)
       });
+      await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `QR check-in for employee ID: ${qrData.employee_id}`, ip_address: req.ip || '0.0.0.0' });
       return res.json({ success: true, message: 'QR Check-in successful' });
     }
   } catch (e) {
@@ -451,6 +468,7 @@ router.post('/schedules', requireAdmin, async (req, res) => {
     const { error, data } = await supabase.from('employee_daily_schedules')
       .upsert(entries, { onConflict: ['employee_id', 'schedule_date'] });
     if (error) throw error;
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Bulk updated ${entries.length} daily schedules`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, schedules: data });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -462,6 +480,7 @@ router.delete('/schedules/:id', requireAdmin, async (req, res) => {
   try {
     const { error } = await supabase.from('employee_daily_schedules').delete().eq('id', req.params.id);
     if (error) throw error;
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted daily schedule ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -495,6 +514,7 @@ router.post('/rosters', async (req, res) => {
     const result = await dbInsert('employee_rosters', {
       employee_id, shift_id, start_date, end_date: end_date || null
     });
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Created roster for employee ID: ${employee_id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, roster: result });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -504,6 +524,7 @@ router.post('/rosters', async (req, res) => {
 router.delete('/rosters/:id', async (req, res) => {
   try {
     await dbDelete('employee_rosters', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted roster ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });

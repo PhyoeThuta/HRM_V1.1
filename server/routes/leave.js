@@ -80,6 +80,8 @@ router.post('/request', upload.single('attachment'), async (req, res) => {
       is_read: false,
       created_at: new Date().toISOString()
     });
+    
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Leave Mgmt', details: `Submitted leave request for employee ID: ${d.employee_id}`, ip_address: req.ip || '0.0.0.0' });
 
     return res.json({ success: !!result, request: result });
   } catch (e) {
@@ -108,6 +110,8 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
         });
       }
     }
+    
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Leave Mgmt', details: `Leave request ${status} for ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
 
     return res.json({ success: true });
   } catch (e) {
@@ -119,6 +123,7 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('Leave_Request', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Leave Mgmt', details: `Deleted leave request ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -140,6 +145,7 @@ router.post('/types', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
     const result = await dbInsert('Leave_type', { type_name: d.type_name, default_days: d.default_days || 0, description: d.description || null });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Leave Mgmt', details: `Created leave type ${d.type_name}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: !!result, type: result });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -151,6 +157,7 @@ router.put('/types/:id', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
     await dbUpdate('Leave_type', req.params.id, { type_name: d.type_name, default_days: d.default_days, description: d.description });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Leave Mgmt', details: `Updated leave type ${d.type_name}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -161,6 +168,7 @@ router.put('/types/:id', requireAdmin, async (req, res) => {
 router.delete('/types/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('Leave_type', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Leave Mgmt', details: `Deleted leave type ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });

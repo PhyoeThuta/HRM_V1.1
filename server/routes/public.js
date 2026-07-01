@@ -12,13 +12,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key');
 router.get('/jobs', async (req, res) => {
   try {
     const positions = await dbFetch('positions', '*');
+    const openJobs = positions.filter(p => p.is_hiring === true);
 
-    positions.forEach(p => {
+    openJobs.forEach(p => {
       p.department_name = p.team || 'General';
       p.description = 'Join our dynamic team and help us build amazing things.';
     });
 
-    return res.json({ jobs: positions });
+    return res.json({ jobs: openJobs });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
