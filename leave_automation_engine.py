@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""
-CorpHRM Leave Automation Engine
-================================
-ဒီ Script ကတော့ နှစ်ကုန်တိုင်း (သို့မဟုတ် HR ပြေးချင်တဲ့ အချိန်) Run လိုက်ရင်
-ဝန်ထမ်းအားလုံးရဲ့ ခွင့်ရက်တွေကို အောက်ပါ Logic အတိုင်း အလိုအလျောက် စီမံပေးပါတယ်:
 
- - Annual Leave  : ကျန်တဲ့ ရက်တွေကို `carried_over` ထဲ ပေါင်းထည့်ပြီး used_days = 0 Reset
- - Sick Leave    : used_days = 0 Reset (Carry forward မပါ)
- - Casual Leave  : used_days = 0 Reset (Carry forward မပါ)
-
-Usage:
-  python leave_automation_engine.py
-
-Optional flags:
-  --dry-run      : Database ကို မပြင်ဘဲ ဘာဖြစ်မလဲ Preview ပြပေးပါမည်
-  --year 2025    : Run ဖို့ Year သတ်မှတ် (Default: current year)
-"""
 
 import os
 import sys

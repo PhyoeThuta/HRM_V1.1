@@ -78,7 +78,8 @@ router.get('/form-data', async (req, res) => {
     const managerLevels = new Set(posWithLevel.filter(p => ['Manager', 'Executive', 'Senior'].includes(p.level)).map(p => p.id));
     const managers = allActive.filter(e => 
       managerLevels.has(e.position_id) || 
-      /manager|boss|ceo|head|lead|director/i.test(e.Full_name)
+      /manager|boss|ceo|head|lead|director/i.test(e.Full_name || '') ||
+      /manager|boss|ceo|head|lead|director/i.test(e.employee_id || '')
     );
     return res.json({ departments: depts, positions, managers, candidates: hired });
   } catch (e) {
