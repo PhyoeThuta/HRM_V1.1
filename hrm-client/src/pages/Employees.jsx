@@ -162,11 +162,26 @@ export default function Employees() {
   });
 
   const groupedEmployees = filteredEmployees.reduce((acc, emp) => {
-    const dept = emp.dept_name || 'Unassigned';
+    let dept = emp.dept_name;
+    if (!dept || dept === '—') {
+      if (/boss|ceo|director/i.test(emp.employee_id) || /boss|ceo|director/i.test(emp.Full_name)) {
+        dept = 'Executive Board';
+      } else {
+        dept = 'Unassigned';
+      }
+    }
     if (!acc[dept]) acc[dept] = [];
     acc[dept].push(emp);
     return acc;
   }, {});
+
+  const sortedDepts = Object.keys(groupedEmployees).sort((a, b) => {
+    if (a === 'Executive Board') return -1;
+    if (b === 'Executive Board') return 1;
+    if (a === 'Unassigned') return 1;
+    if (b === 'Unassigned') return -1;
+    return a.localeCompare(b);
+  });
 
   return (
     <Layout title="Employee Management" subtitle="Add, edit, and manage your entire workforce">
@@ -240,8 +255,10 @@ export default function Employees() {
               </thead>
               <tbody>
                 {tab === 'active' ? (
-                  Object.keys(groupedEmployees).length > 0 ? (
-                    Object.entries(groupedEmployees).map(([dept, emps]) => (
+                  sortedDepts.length > 0 ? (
+                    sortedDepts.map(dept => {
+                      const emps = groupedEmployees[dept];
+                      return (
                       <React.Fragment key={dept}>
                         <tr 
                           className="cursor-pointer bg-[#161929] hover:bg-white/5 transition-colors border-t border-white/5"
@@ -289,7 +306,8 @@ export default function Employees() {
                           </tr>
                         ))}
                       </React.Fragment>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr><td colSpan="8" className="py-16 text-center">
                       <div className="text-4xl mb-3">👤</div>
