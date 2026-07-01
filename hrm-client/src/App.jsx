@@ -52,7 +52,14 @@ function Protected({ children, allowedRoles }) {
   if (!user) return <Navigate to="/login" replace />;
   if (user.must_change_password) return <Navigate to="/force-change-password" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return user.role === 'employee' ? <Navigate to="/portal" replace /> : <Navigate to="/dashboard" replace />;
+    if (user.role === 'employee') return <Navigate to="/portal" replace />;
+    return (
+      <Layout title="Access Denied">
+        <div className="p-8 text-rose-400 font-bold text-center mt-20">
+          You do not have permission to view this page. (Role: {user.role})
+        </div>
+      </Layout>
+    );
   }
   return children;
 }
@@ -71,7 +78,7 @@ const queryClient = new QueryClient({
 
 function AppRoutes() {
   const { user } = useAuth();
-  const adminRoles = ['boss', 'hr_manager', 'general_manager', 'admin', 'finance'];
+  const adminRoles = ['boss', 'hr_manager', 'general_manager', 'admin', 'finance', 'manager'];
 
   return (
     <Routes>
