@@ -147,6 +147,13 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 router.delete('/kpi/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('kpis', req.params.id);
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'DELETE',
+      module: 'Payroll (KPI)',
+      details: `Deleted KPI ID: ${req.params.id}`,
+      ip_address: req.ip || '0.0.0.0'
+    }).catch(console.error);
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });

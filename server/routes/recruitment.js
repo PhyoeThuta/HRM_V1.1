@@ -34,6 +34,7 @@ router.post('/', requireAdmin, async (req, res) => {
       status: d.status || 'Applied', notes: d.notes || null,
       created_at: new Date().toISOString(),
     });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Recruitment', details: `Added candidate ${d.candidate_name}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: !!result, candidate: result });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -47,6 +48,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       position_id: d.position_id, status: d.status, notes: d.notes,
       updated_at: new Date().toISOString(),
     });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Updated candidate ${d.candidate_name || req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -55,6 +57,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('recruitment_candidates', req.params.id);
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Recruitment', details: `Deleted candidate ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -90,6 +93,8 @@ router.post('/:id/interview-guide', requireAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     });
     
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Generated interview guide for candidate ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
+    
     return res.json({ success: true, interview_guide: guideText });
   } catch (e) {
     console.error('[Generate Guide Error]', e);
@@ -120,6 +125,8 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       link_url: '/recruitment',
       created_at: new Date().toISOString()
     });
+    
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Sent interview offer to candidate ${cand.full_name}`, ip_address: req.ip || '0.0.0.0' });
     
     return res.json({ success: true, message: 'Interview offer sent successfully!' });
   } catch (e) {
@@ -199,6 +206,8 @@ router.post('/:id/convert', requireAdmin, async (req, res) => {
       status: 'Converted',
       updated_at: new Date().toISOString()
     });
+
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Converted candidate ${cand.full_name} to employee`, ip_address: req.ip || '0.0.0.0' });
 
     return res.json({ success: true, message: 'Candidate converted to Employee successfully!' });
   } catch (e) {

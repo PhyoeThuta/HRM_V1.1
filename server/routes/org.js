@@ -26,6 +26,13 @@ router.post('/departments', requireAdmin, async (req, res) => {
       Department_name: d.Department_name,
       Descriptions: d.Descriptions
     });
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'CREATE',
+      module: 'Departments',
+      details: `Created department ${d.Department_name}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -37,6 +44,13 @@ router.put('/departments/:id', requireAdmin, async (req, res) => {
       Department_name: d.Department_name,
       Descriptions: d.Descriptions
     });
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'UPDATE',
+      module: 'Departments',
+      details: `Updated department ${d.Department_name}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -44,6 +58,13 @@ router.put('/departments/:id', requireAdmin, async (req, res) => {
 router.delete('/departments/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('Departments', req.params.id);
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'DELETE',
+      module: 'Departments',
+      details: `Deleted department ID: ${req.params.id}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -66,6 +87,13 @@ router.post('/positions', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
     const result = await dbInsert('positions', { title: d.title, level: d.level || 'Mid', team: d.department || null, base_salary: parseFloat(d.base_salary || 0), is_hiring: d.is_hiring === 'true' || d.is_hiring === true, created_at: new Date().toISOString() });
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'CREATE',
+      module: 'Positions',
+      details: `Created position ${d.title}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
     return res.json({ success: !!result, position: result });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -78,6 +106,13 @@ router.put('/positions/:id', requireAdmin, async (req, res) => {
       updateData.is_hiring = d.is_hiring === 'true' || d.is_hiring === true;
     }
     await dbUpdate('positions', req.params.id, updateData);
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'UPDATE',
+      module: 'Positions',
+      details: `Updated position ${d.title}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -85,6 +120,13 @@ router.put('/positions/:id', requireAdmin, async (req, res) => {
 router.delete('/positions/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('positions', req.params.id);
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'DELETE',
+      module: 'Positions',
+      details: `Deleted position ID: ${req.params.id}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
