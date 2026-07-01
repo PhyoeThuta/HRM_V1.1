@@ -81,7 +81,9 @@ export default function Recruitment() {
   const handlePositionSave = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    addPositionMutation.mutate(Object.fromEntries(fd));
+    const data = Object.fromEntries(fd);
+    data.is_hiring = true;
+    addPositionMutation.mutate(data);
   };
 
   const candidates = data?.candidates || [];

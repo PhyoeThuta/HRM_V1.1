@@ -65,7 +65,7 @@ router.get('/positions', async (req, res) => {
 router.post('/positions', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
-    const result = await dbInsert('positions', { title: d.title, level: d.level || 'Mid', team: d.department || null, base_salary: parseFloat(d.base_salary || 0), created_at: new Date().toISOString() });
+    const result = await dbInsert('positions', { title: d.title, level: d.level || 'Mid', team: d.department || null, base_salary: parseFloat(d.base_salary || 0), is_hiring: d.is_hiring === 'true' || d.is_hiring === true, created_at: new Date().toISOString() });
     return res.json({ success: !!result, position: result });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -73,7 +73,11 @@ router.post('/positions', requireAdmin, async (req, res) => {
 router.put('/positions/:id', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
-    await dbUpdate('positions', req.params.id, { title: d.title, level: d.level, base_salary: parseFloat(d.base_salary || 0) });
+    const updateData = { title: d.title, level: d.level, base_salary: parseFloat(d.base_salary || 0) };
+    if (d.is_hiring !== undefined) {
+      updateData.is_hiring = d.is_hiring === 'true' || d.is_hiring === true;
+    }
+    await dbUpdate('positions', req.params.id, updateData);
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
