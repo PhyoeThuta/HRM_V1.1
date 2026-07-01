@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase, dbFetch, dbInsert, dbUpdate } from '../lib/supabase.js';
+import { supabase, dbFetch, dbInsert, dbUpdate, dbFetchOne } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 
 
@@ -81,6 +81,38 @@ router.post('/request', async (req, res) => {
 
     if (!newRequest) throw new Error('Failed to create overtime request');
 
+    // Notifications
+    if (requested_by === 'employee') {
+      await dbInsert('system_notifications', {
+        recipient_role: 'hr_manager',
+        title: 'New Overtime Request',
+        message: 'An employee has requested overtime.',
+        link_url: '/attendance',
+        is_read: false,
+        created_at: new Date().toISOString()
+      });
+      await dbInsert('system_notifications', {
+        recipient_role: 'boss',
+        title: 'New Overtime Request',
+        message: 'An employee has requested overtime.',
+        link_url: '/attendance',
+        is_read: false,
+        created_at: new Date().toISOString()
+      });
+    } else {
+      const user = await dbFetchOne('sys_users', 'id', { employee_id });
+      if (user) {
+        await dbInsert('system_notifications', {
+          recipient_user_id: user.id,
+          title: 'New Overtime Assigned',
+          message: 'You have been assigned overtime. Please accept or decline.',
+          link_url: '/portal',
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
     res.json(newRequest);
   } catch (error) {
     console.error('[POST /api/overtime/request]', error);
@@ -101,6 +133,23 @@ router.put('/:id/status', async (req, res) => {
     const updated = await dbUpdate('overtime_requests', id, { status, updated_at: new Date().toISOString() });
     
     if (!updated) throw new Error('Failed to update overtime request status');
+
+    // Notifications
+    const request = await dbFetchOne('overtime_requests', '*', { id });
+    if (request && (status === 'Approved' || status === 'Rejected')) {
+      if (request.requested_by === 'hr_boss') {
+        // Employee responded to Boss' assignment
+        const action = status === 'Approved' ? 'accepted' : 'declined';
+        await dbInsert('system_notifications', { recipient_role: 'boss', title: `Overtime ${status}`, message: `An employee has ${action} their assigned OT.`, link_url: '/attendance', is_read: false, created_at: new Date().toISOString() });
+        await dbInsert('system_notifications', { recipient_role: 'hr_manager', title: `Overtime ${status}`, message: `An employee has ${action} their assigned OT.`, link_url: '/attendance', is_read: false, created_at: new Date().toISOString() });
+      } else {
+        // Boss responded to Employee's request
+        const user = await dbFetchOne('sys_users', 'id', { employee_id: request.employee_id });
+        if (user) {
+          await dbInsert('system_notifications', { recipient_user_id: user.id, title: `Overtime Request ${status}`, message: `Your OT request has been ${status.toLowerCase()}.`, link_url: '/portal', is_read: false, created_at: new Date().toISOString() });
+        }
+      }
+    }
 
     res.json({ success: true, message: `Status updated to ${status}` });
   } catch (error) {
