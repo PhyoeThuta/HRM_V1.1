@@ -20,6 +20,7 @@ import bossRouter from './routes/api_boss.js';
 import orgRouter from './routes/org.js';
 import recruitmentRouter from './routes/recruitment.js';
 import lifecycleRouter from './routes/lifecycle.js';
+import handoverRouter from './routes/handover.js';
 import miscRouter from './routes/misc.js';
 import publicRouter from './routes/public.js';
 import financeRouter from './routes/finance.js';
@@ -63,6 +64,7 @@ app.use('/api/payroll-engine', payrollEngineRouter);
 app.use('/api', orgRouter);           // /api/departments, /api/positions
 app.use('/api/recruitment', recruitmentRouter);
 app.use('/api', lifecycleRouter);     // /api/onboarding, /api/offboarding
+app.use('/api/handover', handoverRouter);
 app.use('/api/boss', bossRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/sops, etc.

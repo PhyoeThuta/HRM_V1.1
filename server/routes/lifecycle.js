@@ -1,6 +1,16 @@
 import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { createHandoverForOffboarding, isHandoverBlockingSettlement } from '../lib/handoverHelpers.js';
+
+const CASE_TASKS = 'offboarding_case_tasks';
+
+function normalizeOffboarding(ob) {
+  if (!ob) return ob;
+  ob.last_working_day = ob.last_working_day || ob.last_working_date || null;
+  ob.reason = ob.reason || ob.termination_reason || null;
+  return ob;
+}
 
 const router = express.Router();
 router.use(verifyToken);
@@ -140,11 +150,11 @@ router.get('/offboarding', async (req, res) => {
     const [offboarding, employees, tasks, departments] = await Promise.all([
       dbFetch('corporate_offboarding', '*', {}, { order: 'created_at', ascending: false }),
       dbFetch('Employees', 'id,Full_name,employee_id,Dept_id,position_id'),
-      dbFetch('offboarding_tasks', 'offboarding_id,status'),
-      dbFetch('departments', 'id,name'),
+      dbFetch(CASE_TASKS, 'offboarding_id,status'),
+      dbFetch('Departments', 'id,Department_name'),
     ]);
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
-    const deptMap = Object.fromEntries(departments.map(d => [d.id, d.name]));
+    const deptMap = Object.fromEntries(departments.map(d => [d.id, d.Department_name]));
 
     // Task counts per offboarding
     const taskMap = {};
@@ -155,6 +165,7 @@ router.get('/offboarding', async (req, res) => {
     });
 
     offboarding.forEach(o => {
+      normalizeOffboarding(o);
       const emp = empMap[o.employee_id] || {};
       o.employee_name = emp.Full_name || '—';
       o.employee_code = emp.employee_id || '—';
@@ -178,8 +189,17 @@ router.get('/offboarding/:id/detail', async (req, res) => {
     ob.employee_name = emp.Full_name || '—';
     ob.employee_code = emp.employee_id || '—';
 
-    const tasks = await dbFetch('offboarding_tasks', '*', { offboarding_id: req.params.id });
-    return res.json({ offboarding: ob, tasks });
+    const tasks = await dbFetch(CASE_TASKS, '*', { offboarding_id: req.params.id });
+    // return res.json({ offboarding: ob, tasks });
+    let handover = null;
+    normalizeOffboarding(ob);
+    if (ob.handover_id) {
+      handover = await dbFetchOne('employee_handovers', '*', { id: ob.handover_id });
+    } else {
+      handover = await dbFetchOne('employee_handovers', '*', { offboarding_id: ob.id });
+    }
+
+    return res.json({ offboarding: ob, tasks, handover });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
@@ -198,10 +218,11 @@ router.get('/offboarding/:id', async (req, res) => {
 router.post('/offboarding', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
+    const lastDay = d.last_working_day || d.last_working_date || null;
     const result = await dbInsert('corporate_offboarding', {
       employee_id: d.employee_id,
-      last_working_day: d.last_working_day || null,
-      reason: d.reason || null,
+      last_working_date: lastDay,
+      termination_reason: d.reason || d.termination_reason || null,
       exit_type: d.exit_type || null,
       resignation_date: d.resignation_date || null,
       settlement_status: 'Hold',
@@ -210,6 +231,7 @@ router.post('/offboarding', requireAdmin, async (req, res) => {
 
     // Auto-create default offboarding tasks
     if (result) {
+      normalizeOffboarding(result);
       const defaultTasks = [
         { task_name: 'Return Laptop & Equipment', category: 'IT', responsible: 'IT' },
         { task_name: 'Revoke All System Access', category: 'IT', responsible: 'IT' },
@@ -223,13 +245,27 @@ router.post('/offboarding', requireAdmin, async (req, res) => {
         { task_name: 'Schedule Exit Interview', category: 'HR', responsible: 'HR' },
       ];
       for (const task of defaultTasks) {
-        await dbInsert('offboarding_tasks', {
+        await dbInsert(CASE_TASKS, {
           offboarding_id: result.id,
           task_name: task.task_name,
           category: task.category,
           responsible: task.responsible,
           status: 'Pending',
-          due_date: d.last_working_day || null,
+          due_date: lastDay,
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      await createHandoverForOffboarding(result, req.user?.id);
+
+      const outgoingUser = await dbFetchOne('sys_users', 'id', { employee_id: d.employee_id });
+      if (outgoingUser) {
+        await dbInsert('system_notifications', {
+          recipient_user_id: outgoingUser.id,
+          title: 'Offboarding started — complete handover',
+          message: 'Please complete your employee handover checklist before your last working day.',
+          link_url: '/portal/handover/outgoing',
+          is_read: false,
           created_at: new Date().toISOString(),
         });
       }
@@ -242,7 +278,7 @@ router.post('/offboarding', requireAdmin, async (req, res) => {
 router.put('/offboarding/:id', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
-    await dbUpdate('corporate_offboarding', req.params.id, { settlement_status: d.settlement_status, notes: d.notes, updated_at: new Date().toISOString() });
+    await dbUpdate('corporate_offboarding', req.params.id, { settlement_status: d.settlement_status, updated_at: new Date().toISOString() });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -261,6 +297,19 @@ router.patch('/offboarding/:id/clearance', requireAdmin, async (req, res) => {
 // Release final settlement
 router.patch('/offboarding/:id/release', requireAdmin, async (req, res) => {
   try {
+    const ob = await dbFetchOne('corporate_offboarding', '*', { id: req.params.id });
+    if (!ob) return res.status(404).json({ error: 'Not found' });
+
+    const tasks = await dbFetch(CASE_TASKS, 'status', { offboarding_id: req.params.id });
+    const allDone = tasks.length > 0 && tasks.every(t => t.status === 'Completed');
+    if (!allDone) {
+      return res.status(400).json({ error: 'Complete all offboarding tasks before releasing settlement' });
+    }
+
+    if (await isHandoverBlockingSettlement(ob)) {
+      return res.status(400).json({ error: 'Handover must be completed or waived before releasing final settlement' });
+    }
+
     await dbUpdate('corporate_offboarding', req.params.id, { settlement_status: 'Released', updated_at: new Date().toISOString() });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
@@ -269,10 +318,10 @@ router.patch('/offboarding/:id/release', requireAdmin, async (req, res) => {
 // Toggle a task complete/pending
 router.post('/offboarding/:id/task/:taskId/toggle', requireAdmin, async (req, res) => {
   try {
-    const task = await dbFetchOne('offboarding_tasks', '*', { id: req.params.taskId });
+    const task = await dbFetchOne(CASE_TASKS, '*', { id: req.params.taskId });
     if (!task) return res.status(404).json({ error: 'Task not found' });
     const isDone = task.status === 'Completed';
-    await dbUpdate('offboarding_tasks', req.params.taskId, {
+    await dbUpdate(CASE_TASKS, req.params.taskId, {
       status: isDone ? 'Pending' : 'Completed',
       completed_at: isDone ? null : new Date().toISOString(),
     });

@@ -313,7 +313,7 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     await cascade('biometric_registrations');
     await cascade('kpis');
     await cascade('payrolls');
-    await cascade('document_vault');
+    await cascade('employee_documents');
     await cascade('schedules');
     await cascade('roster_shifts');
     await cascade('peer_voting_records', 'nominee_id');

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
+import HandoverTab from '../components/handover/HandoverTab';
 
 // ─── Helper: category icons ───────────────────────────────────────────────────
 const catIcon = { IT: '💻', Finance: '💰', Legal: '⚖️', 'Knowledge Transfer': '📚', Facilities: '🏢', HR: '📌' };
@@ -218,7 +219,7 @@ function ExitInterviewPage({ ob, onClose }) {
 // ─── Detail View ──────────────────────────────────────────────────────────────
 function OffboardingDetail({ obId, onBack, onShowEI }) {
   const qc = useQueryClient();
-  const [showEI, setShowEI] = useState(false);
+  const [detailTab, setDetailTab] = useState('tasks');
 
   const { data, isLoading } = useQuery({
     queryKey: ['offboarding-detail', obId],
@@ -240,7 +241,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
   const releaseMutation = useMutation({
     mutationFn: () => api.patch(`/offboarding/${obId}/release`),
     onSuccess: () => { qc.invalidateQueries(['offboarding-detail', obId]); qc.invalidateQueries(['offboarding']); toast.success('Final Settlement Released!'); },
-    onError: () => toast.error('Failed to release settlement'),
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to release settlement'),
   });
 
   if (isLoading) return (
@@ -252,6 +253,8 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
   const ob = data?.offboarding;
   if (!ob) return <div className="p-10 text-center text-slate-400">Not found</div>;
 
+  const handover = data?.handover;
+  const handoverBlocking = ob.handover_id && ob.handover_required !== false && (!handover || !['completed', 'waived'].includes(handover.status));
   const tasks = data?.tasks || [];
   const total = tasks.length;
   const done = tasks.filter(t => t.status === 'Completed').length;
@@ -316,14 +319,18 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
               </div>
             ) : (
               <button
-                onClick={() => pct === 100 ? releaseMutation.mutate() : toast.error('Complete all tasks first')}
+                onClick={() => {
+                  if (pct !== 100) return toast.error('Complete all offboarding tasks first');
+                  if (handoverBlocking) return toast.error('Handover must be completed or waived before releasing settlement');
+                  releaseMutation.mutate();
+                }}
                 className={`text-sm font-bold px-4 py-2.5 rounded-xl border transition-colors ${
-                  pct === 100
+                  pct === 100 && !handoverBlocking
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
                     : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                 }`}
               >
-                {pct === 100 ? '✓ Release Final Settlement' : '⚠ Hold Final Payroll'}
+                {pct === 100 && !handoverBlocking ? '✓ Release Final Settlement' : handoverBlocking ? '⚠ Handover Incomplete' : '⚠ Hold Final Payroll'}
               </button>
             )}
             <div className="text-right">
@@ -337,6 +344,28 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#1e2235' }}>
+        {[
+          { id: 'tasks', label: 'Clearance & Tasks' },
+          { id: 'handover', label: `Handover${handover ? ` (${handover.completion_pct || 0}%)` : ''}` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setDetailTab(tab.id)}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+              detailTab === tab.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {detailTab === 'handover' ? (
+        <HandoverTab obId={obId} obEmployeeId={ob.employee_id} />
+      ) : (
+      <>
       {/* Asset clearance */}
       <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h3 className="text-sm font-bold text-white mb-4">Asset & Compliance Clearance</h3>
@@ -420,6 +449,8 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
         <div className="py-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-2xl">
           No tasks found. The offboarding task list will appear here.
         </div>
+      )}
+      </>
       )}
     </div>
   );

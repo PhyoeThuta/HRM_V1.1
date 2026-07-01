@@ -35,6 +35,8 @@ import QRScanner from './pages/portal/QRScanner';
 import PeerVotingForm from './pages/portal/PeerVotingForm';
 import SOPExecution from './pages/portal/SOPExecution';
 import ExitSurvey from './pages/portal/ExitSurvey';
+import HandoverOutgoing from './pages/portal/HandoverOutgoing';
+import HandoverIncoming from './pages/portal/HandoverIncoming';
 import MyAttendance from './pages/portal/MyAttendance';
 import MyLeaves from './pages/portal/MyLeaves';
 import MyPayslips from './pages/portal/MyPayslips';
@@ -118,6 +120,8 @@ function AppRoutes() {
       <Route path="/portal/vote" element={<EmployeeRoute><PeerVotingForm /></EmployeeRoute>} />
       <Route path="/portal/sops" element={<EmployeeRoute><SOPExecution /></EmployeeRoute>} />
       <Route path="/portal/exit-survey" element={<EmployeeRoute><ExitSurvey /></EmployeeRoute>} />
+      <Route path="/portal/handover/outgoing" element={<EmployeeRoute><HandoverOutgoing /></EmployeeRoute>} />
+      <Route path="/portal/handover/incoming" element={<EmployeeRoute><HandoverIncoming /></EmployeeRoute>} />
 
       {/* Default redirect */}
       <Route path="/" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Navigate to="/login" replace />} />

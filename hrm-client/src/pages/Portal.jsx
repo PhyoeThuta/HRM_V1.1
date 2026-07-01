@@ -92,9 +92,30 @@ export default function Portal() {
               <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(244,63,94,0.2), rgba(249,115,22,0.1), rgba(244,63,94,0.05))', border: '1px solid rgba(244,63,94,0.3)' }}>
                 <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">⚠️</div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-bold text-rose-200">Pending Exit Survey</h3>
-                  <p className="text-xs text-rose-300/80 mt-1 mb-3">Please complete your exit survey before your final day.</p>
-                  <a href="/portal/exit-survey" className="text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg transition-colors inline-block">Go to Exit Survey</a>
+                  <h3 className="text-sm font-bold text-rose-200">Offboarding in progress</h3>
+                  <p className="text-xs text-rose-300/80 mt-1 mb-3">Complete your handover checklist and exit survey before your final day.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Link to="/portal/handover/outgoing" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors">
+                      Handover Checklist{data.outgoing_handover ? ` (${data.outgoing_handover.completion_pct || 0}%)` : ''}
+                    </Link>
+                    <Link to="/portal/exit-survey" className="text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg transition-colors">
+                      Exit Survey
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Incoming handover banner */}
+            {!data?.is_offboarding && data?.incoming_handover_count > 0 && (
+              <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(99,102,241,0.2), rgba(139,92,246,0.1))', border: '1px solid rgba(99,102,241,0.3)' }}>
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">📥</div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-indigo-200">Incoming handover</h3>
+                  <p className="text-xs text-indigo-300/80 mt-1 mb-3">You have been assigned as a successor. Please review and acknowledge the handover.</p>
+                  <Link to="/portal/handover/incoming" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors inline-block">
+                    Review Handover
+                  </Link>
                 </div>
               </div>
             )}

@@ -114,6 +114,8 @@ router.get('/portal', async (req, res) => {
     const voteAvg = voteCount > 0 ? Math.round((voteTotal / voteCount) * 10) / 10 : 0;
 
     const isOffboarding = !!(await dbFetchOne('corporate_offboarding', 'id', { employee_id: empId }));
+    const outgoingHandover = await dbFetchOne('employee_handovers', 'id,status,completion_pct', { outgoing_employee_id: empId });
+    const incomingHandovers = await dbFetch('employee_handovers', 'id,status,outgoing_employee_id', { successor_employee_id: empId });
 
     // Filter announcements
     const role = req.user.role;
@@ -143,6 +145,8 @@ router.get('/portal', async (req, res) => {
 
     return res.json({
       emp, is_offboarding: isOffboarding,
+      outgoing_handover: outgoingHandover,
+      incoming_handover_count: incomingHandovers.length,
       att_count: attRecs.length,
       leave_count: leaveReqs.length,
       payslip_count: payslips.length,
@@ -624,7 +628,7 @@ router.put('/boss/announcements/:id/publish', requireAdmin, async (req, res) => 
 router.get('/documents', async (req, res) => {
   try {
     const [docs, employees] = await Promise.all([
-      dbFetch('documents', '*', {}, { order: 'created_at', ascending: false }),
+      dbFetch('employee_documents', '*', {}, { order: 'created_at', ascending: false }),
       dbFetch('Employees', 'id,Full_name,employee_id'),
     ]);
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
