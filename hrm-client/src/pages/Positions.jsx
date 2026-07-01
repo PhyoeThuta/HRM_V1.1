@@ -113,24 +113,13 @@ export default function Positions() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Career Page</span>
-                  <button 
-                    onClick={() => editMutation.mutate({ id: p.id, body: { is_hiring: !p.is_hiring } })}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${p.is_hiring ? 'bg-emerald-500' : 'bg-slate-600'}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${p.is_hiring ? 'translate-x-4.5' : 'translate-x-1'}`} style={{ transform: p.is_hiring ? 'translateX(18px)' : 'translateX(2px)' }} />
+              <div className="flex gap-3">
+                <button onClick={() => setEditTarget(p)} className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">Edit</button>
+                {isAdmin() && (
+                  <button onClick={() => setDeleteTarget(p)} className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors">
+                    Delete
                   </button>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setEditTarget(p)} className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">Edit</button>
-                  {isAdmin() && (
-                    <button onClick={() => setDeleteTarget(p)} className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors">
-                      Delete
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
             
@@ -141,10 +130,19 @@ export default function Positions() {
               </p>
             </div>
             
-            <div className="mt-6 flex">
+            <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4">
               <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-full">
                 {p.emp_count || 0} staff
               </span>
+              <div className="flex items-center gap-2" title="Publish to Career Page">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hiring</span>
+                <button 
+                  onClick={() => editMutation.mutate({ id: p.id, body: { is_hiring: !p.is_hiring } })}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${p.is_hiring ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-600'}`}
+                >
+                  <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform" style={{ transform: p.is_hiring ? 'translateX(18px)' : 'translateX(2px)' }} />
+                </button>
+              </div>
             </div>
           </div>
                 ))}
