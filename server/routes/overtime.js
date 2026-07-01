@@ -10,19 +10,21 @@ router.use(verifyToken);
 // GET /api/overtime - Admin list all OT requests
 router.get('/', requireAdmin, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('overtime_requests')
-      .select('*, employee:employee_id(full_name, position_id), position:employee_id(Positions!inner(title))')
-      .order('created_at', { ascending: false });
+    const requests = await dbFetch('overtime_requests', '*', {}, { order: 'created_at', ascending: false });
+    const employees = await dbFetch('Employees', 'id,Full_name,position_id');
+    const positions = await dbFetch('positions', 'id,title');
 
-    if (error) throw error;
+    const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+    const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
 
-    // Formatting response to match usual nested relationships structure
-    const formatted = data.map(r => ({
-      ...r,
-      employee_name: r.employee?.full_name || 'Unknown',
-      position_name: r.employee?.Positions?.title || 'Unknown'
-    }));
+    const formatted = requests.map(r => {
+      const emp = empMap[r.employee_id] || {};
+      return {
+        ...r,
+        employee_name: emp.Full_name || 'Unknown',
+        position_name: posMap[emp.position_id] || 'Unknown'
+      };
+    });
 
     res.json(formatted);
   } catch (error) {
@@ -34,11 +36,10 @@ router.get('/', requireAdmin, async (req, res) => {
 // GET /api/overtime/my - Employee list their OT requests
 router.get('/my', async (req, res) => {
   try {
-    // If not standard setup, extract employee_id from user
-    const { data: emp } = await supabase.from('Employees').select('id').eq('user_id', req.user.id).single();
-    if (!emp) return res.status(404).json({ error: 'Employee profile not found' });
+    const empId = req.user.employee_id;
+    if (!empId) return res.status(404).json({ error: 'Employee profile not found' });
 
-    const requests = await dbFetch('overtime_requests', '*', { employee_id: emp.id }, { order: 'created_at', ascending: false });
+    const requests = await dbFetch('overtime_requests', '*', { employee_id: empId }, { order: 'created_at', ascending: false });
     res.json(requests);
   } catch (error) {
     console.error('[GET /api/overtime/my]', error);
