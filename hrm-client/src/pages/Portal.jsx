@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { Link } from 'react-router-dom';
 import { Chart, registerables } from 'chart.js';
 import Layout from '../components/layout/Layout';
+import toast from 'react-hot-toast';
 
 Chart.register(...registerables);
 
@@ -22,8 +23,11 @@ function QuickStat({ label, value, icon, color, href }) {
 
 export default function Portal() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const radarRef = useRef(null);
   const chartRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['portal'],
@@ -62,6 +66,37 @@ export default function Portal() {
   const annList = data?.ann_list || [];
   const priorityClass = { Urgent: 'text-rose-400 bg-rose-400/10', High: 'text-orange-400 bg-orange-400/10', Medium: 'text-amber-400 bg-amber-400/10' };
 
+  const uploadMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      return api.post(`/employees/${emp.id}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['portal']);
+      qc.invalidateQueries(['employee', emp?.id]);
+      toast.success('Profile picture updated!');
+      setIsUploading(false);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error || 'Failed to upload image');
+      setIsUploading(false);
+    }
+  });
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !emp?.id) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+    setIsUploading(true);
+    uploadMutation.mutate(file);
+  };
+
   return (
     <Layout title="Employee Portal" subtitle={`Welcome back, ${user?.full_name || 'Employee'}`}>
         {isLoading ? (
@@ -70,8 +105,38 @@ export default function Portal() {
           <>
             {/* Welcome Banner */}
             <div className="rounded-2xl p-6 mb-6 flex items-center gap-5" style={{ background: 'linear-gradient(to right, rgba(99,102,241,0.2), rgba(139,92,246,0.1), rgba(236,72,153,0.1))', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0">
-                {(user?.full_name || 'E')[0].toUpperCase()}
+              <div 
+                className="relative w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0 overflow-hidden group cursor-pointer"
+                onClick={() => emp?.id && fileInputRef.current?.click()}
+              >
+                {emp?.avatar_url ? (
+                  <img src={emp.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    {(user?.full_name || 'E')[0].toUpperCase()}
+                  </div>
+                )}
+
+                {emp?.id && (
+                  <div className={`absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isUploading ? 'opacity-100' : ''}`}>
+                    {isUploading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
+                  </div>
+                )}
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/png, image/jpeg, image/gif, image/webp" 
+                  className="hidden" 
+                />
               </div>
               <div>
                 <h2 className="text-xl font-black text-white">Hello, {(user?.full_name || 'Employee').split(' ')[0]}! 👋</h2>

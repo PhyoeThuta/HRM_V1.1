@@ -1,15 +1,51 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
+import { useState, useRef } from 'react';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
+import toast from 'react-hot-toast';
 
 export default function EmployeeProfile() {
   const { id } = useParams();
+  const qc = useQueryClient();
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   const { data, isLoading } = useQuery({ 
     queryKey: ['employee', id], 
     queryFn: () => api.get(`/employees/${id}`).then(r => r.data) 
   });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      return api.post(`/employees/${id}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['employee', id]);
+      qc.invalidateQueries(['portal']); // In case the user is looking at their own profile
+      toast.success('Profile picture updated successfully!');
+      setIsUploading(false);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error || 'Failed to upload image');
+      setIsUploading(false);
+    }
+  });
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+    setIsUploading(true);
+    uploadMutation.mutate(file);
+  };
 
   if (isLoading) return <Layout title="Employee Profile"><div className="p-8 text-slate-400">Loading profile...</div></Layout>;
   if (!data?.emp) return <Layout title="Not Found"><div className="p-8 text-rose-400">Employee not found.</div></Layout>;
@@ -24,8 +60,36 @@ export default function EmployeeProfile() {
         <div className="space-y-6">
           <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
-                {emp.Full_name[0]}
+              <div 
+                className="relative w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg overflow-hidden group cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {emp.avatar_url ? (
+                  <img src={emp.avatar_url} alt={emp.Full_name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center">
+                    {emp.Full_name[0]}
+                  </div>
+                )}
+                
+                {/* Upload Overlay */}
+                <div className={`absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isUploading ? 'opacity-100' : ''}`}>
+                  {isUploading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/png, image/jpeg, image/gif, image/webp" 
+                  className="hidden" 
+                />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">{emp.Full_name}</h2>
