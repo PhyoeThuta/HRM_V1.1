@@ -58,9 +58,10 @@ export default function HandoverPanel({
   const statusClass = STATUS_COLORS[handover.status] || STATUS_COLORS.draft;
   const ackItems = items.filter(i => i.status === 'done' || i.status === 'not_applicable');
   const ackCount = ackItems.filter(i => i.successor_acknowledged).length;
-  const allAcked = ackItems.length === 0 || ackCount === ackItems.length;
-  const needsSuccessorAck = !!handover.successor_employee_id && ackItems.length > 0;
-  const canApprove = !readOnly && ['pending_review', 'in_progress'].includes(handover.status) && (!needsSuccessorAck || allAcked);
+  const needsSuccessorAck = !!handover.successor_employee_id;
+  const allAcked = !needsSuccessorAck || (ackItems.length > 0 && ackCount === ackItems.length);
+  const isSubmitted = handover.status === 'pending_review';
+  const canApprove = !readOnly && isSubmitted && (!needsSuccessorAck || allAcked);
   const isDone = ['completed', 'waived'].includes(handover.status);
   const successorOptions = employees.filter(e => e.id !== excludeEmployeeId);
   const title = handover.handover_label || 'Employee Handover';
@@ -97,10 +98,13 @@ export default function HandoverPanel({
         </div>
 
         {needsSuccessorAck && !isDone && (
-          <div className="mt-3 rounded-xl px-3 py-2 text-xs" style={{ background: allAcked ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${allAcked ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
-            <span className={allAcked ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
-              Successor acknowledgment: {ackCount}/{ackItems.length}
-              {allAcked ? ' — ready for HR approval' : ' — acting successor must acknowledge each item in Portal → Incoming Handover'}
+          <div className="mt-3 rounded-xl px-3 py-2 text-xs" style={{ background: allAcked && isSubmitted ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${allAcked && isSubmitted ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
+            <span className={allAcked && isSubmitted ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+              {!isSubmitted
+                ? 'Waiting for outgoing employee to complete and submit the checklist (Portal → My Handovers)'
+                : ackItems.length === 0
+                  ? 'No completed items yet — outgoing must submit first'
+                  : `Successor acknowledgment: ${ackCount}/${ackItems.length}${allAcked ? ' — ready for HR approval' : ' — successor must acknowledge each item in Portal → Incoming Handover'}`}
             </span>
           </div>
         )}
@@ -141,8 +145,11 @@ export default function HandoverPanel({
                 Approve Handover
               </button>
             )}
-            {needsSuccessorAck && !allAcked && ['pending_review', 'in_progress'].includes(handover.status) && (
+            {needsSuccessorAck && isSubmitted && !allAcked && (
               <span className="text-xs text-amber-400 self-center">Waiting for successor acknowledgment</span>
+            )}
+            {!isSubmitted && !isDone && (
+              <span className="text-xs text-amber-400 self-center">Waiting for outgoing employee to submit</span>
             )}
             {!isDone && (
               <button

@@ -300,7 +300,7 @@ export function filterHandoversList(handovers, { status, trigger_type, employee_
   return result;
 }
 
-/** Items the acting successor must acknowledge before HR can approve */
+/** Items the returning/acting successor must acknowledge before HR can approve */
 export async function getSuccessorAckSummary(handoverId) {
   const items = await dbFetch('handover_items', '*', { handover_id: handoverId });
   const needsAck = items.filter(i => i.status === 'done' || i.status === 'not_applicable');
@@ -308,13 +308,41 @@ export async function getSuccessorAckSummary(handoverId) {
   return {
     total: needsAck.length,
     acked: acked.length,
-    allAcked: needsAck.length === 0 || acked.length === needsAck.length,
+    allAcked: needsAck.length > 0 && acked.length === needsAck.length,
     pending: needsAck.filter(i => !i.successor_acknowledged),
   };
 }
 
 export function handoverRequiresSuccessorAck(handover) {
   return !!(handover?.successor_employee_id);
+}
+
+export async function validateHandoverApproval(handover) {
+  if (!handover) return { ok: false, error: 'Handover not found' };
+  if (handover.status !== 'pending_review') {
+    return {
+      ok: false,
+      error: 'Handover must be submitted for review before HR approval. The outgoing employee completes the checklist and submits from Portal → My Handovers.',
+    };
+  }
+  if (handoverRequiresSuccessorAck(handover)) {
+    const ack = await getSuccessorAckSummary(handover.id);
+    if (ack.total === 0) {
+      return {
+        ok: false,
+        error: 'No completed items to acknowledge yet. Outgoing employee must fill and submit the checklist first.',
+        successor_ack: ack,
+      };
+    }
+    if (!ack.allAcked) {
+      return {
+        ok: false,
+        error: `Successor must acknowledge all handover items first (${ack.acked}/${ack.total} acknowledged). They can do this from Portal → Incoming Handover.`,
+        successor_ack: ack,
+      };
+    }
+  }
+  return { ok: true };
 }
 
 export async function syncKnowledgeTransferFromHandover(handoverId) {

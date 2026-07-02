@@ -14,7 +14,7 @@ import {
   getTerminalHandoversForOutgoing,
   getTerminalHandoversForIncoming,
   getSuccessorAckSummary,
-  handoverRequiresSuccessorAck,
+  validateHandoverApproval,
   notifyLeaveHandoverWaived,
   summarizeHandoverForList,
   filterHandoversList,
@@ -468,14 +468,12 @@ router.post('/:id/approve', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: `Cannot approve handover in status: ${handover.status}` });
     }
 
-    if (handoverRequiresSuccessorAck(handover)) {
-      const ack = await getSuccessorAckSummary(req.params.id);
-      if (!ack.allAcked) {
-        return res.status(400).json({
-          error: `Acting successor must acknowledge all handover items first (${ack.acked}/${ack.total} acknowledged). They can do this from Portal → Incoming Handover.`,
-          successor_ack: ack,
-        });
-      }
+    const validation = await validateHandoverApproval(handover);
+    if (!validation.ok) {
+      return res.status(400).json({
+        error: validation.error,
+        ...(validation.successor_ack ? { successor_ack: validation.successor_ack } : {}),
+      });
     }
 
     await dbUpdate('employee_handovers', req.params.id, {
