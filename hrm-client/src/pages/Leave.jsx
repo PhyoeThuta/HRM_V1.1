@@ -7,20 +7,18 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 import HandoverPanel from '../components/handover/HandoverPanel';
+import LeaveRequestDetailModal from '../components/leave/LeaveRequestDetailModal';
+import LeaveHandoverWorkflow from '../components/leave/LeaveHandoverWorkflow';
+import LeaveRequestActionsMenu, { buildLeaveRequestMenuItems } from '../components/leave/LeaveRequestActionsMenu';
 
-const STATUS_CFG = {
-  Pending: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-  Approved: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  Rejected: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-};
-
-const HANDOVER_STATUS_CFG = {
-  in_progress: 'text-indigo-400 bg-indigo-400/10',
-  pending_review: 'text-purple-400 bg-purple-400/10',
-  completed: 'text-emerald-400 bg-emerald-400/10',
-  waived: 'text-slate-400 bg-slate-400/10',
-  pending_successor: 'text-amber-400 bg-amber-400/10',
-};
+function leaveDays(start, end) {
+  if (!start || !end) return null;
+  const s = new Date(start.slice(0, 10));
+  const e = new Date(end.slice(0, 10));
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
+  const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : null;
+}
 
 export default function Leave() {
   const [activeTabState, setActiveTabState] = useState(localStorage.getItem('leaveTab') || 'balances');
@@ -33,6 +31,8 @@ export default function Leave() {
   const [signatureModalTarget, setSignatureModalTarget] = useState(null);
   const [coverageModal, setCoverageModal] = useState(null);
   const [handoverView, setHandoverView] = useState(null);
+  const [detailRequest, setDetailRequest] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [actingSuccessorId, setActingSuccessorId] = useState('');
   const sigCanvas = useRef({});
   const { isAdmin } = useAuth();
@@ -126,6 +126,23 @@ export default function Leave() {
     saveTypeMutation.mutate(data);
   };
 
+  const leaveActionHandlers = {
+    onDetails: setDetailRequest,
+    onApprove: setSignatureModalTarget,
+    onReject: (r) => statusMutation.mutate({ id: r.id, status: 'Rejected' }),
+    onStartCoverage: (r) => { setCoverageModal(r); setActingSuccessorId(''); },
+    onViewCoverage: (r) => setHandoverView({ leaveId: r.id, kind: 'coverage', readOnly: r.coverage_handover_is_terminal }),
+    onStartReturn: (r) => returnMutation.mutate(r.id),
+    onViewReturn: (r) => setHandoverView({ leaveId: r.id, kind: 'return', readOnly: r.return_handover_is_terminal }),
+    onDelete: (r) => {
+      if (r.can_delete_leave === false) {
+        toast(r.delete_blocked_reason || 'Cannot delete while handover is active', { icon: '⚠️', duration: 6000 });
+        return;
+      }
+      setDeleteTarget({ mode: 'request', item: r });
+    },
+  };
+
   return (
     <Layout title="Leave Management" subtitle="Leave requests, balances and types">
       <div className="flex items-center justify-between mb-6">
@@ -211,123 +228,102 @@ export default function Leave() {
 
       {/* Requests Table */}
       {activeTab === 'requests' && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
           {isLoading ? <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
           : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl">
               <table className="w-full text-sm">
                 <thead style={{ background: '#161929' }}>
-                  <tr>{['Employee', 'Leave Type', 'Start Date', 'End Date', 'Reason', 'Status', 'Actions'].map(h => <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+                  <tr>
+                    {['Employee', 'Leave', 'Period', 'Progress', ''].map(h => (
+                      <th key={h || 'actions'} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider last:text-right">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
                 </thead>
                 <tbody>
-                  {requests.length > 0 ? requests.map(r => (
-                    <tr key={r.id} className="border-t border-white/5 hover:bg-white/2 transition-colors">
-                      <td className="py-3 px-5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">{(r.employee_name || '?')[0]}</div>
-                          <div>
-                            <span className="text-white text-sm">{r.employee_name}</span>
+                  {requests.length > 0 ? requests.map(r => {
+                    const days = leaveDays(r.start_date, r.end_date);
+                    const menuItems = buildLeaveRequestMenuItems(r, leaveActionHandlers, { isAdmin: isAdmin() });
+                    return (
+                    <tr
+                      key={r.id}
+                      className="border-t border-white/5 hover:bg-white/[0.03] transition-colors cursor-pointer"
+                      onClick={() => setDetailRequest(r)}
+                    >
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                            {(r.employee_name || '?')[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{r.employee_name}</p>
+                            {r.employee_code && <p className="text-[10px] text-slate-500 font-mono">{r.employee_code}</p>}
                             {r.employee_in_offboarding && (
-                              <span className="block text-[10px] font-semibold text-amber-400 mt-0.5" title={r.offboarding_warning}>
-                                ⚠️ Offboarding active
-                              </span>
+                              <span className="inline-block text-[10px] font-semibold text-amber-400 mt-0.5">⚠ Offboarding</span>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-5 text-slate-300">{r.type_name}</td>
-                      <td className="py-3 px-5 text-slate-300">{(r.start_date || '').slice(0, 10)}</td>
-                      <td className="py-3 px-5 text-slate-300">{(r.end_date || '').slice(0, 10)}</td>
-                      <td className="py-3 px-5 text-slate-400 text-xs max-w-[200px] truncate">
-                        {r.reason || '—'}
+                      <td className="py-4 px-5">
+                        <p className="text-slate-200 font-medium">{r.type_name}</p>
+                        {r.reason && (
+                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 max-w-[180px]" title={r.reason}>{r.reason}</p>
+                        )}
                         {r.document_url && (
-                          <a href={r.document_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-indigo-400 hover:text-indigo-300 font-bold" title="View Attachment">
-                            📎 View
+                          <a
+                            href={r.document_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="text-[10px] text-indigo-400 hover:text-indigo-300 mt-0.5 inline-block"
+                          >
+                            📎 Attachment
                           </a>
                         )}
                       </td>
-                      <td className="py-3 px-5">
-                        <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_CFG[r.status] || 'text-slate-400 bg-white/5'}`}>{r.status}</span>
-                        {r.coverage_handover_status && (
-                          <div className="mt-1.5">
-                            <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full ${HANDOVER_STATUS_CFG[r.coverage_handover_status] || 'text-slate-400 bg-white/5'}`}>
-                              Coverage: {r.coverage_handover_status.replace(/_/g, ' ')}
-                            </span>
-                          </div>
-                        )}
-                        {r.return_handover_status && (
-                          <div className="mt-1">
-                            <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full ${HANDOVER_STATUS_CFG[r.return_handover_status] || 'text-slate-400 bg-white/5'}`}>
-                              Return: {r.return_handover_status.replace(/_/g, ' ')}
-                            </span>
-                          </div>
-                        )}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <p className="text-slate-300 text-sm">{(r.start_date || '').slice(0, 10)}</p>
+                        <p className="text-slate-500 text-xs">→ {(r.end_date || '').slice(0, 10)}{days != null && ` · ${days}d`}</p>
                       </td>
-                      <td className="py-3 px-5">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <td className="py-4 px-5" onClick={e => e.stopPropagation()}>
+                        <LeaveHandoverWorkflow request={r} />
+                      </td>
+                      <td className="py-4 px-5" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setDetailRequest(r)}
+                            className="p-2 rounded-lg text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors"
+                            title="View details & signature"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
                           {isAdmin() && r.status === 'Pending' && (
-                            <>
-                              <button onClick={() => setSignatureModalTarget(r)} className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-400/20 transition-colors">✔️ Approve</button>
-                              <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2.5 py-1.5 rounded-lg hover:bg-rose-400/20 transition-colors">❌ Reject</button>
-                            </>
-                          )}
-                          {isAdmin() && r.can_start_coverage && (
                             <button
-                              onClick={() => { setCoverageModal(r); setActingSuccessorId(''); }}
-                              className="text-xs font-medium text-indigo-400 bg-indigo-400/10 px-2.5 py-1.5 rounded-lg hover:bg-indigo-400/20 transition-colors"
+                              onClick={() => setSignatureModalTarget(r)}
+                              className="p-2 rounded-lg text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                              title="Approve with signature"
                             >
-                              Start coverage
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
                             </button>
                           )}
-                          {isAdmin() && r.can_view_coverage_history && (
-                            <button
-                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'coverage', readOnly: r.coverage_handover_is_terminal })}
-                              className="text-xs font-medium text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                            >
-                              {r.coverage_handover_is_terminal ? 'Coverage history' : 'View coverage'}
-                            </button>
-                          )}
-                          {isAdmin() && r.can_start_return && (
-                            <button
-                              onClick={() => returnMutation.mutate(r.id)}
-                              disabled={returnMutation.isPending}
-                              className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2.5 py-1.5 rounded-lg hover:bg-amber-400/20 transition-colors disabled:opacity-50"
-                            >
-                              Start return
-                            </button>
-                          )}
-                          {isAdmin() && r.can_view_return_history && (
-                            <button
-                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'return', readOnly: r.return_handover_is_terminal })}
-                              className="text-xs font-medium text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                            >
-                              {r.return_handover_is_terminal ? 'Return history' : 'View return'}
-                            </button>
-                          )}
-                          {isAdmin() && (
-                            <button 
-                              onClick={() => {
-                                if (r.can_delete_leave === false) {
-                                  toast(r.delete_blocked_reason || 'Cannot delete while handover is active', { icon: '⚠️', duration: 6000 });
-                                  return;
-                                }
-                                setDeleteTarget({ mode: 'request', item: r });
-                              }}
-                              disabled={r.can_delete_leave === false}
-                              className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${
-                                r.can_delete_leave === false
-                                  ? 'text-slate-600 bg-white/5 cursor-not-allowed opacity-50'
-                                  : 'text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500'
-                              }`}
-                              title={r.can_delete_leave === false ? r.delete_blocked_reason : 'Delete Request'}
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                          )}
+                          <LeaveRequestActionsMenu
+                            isOpen={openMenuId === r.id}
+                            onToggle={() => setOpenMenuId(openMenuId === r.id ? null : r.id)}
+                            onClose={() => setOpenMenuId(null)}
+                            items={menuItems}
+                          />
                         </div>
                       </td>
                     </tr>
-                  )) : <tr><td colSpan="7" className="py-12 text-center text-slate-500 text-sm">No leave requests yet.</td></tr>}
+                    );
+                  }) : <tr><td colSpan="5" className="py-12 text-center text-slate-500 text-sm">No leave requests yet.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -491,6 +487,16 @@ export default function Leave() {
           </div>
         </div>
       )}
+
+      <LeaveRequestDetailModal
+        request={detailRequest}
+        onClose={() => setDetailRequest(null)}
+        isAdmin={isAdmin()}
+        onApprove={setSignatureModalTarget}
+        onReject={(r) => statusMutation.mutate({ id: r.id, status: 'Rejected' })}
+        onViewCoverage={(r) => setHandoverView({ leaveId: r.id, kind: 'coverage', readOnly: r.coverage_handover_is_terminal })}
+        onViewReturn={(r) => setHandoverView({ leaveId: r.id, kind: 'return', readOnly: r.return_handover_is_terminal })}
+      />
 
       <ConfirmDeleteModal
         isOpen={!!deleteTarget}
