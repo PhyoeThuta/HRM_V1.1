@@ -11,8 +11,15 @@ import {
   createReturnHandover,
   getActiveHandoversForOutgoing,
   getActiveHandoversForIncoming,
+  getTerminalHandoversForOutgoing,
+  getTerminalHandoversForIncoming,
   getSuccessorAckSummary,
   handoverRequiresSuccessorAck,
+  notifyLeaveHandoverWaived,
+  summarizeHandoverForList,
+  filterHandoversList,
+  getHandoversForEmployee,
+  isActiveHandover,
   notifyUser,
   auditLog,
 } from '../lib/handoverHelpers.js';
@@ -40,12 +47,78 @@ async function loadHandoverDetail(handoverId) {
   return { handover, items, attachments, employees, successor_ack };
 }
 
-// GET /api/handover — admin list
+// GET /api/handover — admin list with filters
 router.get('/', requireAdmin, async (req, res) => {
   try {
-    const handovers = await dbFetch('employee_handovers', '*', {}, { order: 'created_at', ascending: false });
-    for (const h of handovers) await enrichHandover(h);
+    const { status = 'all', trigger_type, employee_id, limit = '50', offset = '0' } = req.query;
+    let handovers = await dbFetch('employee_handovers', '*', {}, { order: 'created_at', ascending: false });
+    handovers = filterHandoversList(handovers, { status, trigger_type, employee_id });
+
+    const total = handovers.length;
+    const off = Math.max(0, parseInt(offset, 10) || 0);
+    const lim = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+    const page = handovers.slice(off, off + lim);
+
+    const summaries = [];
+    for (const h of page) {
+      await enrichHandover(h);
+      const items = await dbFetch('handover_items', 'id', { handover_id: h.id });
+      summaries.push(summarizeHandoverForList(h, items.length));
+    }
+
+    return res.json({ handovers: summaries, total, limit: lim, offset: off });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/handover/portal/history/outgoing — completed/waived/cancelled outgoing
+router.get('/portal/history/outgoing', async (req, res) => {
+  try {
+    const empId = req.user.employee_id;
+    if (!empId) return res.json({ handovers: [] });
+
+    const terminal = await getTerminalHandoversForOutgoing(empId);
+    const handovers = [];
+    for (const h of terminal) {
+      const detail = await loadHandoverDetail(h.id);
+      if (detail) {
+        handovers.push({ handover: detail.handover, items: detail.items, attachments: detail.attachments });
+      }
+    }
     return res.json({ handovers });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/handover/portal/history/incoming — completed/waived/cancelled incoming
+router.get('/portal/history/incoming', async (req, res) => {
+  try {
+    const empId = req.user.employee_id;
+    if (!empId) return res.json({ handovers: [] });
+
+    const terminal = await getTerminalHandoversForIncoming(empId);
+    const handovers = [];
+    for (const h of terminal) {
+      const detail = await loadHandoverDetail(h.id);
+      if (detail) {
+        handovers.push({ handover: detail.handover, items: detail.items, attachments: detail.attachments });
+      }
+    }
+    return res.json({ handovers });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/handover/employee/:employeeId — admin employee handover history
+router.get('/employee/:employeeId', requireAdmin, async (req, res) => {
+  try {
+    const emp = await dbFetchOne('Employees', 'id,Full_name', { id: req.params.employeeId });
+    if (!emp) return res.status(404).json({ error: 'Employee not found' });
+    const data = await getHandoversForEmployee(req.params.employeeId);
+    return res.json({ employee: emp, ...data });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -455,6 +528,7 @@ router.post('/:id/waive', requireAdmin, async (req, res) => {
     }
 
     await syncKnowledgeTransferFromHandover(req.params.id);
+    await notifyLeaveHandoverWaived(handover, reason.trim());
     await auditLog(req, 'WAIVE', `Handover ${req.params.id} waived: ${reason}`);
     const detail = await loadHandoverDetail(req.params.id);
     return res.json({ success: true, ...detail });

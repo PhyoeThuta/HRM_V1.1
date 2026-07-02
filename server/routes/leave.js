@@ -2,7 +2,12 @@ import express from 'express';
 import multer from 'multer';
 import { supabase, dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
-import { enrichLeaveWithHandoverFlags, getOffboardingWarningForEmployee } from '../lib/handoverHelpers.js';
+import {
+  enrichLeaveWithHandoverFlags,
+  getOffboardingWarningForEmployee,
+  getActiveLinkedLeaveHandovers,
+  detachTerminalHandoversFromLeave,
+} from '../lib/handoverHelpers.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -152,6 +157,23 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
 // DELETE /api/leave/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
+    const leave = await dbFetchOne('Leave_Request', '*', { id: req.params.id });
+    if (!leave) return res.status(404).json({ error: 'Leave request not found' });
+
+    const activeHandovers = await getActiveLinkedLeaveHandovers(leave);
+    if (activeHandovers.length > 0) {
+      const first = activeHandovers[0];
+      return res.status(400).json({
+        error: `Cannot delete leave while ${first.handover_kind || 'coverage'} handover is active (${first.status?.replace(/_/g, ' ')}). Waive or complete the handover first.`,
+        active_handovers: activeHandovers.map(h => ({
+          id: h.id,
+          kind: h.handover_kind,
+          status: h.status,
+        })),
+      });
+    }
+
+    await detachTerminalHandoversFromLeave(leave);
     await dbDelete('Leave_Request', req.params.id);
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Leave Mgmt', details: `Deleted leave request ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });

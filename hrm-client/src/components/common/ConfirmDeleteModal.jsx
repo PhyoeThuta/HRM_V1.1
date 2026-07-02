@@ -1,5 +1,7 @@
-export default function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemName }) {
+export default function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemName, warning, blockedReason }) {
   if (!isOpen) return null;
+
+  const isBlocked = !!blockedReason;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -10,17 +12,30 @@ export default function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemNam
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
-        <h2 className="text-lg font-bold text-white mb-2">Are you sure to delete?</h2>
-        <p className="text-sm text-slate-400 mb-6">
-          You are about to delete <strong className="text-white">{itemName || 'this item'}</strong>. This action cannot be undone.
+        <h2 className="text-lg font-bold text-white mb-2">
+          {isBlocked ? 'Cannot delete' : 'Are you sure to delete?'}
+        </h2>
+        <p className="text-sm text-slate-400 mb-4">
+          {isBlocked ? (
+            <span className="text-amber-300">{blockedReason}</span>
+          ) : (
+            <>You are about to delete <strong className="text-white">{itemName || 'this item'}</strong>. This action cannot be undone.</>
+          )}
         </p>
+        {!isBlocked && warning && (
+          <p className="text-xs text-amber-300/90 mb-4 rounded-lg p-3 bg-amber-500/10 border border-amber-500/20 text-left">
+            {warning}
+          </p>
+        )}
         <div className="flex justify-center gap-3">
           <button onClick={onClose} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold rounded-xl transition-colors">
-            Cancel
+            {isBlocked ? 'Close' : 'Cancel'}
           </button>
-          <button onClick={onConfirm} className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-rose-600/20">
-            Yes, Delete
-          </button>
+          {!isBlocked && (
+            <button onClick={onConfirm} className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-rose-600/20">
+              Yes, Delete
+            </button>
+          )}
         </div>
       </div>
     </div>

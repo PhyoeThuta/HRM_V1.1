@@ -148,6 +148,64 @@ export function isActiveHandover(h) {
   return h && !TERMINAL_HANDOVER_STATUSES.includes(h.status);
 }
 
+export function isTerminalHandoverStatus(status) {
+  return TERMINAL_HANDOVER_STATUSES.includes(status);
+}
+
+export function canReplaceCoverageHandover(existing) {
+  return existing && ['waived', 'cancelled'].includes(existing.status);
+}
+
+export function canStartCoverageHandover(leave, coverageHandover) {
+  if (leave.status !== 'Approved') return false;
+  if (!leave.coverage_handover_id || !coverageHandover) return true;
+  return canReplaceCoverageHandover(coverageHandover);
+}
+
+export async function getLinkedLeaveHandovers(leave) {
+  const linked = [];
+  if (leave.coverage_handover_id) {
+    const h = await dbFetchOne('employee_handovers', '*', { id: leave.coverage_handover_id });
+    if (h) linked.push({ ...h, handover_kind: getHandoverKind(h) });
+  }
+  if (leave.return_handover_id) {
+    const h = await dbFetchOne('employee_handovers', '*', { id: leave.return_handover_id });
+    if (h) linked.push({ ...h, handover_kind: getHandoverKind(h) });
+  }
+  return linked;
+}
+
+export async function getActiveLinkedLeaveHandovers(leave) {
+  const linked = await getLinkedLeaveHandovers(leave);
+  return linked.filter(h => isActiveHandover(h));
+}
+
+export function isLeaveLinkedHandover(handover) {
+  return !!(handover?.leave_request_id || (handover?.trigger_type === 'temporary_coverage' && !handover?.offboarding_id));
+}
+
+export async function notifyLeaveHandoverWaived(handover, reason) {
+  if (!isLeaveLinkedHandover(handover)) return;
+  const label = getHandoverKind(handover) === 'return' ? 'Return handover' : 'Leave coverage handover';
+  const msg = `${label} was waived by HR: ${reason}`;
+  await notifyUser(handover.outgoing_employee_id, 'Handover waived', msg, '/portal');
+  if (handover.successor_employee_id) {
+    await notifyUser(handover.successor_employee_id, 'Handover waived', msg, '/portal');
+  }
+}
+
+export async function detachTerminalHandoversFromLeave(leave) {
+  const linked = await getLinkedLeaveHandovers(leave);
+  for (const h of linked) {
+    if (isTerminalHandoverStatus(h.status) && h.leave_request_id === leave.id) {
+      await dbUpdate('employee_handovers', h.id, {
+        leave_request_id: null,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+}
+
 export async function getActiveHandoversForOutgoing(employeeId) {
   const all = await dbFetch('employee_handovers', '*', { outgoing_employee_id: employeeId });
   return all.filter(isActiveHandover);
@@ -156,6 +214,90 @@ export async function getActiveHandoversForOutgoing(employeeId) {
 export async function getActiveHandoversForIncoming(employeeId) {
   const all = await dbFetch('employee_handovers', '*', { successor_employee_id: employeeId });
   return all.filter(isActiveHandover);
+}
+
+function sortHandoversNewestFirst(a, b) {
+  const dateA = a.approved_at || a.waived_at || a.updated_at || a.created_at || '';
+  const dateB = b.approved_at || b.waived_at || b.updated_at || b.created_at || '';
+  return String(dateB).localeCompare(String(dateA));
+}
+
+export async function getTerminalHandoversForOutgoing(employeeId) {
+  const all = await dbFetch('employee_handovers', '*', { outgoing_employee_id: employeeId });
+  return all.filter(h => isTerminalHandoverStatus(h.status)).sort(sortHandoversNewestFirst);
+}
+
+export async function getTerminalHandoversForIncoming(employeeId) {
+  const all = await dbFetch('employee_handovers', '*', { successor_employee_id: employeeId });
+  return all.filter(h => isTerminalHandoverStatus(h.status)).sort(sortHandoversNewestFirst);
+}
+
+export function summarizeHandoverForList(handover, itemCount = null) {
+  return {
+    id: handover.id,
+    handover_kind: handover.handover_kind || getHandoverKind(handover),
+    handover_label: handover.handover_label || getHandoverLabel(handover),
+    status: handover.status,
+    trigger_type: handover.trigger_type,
+    outgoing_employee_id: handover.outgoing_employee_id,
+    successor_employee_id: handover.successor_employee_id,
+    outgoing_name: handover.outgoing_name,
+    outgoing_code: handover.outgoing_code,
+    successor_name: handover.successor_name,
+    successor_code: handover.successor_code,
+    effective_date: handover.effective_date,
+    leave_start: handover.leave_start,
+    leave_end: handover.leave_end,
+    completion_pct: handover.completion_pct ?? 0,
+    approved_at: handover.approved_at,
+    waived_at: handover.waived_at,
+    waived_reason: handover.waived_reason,
+    created_at: handover.created_at,
+    item_count: itemCount,
+  };
+}
+
+export async function getHandoversForEmployee(employeeId) {
+  const [outgoingAll, incomingAll] = await Promise.all([
+    dbFetch('employee_handovers', '*', { outgoing_employee_id: employeeId }),
+    dbFetch('employee_handovers', '*', { successor_employee_id: employeeId }),
+  ]);
+  const sortFn = (a, b) => sortHandoversNewestFirst(a, b);
+  outgoingAll.sort(sortFn);
+  incomingAll.sort(sortFn);
+  for (const h of [...outgoingAll, ...incomingAll]) await enrichHandover(h);
+
+  const outgoingSummaries = outgoingAll.map(h => summarizeHandoverForList(h));
+  const incomingSummaries = incomingAll.map(h => summarizeHandoverForList(h));
+
+  return {
+    outgoing: outgoingSummaries,
+    incoming: incomingSummaries,
+    counts: {
+      outgoing_active: outgoingAll.filter(isActiveHandover).length,
+      outgoing_completed: outgoingAll.filter(h => h.status === 'completed').length,
+      incoming_active: incomingAll.filter(isActiveHandover).length,
+      incoming_completed: incomingAll.filter(h => h.status === 'completed').length,
+    },
+  };
+}
+
+export function filterHandoversList(handovers, { status, trigger_type, employee_id } = {}) {
+  let result = handovers;
+  if (status === 'active') {
+    result = result.filter(isActiveHandover);
+  } else if (status && status !== 'all') {
+    result = result.filter(h => h.status === status);
+  }
+  if (trigger_type) {
+    result = result.filter(h => h.trigger_type === trigger_type);
+  }
+  if (employee_id) {
+    result = result.filter(
+      h => h.outgoing_employee_id === employee_id || h.successor_employee_id === employee_id
+    );
+  }
+  return result;
 }
 
 /** Items the acting successor must acknowledge before HR can approve */
@@ -248,7 +390,17 @@ export async function createHandoverForLongLeave(leave, { successorEmployeeId, c
   if (leave.status !== 'Approved') return { error: 'Leave must be approved before starting coverage handover' };
   if (leave.coverage_handover_id) {
     const existing = await dbFetchOne('employee_handovers', 'id,status', { id: leave.coverage_handover_id });
-    if (existing) return { error: 'Coverage handover already exists for this leave' };
+    if (existing) {
+      if (existing.status === 'completed') {
+        return { error: 'Coverage handover is already completed for this leave' };
+      }
+      if (isActiveHandover(existing)) {
+        return { error: 'An active coverage handover already exists for this leave' };
+      }
+      if (!canReplaceCoverageHandover(existing)) {
+        return { error: 'Coverage handover already exists for this leave' };
+      }
+    }
   }
 
   const startDate = (leave.start_date || '').slice(0, 10);
@@ -371,14 +523,36 @@ export async function enrichLeaveWithHandoverFlags(leave, handoverMap = {}) {
   const today = new Date().toISOString().slice(0, 10);
   const endDate = (leave.end_date || '').slice(0, 10);
 
-  leave.can_start_coverage =
-    leave.status === 'Approved' &&
-    !leave.coverage_handover_id;
+  leave.can_start_coverage = canStartCoverageHandover(leave, coverage);
 
   leave.can_start_return =
     coverage?.status === 'completed' &&
     !leave.return_handover_id &&
     (!endDate || endDate <= today);
+
+  leave.has_coverage_handover = !!leave.coverage_handover_id;
+  leave.has_return_handover = !!leave.return_handover_id;
+  leave.can_view_coverage_history = !!leave.coverage_handover_id;
+  leave.can_view_return_history = !!leave.return_handover_id;
+  leave.coverage_handover_is_terminal = coverage ? isTerminalHandoverStatus(coverage.status) : false;
+  leave.return_handover_is_terminal = ret ? isTerminalHandoverStatus(ret.status) : false;
+
+  const activeLinked = [];
+  if (coverage && isActiveHandover(coverage)) {
+    activeLinked.push({ ...coverage, kind: 'coverage' });
+  }
+  if (ret && isActiveHandover(ret)) {
+    activeLinked.push({ ...ret, kind: 'return' });
+  }
+  leave.has_active_leave_handover = activeLinked.length > 0;
+  leave.can_delete_leave = activeLinked.length === 0;
+  if (!leave.can_delete_leave) {
+    const first = activeLinked[0];
+    leave.delete_blocked_reason =
+      `Cannot delete while ${first.kind} handover is active (${first.status?.replace(/_/g, ' ')}). Waive or complete the handover first.`;
+  } else {
+    leave.delete_blocked_reason = null;
+  }
 
   return leave;
 }

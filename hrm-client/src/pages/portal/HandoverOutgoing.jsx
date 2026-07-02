@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
+import HandoverHistoryCard from '../../components/handover/HandoverHistoryCard';
 
 const CAT_LABELS = {
   knowledge_transfer: 'Knowledge Transfer',
@@ -13,6 +14,24 @@ const CAT_LABELS = {
   systems_access: 'Systems & Access',
   other: 'Other',
 };
+
+function TabBar({ tab, setTab }) {
+  return (
+    <div className="flex gap-2 mb-6">
+      {['active', 'past'].map(t => (
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${
+            tab === t ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:text-white'
+          }`}
+        >
+          {t === 'active' ? 'Active' : 'Past'}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function OutgoingHandoverCard({ entry, onRefetch }) {
   const fileRef = useRef(null);
@@ -198,41 +217,61 @@ function OutgoingHandoverCard({ entry, onRefetch }) {
 
 export default function HandoverOutgoing() {
   const navigate = useNavigate();
+  const [tab, setTab] = useState('active');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['handover-outgoing'],
     queryFn: () => api.get('/handover/portal/outgoing').then(r => r.data),
+    enabled: tab === 'active',
   });
 
-  if (isLoading) {
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ['handover-outgoing-history'],
+    queryFn: () => api.get('/handover/portal/history/outgoing').then(r => r.data),
+    enabled: tab === 'past',
+  });
+
+  const loading = tab === 'active' ? isLoading : historyLoading;
+
+  if (loading) {
     return <Layout title="My Handover"><div className="p-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div></Layout>;
   }
 
-  const handovers = data?.handovers?.length
+  const activeHandovers = data?.handovers?.length
     ? data.handovers
     : (data?.handover ? [{ handover: data.handover, items: data.items || [], attachments: data.attachments || [] }] : []);
 
-  if (!handovers.length) {
-    return (
-      <Layout title="My Handover" subtitle="Knowledge transfer checklist">
-        <div className="max-w-2xl mx-auto rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="text-5xl mb-4">📋</div>
-          <h2 className="text-lg font-bold text-white mb-2">No Handover Required</h2>
-          <p className="text-slate-400 text-sm">You do not have an active handover checklist.</p>
-          <button onClick={() => navigate('/portal')} className="mt-4 text-sm text-indigo-400 hover:text-indigo-300">← Back to Portal</button>
-        </div>
-      </Layout>
-    );
-  }
+  const pastHandovers = historyData?.handovers || [];
+
+  const showEmpty = tab === 'active' ? !activeHandovers.length : !pastHandovers.length;
 
   return (
-    <Layout title="My Handovers" subtitle="Complete your active handover checklists">
+    <Layout title="My Handovers" subtitle={tab === 'active' ? 'Complete your active handover checklists' : 'Past completed or waived handovers'}>
       <div className="max-w-3xl mx-auto space-y-6 pb-20">
         <button onClick={() => navigate('/portal')} className="text-sm text-slate-400 hover:text-white">← Back to Portal</button>
+        <TabBar tab={tab} setTab={setTab} />
 
-        {handovers.map(entry => (
-          <OutgoingHandoverCard key={entry.handover.id} entry={entry} onRefetch={refetch} />
-        ))}
+        {showEmpty ? (
+          <div className="rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="text-5xl mb-4">{tab === 'active' ? '📋' : '📁'}</div>
+            <h2 className="text-lg font-bold text-white mb-2">
+              {tab === 'active' ? 'No Active Handover' : 'No Past Handovers'}
+            </h2>
+            <p className="text-slate-400 text-sm">
+              {tab === 'active'
+                ? 'You do not have an active handover checklist.'
+                : 'Completed, waived, or cancelled handovers will appear here.'}
+            </p>
+          </div>
+        ) : tab === 'active' ? (
+          activeHandovers.map(entry => (
+            <OutgoingHandoverCard key={entry.handover.id} entry={entry} onRefetch={refetch} />
+          ))
+        ) : (
+          pastHandovers.map(entry => (
+            <HandoverHistoryCard key={entry.handover.id} entry={entry} role="outgoing" />
+          ))
+        )}
       </div>
     </Layout>
   );

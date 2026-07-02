@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
+import HandoverHistoryCard from '../../components/handover/HandoverHistoryCard';
 
 const CAT_LABELS = {
   knowledge_transfer: 'Knowledge Transfer',
@@ -12,6 +14,24 @@ const CAT_LABELS = {
   systems_access: 'Systems & Access',
   other: 'Other',
 };
+
+function TabBar({ tab, setTab }) {
+  return (
+    <div className="flex gap-2 mb-6">
+      {['active', 'past'].map(t => (
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${
+            tab === t ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:text-white'
+          }`}
+        >
+          {t === 'active' ? 'Active' : 'Past'}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function HandoverCard({ entry, onAck }) {
   const { handover, items } = entry;
@@ -79,10 +99,18 @@ function HandoverCard({ entry, onAck }) {
 
 export default function HandoverIncoming() {
   const navigate = useNavigate();
+  const [tab, setTab] = useState('active');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['handover-incoming'],
     queryFn: () => api.get('/handover/portal/incoming').then(r => r.data),
+    enabled: tab === 'active',
+  });
+
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ['handover-incoming-history'],
+    queryFn: () => api.get('/handover/portal/history/incoming').then(r => r.data),
+    enabled: tab === 'past',
   });
 
   const ackMutation = useMutation({
@@ -91,30 +119,45 @@ export default function HandoverIncoming() {
     onError: (e) => toast.error(e.response?.data?.error || 'Failed to acknowledge'),
   });
 
-  if (isLoading) {
+  const loading = tab === 'active' ? isLoading : historyLoading;
+
+  if (loading) {
     return <Layout title="Incoming Handover"><div className="p-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div></Layout>;
   }
 
-  const handovers = data?.handovers || [];
+  const activeHandovers = data?.handovers || [];
+  const pastHandovers = historyData?.handovers || [];
+  const showEmpty = tab === 'active' ? !activeHandovers.length : !pastHandovers.length;
 
   return (
-    <Layout title="Incoming Handover" subtitle="Review knowledge transferred to you">
+    <Layout title="Incoming Handover" subtitle={tab === 'active' ? 'Review knowledge transferred to you' : 'Past handovers you received'}>
       <div className="max-w-3xl mx-auto space-y-5 pb-20">
         <button onClick={() => navigate('/portal')} className="text-sm text-slate-400 hover:text-white">← Back to Portal</button>
+        <TabBar tab={tab} setTab={setTab} />
 
-        {handovers.length === 0 ? (
+        {showEmpty ? (
           <div className="rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div className="text-5xl mb-4">📥</div>
-            <h2 className="text-lg font-bold text-white mb-2">No Incoming Handovers</h2>
-            <p className="text-slate-400 text-sm">You have not been assigned as a successor for any active handover.</p>
+            <div className="text-5xl mb-4">{tab === 'active' ? '📥' : '📁'}</div>
+            <h2 className="text-lg font-bold text-white mb-2">
+              {tab === 'active' ? 'No Incoming Handovers' : 'No Past Handovers'}
+            </h2>
+            <p className="text-slate-400 text-sm">
+              {tab === 'active'
+                ? 'You have not been assigned as a successor for any active handover.'
+                : 'Completed or waived handovers you were successor on will appear here.'}
+            </p>
           </div>
-        ) : (
-          handovers.map(entry => (
+        ) : tab === 'active' ? (
+          activeHandovers.map(entry => (
             <HandoverCard
               key={entry.handover.id}
               entry={entry}
               onAck={(handoverId, itemId) => ackMutation.mutate({ handoverId, itemId })}
             />
+          ))
+        ) : (
+          pastHandovers.map(entry => (
+            <HandoverHistoryCard key={entry.handover.id} entry={entry} role="incoming" />
           ))
         )}
       </div>

@@ -18,6 +18,7 @@ import Recruitment from './pages/Recruitment';
 import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
 import Offboarding from './pages/Offboarding';
+import Handovers from './pages/Handovers';
 import Documents from './pages/Documents';
 import SOPs from './pages/SOPs';
 import PeerVoting from './pages/PeerVoting';
@@ -107,6 +108,7 @@ function AppRoutes() {
       <Route path="/onboarding" element={<Protected allowedRoles={adminRoles}><Onboarding /></Protected>} />
       <Route path="/onboarding/:id" element={<Protected allowedRoles={adminRoles}><OnboardingDetail /></Protected>} />
       <Route path="/offboarding" element={<Protected allowedRoles={adminRoles}><Offboarding /></Protected>} />
+      <Route path="/handovers" element={<Protected allowedRoles={adminRoles}><Handovers /></Protected>} />
       <Route path="/boss" element={<Protected allowedRoles={['boss', 'admin']}><BossDashboard /></Protected>} />
       <Route path="/boss/chat" element={<Protected allowedRoles={['boss', 'admin']}><BossChat /></Protected>} />
       <Route path="/boss/kpi" element={<Protected allowedRoles={['boss', 'admin']}><BossKPI /></Protected>} />

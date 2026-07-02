@@ -46,6 +46,7 @@ const ICONS = {
   birthdays: 'M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-1.5-.454M9 6l3-3 3 3m-3-3v12',
   onboarding: 'M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z',
   offboarding: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
+  handover: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-4-4h.01M9 16h.01',
   boss: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
   chat: 'M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z',
   portal: 'M11 19l-7-7 7-7m8 14l-7-7 7-7',
@@ -113,6 +114,8 @@ export default function Sidebar({ isOpen, close }) {
 
             <NavSection title="HR" />
             <NavItem to="/portal/leaves" label="My Leaves" icon={ICONS.leave} />
+            <NavItem to="/portal/handover/outgoing" label="My Handovers" icon={ICONS.handover} />
+            <NavItem to="/portal/handover/incoming" label="Incoming Handover" icon={ICONS.handover} />
             <NavItem to="/portal/payslips" label="Payslips" icon={ICONS.payroll} />
             <NavItem to="/portal/documents" label="My Documents" icon={ICONS.documents} />
             <NavItem to="/portal/sops" label="Daily SOPs" icon={ICONS.sops} />
@@ -145,6 +148,7 @@ export default function Sidebar({ isOpen, close }) {
             <NavSection title="Lifecycle" />
             <NavItem to="/onboarding" label="Onboarding" icon={ICONS.onboarding} />
             <NavItem to="/offboarding" label="Offboarding" icon={ICONS.offboarding} />
+            <NavItem to="/handovers" label="Handovers" icon={ICONS.documents} />
           </>
         )}
 

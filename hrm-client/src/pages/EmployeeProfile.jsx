@@ -4,6 +4,99 @@ import { useState, useRef } from 'react';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
+import HandoverPanel from '../components/handover/HandoverPanel';
+
+const STATUS_COLORS = {
+  completed: 'text-emerald-400 bg-emerald-500/10',
+  waived: 'text-slate-400 bg-slate-500/10',
+  cancelled: 'text-rose-400 bg-rose-500/10',
+  in_progress: 'text-indigo-400 bg-indigo-500/10',
+  pending_review: 'text-purple-400 bg-purple-500/10',
+};
+
+function HandoverHistorySection({ employeeId }) {
+  const [detailId, setDetailId] = useState(null);
+  const { data, isLoading } = useQuery({
+    queryKey: ['employee-handovers', employeeId],
+    queryFn: () => api.get(`/handover/employee/${employeeId}`).then(r => r.data),
+  });
+
+  const { data: detail, isLoading: detailLoading } = useQuery({
+    queryKey: ['handover-detail', detailId],
+    queryFn: () => api.get(`/handover/${detailId}`).then(r => r.data),
+    enabled: !!detailId,
+  });
+
+  if (isLoading) return <p className="text-slate-500 text-sm">Loading handover history...</p>;
+
+  const outgoing = data?.outgoing || [];
+  const incoming = data?.incoming || [];
+  const counts = data?.counts || {};
+  const all = [...outgoing.map(h => ({ ...h, role: 'outgoing' })), ...incoming.map(h => ({ ...h, role: 'incoming' }))];
+
+  if (!all.length) {
+    return <p className="text-slate-500 text-sm">No handover records for this employee.</p>;
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-3 mb-4 text-xs text-slate-500">
+        <span>Outgoing active: {counts.outgoing_active ?? 0}</span>
+        <span>·</span>
+        <span>Outgoing completed: {counts.outgoing_completed ?? 0}</span>
+        <span>·</span>
+        <span>Incoming active: {counts.incoming_active ?? 0}</span>
+      </div>
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {all.slice(0, 12).map(h => (
+          <button
+            key={`${h.role}-${h.id}`}
+            onClick={() => setDetailId(h.id)}
+            className="w-full text-left p-3 rounded-xl border border-white/5 bg-[#161929] hover:bg-white/5 transition-colors"
+          >
+            <div className="flex justify-between items-start gap-2">
+              <div>
+                <p className="text-sm font-medium text-white">{h.handover_label || h.handover_kind}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 capitalize">
+                  {h.role === 'outgoing' ? `To ${h.successor_name || '—'}` : `From ${h.outgoing_name || '—'}`}
+                  {' · '}{h.trigger_type?.replace(/_/g, ' ')}
+                </p>
+              </div>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded capitalize flex-shrink-0 ${STATUS_COLORS[h.status] || 'text-slate-400 bg-white/5'}`}>
+                {h.status?.replace(/_/g, ' ')}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+      {all.length > 12 && (
+        <Link to="/handovers" className="text-xs text-indigo-400 hover:underline mt-3 inline-block">View all in Handovers →</Link>
+      )}
+
+      {detailId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailId(null)} />
+          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
+              <h2 className="text-base font-bold text-white">Handover detail</h2>
+              <button onClick={() => setDetailId(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            {detailLoading || !detail?.handover ? (
+              <div className="py-8 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
+            ) : (
+              <HandoverPanel
+                handover={detail.handover}
+                items={detail.items || []}
+                readOnly={['completed', 'waived', 'cancelled'].includes(detail.handover.status)}
+                allowSuccessorEdit={false}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function EmployeeProfile() {
   const { id } = useParams();
@@ -199,6 +292,12 @@ export default function EmployeeProfile() {
               ))}
               {leave_balances?.length === 0 && <p className="text-slate-500 text-sm col-span-full">No leave balances set.</p>}
             </div>
+          </div>
+
+          {/* Handover history */}
+          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Handover History</h3>
+            <HandoverHistorySection employeeId={id} />
           </div>
 
           {/* KPIs */}

@@ -244,6 +244,21 @@ export default function Portal() {
               <QuickStat label="Peer Rating" value={data?.vote_count > 0 ? data.vote_avg : '—'} icon="⭐" color="purple" />
             </div>
 
+            <div className="rounded-2xl p-5 mb-6 flex flex-wrap items-center justify-between gap-4" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div>
+                <h2 className="text-sm font-bold text-white">Handovers</h2>
+                <p className="text-xs text-slate-400 mt-1">Active checklists and past completed handovers (leave, return, exit)</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/portal/handover/outgoing" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors">
+                  My Handovers
+                </Link>
+                <Link to="/portal/handover/incoming" className="text-xs font-bold bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2 rounded-lg transition-colors border border-white/10">
+                  Incoming Handover
+                </Link>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Leave Balances */}
               <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>

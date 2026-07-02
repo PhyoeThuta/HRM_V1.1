@@ -57,7 +57,8 @@ export default function Leave() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/leave/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['leave']); setDeleteTarget(null); },
+    onSuccess: () => { qc.invalidateQueries(['leave']); setDeleteTarget(null); toast.success('Leave request deleted'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to delete leave request'),
   });
 
   const saveTypeMutation = useMutation({
@@ -278,12 +279,12 @@ export default function Leave() {
                               Start coverage
                             </button>
                           )}
-                          {isAdmin() && r.coverage_handover_id && (
+                          {isAdmin() && r.can_view_coverage_history && (
                             <button
-                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'coverage' })}
+                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'coverage', readOnly: r.coverage_handover_is_terminal })}
                               className="text-xs font-medium text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
                             >
-                              View coverage
+                              {r.coverage_handover_is_terminal ? 'Coverage history' : 'View coverage'}
                             </button>
                           )}
                           {isAdmin() && r.can_start_return && (
@@ -295,19 +296,30 @@ export default function Leave() {
                               Start return
                             </button>
                           )}
-                          {isAdmin() && r.return_handover_id && (
+                          {isAdmin() && r.can_view_return_history && (
                             <button
-                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'return' })}
+                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'return', readOnly: r.return_handover_is_terminal })}
                               className="text-xs font-medium text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
                             >
-                              View return
+                              {r.return_handover_is_terminal ? 'Return history' : 'View return'}
                             </button>
                           )}
                           {isAdmin() && (
                             <button 
-                              onClick={() => setDeleteTarget({ mode: 'request', item: r })} 
-                              className="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 p-1.5 rounded-lg transition-colors flex items-center justify-center"
-                              title="Delete Request"
+                              onClick={() => {
+                                if (r.can_delete_leave === false) {
+                                  toast(r.delete_blocked_reason || 'Cannot delete while handover is active', { icon: '⚠️', duration: 6000 });
+                                  return;
+                                }
+                                setDeleteTarget({ mode: 'request', item: r });
+                              }}
+                              disabled={r.can_delete_leave === false}
+                              className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${
+                                r.can_delete_leave === false
+                                  ? 'text-slate-600 bg-white/5 cursor-not-allowed opacity-50'
+                                  : 'text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500'
+                              }`}
+                              title={r.can_delete_leave === false ? r.delete_blocked_reason : 'Delete Request'}
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
@@ -451,6 +463,7 @@ export default function Leave() {
           <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
               <h2 className="text-base font-bold text-white">
+                {handoverView.readOnly ? 'Handover history — ' : ''}
                 {handoverView.kind === 'return' ? 'Return handover' : 'Coverage handover'}
               </h2>
               <button onClick={() => setHandoverView(null)} className="text-slate-400 hover:text-white">✕</button>
@@ -466,7 +479,8 @@ export default function Leave() {
                   items={detail.items || []}
                   employees={handoverDetail?.employees || employees}
                   excludeEmployeeId={detail.handover.outgoing_employee_id}
-                  allowSuccessorEdit={handoverView.kind === 'coverage' && !detail.handover.successor_employee_id}
+                  readOnly={handoverView.readOnly || ['completed', 'waived', 'cancelled'].includes(detail.handover.status)}
+                  allowSuccessorEdit={!handoverView.readOnly && handoverView.kind === 'coverage' && !detail.handover.successor_employee_id}
                   onRefresh={() => {
                     refetchHandover();
                     qc.invalidateQueries(['leave']);
@@ -478,14 +492,18 @@ export default function Leave() {
         </div>
       )}
 
-      <ConfirmDeleteModal 
-        isOpen={!!deleteTarget} 
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget.mode === 'request') deleteMutation.mutate(deleteTarget.item.id);
           else deleteTypeMutation.mutate(deleteTarget.item.id);
         }}
         itemName={deleteTarget?.mode === 'type' ? deleteTarget.item.type_name : 'Leave Request'}
+        blockedReason={deleteTarget?.mode === 'request' && deleteTarget.item?.can_delete_leave === false ? deleteTarget.item.delete_blocked_reason : null}
+        warning={deleteTarget?.mode === 'request' && deleteTarget.item?.coverage_handover_status
+          ? 'Linked handover history will be kept; only the leave request row is removed.'
+          : null}
       />
 
       {/* Leave Type Form Modal */}
