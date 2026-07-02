@@ -2,6 +2,11 @@ import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 import { supabase } from '../lib/supabase.js';
+import {
+  getActiveHandoversForOutgoing,
+  getActiveHandoversForIncoming,
+  enrichHandover,
+} from '../lib/handoverHelpers.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -113,9 +118,44 @@ router.get('/portal', async (req, res) => {
     const voteTotal = votes.reduce((s, v) => s + parseInt(v.score || 0), 0);
     const voteAvg = voteCount > 0 ? Math.round((voteTotal / voteCount) * 10) / 10 : 0;
 
-    const isOffboarding = !!(await dbFetchOne('corporate_offboarding', 'id', { employee_id: empId }));
-    const outgoingHandover = await dbFetchOne('employee_handovers', 'id,status,completion_pct', { outgoing_employee_id: empId });
-    const incomingHandovers = await dbFetch('employee_handovers', 'id,status,outgoing_employee_id', { successor_employee_id: empId });
+    const offboardingRecord = await dbFetchOne('corporate_offboarding', 'id', { employee_id: empId });
+    let outgoingActive = await getActiveHandoversForOutgoing(empId);
+    for (const h of outgoingActive) await enrichHandover(h);
+
+    // Fallback: pick up leave-linked handovers even if not returned by outgoing query edge cases
+    const linkedHandoverIds = [
+      ...new Set(
+        leaveReqs.flatMap(r => [r.coverage_handover_id, r.return_handover_id].filter(Boolean))
+      ),
+    ];
+    for (const hid of linkedHandoverIds) {
+      if (outgoingActive.some(h => h.id === hid)) continue;
+      const h = await dbFetchOne('employee_handovers', '*', { id: hid });
+      if (h && h.outgoing_employee_id === empId && !['completed', 'waived', 'cancelled'].includes(h.status)) {
+        await enrichHandover(h);
+        outgoingActive.push(h);
+      }
+    }
+
+    const incomingActive = await getActiveHandoversForIncoming(empId);
+    for (const h of incomingActive) await enrichHandover(h);
+
+    const exitOutgoing = outgoingActive.filter(h => h.handover_kind === 'exit');
+    const coverageOutgoing = outgoingActive.filter(h => h.handover_kind === 'coverage' || h.handover_kind === 'return');
+    const incomingExit = incomingActive.filter(h => h.handover_kind === 'exit');
+    const incomingCoverage = incomingActive.filter(h => h.handover_kind === 'coverage' || h.handover_kind === 'return');
+
+    const hasActiveLeaveHandover = coverageOutgoing.length > 0;
+    const hasActiveExitHandover = exitOutgoing.length > 0;
+    const leaveOutgoingHandover = coverageOutgoing[0] || null;
+    const exitOutgoingHandover = exitOutgoing[0] || null;
+    const outgoingHandover = leaveOutgoingHandover || exitOutgoingHandover || outgoingActive[0] || null;
+
+    // Show both banners when offboarding and leave handover are active in parallel
+    const showLeaveHandoverBanner = hasActiveLeaveHandover;
+    const showOffboardingBanner = hasActiveExitHandover || !!offboardingRecord;
+    const showIncomingLeaveBanner = incomingCoverage.length > 0;
+    const showIncomingExitBanner = !showIncomingLeaveBanner && incomingExit.length > 0;
 
     // Filter announcements
     const role = req.user.role;
@@ -144,9 +184,22 @@ router.get('/portal', async (req, res) => {
     });
 
     return res.json({
-      emp, is_offboarding: isOffboarding,
+      emp,
+      is_offboarding: !!offboardingRecord,
+      has_active_leave_handover: hasActiveLeaveHandover,
+      has_active_exit_handover: hasActiveExitHandover,
+      show_leave_handover_banner: showLeaveHandoverBanner,
+      show_offboarding_banner: showOffboardingBanner,
+      show_dual_track: showLeaveHandoverBanner && showOffboardingBanner,
+      show_incoming_leave_banner: showIncomingLeaveBanner,
+      show_incoming_exit_banner: showIncomingExitBanner,
       outgoing_handover: outgoingHandover,
-      incoming_handover_count: incomingHandovers.length,
+      exit_outgoing_handover: exitOutgoingHandover,
+      outgoing_handovers: outgoingActive,
+      leave_outgoing_handover: leaveOutgoingHandover,
+      coverage_outgoing_count: coverageOutgoing.length,
+      incoming_handover_count: incomingActive.length,
+      incoming_coverage_count: incomingCoverage.length,
       att_count: attRecs.length,
       leave_count: leaveReqs.length,
       payslip_count: payslips.length,

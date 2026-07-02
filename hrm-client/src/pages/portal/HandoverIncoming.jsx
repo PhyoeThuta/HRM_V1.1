@@ -25,10 +25,14 @@ function HandoverCard({ entry, onAck }) {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="p-5 border-b border-white/5">
-        <h3 className="text-base font-bold text-white">Handover from {handover.outgoing_name}</h3>
+        <h3 className="text-base font-bold text-white">
+          {handover.handover_label || 'Handover'} from {handover.outgoing_name}
+        </h3>
         <p className="text-xs text-slate-400 mt-1">
           {handover.outgoing_code} · Status: <span className="capitalize">{handover.status?.replace(/_/g, ' ')}</span>
-          {handover.effective_date && <> · Last day: {handover.effective_date}</>}
+          {handover.leave_start && <> · Leave: {handover.leave_start} → {handover.leave_end}</>}
+          {!handover.leave_start && handover.effective_date && <> · Effective: {handover.effective_date}</>}
+          {handover.expected_return_date && <> · Expected return: {handover.expected_return_date}</>}
         </p>
       </div>
 
@@ -43,6 +47,8 @@ function HandoverCard({ entry, onAck }) {
                 <p className="text-sm font-medium text-white mb-1">{item.title}</p>
                 {item.outgoing_notes ? (
                   <p className="text-xs text-slate-400 whitespace-pre-wrap mb-2">{item.outgoing_notes}</p>
+                ) : (item.status === 'done' || item.status === 'not_applicable') ? (
+                  <p className="text-xs text-slate-500 italic mb-2">Marked as {item.status.replace(/_/g, ' ')}</p>
                 ) : (
                   <p className="text-xs text-slate-600 italic mb-2">Not yet filled</p>
                 )}
@@ -51,7 +57,7 @@ function HandoverCard({ entry, onAck }) {
                     View attachment
                   </a>
                 )}
-                {!item.successor_acknowledged && item.outgoing_notes && (
+                {!item.successor_acknowledged && (item.outgoing_notes || item.status === 'done' || item.status === 'not_applicable') && (
                   <button
                     onClick={() => onAck(handover.id, item.id)}
                     className="text-xs font-bold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
@@ -100,7 +106,7 @@ export default function HandoverIncoming() {
           <div className="rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="text-5xl mb-4">📥</div>
             <h2 className="text-lg font-bold text-white mb-2">No Incoming Handovers</h2>
-            <p className="text-slate-400 text-sm">You have not been assigned as a successor for any departing employee.</p>
+            <p className="text-slate-400 text-sm">You have not been assigned as a successor for any active handover.</p>
           </div>
         ) : (
           handovers.map(entry => (

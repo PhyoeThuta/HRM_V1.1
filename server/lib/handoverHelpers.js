@@ -1,5 +1,7 @@
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate } from './supabase.js';
 
+export const TERMINAL_HANDOVER_STATUSES = ['completed', 'waived', 'cancelled'];
+
 export const DEFAULT_HANDOVER_ITEMS = [
   { title: 'Role summary', category: 'knowledge_transfer', owner_role: 'outgoing', sort_order: 1, is_required: true },
   { title: 'Daily & weekly responsibilities', category: 'knowledge_transfer', owner_role: 'outgoing', sort_order: 2, is_required: true },
@@ -15,9 +17,64 @@ export const DEFAULT_HANDOVER_ITEMS = [
   { title: 'Outstanding expenses or company assets in your care', category: 'pending_work', owner_role: 'outgoing', sort_order: 12, is_required: false },
 ];
 
-export async function seedHandoverItems(handoverId) {
-  for (const item of DEFAULT_HANDOVER_ITEMS) {
-    await dbInsert('handover_items', {
+export const LONG_LEAVE_COVERAGE_ITEMS = [
+  { title: 'Role summary while on leave', category: 'knowledge_transfer', owner_role: 'outgoing', sort_order: 1, is_required: true },
+  { title: 'Active projects / deadlines during leave', category: 'pending_work', owner_role: 'outgoing', sort_order: 2, is_required: true },
+  { title: 'Key contacts to handle', category: 'clients_contacts', owner_role: 'outgoing', sort_order: 3, is_required: true },
+  { title: 'Systems / access acting person needs', category: 'systems_access', owner_role: 'outgoing', sort_order: 4, is_required: true },
+  { title: 'Daily routines / SOP links', category: 'knowledge_transfer', owner_role: 'outgoing', sort_order: 5, is_required: true },
+  { title: 'Pending approvals to watch', category: 'pending_work', owner_role: 'outgoing', sort_order: 6, is_required: false },
+  { title: 'Shadowing / walkthrough completed', category: 'knowledge_transfer', owner_role: 'outgoing', sort_order: 7, is_required: true },
+  { title: 'Notes for acting employee', category: 'other', owner_role: 'outgoing', sort_order: 8, is_required: true },
+];
+
+export const LONG_LEAVE_RETURN_ITEMS = [
+  { title: 'What changed during coverage period', category: 'knowledge_transfer', owner_role: 'outgoing', sort_order: 1, is_required: true },
+  { title: 'New issues or open items', category: 'pending_work', owner_role: 'outgoing', sort_order: 2, is_required: true },
+  { title: 'Files / updates to review', category: 'documents', owner_role: 'outgoing', sort_order: 3, is_required: true },
+  { title: 'Access to revoke from acting employee', category: 'systems_access', owner_role: 'outgoing', sort_order: 4, is_required: true },
+  { title: 'Handover meeting date', category: 'other', owner_role: 'outgoing', sort_order: 5, is_required: true },
+];
+
+export function getHandoverKind(handover) {
+  if (!handover) return 'unknown';
+  if (handover.trigger_type === 'exit') return 'exit';
+  if (handover.parent_handover_id) return 'return';
+  if (handover.trigger_type === 'temporary_coverage') return 'coverage';
+  return handover.trigger_type || 'unknown';
+}
+
+export function getHandoverLabel(handover) {
+  const kind = getHandoverKind(handover);
+  if (kind === 'exit') return 'Exit handover';
+  if (kind === 'coverage') return 'Coverage handover (long leave)';
+  if (kind === 'return') return 'Return handover';
+  return 'Handover';
+}
+
+function computeHandoverDeadline(effectiveDate) {
+  if (!effectiveDate) return null;
+  const d = new Date(effectiveDate);
+  d.setDate(d.getDate() - 3);
+  const today = new Date().toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 10) < today ? today : d.toISOString().slice(0, 10);
+}
+
+export async function seedHandoverItems(handoverId, items = DEFAULT_HANDOVER_ITEMS) {
+  // for (const item of items) {
+  //   await dbInsert('handover_items', {
+  //     handover_id: handoverId,
+  //     title: item.title,
+  //     category: item.category,
+  //     owner_role: item.owner_role,
+  //     sort_order: item.sort_order,
+  //     is_required: item.is_required,
+  //     status: 'pending',
+  //     created_at: new Date().toISOString(),
+  //   });
+  // }
+  const insertPromises = items.map(item => {
+    return dbInsert('handover_items', {
       handover_id: handoverId,
       title: item.title,
       category: item.category,
@@ -27,7 +84,8 @@ export async function seedHandoverItems(handoverId) {
       status: 'pending',
       created_at: new Date().toISOString(),
     });
-  }
+  });
+  await Promise.all(insertPromises);
 }
 
 export async function recalcHandoverCompletion(handoverId) {
@@ -61,8 +119,60 @@ export async function enrichHandover(handover) {
   handover.successor_code = handover.successor_employee_id
     ? (empMap[handover.successor_employee_id]?.employee_id || '—')
     : null;
+  handover.handover_kind = getHandoverKind(handover);
+  handover.handover_label = getHandoverLabel(handover);
+
+  if (handover.leave_request_id) {
+    const leave = await dbFetchOne('Leave_Request', 'start_date,end_date,status', { id: handover.leave_request_id });
+    if (leave) {
+      handover.leave_start = leave.start_date;
+      handover.leave_end = leave.end_date;
+      handover.leave_status = leave.status;
+    }
+  } else {
+    const leave = await dbFetchOne('Leave_Request', 'start_date,end_date,status', { coverage_handover_id: handover.id });
+    const returnLeave = leave ? null : await dbFetchOne('Leave_Request', 'start_date,end_date,status', { return_handover_id: handover.id });
+    const linked = leave || returnLeave;
+    if (linked) {
+      handover.leave_start = linked.start_date;
+      handover.leave_end = linked.end_date;
+      handover.leave_status = linked.status;
+      if (!handover.leave_request_id) handover.leave_request_id = linked.id;
+    }
+  }
 
   return handover;
+}
+
+export function isActiveHandover(h) {
+  return h && !TERMINAL_HANDOVER_STATUSES.includes(h.status);
+}
+
+export async function getActiveHandoversForOutgoing(employeeId) {
+  const all = await dbFetch('employee_handovers', '*', { outgoing_employee_id: employeeId });
+  return all.filter(isActiveHandover);
+}
+
+export async function getActiveHandoversForIncoming(employeeId) {
+  const all = await dbFetch('employee_handovers', '*', { successor_employee_id: employeeId });
+  return all.filter(isActiveHandover);
+}
+
+/** Items the acting successor must acknowledge before HR can approve */
+export async function getSuccessorAckSummary(handoverId) {
+  const items = await dbFetch('handover_items', '*', { handover_id: handoverId });
+  const needsAck = items.filter(i => i.status === 'done' || i.status === 'not_applicable');
+  const acked = needsAck.filter(i => i.successor_acknowledged);
+  return {
+    total: needsAck.length,
+    acked: acked.length,
+    allAcked: needsAck.length === 0 || acked.length === needsAck.length,
+    pending: needsAck.filter(i => !i.successor_acknowledged),
+  };
+}
+
+export function handoverRequiresSuccessorAck(handover) {
+  return !!(handover?.successor_employee_id);
 }
 
 export async function syncKnowledgeTransferFromHandover(handoverId) {
@@ -94,19 +204,13 @@ export async function syncKnowledgeTransferFromHandover(handoverId) {
 
 export async function createHandoverForOffboarding(offboarding, createdByUserId) {
   const effectiveDate = offboarding.last_working_date || offboarding.last_working_day || null;
-  let handoverDeadline = null;
-  if (effectiveDate) {
-    const d = new Date(effectiveDate);
-    d.setDate(d.getDate() - 3);
-    handoverDeadline = d.toISOString().slice(0, 10);
-  }
 
   const handover = await dbInsert('employee_handovers', {
     outgoing_employee_id: offboarding.employee_id,
     trigger_type: 'exit',
     offboarding_id: offboarding.id,
     effective_date: effectiveDate,
-    handover_deadline: handoverDeadline,
+    handover_deadline: computeHandoverDeadline(effectiveDate),
     status: 'pending_successor',
     successor_type: 'existing',
     created_by_user_id: createdByUserId || null,
@@ -115,7 +219,7 @@ export async function createHandoverForOffboarding(offboarding, createdByUserId)
 
   if (!handover) return null;
 
-  await seedHandoverItems(handover.id);
+  await seedHandoverItems(handover.id, DEFAULT_HANDOVER_ITEMS);
 
   await dbUpdate('corporate_offboarding', offboarding.id, {
     handover_id: handover.id,
@@ -124,6 +228,159 @@ export async function createHandoverForOffboarding(offboarding, createdByUserId)
   });
 
   return handover;
+}
+
+export async function getOffboardingWarningForEmployee(employeeId) {
+  if (!employeeId) return null;
+  const ob = await dbFetchOne('corporate_offboarding', 'id,last_working_date', { employee_id: employeeId });
+  if (!ob) return null;
+  return {
+    code: 'employee_in_offboarding',
+    message:
+      'This employee has an active offboarding case. Leave and offboarding will run in parallel — continue tracking laptop return, NDA, exit interview, and settlement on Offboarding.',
+    offboarding_id: ob.id,
+    last_working_date: ob.last_working_date || null,
+  };
+}
+
+export async function createHandoverForLongLeave(leave, { successorEmployeeId, createdByUserId }) {
+  if (!successorEmployeeId) return { error: 'Acting successor is required' };
+  if (leave.status !== 'Approved') return { error: 'Leave must be approved before starting coverage handover' };
+  if (leave.coverage_handover_id) {
+    const existing = await dbFetchOne('employee_handovers', 'id,status', { id: leave.coverage_handover_id });
+    if (existing) return { error: 'Coverage handover already exists for this leave' };
+  }
+
+  const startDate = (leave.start_date || '').slice(0, 10);
+  const endDate = (leave.end_date || '').slice(0, 10);
+
+  const handover = await dbInsert('employee_handovers', {
+    outgoing_employee_id: leave.employee_id,
+    successor_employee_id: successorEmployeeId,
+    successor_type: 'temporary',
+    trigger_type: 'temporary_coverage',
+    leave_request_id: leave.id,
+    effective_date: startDate || null,
+    expected_return_date: endDate || null,
+    handover_deadline: computeHandoverDeadline(startDate),
+    status: 'in_progress',
+    created_by_user_id: createdByUserId || null,
+    created_at: new Date().toISOString(),
+  });
+
+  if (!handover) return { error: 'Failed to create coverage handover' };
+
+  await seedHandoverItems(handover.id, LONG_LEAVE_COVERAGE_ITEMS);
+
+  await dbUpdate('Leave_Request', leave.id, {
+    coverage_handover_id: handover.id,
+  });
+
+  const acting = await dbFetchOne('Employees', 'Full_name', { id: successorEmployeeId });
+  const actingName = acting?.Full_name || 'colleague';
+  await notifyUser(
+    leave.employee_id,
+    'Coverage handover started',
+    `Please complete your handover checklist before your leave. Acting cover: ${actingName}.`,
+    '/portal/handover/outgoing'
+  );
+  await notifyUser(
+    successorEmployeeId,
+    'Acting coverage assigned',
+    'You have been assigned to cover during a colleague\'s leave. Review the handover when ready.',
+    '/portal/handover/incoming'
+  );
+
+  const warning = await getOffboardingWarningForEmployee(leave.employee_id);
+  return { handover, warning };
+}
+
+export async function createReturnHandover(parentHandover, createdByUserId) {
+  if (!parentHandover || getHandoverKind(parentHandover) !== 'coverage') {
+    return { error: 'Parent must be a completed coverage handover' };
+  }
+  if (parentHandover.status !== 'completed') {
+    return { error: 'Coverage handover must be completed before starting return handover' };
+  }
+  if (!parentHandover.successor_employee_id) {
+    return { error: 'Coverage handover has no acting employee' };
+  }
+
+  const leave = parentHandover.leave_request_id
+    ? await dbFetchOne('Leave_Request', '*', { id: parentHandover.leave_request_id })
+    : null;
+
+  if (leave?.return_handover_id) {
+    return { error: 'Return handover already exists for this leave' };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const endDate = (leave?.end_date || parentHandover.expected_return_date || '').slice(0, 10);
+  if (endDate && endDate > today) {
+    return { error: 'Return handover can only start after leave end date' };
+  }
+
+  const handover = await dbInsert('employee_handovers', {
+    outgoing_employee_id: parentHandover.successor_employee_id,
+    successor_employee_id: parentHandover.outgoing_employee_id,
+    successor_type: 'temporary',
+    trigger_type: 'temporary_coverage',
+    leave_request_id: parentHandover.leave_request_id || null,
+    parent_handover_id: parentHandover.id,
+    effective_date: today,
+    expected_return_date: null,
+    handover_deadline: today,
+    status: 'in_progress',
+    created_by_user_id: createdByUserId || null,
+    created_at: new Date().toISOString(),
+  });
+
+  if (!handover) return { error: 'Failed to create return handover' };
+
+  await seedHandoverItems(handover.id, LONG_LEAVE_RETURN_ITEMS);
+
+  if (leave) {
+    await dbUpdate('Leave_Request', leave.id, { return_handover_id: handover.id });
+  }
+
+  await notifyUser(
+    parentHandover.successor_employee_id,
+    'Return handover started',
+    'Please document what changed during your acting coverage period.',
+    '/portal/handover/outgoing'
+  );
+  await notifyUser(
+    parentHandover.outgoing_employee_id,
+    'Welcome back — review return handover',
+    'Your acting colleague has prepared a return handover. Please review and acknowledge.',
+    '/portal/handover/incoming'
+  );
+
+  return { handover };
+}
+
+export async function enrichLeaveWithHandoverFlags(leave, handoverMap = {}) {
+  const coverage = leave.coverage_handover_id ? handoverMap[leave.coverage_handover_id] : null;
+  const ret = leave.return_handover_id ? handoverMap[leave.return_handover_id] : null;
+
+  leave.coverage_handover_status = coverage?.status || null;
+  leave.return_handover_status = ret?.status || null;
+  leave.coverage_handover_pct = coverage?.completion_pct ?? null;
+  leave.return_handover_pct = ret?.completion_pct ?? null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const endDate = (leave.end_date || '').slice(0, 10);
+
+  leave.can_start_coverage =
+    leave.status === 'Approved' &&
+    !leave.coverage_handover_id;
+
+  leave.can_start_return =
+    coverage?.status === 'completed' &&
+    !leave.return_handover_id &&
+    (!endDate || endDate <= today);
+
+  return leave;
 }
 
 export async function isHandoverBlockingSettlement(offboarding) {

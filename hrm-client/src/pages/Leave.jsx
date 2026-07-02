@@ -1,15 +1,25 @@
 import { useState, useRef } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
+import HandoverPanel from '../components/handover/HandoverPanel';
 
 const STATUS_CFG = {
   Pending: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
   Approved: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
   Rejected: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+};
+
+const HANDOVER_STATUS_CFG = {
+  in_progress: 'text-indigo-400 bg-indigo-400/10',
+  pending_review: 'text-purple-400 bg-purple-400/10',
+  completed: 'text-emerald-400 bg-emerald-400/10',
+  waived: 'text-slate-400 bg-slate-400/10',
+  pending_successor: 'text-amber-400 bg-amber-400/10',
 };
 
 export default function Leave() {
@@ -21,6 +31,9 @@ export default function Leave() {
   const [editTypeData, setEditTypeData] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [signatureModalTarget, setSignatureModalTarget] = useState(null);
+  const [coverageModal, setCoverageModal] = useState(null);
+  const [handoverView, setHandoverView] = useState(null);
+  const [actingSuccessorId, setActingSuccessorId] = useState('');
   const sigCanvas = useRef({});
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
@@ -33,8 +46,13 @@ export default function Leave() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }) => api.put(`/leave/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries(['leave']),
+    mutationFn: ({ id, status, e_signature }) => api.put(`/leave/${id}/status`, { status, e_signature }),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['leave']);
+      if (res.data?.warning?.message) {
+        toast(res.data.warning.message, { icon: '⚠️', duration: 8000 });
+      }
+    },
   });
 
   const deleteMutation = useMutation({
@@ -50,6 +68,36 @@ export default function Leave() {
   const deleteTypeMutation = useMutation({
     mutationFn: (id) => api.delete(`/leave/types/${id}`),
     onSuccess: () => { qc.invalidateQueries(['leave']); setDeleteTarget(null); },
+  });
+
+  const coverageMutation = useMutation({
+    mutationFn: ({ leaveId, successor_employee_id }) =>
+      api.post(`/handover/leave/${leaveId}/coverage`, { successor_employee_id }),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['leave']);
+      setCoverageModal(null);
+      setActingSuccessorId('');
+      toast.success('Coverage handover started');
+      if (res.data?.warning?.message) {
+        toast(res.data.warning.message, { icon: '⚠️', duration: 8000 });
+      }
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to start coverage handover'),
+  });
+
+  const returnMutation = useMutation({
+    mutationFn: (leaveId) => api.post(`/handover/leave/${leaveId}/return`),
+    onSuccess: () => {
+      qc.invalidateQueries(['leave']);
+      toast.success('Return handover started');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to start return handover'),
+  });
+
+  const { data: handoverDetail, refetch: refetchHandover } = useQuery({
+    queryKey: ['handover-leave', handoverView?.leaveId, handoverView?.kind],
+    queryFn: () => api.get(`/handover/leave/${handoverView.leaveId}`).then(r => r.data),
+    enabled: !!handoverView?.leaveId,
   });
 
   const requests = data?.requests || [];
@@ -176,7 +224,14 @@ export default function Leave() {
                       <td className="py-3 px-5">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">{(r.employee_name || '?')[0]}</div>
-                          <span className="text-white text-sm">{r.employee_name}</span>
+                          <div>
+                            <span className="text-white text-sm">{r.employee_name}</span>
+                            {r.employee_in_offboarding && (
+                              <span className="block text-[10px] font-semibold text-amber-400 mt-0.5" title={r.offboarding_warning}>
+                                ⚠️ Offboarding active
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="py-3 px-5 text-slate-300">{r.type_name}</td>
@@ -192,14 +247,61 @@ export default function Leave() {
                       </td>
                       <td className="py-3 px-5">
                         <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_CFG[r.status] || 'text-slate-400 bg-white/5'}`}>{r.status}</span>
+                        {r.coverage_handover_status && (
+                          <div className="mt-1.5">
+                            <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full ${HANDOVER_STATUS_CFG[r.coverage_handover_status] || 'text-slate-400 bg-white/5'}`}>
+                              Coverage: {r.coverage_handover_status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        )}
+                        {r.return_handover_status && (
+                          <div className="mt-1">
+                            <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full ${HANDOVER_STATUS_CFG[r.return_handover_status] || 'text-slate-400 bg-white/5'}`}>
+                              Return: {r.return_handover_status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {isAdmin() && r.status === 'Pending' && (
                             <>
                               <button onClick={() => setSignatureModalTarget(r)} className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-400/20 transition-colors">✔️ Approve</button>
                               <button onClick={() => statusMutation.mutate({ id: r.id, status: 'Rejected' })} className="text-xs font-medium text-rose-400 bg-rose-400/10 px-2.5 py-1.5 rounded-lg hover:bg-rose-400/20 transition-colors">❌ Reject</button>
                             </>
+                          )}
+                          {isAdmin() && r.can_start_coverage && (
+                            <button
+                              onClick={() => { setCoverageModal(r); setActingSuccessorId(''); }}
+                              className="text-xs font-medium text-indigo-400 bg-indigo-400/10 px-2.5 py-1.5 rounded-lg hover:bg-indigo-400/20 transition-colors"
+                            >
+                              Start coverage
+                            </button>
+                          )}
+                          {isAdmin() && r.coverage_handover_id && (
+                            <button
+                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'coverage' })}
+                              className="text-xs font-medium text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                              View coverage
+                            </button>
+                          )}
+                          {isAdmin() && r.can_start_return && (
+                            <button
+                              onClick={() => returnMutation.mutate(r.id)}
+                              disabled={returnMutation.isPending}
+                              className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2.5 py-1.5 rounded-lg hover:bg-amber-400/20 transition-colors disabled:opacity-50"
+                            >
+                              Start return
+                            </button>
+                          )}
+                          {isAdmin() && r.return_handover_id && (
+                            <button
+                              onClick={() => setHandoverView({ leaveId: r.id, kind: 'return' })}
+                              className="text-xs font-medium text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                              View return
+                            </button>
                           )}
                           {isAdmin() && (
                             <button 
@@ -297,6 +399,85 @@ export default function Leave() {
         </div>
       )}
 
+      {/* Coverage handover modal */}
+      {coverageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCoverageModal(null)} />
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-white">Start coverage handover</h2>
+              <button onClick={() => setCoverageModal(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <p className="text-sm text-slate-400 mb-4">
+              Assign an acting employee to cover for <span className="text-white font-semibold">{coverageModal.employee_name}</span> during leave ({(coverageModal.start_date || '').slice(0, 10)} → {(coverageModal.end_date || '').slice(0, 10)}).
+            </p>
+            {coverageModal.employee_in_offboarding && (
+              <div className="mb-4 rounded-xl p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30">
+                <p className="font-bold mb-1">⚠️ Employee is in offboarding</p>
+                <p>{coverageModal.offboarding_warning || 'Leave coverage will run in parallel with offboarding. Continue tracking laptop return, NDA, exit interview, and settlement on the Offboarding page.'}</p>
+              </div>
+            )}
+            <label className="form-label">Acting successor *</label>
+            <select
+              value={actingSuccessorId}
+              onChange={e => setActingSuccessorId(e.target.value)}
+              className="form-input mb-4"
+            >
+              <option value="">— Select employee —</option>
+              {employees.filter(e => e.id !== coverageModal.employee_id).map(e => (
+                <option key={e.id} value={e.id}>{e.Full_name} ({e.employee_id})</option>
+              ))}
+            </select>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setCoverageModal(null)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
+              <button
+                type="button"
+                disabled={!actingSuccessorId || coverageMutation.isPending}
+                onClick={() => coverageMutation.mutate({ leaveId: coverageModal.id, successor_employee_id: actingSuccessorId })}
+                className="flex-1 text-sm font-semibold text-white py-2.5 rounded-xl disabled:opacity-50"
+                style={{ background: '#4f46e5' }}
+              >
+                {coverageMutation.isPending ? 'Starting...' : 'Start handover'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Handover detail modal */}
+      {handoverView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHandoverView(null)} />
+          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
+              <h2 className="text-base font-bold text-white">
+                {handoverView.kind === 'return' ? 'Return handover' : 'Coverage handover'}
+              </h2>
+              <button onClick={() => setHandoverView(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            {(() => {
+              const detail = handoverView.kind === 'return' ? handoverDetail?.returnDetail : handoverDetail?.coverageDetail;
+              if (!detail?.handover) {
+                return <div className="py-8 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>;
+              }
+              return (
+                <HandoverPanel
+                  handover={detail.handover}
+                  items={detail.items || []}
+                  employees={handoverDetail?.employees || employees}
+                  excludeEmployeeId={detail.handover.outgoing_employee_id}
+                  allowSuccessorEdit={handoverView.kind === 'coverage' && !detail.handover.successor_employee_id}
+                  onRefresh={() => {
+                    refetchHandover();
+                    qc.invalidateQueries(['leave']);
+                  }}
+                />
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       <ConfirmDeleteModal 
         isOpen={!!deleteTarget} 
         onClose={() => setDeleteTarget(null)}
@@ -352,6 +533,12 @@ export default function Leave() {
             </div>
             <div className="p-5 space-y-4">
               <p className="text-sm text-slate-300">Please provide your signature to approve this leave request for <span className="font-bold text-white">{signatureModalTarget.employee_name}</span>.</p>
+              {signatureModalTarget.employee_in_offboarding && (
+                <div className="rounded-xl p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30">
+                  <p className="font-bold mb-1">⚠️ Employee is in offboarding</p>
+                  <p>{signatureModalTarget.offboarding_warning || 'Leave will run in parallel with offboarding. Exit tasks must still be completed on the Offboarding page.'}</p>
+                </div>
+              )}
               <div className="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                 <SignatureCanvas 
                   ref={sigCanvas} 

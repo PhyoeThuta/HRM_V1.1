@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { supabase, dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { enrichLeaveWithHandoverFlags, getOffboardingWarningForEmployee } from '../lib/handoverHelpers.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -9,11 +10,12 @@ router.use(verifyToken);
 // GET /api/leave
 router.get('/', async (req, res) => {
   try {
-    const [requests, leaveTypes, employees, balances] = await Promise.all([
+    const [requests, leaveTypes, employees, balances, offboardingRecords] = await Promise.all([
       dbFetch('Leave_Request', '*', {}, { order: 'created_at', ascending: false }),
       dbFetch('Leave_type', '*'),
       dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' }),
       dbFetch('Leave_balances', '*'),
+      dbFetch('corporate_offboarding', 'employee_id,id,last_working_date'),
     ]);
     const ltMap = Object.fromEntries(leaveTypes.map(t => [t.id, t.type_name]));
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
@@ -21,12 +23,35 @@ router.get('/', async (req, res) => {
     // Filter balances to only include active employees
     const activeBalances = balances.filter(b => empMap[b.employee_id]);
     
-    requests.forEach(r => {
+    const handoverIds = [
+      ...new Set(
+        requests.flatMap(r => [r.coverage_handover_id, r.return_handover_id].filter(Boolean))
+      ),
+    ];
+    let handoverMap = {};
+    if (handoverIds.length) {
+      const handovers = await Promise.all(
+        handoverIds.map(id => dbFetchOne('employee_handovers', 'id,status,completion_pct', { id }))
+      );
+      handoverMap = Object.fromEntries(handovers.filter(Boolean).map(h => [h.id, h]));
+    }
+
+    const offboardingByEmp = Object.fromEntries(offboardingRecords.map(o => [o.employee_id, o]));
+
+    for (const r of requests) {
       r.type_name = ltMap[r.leave_type_id] || '—';
       const emp = empMap[r.employee_id] || {};
       r.employee_name = emp.Full_name || '—';
       r.employee_code = emp.employee_id || '—';
-    });
+      await enrichLeaveWithHandoverFlags(r, handoverMap);
+      const ob = offboardingByEmp[r.employee_id];
+      r.employee_in_offboarding = !!ob;
+      if (ob) {
+        r.offboarding_warning =
+          'Employee is in offboarding. Leave coverage can proceed, but exit tasks (laptop, NDA, exit interview, settlement) must still be completed separately.';
+        r.offboarding_last_working_date = ob.last_working_date || null;
+      }
+    }
     activeBalances.forEach(b => { b.type_name = ltMap[b.leave_type_id] || '—'; });
     
     return res.json({ requests, leave_types: leaveTypes, employees, balances: activeBalances });
@@ -113,7 +138,12 @@ router.put('/:id/status', requireAdmin, async (req, res) => {
     
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Leave Mgmt', details: `Leave request ${status} for ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
 
-    return res.json({ success: true });
+    let warning = null;
+    if (status === 'Approved' && reqData?.employee_id) {
+      warning = await getOffboardingWarningForEmployee(reqData.employee_id);
+    }
+
+    return res.json({ success: true, warning });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

@@ -7,6 +7,12 @@ import {
   recalcHandoverCompletion,
   syncKnowledgeTransferFromHandover,
   createHandoverForOffboarding,
+  createHandoverForLongLeave,
+  createReturnHandover,
+  getActiveHandoversForOutgoing,
+  getActiveHandoversForIncoming,
+  getSuccessorAckSummary,
+  handoverRequiresSuccessorAck,
   notifyUser,
   auditLog,
 } from '../lib/handoverHelpers.js';
@@ -29,7 +35,9 @@ async function loadHandoverDetail(handoverId) {
   const items = await dbFetch('handover_items', '*', { handover_id: handoverId }, { order: 'sort_order', ascending: true });
   const attachments = await dbFetch('handover_attachments', '*', { handover_id: handoverId });
   const employees = await dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' });
-  return { handover, items, attachments, employees };
+  const successor_ack = await getSuccessorAckSummary(handoverId);
+  handover.successor_ack = successor_ack;
+  return { handover, items, attachments, employees, successor_ack };
 }
 
 // GET /api/handover — admin list
@@ -43,31 +51,40 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/handover/portal/outgoing — leaving employee's handover
+// GET /api/handover/portal/outgoing — active outgoing handovers (exit + leave coverage/return)
 router.get('/portal/outgoing', async (req, res) => {
   try {
     const empId = req.user.employee_id;
-    if (!empId) return res.json({ handover: null, items: [], attachments: [] });
+    if (!empId) return res.json({ handovers: [], handover: null, items: [], attachments: [] });
 
-    const handover = await dbFetchOne('employee_handovers', '*', { outgoing_employee_id: empId });
-    if (!handover) return res.json({ handover: null, items: [], attachments: [] });
+    const active = await getActiveHandoversForOutgoing(empId);
+    const handovers = [];
+    for (const h of active) {
+      const detail = await loadHandoverDetail(h.id);
+      if (detail) handovers.push(detail);
+    }
 
-    const detail = await loadHandoverDetail(handover.id);
-    return res.json(detail);
+    const first = handovers[0] || null;
+    return res.json({
+      handovers,
+      handover: first?.handover || null,
+      items: first?.items || [],
+      attachments: first?.attachments || [],
+    });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 });
 
-// GET /api/handover/portal/incoming — successor handovers
+// GET /api/handover/portal/incoming — active successor handovers
 router.get('/portal/incoming', async (req, res) => {
   try {
     const empId = req.user.employee_id;
     if (!empId) return res.json({ handovers: [] });
 
-    const handovers = await dbFetch('employee_handovers', '*', { successor_employee_id: empId });
+    const active = await getActiveHandoversForIncoming(empId);
     const result = [];
-    for (const h of handovers) {
+    for (const h of active) {
       await enrichHandover(h);
       const items = await dbFetch('handover_items', '*', { handover_id: h.id }, { order: 'sort_order', ascending: true });
       result.push({ handover: h, items });
@@ -115,6 +132,84 @@ router.post('/offboarding/:offboardingId/create', requireAdmin, async (req, res)
 
     await auditLog(req, 'CREATE', `Created handover for offboarding ${ob.id}`);
     const detail = await loadHandoverDetail(handover.id);
+    return res.json({ success: true, ...detail });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/handover/leave/:leaveId
+router.get('/leave/:leaveId', requireAdmin, async (req, res) => {
+  try {
+    const leave = await dbFetchOne('Leave_Request', '*', { id: req.params.leaveId });
+    if (!leave) return res.status(404).json({ error: 'Leave request not found' });
+
+    const employees = await dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' });
+    let coverage = null;
+    let coverageDetail = null;
+    let returnHandover = null;
+    let returnDetail = null;
+
+    if (leave.coverage_handover_id) {
+      coverageDetail = await loadHandoverDetail(leave.coverage_handover_id);
+      coverage = coverageDetail?.handover || null;
+    }
+    if (leave.return_handover_id) {
+      returnDetail = await loadHandoverDetail(leave.return_handover_id);
+      returnHandover = returnDetail?.handover || null;
+    }
+
+    return res.json({
+      leave,
+      coverage,
+      coverageDetail,
+      returnHandover,
+      returnDetail,
+      employees,
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/handover/leave/:leaveId/coverage
+router.post('/leave/:leaveId/coverage', requireAdmin, async (req, res) => {
+  try {
+    const leave = await dbFetchOne('Leave_Request', '*', { id: req.params.leaveId });
+    if (!leave) return res.status(404).json({ error: 'Leave request not found' });
+
+    const { successor_employee_id } = req.body;
+    const result = await createHandoverForLongLeave(leave, {
+      successorEmployeeId: successor_employee_id,
+      createdByUserId: req.user.id,
+    });
+    if (result.error) return res.status(400).json({ error: result.error });
+
+    await auditLog(req, 'CREATE', `Coverage handover for leave ${leave.id}`);
+    const detail = await loadHandoverDetail(result.handover.id);
+    return res.json({ success: true, warning: result.warning || null, ...detail });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/handover/leave/:leaveId/return
+router.post('/leave/:leaveId/return', requireAdmin, async (req, res) => {
+  try {
+    const leave = await dbFetchOne('Leave_Request', '*', { id: req.params.leaveId });
+    if (!leave) return res.status(404).json({ error: 'Leave request not found' });
+    if (!leave.coverage_handover_id) {
+      return res.status(400).json({ error: 'No coverage handover for this leave' });
+    }
+
+    const parent = await dbFetchOne('employee_handovers', '*', { id: leave.coverage_handover_id });
+    if (!parent) return res.status(404).json({ error: 'Coverage handover not found' });
+
+    const result = await createReturnHandover(parent, req.user.id);
+    if (result.error) return res.status(400).json({ error: result.error });
+
+    await auditLog(req, 'CREATE', `Return handover for leave ${leave.id}`);
+    const detail = await loadHandoverDetail(result.handover.id);
     return res.json({ success: true, ...detail });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -263,11 +358,21 @@ router.post('/:id/submit', async (req, res) => {
       updated_at: new Date().toISOString(),
     });
 
+    if (handover.successor_employee_id) {
+      await notifyUser(
+        handover.successor_employee_id,
+        'Handover ready for your acknowledgment',
+        'The outgoing employee has submitted their handover. Please review each item and acknowledge receipt before HR approval.',
+        '/portal/handover/incoming'
+      );
+    }
+
+    const reviewLink = handover.leave_request_id ? '/leave' : '/offboarding';
     await dbInsert('system_notifications', {
       recipient_role: 'hr_manager',
       title: 'Handover submitted for review',
       message: `Handover from employee is ready for manager/HR approval.`,
-      link_url: '/offboarding',
+      link_url: reviewLink,
       is_read: false,
       created_at: new Date().toISOString(),
     });
@@ -288,6 +393,16 @@ router.post('/:id/approve', requireAdmin, async (req, res) => {
 
     if (!['pending_review', 'in_progress'].includes(handover.status)) {
       return res.status(400).json({ error: `Cannot approve handover in status: ${handover.status}` });
+    }
+
+    if (handoverRequiresSuccessorAck(handover)) {
+      const ack = await getSuccessorAckSummary(req.params.id);
+      if (!ack.allAcked) {
+        return res.status(400).json({
+          error: `Acting successor must acknowledge all handover items first (${ack.acked}/${ack.total} acknowledged). They can do this from Portal → Incoming Handover.`,
+          successor_ack: ack,
+        });
+      }
     }
 
     await dbUpdate('employee_handovers', req.params.id, {

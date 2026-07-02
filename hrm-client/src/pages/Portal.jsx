@@ -152,17 +152,50 @@ export default function Portal() {
               </div>
             </div>
 
-            {/* Offboarding Banner */}
-            {data?.is_offboarding && (
+            {/* Leave handover banner — same style as offboarding */}
+            {data?.show_leave_handover_banner && (
+              <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(244,63,94,0.2), rgba(249,115,22,0.1), rgba(244,63,94,0.05))', border: '1px solid rgba(244,63,94,0.3)' }}>
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">⚠️</div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-rose-200">
+                    {data.leave_outgoing_handover?.handover_kind === 'return'
+                      ? 'Return handover in progress'
+                      : 'Leave handover in progress'}
+                  </h3>
+                  <p className="text-xs text-rose-300/80 mt-1 mb-3">
+                    {data.leave_outgoing_handover?.handover_kind === 'return'
+                      ? 'Complete your return handover checklist and acknowledge what changed during your absence.'
+                      : 'Complete your handover checklist before your leave period so your acting cover can take over smoothly.'}
+                    {data.leave_outgoing_handover?.leave_start && (
+                      <> Leave: {data.leave_outgoing_handover.leave_start} → {data.leave_outgoing_handover.leave_end}.</>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Link to="/portal/handover/outgoing" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors">
+                      Handover Checklist ({data.leave_outgoing_handover?.completion_pct || 0}%)
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Offboarding Banner — shown alongside leave handover when both apply */}
+            {data?.show_offboarding_banner && (
               <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(244,63,94,0.2), rgba(249,115,22,0.1), rgba(244,63,94,0.05))', border: '1px solid rgba(244,63,94,0.3)' }}>
                 <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">⚠️</div>
                 <div className="flex-1">
                   <h3 className="text-sm font-bold text-rose-200">Offboarding in progress</h3>
-                  <p className="text-xs text-rose-300/80 mt-1 mb-3">Complete your handover checklist and exit survey before your final day.</p>
+                  <p className="text-xs text-rose-300/80 mt-1 mb-3">
+                    {data.show_dual_track
+                      ? 'You also have offboarding tasks to complete: laptop return, NDA, exit interview, and final settlement. These are separate from your leave handover above.'
+                      : 'Complete your handover checklist and exit survey before your final day. Finish remaining clearance tasks with HR.'}
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    <Link to="/portal/handover/outgoing" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors">
-                      Handover Checklist{data.outgoing_handover ? ` (${data.outgoing_handover.completion_pct || 0}%)` : ''}
-                    </Link>
+                    {data.has_active_exit_handover && (
+                      <Link to="/portal/handover/outgoing" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        Exit Handover ({data.exit_outgoing_handover?.completion_pct ?? 0}%)
+                      </Link>
+                    )}
                     <Link to="/portal/exit-survey" className="text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg transition-colors">
                       Exit Survey
                     </Link>
@@ -171,15 +204,33 @@ export default function Portal() {
               </div>
             )}
 
-            {/* Incoming handover banner */}
-            {!data?.is_offboarding && data?.incoming_handover_count > 0 && (
-              <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(99,102,241,0.2), rgba(139,92,246,0.1))', border: '1px solid rgba(99,102,241,0.3)' }}>
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">📥</div>
+            {/* Incoming leave handover banner */}
+            {data?.show_incoming_leave_banner && (
+              <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(244,63,94,0.2), rgba(249,115,22,0.1), rgba(244,63,94,0.05))', border: '1px solid rgba(244,63,94,0.3)' }}>
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">⚠️</div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-bold text-indigo-200">Incoming handover</h3>
-                  <p className="text-xs text-indigo-300/80 mt-1 mb-3">You have been assigned as a successor. Please review and acknowledge the handover.</p>
+                  <h3 className="text-sm font-bold text-rose-200">Leave handover assigned to you</h3>
+                  <p className="text-xs text-rose-300/80 mt-1 mb-3">
+                    You have been assigned acting coverage or a return handover. Please review and acknowledge the checklist.
+                  </p>
                   <Link to="/portal/handover/incoming" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors inline-block">
-                    Review Handover
+                    Handover Checklist
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Incoming exit handover banner */}
+            {data?.show_incoming_exit_banner && (
+              <div className="rounded-2xl p-5 mb-6 flex items-start gap-4" style={{ background: 'linear-gradient(to right, rgba(244,63,94,0.2), rgba(249,115,22,0.1), rgba(244,63,94,0.05))', border: '1px solid rgba(244,63,94,0.3)' }}>
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">⚠️</div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-rose-200">Incoming handover</h3>
+                  <p className="text-xs text-rose-300/80 mt-1 mb-3">
+                    You have been assigned as a successor for a departing colleague. Please review and acknowledge the handover.
+                  </p>
+                  <Link to="/portal/handover/incoming" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors inline-block">
+                    Handover Checklist
                   </Link>
                 </div>
               </div>
