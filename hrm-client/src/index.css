@@ -34,11 +34,11 @@ body {
   outline: none;
 }
 .form-input:focus {
-  border-color: #6366f1;
-  background: rgba(99,102,241,0.08);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  border-color: #A3B81F;
+  background: rgba(163,184,31,0.08);
+  box-shadow: 0 0 0 3px rgba(163,184,31,0.15);
 }
-.form-input option { background: #161929; }
+.form-input option { background: #1f1f1f; }
 .form-label {
   display: block;
   font-size: 0.75rem;
@@ -75,12 +75,12 @@ body {
   position: absolute;
   top: 2px; left: 2px;
   width: 11px; height: 11px;
-  background: #6366f1;
+  background: #A3B81F;
   border-radius: 50%;
   transition: transform 0.2s;
 }
-[data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #f59e0b; }
-[data-theme="light"] .toggle-track { background: rgba(245,158,11,0.2); }
+[data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #FF7700; }
+[data-theme="light"] .toggle-track { background: rgba(255,119,0,0.2); }
 
 /* Light theme global filter */
 html[data-theme="light"] {
