@@ -150,6 +150,8 @@ router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) =>
 
     // 1. Generate Facebook Post Content with AI
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const appUrl = req.headers.origin || 'http://34.87.23.76'; // Use request origin or fallback to IP
+    
     const prompt = `
       You are an expert HR copywriter for CorpHRM Enterprise. We are hiring for the following position:
       - Job Title: ${pos.title}
@@ -159,8 +161,8 @@ router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) =>
 
       Write a highly engaging, professional, and attractive Facebook post (in Burmese and English) announcing this job opening.
       Include emojis.
-      Include a call to action telling them to apply at our website or send their CV to hr@corphrm.com.
-      Do not include any placeholders like [Link].
+      CRITICAL INSTRUCTION: You MUST include this exact link in the "How to Apply" section for them to apply online: ${appUrl}/careers
+      Also mention they can send their CV to hr@corphrm.com as an alternative.
       Keep it clean and readable for Facebook users.
       Return ONLY the post text.
     `;
