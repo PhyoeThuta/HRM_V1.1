@@ -3,12 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function Positions() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isPostingFB, setIsPostingFB] = useState(null);
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
@@ -37,6 +39,18 @@ export default function Positions() {
       editMutation.mutate({ id: editTarget.id, body });
     } else {
       addMutation.mutate(body);
+    }
+  };
+
+  const handleFBPost = async (id) => {
+    setIsPostingFB(id);
+    try {
+      const res = await api.post(`/positions/${id}/post-to-facebook`);
+      toast.success('Successfully posted to Facebook Page!');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to auto-post to Facebook');
+    } finally {
+      setIsPostingFB(null);
     }
   };
 
@@ -134,14 +148,30 @@ export default function Positions() {
               <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-full">
                 {p.emp_count || 0} staff
               </span>
-              <div className="flex items-center gap-2" title="Publish to Career Page">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hiring</span>
-                <button 
-                  onClick={() => editMutation.mutate({ id: p.id, body: { is_hiring: !p.is_hiring } })}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${p.is_hiring ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-600'}`}
-                >
-                  <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform" style={{ transform: p.is_hiring ? 'translateX(18px)' : 'translateX(2px)' }} />
-                </button>
+              <div className="flex items-center gap-3">
+                {p.is_hiring && isAdmin() && (
+                  <button
+                    title="Auto Generate & Post to Facebook using AI"
+                    onClick={() => handleFBPost(p.id)}
+                    disabled={isPostingFB === p.id}
+                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-colors"
+                  >
+                    {isPostingFB === p.id ? (
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    )}
+                  </button>
+                )}
+                <div className="flex items-center gap-2" title="Publish to Career Page">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hiring</span>
+                  <button 
+                    onClick={() => editMutation.mutate({ id: p.id, body: { is_hiring: !p.is_hiring } })}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${p.is_hiring ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-600'}`}
+                  >
+                    <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform" style={{ transform: p.is_hiring ? 'translateX(18px)' : 'translateX(2px)' }} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

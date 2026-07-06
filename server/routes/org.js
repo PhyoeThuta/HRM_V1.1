@@ -1,6 +1,9 @@
 import express from 'express';
-import { dbFetch, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
+import { dbFetch, dbInsert, dbUpdate, dbDelete, dbFetchOne } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key');
 
 const router = express.Router();
 router.use(verifyToken);
@@ -129,6 +132,75 @@ router.delete('/positions/:id', requireAdmin, async (req, res) => {
     });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) => {
+  try {
+    const posId = req.params.id;
+    const pos = await dbFetchOne('positions', '*', { id: posId });
+    if (!pos) return res.status(404).json({ error: 'Position not found' });
+    if (!pos.is_hiring) return res.status(400).json({ error: 'Position is not open for hiring.' });
+
+    const PAGE_ID = process.env.FACEBOOK_PAGE_ID;
+    const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+
+    if (!PAGE_ID || !PAGE_TOKEN) {
+      return res.status(500).json({ error: 'Facebook credentials not configured in server.' });
+    }
+
+    // 1. Generate Facebook Post Content with AI
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const prompt = `
+      You are an expert HR copywriter for CorpHRM Enterprise. We are hiring for the following position:
+      - Job Title: ${pos.title}
+      - Level: ${pos.level || 'Mid Level'}
+      - Department/Team: ${pos.team || 'Any'}
+      - Base Salary: ${pos.base_salary ? pos.base_salary + ' MMK' : 'Competitive'}
+
+      Write a highly engaging, professional, and attractive Facebook post (in Burmese and English) announcing this job opening.
+      Include emojis.
+      Include a call to action telling them to apply at our website or send their CV to hr@corphrm.com.
+      Do not include any placeholders like [Link].
+      Keep it clean and readable for Facebook users.
+      Return ONLY the post text.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const postContent = result.response.text().trim();
+
+    // 2. Post to Facebook using Graph API
+    const fbResponse = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/feed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: postContent,
+        access_token: PAGE_TOKEN
+      })
+    });
+
+    const fbData = await fbResponse.json();
+
+    if (fbData.error) {
+      console.error('FB API Error:', fbData.error);
+      throw new Error(fbData.error.message || 'Failed to post to Facebook');
+    }
+
+    // Audit log
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'CREATE',
+      module: 'Positions',
+      details: `Used AI to automatically post job opening for ${pos.title} to Facebook. Post ID: ${fbData.id}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, post_id: fbData.id, message: postContent });
+  } catch (e) {
+    console.error('FB Auto Post Error:', e);
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;
