@@ -161,14 +161,15 @@ router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) =>
 
       Write a highly engaging, professional, and attractive Facebook post (in Burmese and English) announcing this job opening.
       Include emojis.
-      CRITICAL INSTRUCTION: You MUST include this exact link in the "How to Apply" section for them to apply online: ${appUrl}/careers
-      Also mention they can send their CV to hr@corphrm.com as an alternative.
       Keep it clean and readable for Facebook users.
-      Return ONLY the post text.
+      Return ONLY the post text. Do not include any placeholder links.
     `;
 
     const result = await model.generateContent(prompt);
-    const postContent = result.response.text().trim();
+    let postContent = result.response.text().trim();
+
+    // Forcefully append the apply links so AI doesn't skip it
+    postContent += `\n\n🔗 **How to Apply / လျှောက်ထားရန်:**\nApply Online Here: ${appUrl}/careers\nOr send your CV to hr@corphrm.com`;
 
     // 2. Post to Facebook using Graph API
     const fbResponse = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/feed`, {
