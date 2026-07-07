@@ -18,9 +18,9 @@ const upload = multer({
 // Helper: generate customer code
 async function generateCustomerCode() {
   const { count } = await supabaseAdmin
+    .schema('crm')
     .from('customers')
-    .select('*', { count: 'exact', head: true })
-    .schema('crm');
+    .select('*', { count: 'exact', head: true });
   const num = String((count || 0) + 1).padStart(3, '0');
   return `BBD-${num}`;
 }
@@ -433,7 +433,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'Converted'),
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'Converted').gte('created_at', thisMonthStart),
       supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact' }).gte('expires_at', today),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').schema('crm').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
+      supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
     ]);
 
