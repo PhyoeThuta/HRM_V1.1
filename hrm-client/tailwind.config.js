@@ -8,10 +8,10 @@ export default {
     extend: {
       colors: {
         indigo: {
-          400: 'var(--color-brand-400)',
-          500: 'var(--color-brand-500)',
-          600: 'var(--color-brand-600)',
-          700: 'var(--color-brand-700)',
+          400: 'rgb(var(--color-brand-400) / <alpha-value>)',
+          500: 'rgb(var(--color-brand-500) / <alpha-value>)',
+          600: 'rgb(var(--color-brand-600) / <alpha-value>)',
+          700: 'rgb(var(--color-brand-700) / <alpha-value>)',
         },
         surface: {
           800: '#1e2235',
