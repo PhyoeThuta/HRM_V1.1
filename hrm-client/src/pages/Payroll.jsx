@@ -193,7 +193,7 @@ export default function Payroll() {
   return (
     <Layout title="Payroll & KPI Management" subtitle="Track salary processing, payments, and performance scores">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-        <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(16,185,129,0.2)' }}>
+        <div className="rounded-2xl p-5" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(16,185,129,0.2)' }}>
           <p className="text-emerald-100 text-xs mb-1">Total Paid This Period</p>
           <p className="text-3xl font-black text-white">{totalPaid.toLocaleString()} THB</p>
         </div>
@@ -204,19 +204,19 @@ export default function Payroll() {
           <button onClick={() => setShowModal(true)} className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
             + Add Payroll Record
           </button>
-          <button onClick={() => setShowSettingsModal(true)} className="px-4 py-2.5 bg-[#1e2235] hover:bg-[#252a40] border border-white/10 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
+          <button onClick={() => setShowSettingsModal(true)} className="px-4 py-2.5 bg-[rgb(var(--color-surface-800))] hover:bg-[#252a40] border border-white/10 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
             ⚙ KPI Settings
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="px-5 py-3 border-b border-white/5 bg-[#161929]">
+      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="px-5 py-3 border-b border-white/5 bg-[rgb(var(--color-surface-850))]">
             <h2 className="text-sm font-bold text-white">Payroll Records</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead style={{ background: '#161929' }}>
+            <thead style={{ background: 'rgb(var(--color-surface-850))' }}>
               <tr>{['Employee', 'Month', 'Basic', 'Allowances', 'Deductions', 'Bonus', 'Net Salary', 'KPI Score', 'Status', 'Action'].map(h => <th key={h} className="py-3 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
             </thead>
             <tbody>
@@ -250,13 +250,13 @@ export default function Payroll() {
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="px-5 py-3 border-b border-white/5 bg-[#161929]">
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="px-5 py-3 border-b border-white/5 bg-[rgb(var(--color-surface-850))]">
             <h2 className="text-sm font-bold text-white">KPI Reviews</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead style={{ background: '#161929' }}>
+            <thead style={{ background: 'rgb(var(--color-surface-850))' }}>
               <tr>{['Employee', 'Period', 'Target', 'Actual', 'Score %', 'Comment', 'Reviewed At', 'Action'].map(h => <th key={h} className="py-3 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
             </thead>
             <tbody>
@@ -292,7 +292,7 @@ export default function Payroll() {
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettingsModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-2xl bg-[#161929] border border-white/10 p-6 max-h-[90vh] overflow-y-auto">
+          <div className="relative rounded-2xl w-full max-w-2xl bg-[rgb(var(--color-surface-850))] border border-white/10 p-6 max-h-[90vh] overflow-y-auto">
              <h2 className="text-xl font-bold text-white mb-6">KPI Settings</h2>
              <form onSubmit={handleSettingsSave} className="space-y-6">
                 <div>
@@ -339,7 +339,7 @@ export default function Payroll() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowModal(false); setCalcData(null); }} />
-          <div className="relative rounded-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
             <h2 className="text-lg font-bold text-white mb-4">Add Payroll Record</h2>
             <form id="payslip-form" onSubmit={handleSave} className="grid grid-cols-2 gap-4" onChange={() => recalculateFinal(calcData)}>
               <div className="col-span-2">
@@ -370,7 +370,7 @@ export default function Payroll() {
               </div>
 
               {calcData && (
-                <div className="col-span-2 bg-[#1e2235] p-4 rounded-xl border border-white/5 my-2">
+                <div className="col-span-2 bg-[rgb(var(--color-surface-800))] p-4 rounded-xl border border-white/5 my-2">
                     <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Calculation Breakdown</h3>
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between">

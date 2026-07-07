@@ -22,7 +22,7 @@ export default function HandoverChecklistReadOnly({ items = [], showAck = true }
   return (
     <div className="space-y-4">
       {Object.entries(grouped).map(([cat, catItems]) => (
-        <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="px-5 py-3 border-b border-white/5">
             <h4 className="text-sm font-bold text-white">{CAT_LABELS[cat] || cat}</h4>
           </div>

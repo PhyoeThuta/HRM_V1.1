@@ -6,7 +6,7 @@ export default function Layout({ children, title, subtitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#080b14' }}>
+    <div className="flex min-h-screen bg-surface-950 text-slate-100">
       <Sidebar isOpen={sidebarOpen} close={() => setSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col min-h-screen min-w-0 lg:ml-64">

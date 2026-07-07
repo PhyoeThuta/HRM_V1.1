@@ -58,7 +58,7 @@ export default function Handovers() {
             <select
               value={status}
               onChange={e => setStatus(e.target.value)}
-              className="bg-[#1e2235] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              className="bg-[rgb(var(--color-surface-800))] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
             >
               <option value="all">All</option>
               <option value="active">Active</option>
@@ -74,7 +74,7 @@ export default function Handovers() {
             <select
               value={triggerType}
               onChange={e => setTriggerType(e.target.value)}
-              className="bg-[#1e2235] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              className="bg-[rgb(var(--color-surface-800))] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
             >
               <option value="">All types</option>
               <option value="exit">Exit / offboarding</option>
@@ -87,7 +87,7 @@ export default function Handovers() {
             <select
               value={employeeId}
               onChange={e => setEmployeeId(e.target.value)}
-              className="w-full bg-[#1e2235] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              className="w-full bg-[rgb(var(--color-surface-800))] border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
             >
               <option value="">All employees</option>
               {employees.map(e => (
@@ -98,7 +98,7 @@ export default function Handovers() {
           <p className="text-xs text-slate-500 self-center">{data?.total ?? 0} record(s)</p>
         </div>
 
-        <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
           {isLoading ? (
             <div className="p-12 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
           ) : (
@@ -159,8 +159,8 @@ export default function Handovers() {
       {detailId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailId(null)} />
-          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
+          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[rgb(var(--color-surface-850))] pb-2 z-10">
               <h2 className="text-base font-bold text-white">Handover detail</h2>
               <button onClick={() => setDetailId(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>

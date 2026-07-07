@@ -43,7 +43,7 @@ function HandoverCard({ entry, onAck }) {
   }, {});
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="p-5 border-b border-white/5">
         <h3 className="text-base font-bold text-white">
           {handover.handover_label || 'Handover'} from {handover.outgoing_name}
@@ -136,7 +136,7 @@ export default function HandoverIncoming() {
         <TabBar tab={tab} setTab={setTab} />
 
         {showEmpty ? (
-          <div className="rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="rounded-2xl p-8 text-center" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="text-5xl mb-4">{tab === 'active' ? '📥' : '📁'}</div>
             <h2 className="text-lg font-bold text-white mb-2">
               {tab === 'active' ? 'No Incoming Handovers' : 'No Past Handovers'}

@@ -64,7 +64,7 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
   const roleLabel = { boss: 'Boss', hr_manager: 'HR Manager', general_manager: 'Gen. Manager', finance: 'Finance', employee: 'Employee' }[user?.role] || user?.role;
 
   return (
-    <header className="sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between" style={{ background: 'rgba(15,17,32,0.8)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <header className="sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between" style={{ background: 'var(--color-header-bg)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(var(--color-border), var(--alpha-border))' }}>
       <div className="flex items-center gap-3">
         <button 
           onClick={toggleSidebar}
@@ -106,7 +106,7 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   Notifications

@@ -54,7 +54,7 @@ export default function LeaveRequestActionsMenu({ isOpen, onToggle, onClose, ite
     <div
       id="leave-actions-menu-portal"
       className="fixed z-[200] min-w-[220px] py-1 rounded-xl shadow-2xl border border-white/10 overflow-hidden"
-      style={{ top: menuPos.top, left: menuPos.left, transform: menuPos.transform, background: '#1e2235' }}
+      style={{ top: menuPos.top, left: menuPos.left, transform: menuPos.transform, background: 'rgb(var(--color-surface-800))' }}
     >
       {visible.map(item => (
         <button

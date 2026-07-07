@@ -15,9 +15,9 @@ export default function PeerVoting() {
           <span>🗳️</span> Submit a Peer Vote
         </Link>
       </div>
-      <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
         <table className="w-full text-sm text-left">
-          <thead style={{ background: '#161929' }}>
+          <thead style={{ background: 'rgb(var(--color-surface-850))' }}>
             <tr>{['Voter', 'Voted For', 'Score', 'Comments', 'Date'].map(h => <th key={h} className="py-3 px-5 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr>
           </thead>
           <tbody>

@@ -60,7 +60,7 @@ export default function PeerVotingForm() {
 
   return (
     <Layout title="360-Degree Feedback" subtitle="Evaluate your peers">
-      <div className="max-w-2xl mx-auto rounded-2xl p-6 md:p-8" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="max-w-2xl mx-auto rounded-2xl p-6 md:p-8" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
         <form onSubmit={handleSubmit}>
           
           <div className="mb-8">

@@ -23,11 +23,11 @@ export default function FinanceDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+        <div className="lg:col-span-2 p-6 rounded-2xl border border-white/5 bg-[rgb(var(--color-surface-800))]">
           <h3 className="text-lg font-bold text-white mb-6">Payroll History</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-[#161929] border-b border-white/5 text-slate-400">
+              <thead className="bg-[rgb(var(--color-surface-850))] border-b border-white/5 text-slate-400">
                 <tr>
                   <th className="text-left py-4 px-6 font-semibold">Month</th>
                   <th className="text-left py-4 px-6 font-semibold">Total Payout</th>
@@ -48,7 +48,7 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235] flex flex-col items-center justify-center text-center">
+        <div className="p-6 rounded-2xl border border-white/5 bg-[rgb(var(--color-surface-800))] flex flex-col items-center justify-center text-center">
           <div className="w-20 h-20 rounded-full bg-indigo-500/10 flex items-center justify-center text-4xl mb-4">
             📈
           </div>
@@ -58,7 +58,7 @@ export default function FinanceDashboard() {
           </div>
           <p className="text-xs text-slate-500 mb-6">Compared to previous month payroll</p>
           
-          <div className="w-full bg-[#161929] rounded-xl p-4 border border-white/5 space-y-2">
+          <div className="w-full bg-[rgb(var(--color-surface-850))] rounded-xl p-4 border border-white/5 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Latest Month ({stats.latest_month})</span>
               <span className="text-emerald-400 font-bold">{(stats.current_month_payroll || 0).toLocaleString()} THB</span>
@@ -76,7 +76,7 @@ export default function FinanceDashboard() {
 
 function StatCard({ title, value, icon }) {
   return (
-    <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235] flex items-center gap-4">
+    <div className="p-6 rounded-2xl border border-white/5 bg-[rgb(var(--color-surface-800))] flex items-center gap-4">
       <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center text-2xl">
         {icon}
       </div>

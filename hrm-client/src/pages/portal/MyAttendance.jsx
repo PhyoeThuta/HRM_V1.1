@@ -80,7 +80,7 @@ export default function MyAttendance() {
       </div>
 
       {activeTab === 'records' && (
-        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h3 className="text-sm font-bold text-white">Attendance Records</h3>
           <p className="text-xs text-slate-400">{records.length} records total</p>
@@ -110,7 +110,7 @@ export default function MyAttendance() {
                   </div>
                   
                   {isExpanded && (
-                    <div className="overflow-x-auto bg-[#161929]">
+                    <div className="overflow-x-auto bg-[rgb(var(--color-surface-850))]">
                       <table className="w-full text-sm">
                         <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
                           <tr>
@@ -152,7 +152,7 @@ export default function MyAttendance() {
       )}
 
       {activeTab === 'overtime' && (
-        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.05)' }}>
           <MyOvertimeTab />
         </div>
       )}

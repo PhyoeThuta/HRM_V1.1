@@ -78,8 +78,8 @@ export default function Sidebar({ isOpen, close }) {
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-40 w-64 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`} 
-      style={{ background: '#0f1120', borderRight: '1px solid rgba(255,255,255,0.05)' }}
+      className={`fixed inset-y-0 left-0 z-40 w-64 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} bg-[rgb(var(--color-surface-900))]`} 
+      style={{ borderRight: '1px solid rgba(var(--color-border), var(--alpha-border))' }}
     >
       {/* Logo */}
       <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
