@@ -82,23 +82,113 @@ body {
 [data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #FF7700; }
 [data-theme="light"] .toggle-track { background: rgba(255,119,0,0.2); }
 
-/* ===========================================
-   LIGHT MODE: Invert the whole page to white
-   =========================================== */
+/* =================================================================
+   LIGHT MODE — Native Clean White Design (Busy Boss Diet)
+   Like RealtyTopia: White bg, dark text, green/orange accents only
+   ================================================================= */
+
 html[data-theme="light"] {
-  filter: invert(1) hue-rotate(180deg);
+  /* Pure white page background */
+  background-color: #f8f9fa !important;
 }
-/* Restore images, avatars, emojis - double invert cancels out */
-html[data-theme="light"] img,
-html[data-theme="light"] video,
-html[data-theme="light"] canvas,
-html[data-theme="light"] .recharts-wrapper {
-  filter: invert(1) hue-rotate(180deg);
+
+/* Page & Layout backgrounds */
+html[data-theme="light"] body { background-color: #f8f9fa !important; color: #111827 !important; }
+html[data-theme="light"] .flex.min-h-screen { background-color: #f8f9fa !important; }
+
+/* SIDEBAR — clean white */
+html[data-theme="light"] aside {
+  background: #ffffff !important;
+  border-right: 1px solid #e5e7eb !important;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05) !important;
 }
-/* Charts look better in light mode without double invert */
-html[data-theme="light"] .recharts-wrapper {
-  filter: none;
+html[data-theme="light"] aside .text-white { color: #111827 !important; }
+html[data-theme="light"] aside .text-slate-400 { color: #6b7280 !important; }
+html[data-theme="light"] aside p { color: #111827 !important; }
+html[data-theme="light"] aside .text-[10px] { color: #6b7280 !important; }
+html[data-theme="light"] aside [style*="color: '#A3B81F'"] { color: #A3B81F !important; }
+/* Section labels */
+html[data-theme="light"] aside .text-slate-500 { color: #9ca3af !important; }
+
+/* TOP HEADER BAR — pure white */
+html[data-theme="light"] header {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
 }
+html[data-theme="light"] header .text-white { color: #111827 !important; }
+html[data-theme="light"] header .text-slate-400 { color: #6b7280 !important; }
+html[data-theme="light"] header h1 { color: #111827 !important; }
+html[data-theme="light"] header p { color: #6b7280 !important; }
+
+/* CARDS — white with subtle shadow */
+html[data-theme="light"] [style*="background: rgb(var(--color-surface-800))"],
+html[data-theme="light"] [style*="background: '#1e2235'"],
+html[data-theme="light"] [style*="background: #1e2235"],
+html[data-theme="light"] [style*="background: '#161929'"],
+html[data-theme="light"] [style*="background: #161929"],
+html[data-theme="light"] [style*="background: '#0f1120'"],
+html[data-theme="light"] [style*="background: #0f1120"],
+html[data-theme="light"] [style*="background: '#080b14'"],
+html[data-theme="light"] [style*="background: #080b14"] {
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+/* Surface-800/850/900/950 Tailwind classes */
+html[data-theme="light"] .bg-surface-800,
+html[data-theme="light"] .bg-surface-850,
+html[data-theme="light"] .bg-surface-900,
+html[data-theme="light"] .bg-surface-950 { background-color: #ffffff !important; }
+
+/* Rounded card panels (common pattern) */
+html[data-theme="light"] .rounded-2xl,
+html[data-theme="light"] .rounded-xl {
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+}
+
+/* TEXT colors in light mode */
+html[data-theme="light"] .text-white { color: #111827 !important; }
+html[data-theme="light"] .text-slate-100 { color: #1f2937 !important; }
+html[data-theme="light"] .text-slate-200 { color: #374151 !important; }
+html[data-theme="light"] .text-slate-300 { color: #374151 !important; }
+html[data-theme="light"] .text-slate-400 { color: #6b7280 !important; }
+html[data-theme="light"] .text-slate-500 { color: #9ca3af !important; }
+
+/* Border colors */
+html[data-theme="light"] [class*="border-white"] { border-color: #e5e7eb !important; }
+html[data-theme="light"] [style*="rgba(255,255,255,0.05)"] { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] [style*="rgba(255,255,255,0.08)"] { background: rgba(0,0,0,0.03) !important; }
+html[data-theme="light"] [style*="rgba(255,255,255,0.1)"] { background: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"] [style*="border: 1px solid rgba(255,255,255"] { border-color: #e5e7eb !important; }
+html[data-theme="light"] [style*="borderBottom: '1px solid rgba(255,255,255"] { border-color: rgba(0,0,0,0.1) !important; }
+
+/* Scrollbar for light mode */
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+
+/* Form inputs */
+html[data-theme="light"] .form-input {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+html[data-theme="light"] .form-input:focus {
+  border-color: #A3B81F;
+  box-shadow: 0 0 0 3px rgba(163,184,31,0.15);
+  background: #ffffff;
+}
+html[data-theme="light"] .form-input option { background: white; color: #111827; }
+html[data-theme="light"] .form-label { color: #6b7280; }
+
+/* Theme toggle in light mode */
+html[data-theme="light"] #theme-toggle {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.1);
+  color: #6b7280;
+}
+html[data-theme="light"] #theme-toggle:hover { background: rgba(0,0,0,0.08); }
 
 /* Animations */
 @keyframes pulse-glow {

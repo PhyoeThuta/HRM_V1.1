@@ -11,22 +11,22 @@ export default {
         // These are pre-calculated so that after CSS invert+hue-rotate in Light Mode,
         // they show as the exact target colors: Green #A3B81F, Orange #FF7700
         brand: {
-          green: '#CBE047',         // → #A3B81F after light mode filter
-          'green-light': '#d4e85a', // lighter
-          'green-dark': '#b8cc2e',  // darker
-          orange: '#FF7700',        // → stays orange after filter  
+          green: '#A3B81F',
+          'green-light': '#b3c64c',
+          'green-dark': '#829319',
+          orange: '#FF7700',
           'orange-light': '#ff8f26',
           'orange-dark': '#cc5f00',
           gray: '#B7B7B7',
           'gray-dark': '#9C9C9C',
         },
-        // === Override indigo → Pre-inverted BBD green ===
+        // === indigo → BBD Lime Green (for all existing indigo-xxx classes) ===
         indigo: {
-          300: '#d4e85a',
-          400: '#CBE047',
-          500: '#CBE047',
-          600: '#b8cc2e',
-          700: '#9ab020',
+          300: '#b3c64c',
+          400: '#A3B81F',
+          500: '#A3B81F',
+          600: '#829319',
+          700: '#626e13',
         },
         // === Override emerald → Orange accent ===
         // (used in some stat cards)
