@@ -13,7 +13,15 @@ export default function CustomerDetail() {
   
   // Modal State
   const [showPackageModal, setShowPackageModal] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [packageForm, setPackageForm] = useState({ name: '1 Month Boss Diet', duration: '30 Days', meal_count: 60, meal_type: 'LUNCH, DINNER' });
+  const [metricsForm, setMetricsForm] = useState({
+    current_weight: '',
+    goal_weight: '',
+    height: '',
+    medical_condition: '',
+    allergies: ''
+  });
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
@@ -22,6 +30,17 @@ export default function CustomerDetail() {
     // If not found in localStorage (might be the old mock ID), use a default
     if (found) {
       setCustomer(found);
+      if (found.metrics) {
+        setMetricsForm(found.metrics);
+      } else if (found.physical_status || found.health || found.lifestyle) {
+        setMetricsForm({
+          current_weight: found.physical_status?.current_weight || '',
+          goal_weight: found.physical_status?.goal_weight || '',
+          height: found.physical_status?.height || '',
+          medical_condition: found.health?.medical_condition || '',
+          allergies: found.lifestyle?.food_restriction || ''
+        });
+      }
     } else {
       // Fallback for hardcoded mock IDs (1, 2, 3) if they were deleted from localstorage
       setCustomer({
@@ -67,13 +86,52 @@ export default function CustomerDetail() {
     toast.success('Package successfully assigned!');
   };
 
+  const handleUpdateMetrics = (e) => {
+    e.preventDefault();
+    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
+    const updatedCustomers = stored.map(c => {
+      if (c.id.toString() === id.toString()) {
+        return { ...c, metrics: metricsForm };
+      }
+      return c;
+    });
+    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
+    setCustomer({ ...customer, metrics: metricsForm });
+    setShowMetricsModal(false);
+    toast.success('Health & Metrics updated successfully!');
+  };
+
+  const calculateBMI = () => {
+    // Basic calculation if height is cm and weight is lb or kg. Assuming height cm, weight kg for BMI.
+    // If user inputs lbs, we should ideally convert, but for simplicity let's just do standard metric BMI if possible.
+    // Let's assume height is in cm (e.g. 170) and weight is in lbs (e.g. 150).
+    const weightLbs = parseFloat(metricsForm.current_weight) || parseFloat(customer?.metrics?.current_weight);
+    const heightCm = parseFloat(metricsForm.height) || parseFloat(customer?.metrics?.height);
+    
+    if (weightLbs && heightCm) {
+      const weightKg = weightLbs * 0.453592;
+      const heightM = heightCm / 100;
+      const bmi = weightKg / (heightM * heightM);
+      return bmi.toFixed(1);
+    }
+    return 'N/A';
+  };
+
+  const getBMIStatus = (bmi) => {
+    if (bmi === 'N/A') return 'Unknown';
+    const val = parseFloat(bmi);
+    if (val < 18.5) return 'Underweight';
+    if (val < 25) return 'Normal weight';
+    if (val < 30) return 'Overweight';
+    return 'Obese';
+  };
+
   if (!customer) return <Layout title="Loading..."><div className="p-8 text-center text-slate-400">Loading profile...</div></Layout>;
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'metrics', label: 'Health & Metrics' },
     { id: 'lifestyle', label: 'Lifestyle' },
-    { id: 'physical', label: 'Physical Status' },
-    { id: 'health', label: 'Health' },
     { id: 'packages', label: 'Packages & Meals' },
     { id: 'feedback', label: 'Feedback' },
   ];
@@ -125,6 +183,47 @@ export default function CustomerDetail() {
           </div>
         </div>
       )}
+
+      {/* Edit Metrics Modal */}
+      {showMetricsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-brand-green/10 to-transparent">
+              <h3 className="font-black text-white text-lg">Update Health Metrics</h3>
+              <button onClick={() => setShowMetricsModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleUpdateMetrics} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Current Weight (lbs/kg)</label>
+                  <input type="text" value={metricsForm.current_weight} onChange={e => setMetricsForm({...metricsForm, current_weight: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 150 lbs" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Target Weight (lbs/kg)</label>
+                  <input type="text" value={metricsForm.goal_weight} onChange={e => setMetricsForm({...metricsForm, goal_weight: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 130 lbs" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Height (cm)</label>
+                <input type="number" value={metricsForm.height} onChange={e => setMetricsForm({...metricsForm, height: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 165" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Medical Conditions</label>
+                <input type="text" value={metricsForm.medical_condition} onChange={e => setMetricsForm({...metricsForm, medical_condition: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. Diabetes, None" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Food Allergies</label>
+                <input type="text" value={metricsForm.allergies} onChange={e => setMetricsForm({...metricsForm, allergies: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. Peanut, None" />
+              </div>
+              <div className="pt-4 flex justify-end gap-3">
+                <button type="button" onClick={() => setShowMetricsModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
+                <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">Save Metrics</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
 
       <div className="flex justify-between items-center mb-6">
         <button onClick={() => navigate('/crm/customers')} className="text-slate-400 hover:text-white flex items-center gap-2">
@@ -218,49 +317,48 @@ export default function CustomerDetail() {
           </div>
         )}
 
-        {activeTab === 'physical' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="p-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 relative z-10">Current Weight</p>
-              <p className="text-3xl text-white font-black relative z-10">{customer.physical_status?.current_weight || 'N/A'}</p>
-            </div>
-            <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2 relative z-10">Goal Weight</p>
-              <p className="text-3xl text-white font-black relative z-10">{customer.physical_status?.goal_weight || 'N/A'}</p>
-            </div>
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Height</p>
-              <p className="text-3xl text-white font-black">{customer.physical_status?.height || 'N/A'}</p>
-            </div>
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Time Frame</p>
-              <p className="text-3xl text-white font-black">{customer.physical_status?.time_frame || 'N/A'}</p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'health' && (
+        {activeTab === 'metrics' && (
           <div className="space-y-6">
-            <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl"></div>
-              <p className="text-xs text-rose-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>⚠️</span> Medical Conditions</p>
-              <p className="text-white font-medium text-lg relative z-10">{customer.health?.medical_condition || 'None reported'}</p>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xl font-black text-white">Body Metrics & Health</h3>
+              {user?.role !== 'marketing_junior' && (
+                <button onClick={() => setShowMetricsModal(true)} className="bg-brand-green/20 text-brand-green hover:bg-brand-green/30 border border-brand-green/30 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2">
+                  <span>✏️</span> Edit Metrics
+                </button>
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Medicine Taking</p>
-                <p className="text-white font-medium text-lg">{customer.health?.medicine_taking || 'None'}</p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="p-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center relative overflow-hidden group">
+                <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 relative z-10">Current Weight</p>
+                <p className="text-3xl text-white font-black relative z-10">{customer.metrics?.current_weight || customer.physical_status?.current_weight || 'N/A'}</p>
               </div>
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Other Conditions</p>
-                <p className="text-white font-medium text-lg">{customer.health?.other_condition || 'None'}</p>
+              <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center relative overflow-hidden group">
+                <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2 relative z-10">Target Weight</p>
+                <p className="text-3xl text-white font-black relative z-10">{customer.metrics?.goal_weight || customer.physical_status?.goal_weight || 'N/A'}</p>
+              </div>
+              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Height</p>
+                <p className="text-3xl text-white font-black">{customer.metrics?.height ? `${customer.metrics.height} cm` : 'N/A'}</p>
+              </div>
+              <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center relative">
+                <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">BMI Status</p>
+                <p className="text-3xl text-white font-black mb-1">{calculateBMI()}</p>
+                {calculateBMI() !== 'N/A' && (
+                  <span className="text-xs font-bold bg-black/30 px-2 py-1 rounded text-amber-200">{getBMIStatus(calculateBMI())}</span>
+                )}
               </div>
             </div>
-            <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs text-amber-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>👨‍🍳</span> Special Requests (Chef Note)</p>
-              <p className="text-white font-medium text-lg">{customer.health?.special_requests || 'No special requests'}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 relative overflow-hidden">
+                <p className="text-xs text-rose-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>⚠️</span> Medical Conditions</p>
+                <p className="text-white font-medium text-lg relative z-10">{customer.metrics?.medical_condition || customer.health?.medical_condition || 'None reported'}</p>
+              </div>
+              <div className="p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20 relative overflow-hidden">
+                <p className="text-xs text-orange-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>🥜</span> Food Allergies</p>
+                <p className="text-white font-medium text-lg relative z-10">{customer.metrics?.allergies || customer.lifestyle?.food_restriction || 'None reported'}</p>
+              </div>
             </div>
           </div>
         )}
