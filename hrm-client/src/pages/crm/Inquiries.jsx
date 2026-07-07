@@ -16,7 +16,18 @@ export default function Inquiries() {
     prospect_name: '', source: 'Facebook Messenger', service: ''
   });
 
+  // Services State
+  const [services, setServices] = useState(['1 Month Boss Diet', 'Weekly Keto', '14 Days Detox', 'General Pricing Inquiry']);
+  const [showAddService, setShowAddService] = useState(false);
+  const [newServiceInput, setNewServiceInput] = useState('');
+
   useEffect(() => {
+    // Load custom services
+    const storedServices = localStorage.getItem('crm_custom_services');
+    if (storedServices) {
+      setServices(JSON.parse(storedServices));
+    }
+    // Load inquiries
     const stored = localStorage.getItem('crm_inquiries');
     if (stored) {
       setInquiries(JSON.parse(stored));
@@ -25,6 +36,19 @@ export default function Inquiries() {
       localStorage.setItem('crm_inquiries', JSON.stringify([]));
     }
   }, []);
+
+  const handleAddService = (e) => {
+    e.preventDefault();
+    if (newServiceInput.trim()) {
+      const updatedServices = [...services, newServiceInput.trim()];
+      setServices(updatedServices);
+      localStorage.setItem('crm_custom_services', JSON.stringify(updatedServices));
+      setFormData({ ...formData, service: newServiceInput.trim() });
+      setNewServiceInput('');
+      setShowAddService(false);
+      toast.success('New package added to list!');
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -47,7 +71,7 @@ export default function Inquiries() {
       
       setShowModal(false);
       setIsSubmitting(false);
-      setFormData({ prospect_name: '', source: 'Facebook Messenger', service: '' });
+      setFormData({ prospect_name: '', source: 'Facebook Messenger', service: services[0] });
       toast.success('New lead added successfully!');
     }, 600);
   };
@@ -95,8 +119,30 @@ export default function Inquiries() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Service Interested In</label>
-                <input required type="text" value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="e.g. 1 Month Boss Diet or Custom Request" />
+                <label className="block text-sm font-bold text-slate-400 mb-2">Service Interested In *</label>
+                {!showAddService ? (
+                  <div className="flex gap-2">
+                    <select required value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})} className="flex-1 bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                      <option value="">Select a package...</option>
+                      {services.map((s, idx) => (
+                        <option key={idx} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <button type="button" onClick={() => setShowAddService(true)} className="px-4 bg-brand-green/10 text-brand-green border border-brand-green/20 hover:bg-brand-green hover:text-black font-bold rounded-xl transition-all" title="Add New Package">
+                      + Add
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input autoFocus type="text" value={newServiceInput} onChange={e => setNewServiceInput(e.target.value)} className="flex-1 bg-surface-900 border border-brand-green/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green transition-colors" placeholder="Type new package name..." />
+                    <button type="button" onClick={handleAddService} className="px-4 bg-brand-green text-black font-bold rounded-xl hover:scale-105 transition-transform">
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setShowAddService(false)} className="px-3 bg-surface-900 border border-white/10 text-slate-400 hover:text-white font-bold rounded-xl transition-colors">
+                      ✕
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
