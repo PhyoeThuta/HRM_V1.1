@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
 
 export default function Packages() {
+  const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -54,6 +56,11 @@ export default function Packages() {
 
   return (
     <Layout title="Diet Packages" subtitle="Manage your service offerings and pricing">
+      <div className="mb-4">
+        <button onClick={() => navigate('/crm')} className="text-slate-400 hover:text-white font-bold flex items-center gap-2 transition-colors">
+          ← Back to Dashboard
+        </button>
+      </div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-white">Available Packages</h2>
         <button onClick={() => setShowModal(true)} className="bg-brand-green text-black px-4 py-2 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105 transition-all flex items-center gap-2">
