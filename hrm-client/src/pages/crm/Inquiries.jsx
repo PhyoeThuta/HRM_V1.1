@@ -4,13 +4,6 @@ import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
-const INITIAL_MOCK = [
-  { id: 1, prospect_name: 'Zaw Min Tun', source: 'Facebook Messenger', service: '1 Month Boss Diet', status: 'New', ai_confidence: 'High (98%)', date: '2026-07-07' },
-  { id: 2, prospect_name: 'Aye Thandar', source: 'Telegram', service: 'Weekly Keto', status: 'Contacted', ai_confidence: 'Medium (65%)', date: '2026-07-06' },
-  { id: 3, prospect_name: 'Kyaw Zin', source: 'Website', service: 'General Pricing', status: 'New', ai_confidence: 'Low (45%)', date: '2026-07-07' },
-  { id: 4, prospect_name: 'Su Su', source: 'Viber', service: '14 Days Detox', status: 'Converted', ai_confidence: 'High (100%)', date: '2026-07-05' },
-];
-
 export default function Inquiries() {
   const { user, isBoss } = useAuth();
   const navigate = useNavigate();
@@ -28,8 +21,8 @@ export default function Inquiries() {
     if (stored) {
       setInquiries(JSON.parse(stored));
     } else {
-      setInquiries(INITIAL_MOCK);
-      localStorage.setItem('crm_inquiries', JSON.stringify(INITIAL_MOCK));
+      setInquiries([]);
+      localStorage.setItem('crm_inquiries', JSON.stringify([]));
     }
   }, []);
 

@@ -3,12 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 
-const INITIAL_MOCK = [
-  { id: 1, customer_code: 'BBD-001', full_name: 'Aung Aung', email: 'aung@gmail.com', phone: '09123456789', gender: 'Male', packages: 1 },
-  { id: 2, customer_code: 'BBD-002', full_name: 'Mya Mya', email: 'mya@gmail.com', phone: '09876543210', gender: 'Female', packages: 2 },
-  { id: 3, customer_code: 'BBD-003', full_name: 'Zaw Zaw', email: 'zaw@gmail.com', phone: '09777777777', gender: 'Male', packages: 0 },
-];
-
 export default function Customers() {
   const { user, isBoss } = useAuth();
   const navigate = useNavigate();
@@ -21,8 +15,8 @@ export default function Customers() {
     if (stored) {
       setCustomers(JSON.parse(stored));
     } else {
-      setCustomers(INITIAL_MOCK);
-      localStorage.setItem('crm_customers', JSON.stringify(INITIAL_MOCK));
+      setCustomers([]);
+      localStorage.setItem('crm_customers', JSON.stringify([]));
     }
   }, []);
 

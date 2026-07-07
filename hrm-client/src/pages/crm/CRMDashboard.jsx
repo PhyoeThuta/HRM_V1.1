@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Chart, registerables } from 'chart.js';
 import Layout from '../../components/layout/Layout';
@@ -35,17 +35,32 @@ export default function CRMDashboard() {
   const { user } = useAuth();
   const lineChartRef = useRef(null);
   const doughnutChartRef = useRef(null);
-
-  // Mock data for UI
-  const metrics = {
-    totalCustomers: '1,250',
-    activeLeads: '85',
-    convertedThisMonth: '42',
-    activePackages: '310',
-    revenue: '$45,200',
-  };
+  const [metrics, setMetrics] = useState({
+    totalCustomers: '0',
+    activeLeads: '0',
+    convertedThisMonth: '0',
+    activePackages: '0',
+    revenue: '$0',
+  });
 
   useEffect(() => {
+    // Load dynamic data from local storage
+    const customers = JSON.parse(localStorage.getItem('crm_customers') || '[]');
+    const inquiries = JSON.parse(localStorage.getItem('crm_inquiries') || '[]');
+    
+    let activePkgs = 0;
+    customers.forEach(c => {
+      activePkgs += c.packages || 0;
+    });
+
+    setMetrics({
+      totalCustomers: customers.length.toString(),
+      activeLeads: inquiries.length.toString(),
+      convertedThisMonth: inquiries.filter(i => i.status === 'Converted').length.toString(),
+      activePackages: activePkgs.toString(),
+      revenue: '$0', // Still mocked since no billing module yet
+    });
+
     let lineChart, doughnutChart;
 
     if (lineChartRef.current) {
