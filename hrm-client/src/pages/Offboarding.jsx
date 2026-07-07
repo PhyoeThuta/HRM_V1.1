@@ -39,7 +39,7 @@ function ExitInterviewPage({ ob, onClose }) {
   });
 
   const RatingRow = ({ title, desc, field }) => (
-    <div className="rounded-2xl p-6 mb-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="rounded-2xl p-6 mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <h3 className="text-base font-bold text-white mb-1">{title}</h3>
       <p className="text-xs text-slate-400 mb-5">{desc}</p>
       <div className="flex items-center gap-3">
@@ -83,7 +83,7 @@ function ExitInterviewPage({ ob, onClose }) {
       </div>
 
       {/* Interview Details */}
-      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h3 className="text-base font-bold text-white mb-5">Interview Details</h3>
         <div className="grid grid-cols-2 gap-5 mb-5">
           <div>
@@ -125,7 +125,7 @@ function ExitInterviewPage({ ob, onClose }) {
       <RatingRow title="Career Growth" desc="How would you rate opportunities for career development and advancement?" field="career_growth" />
 
       {/* Final Questions */}
-      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h3 className="text-base font-bold text-white mb-5">Final Questions</h3>
         <div className="space-y-6">
           <div className="flex items-start justify-between">
@@ -164,7 +164,7 @@ function ExitInterviewPage({ ob, onClose }) {
       </div>
 
       {/* Open Feedback */}
-      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h3 className="text-base font-bold text-white mb-5">Open Feedback</h3>
         <div className="space-y-5">
           <div>
@@ -293,7 +293,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       </div>
 
       {/* Header card */}
-      <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0"
@@ -345,7 +345,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#1e2235' }}>
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-800, #1e2235)' }}>
         {[
           { id: 'tasks', label: 'Clearance & Tasks' },
           { id: 'handover', label: `Handover${handover ? ` (${handover.completion_pct || 0}%)` : ''}` },
@@ -367,7 +367,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       ) : (
       <>
       {/* Asset clearance */}
-      <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h3 className="text-sm font-bold text-white mb-4">Asset & Compliance Clearance</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {clearanceItems.map(({ field, label, icon }) => {
@@ -405,7 +405,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       {Object.entries(catGroups).map(([cat, catTasks]) => {
         const catDone = catTasks.filter(t => t.status === 'Completed').length;
         return (
-          <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span>{catIcon[cat] || '📌'}</span>
@@ -517,7 +517,7 @@ export default function Offboarding() {
           { label: 'Hold Final Payroll', value: holdPayroll, color: 'text-rose-400' },
           { label: 'Settlement Released', value: released, color: 'text-emerald-400' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-2xl p-6 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div key={label} className="rounded-2xl p-6 text-center" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <p className={`text-4xl font-black ${color} mb-1`}>{value}</p>
             <p className="text-xs text-slate-400">{label}</p>
           </div>
@@ -525,7 +525,7 @@ export default function Offboarding() {
       </div>
 
       {/* Initiate form */}
-      <div className="rounded-2xl p-6 mb-8" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-6 mb-8" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h2 className="text-sm font-bold text-white mb-5">🚪 Initiate Offboarding Process</h2>
         <form onSubmit={handleSave} className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="md:col-span-1">
@@ -573,7 +573,7 @@ export default function Offboarding() {
         {isLoading ? (
           <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
         ) : offboarding.length === 0 ? (
-          <div className="py-12 text-center rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm" style={{ background: '#1e2235' }}>
+          <div className="py-12 text-center rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm" style={{ background: 'var(--bg-800, #1e2235)' }}>
             No offboarding records yet.
           </div>
         ) : offboarding.map(o => {
@@ -590,7 +590,7 @@ export default function Offboarding() {
           ];
 
           return (
-            <div key={o.id} className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={o.id} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
               {/* Card header */}
               <div className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">

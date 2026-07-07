@@ -76,7 +76,7 @@ function HandoverHistorySection({ employeeId }) {
       {detailId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailId(null)} />
-          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
               <h2 className="text-base font-bold text-white">Handover detail</h2>
               <button onClick={() => setDetailId(null)} className="text-slate-400 hover:text-white">✕</button>

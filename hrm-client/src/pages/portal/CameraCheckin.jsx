@@ -51,7 +51,7 @@ export default function CameraCheckin() {
 
   return (
     <Layout title="Photo Check-In 📸" subtitle="Take a selfie to record your attendance">
-      <div className="max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
         
         {/* Camera Area */}
         <div className="w-full h-[400px] flex items-center justify-center bg-[#0f111a] relative">

@@ -12,7 +12,7 @@ Chart.register(...registerables);
 function QuickStat({ label, value, icon, color, href }) {
   const card = (
     <div className="rounded-2xl p-4 text-center transition-all duration-300 group relative overflow-hidden hover:-translate-y-1 hover:shadow-lg"
-      style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="text-2xl mb-1 relative z-10">{icon}</div>
       <p className="text-2xl font-black text-white group-hover:text-indigo-400 transition-colors relative z-10">{value}</p>
       <p className="text-xs text-slate-400 mt-0.5 relative z-10">{label}</p>
@@ -244,7 +244,7 @@ export default function Portal() {
               <QuickStat label="Peer Rating" value={data?.vote_count > 0 ? data.vote_avg : '—'} icon="⭐" color="purple" />
             </div>
 
-            <div className="rounded-2xl p-5 mb-6 flex flex-wrap items-center justify-between gap-4" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-2xl p-5 mb-6 flex flex-wrap items-center justify-between gap-4" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div>
                 <h2 className="text-sm font-bold text-white">Handovers</h2>
                 <p className="text-xs text-slate-400 mt-1">Active checklists and past completed handovers (leave, return, exit)</p>
@@ -261,7 +261,7 @@ export default function Portal() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Leave Balances */}
-              <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <h2 className="text-sm font-bold text-white mb-4">My Leave Balances</h2>
                 {leaveBals.length > 0 ? (
                   <div className="space-y-3">
@@ -290,7 +290,7 @@ export default function Portal() {
               </div>
 
               {/* Announcements */}
-              <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <h2 className="text-sm font-bold text-white mb-4">Company Announcements</h2>
                 {annList.length > 0 ? (
                   <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -312,7 +312,7 @@ export default function Portal() {
               </div>
 
               {/* KPI Radar */}
-              <div className="rounded-2xl p-5 flex flex-col items-center justify-center relative overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="rounded-2xl p-5 flex flex-col items-center justify-center relative overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div className="absolute inset-0 opacity-50" style={{ background: 'linear-gradient(to br, rgba(99,102,241,0.05), rgba(139,92,246,0.05))' }} />
                 <h2 className="text-sm font-bold text-white mb-4 self-start relative z-10">My Performance Overview</h2>
                 <div className="w-full max-w-[280px] relative z-10" style={{ aspectRatio: '1' }}>

@@ -42,7 +42,7 @@ export default function MyProfile() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Identity Card */}
-          <div className="md:col-span-1 rounded-2xl p-8 flex flex-col items-center text-center" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="md:col-span-1 rounded-2xl p-8 flex flex-col items-center text-center" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-4xl font-bold text-white mb-4 shadow-xl border-4 border-[#121421]">
               {(emp.Full_name || 'U')[0]}
             </div>
@@ -62,7 +62,7 @@ export default function MyProfile() {
           </div>
 
           {/* Details Card */}
-          <div className="md:col-span-2 rounded-2xl p-8" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="md:col-span-2 rounded-2xl p-8" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2"><span>👤</span> Personal Information</h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -108,7 +108,7 @@ export default function MyProfile() {
         </div>
 
         {/* Security / Password Change */}
-        <div className="rounded-2xl p-8" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl p-8" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2"><span>🔒</span> Security Settings</h3>
           <form onSubmit={handlePasswordChange} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>

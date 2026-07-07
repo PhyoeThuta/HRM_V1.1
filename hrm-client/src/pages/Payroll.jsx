@@ -193,7 +193,7 @@ export default function Payroll() {
   return (
     <Layout title="Payroll & KPI Management" subtitle="Track salary processing, payments, and performance scores">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-        <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(16,185,129,0.2)' }}>
+        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(16,185,129,0.2)' }}>
           <p className="text-emerald-100 text-xs mb-1">Total Paid This Period</p>
           <p className="text-3xl font-black text-white">{totalPaid.toLocaleString()} THB</p>
         </div>
@@ -210,13 +210,13 @@ export default function Payroll() {
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="px-5 py-3 border-b border-white/5 bg-[#161929]">
             <h2 className="text-sm font-bold text-white">Payroll Records</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead style={{ background: '#161929' }}>
+            <thead style={{ background: 'var(--bg-850, #161929)' }}>
               <tr>{['Employee', 'Month', 'Basic', 'Allowances', 'Deductions', 'Bonus', 'Net Salary', 'KPI Score', 'Status', 'Action'].map(h => <th key={h} className="py-3 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
             </thead>
             <tbody>
@@ -250,13 +250,13 @@ export default function Payroll() {
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="px-5 py-3 border-b border-white/5 bg-[#161929]">
             <h2 className="text-sm font-bold text-white">KPI Reviews</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead style={{ background: '#161929' }}>
+            <thead style={{ background: 'var(--bg-850, #161929)' }}>
               <tr>{['Employee', 'Period', 'Target', 'Actual', 'Score %', 'Comment', 'Reviewed At', 'Action'].map(h => <th key={h} className="py-3 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
             </thead>
             <tbody>
@@ -339,7 +339,7 @@ export default function Payroll() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowModal(false); setCalcData(null); }} />
-          <div className="relative rounded-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <h2 className="text-lg font-bold text-white mb-4">Add Payroll Record</h2>
             <form id="payslip-form" onSubmit={handleSave} className="grid grid-cols-2 gap-4" onChange={() => recalculateFinal(calcData)}>
               <div className="col-span-2">

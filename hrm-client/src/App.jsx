@@ -145,7 +145,7 @@ export default function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <Toaster position="top-right" toastOptions={{ 
-            style: { background: '#1e2235', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' },
+            style: { background: 'var(--bg-800, #1e2235)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' },
             success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
             error: { iconTheme: { primary: '#f43f5e', secondary: '#fff' } }
           }} />

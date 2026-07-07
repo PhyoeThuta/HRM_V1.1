@@ -50,7 +50,7 @@ export default function ExitSurvey() {
   if (!data?.ob) {
     return (
       <Layout title="Exit Survey" subtitle="Your final feedback">
-        <div className="max-w-2xl mx-auto rounded-2xl p-6 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="max-w-2xl mx-auto rounded-2xl p-6 text-center" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="text-5xl mb-4">🙌</div>
           <h2 className="text-lg font-bold text-white mb-2">No Offboarding Record Found</h2>
           <p className="text-slate-400">You do not have an active offboarding record, so you don't need to fill out an exit survey.</p>
@@ -80,7 +80,7 @@ export default function ExitSurvey() {
 
   return (
     <Layout title="Exit Survey" subtitle="We value your feedback to improve our workplace">
-      <div className="max-w-3xl mx-auto rounded-2xl p-6 md:p-8" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="max-w-3xl mx-auto rounded-2xl p-6 md:p-8" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         
         {data.ei && (
           <div className="mb-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-300 text-sm">

@@ -68,7 +68,7 @@ export default function OnboardingDetail() {
           const totalCount = catTasks.length;
           
           return (
-            <div key={category} className="rounded-2xl overflow-hidden" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={category} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
               
               {/* Category Header */}
               <div className="flex items-center justify-between p-5 border-b border-white/5">

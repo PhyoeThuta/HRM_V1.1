@@ -89,7 +89,7 @@ function OutgoingHandoverCard({ entry, onRefetch }) {
   }, {});
 
   return (
-    <div className="space-y-5 rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="space-y-5 rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div>
         <div className="flex justify-between items-center mb-3">
           <div>
@@ -115,7 +115,7 @@ function OutgoingHandoverCard({ entry, onRefetch }) {
       </div>
 
       {Object.entries(grouped).map(([cat, catItems]) => (
-        <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="px-5 py-3 border-b border-white/5">
             <h3 className="text-sm font-bold text-white">{CAT_LABELS[cat] || cat}</h3>
           </div>
@@ -252,7 +252,7 @@ export default function HandoverOutgoing() {
         <TabBar tab={tab} setTab={setTab} />
 
         {showEmpty ? (
-          <div className="rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="rounded-2xl p-8 text-center" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="text-5xl mb-4">{tab === 'active' ? '📋' : '📁'}</div>
             <h2 className="text-lg font-bold text-white mb-2">
               {tab === 'active' ? 'No Active Handover' : 'No Past Handovers'}

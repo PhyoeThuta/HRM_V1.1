@@ -65,7 +65,7 @@ export default function MyLeaves() {
             const pct = Math.min(100, (used / (total || 1)) * 100);
 
             return (
-              <div key={b.id} className="min-w-[280px] flex-1 rounded-2xl p-5 flex flex-col justify-between" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div key={b.id} className="min-w-[280px] flex-1 rounded-2xl p-5 flex flex-col justify-between" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div>
                   <p className="text-sm font-bold text-slate-300 mb-1">{b.type_name}</p>
                   <div className="flex flex-col">
@@ -90,7 +90,7 @@ export default function MyLeaves() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Left Column: Request Form */}
-        <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">📝</span>
             <h3 className="text-sm font-bold text-white">Request Leave</h3>
@@ -137,7 +137,7 @@ export default function MyLeaves() {
         </div>
 
         {/* Right Column: Leave History */}
-        <div className="rounded-2xl p-5 h-full min-h-[400px] flex flex-col" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl p-5 h-full min-h-[400px] flex flex-col" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
 
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-bold text-white">Leave History</h3>

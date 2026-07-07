@@ -58,7 +58,7 @@ export default function MyPayslips() {
           <div className="h-24 bg-white/5 animate-pulse rounded-2xl" />
         ) : payslips.length > 0 ? (
           payslips.map(p => (
-            <div key={p.id} className="rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={p.id} className="rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div className="flex items-center gap-5">
                 <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
                   <span className="text-2xl">💰</span>
@@ -94,7 +94,7 @@ export default function MyPayslips() {
             </div>
           ))
         ) : (
-          <div className="rounded-2xl p-16 text-center" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="rounded-2xl p-16 text-center" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <span className="text-4xl block mb-4">📄</span>
             <p className="text-slate-400 text-sm">No payslips available yet.</p>
           </div>

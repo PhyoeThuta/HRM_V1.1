@@ -12,7 +12,7 @@ export default function HandoverHistoryCard({ entry, role = 'outgoing' }) {
   const closedDate = (handover.approved_at || handover.waived_at || '').slice(0, 10);
 
   return (
-    <div className="space-y-4 rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="space-y-4 rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div>
         <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
           <div>

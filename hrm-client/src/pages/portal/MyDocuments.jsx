@@ -25,7 +25,7 @@ export default function MyDocuments() {
           Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 bg-white/5 animate-pulse rounded-2xl" />)
         ) : documents.length > 0 ? (
           documents.map(d => (
-            <div key={d.id} className="rounded-2xl p-6 relative group overflow-hidden" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={d.id} className="rounded-2xl p-6 relative group overflow-hidden" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
               {/* Type Badge */}
               <div className="absolute top-4 right-4">
                 <span className={`text-[10px] font-bold px-2 py-1 rounded border ${!d.employee_id ? 'text-cyan-400 bg-cyan-400/10 border-cyan-500/20' : 'text-indigo-400 bg-indigo-400/10 border-indigo-500/20'}`}>
@@ -55,7 +55,7 @@ export default function MyDocuments() {
             </div>
           ))
         ) : (
-          <div className="col-span-full rounded-2xl p-16 text-center" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="col-span-full rounded-2xl p-16 text-center" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <span className="text-4xl block mb-4">📭</span>
             <p className="text-slate-400 text-sm">No documents found.</p>
           </div>

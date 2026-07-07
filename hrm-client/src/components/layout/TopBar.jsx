@@ -106,7 +106,7 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     Notifications

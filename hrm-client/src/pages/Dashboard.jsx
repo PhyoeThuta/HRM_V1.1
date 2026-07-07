@@ -10,7 +10,7 @@ Chart.register(...registerables);
 function StatCard({ label, value, gradient, iconPath, color, href }) {
   const card = (
     <div className="relative overflow-hidden rounded-2xl p-5 hover:border-white/10 transition-all duration-300"
-      style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+      style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-5 translate-x-6 -translate-y-6"
         style={{ background: gradient }} />
       <div className="flex items-start justify-between mb-3">
@@ -29,7 +29,7 @@ function StatCard({ label, value, gradient, iconPath, color, href }) {
 
 function MiniCard({ label, value, iconColor, icon }) {
   return (
-    <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${iconColor}20` }}>
         <span style={{ color: iconColor }} className="text-lg font-bold">{icon}</span>
       </div>
@@ -70,7 +70,7 @@ function BarChartWidget({ id, label, data }) {
   }, [data]);
 
   return (
-    <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <h2 className="text-sm font-bold text-white mb-4">{label}</h2>
       <canvas id={id} ref={ref} height="200" />
     </div>
@@ -152,14 +152,14 @@ export default function Dashboard() {
           {/* Bottom Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Recent Employees */}
-            <div className="lg:col-span-2 rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="lg:col-span-2 rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <h2 className="text-sm font-bold text-white">Employee Snapshot</h2>
                 <Link to="/employees" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">View All →</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead style={{ background: '#161929' }}>
+                  <thead style={{ background: 'var(--bg-850, #161929)' }}>
                     <tr>
                       {['ID', 'Name', 'Status'].map(h => (
                         <th key={h} className="text-left py-3 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
@@ -197,7 +197,7 @@ export default function Dashboard() {
             </div>
 
             {/* Announcements */}
-            <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <h2 className="text-sm font-bold text-white mb-4">Company Announcements</h2>
               {annList.filter(a => {
                 const today = new Date().toISOString().split('T')[0];

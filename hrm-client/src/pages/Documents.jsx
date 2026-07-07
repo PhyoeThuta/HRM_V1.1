@@ -45,7 +45,7 @@ export default function Documents() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {isLoading ? <div className="col-span-full py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
         : documents.map(doc => (
-          <div key={doc.id} className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div key={doc.id} className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mb-4">📄</div>
             <h3 className="text-sm font-bold text-white mb-1 truncate">{doc.title}</h3>
             <p className="text-xs text-slate-400 mb-4 truncate">{doc.category || 'General'}</p>
@@ -60,7 +60,7 @@ export default function Documents() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <h2 className="text-base font-bold text-white mb-4">Upload Document</h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div><label className="form-label">Title *</label><input name="title" required className="form-input" /></div>
