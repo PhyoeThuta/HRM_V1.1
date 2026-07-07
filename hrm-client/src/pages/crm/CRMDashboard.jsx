@@ -43,6 +43,7 @@ export default function CRMDashboard() {
     revenue: '$0',
   });
   const [upcomingRenewals, setUpcomingRenewals] = useState([]);
+  const [recentLeads, setRecentLeads] = useState([]);
 
   useEffect(() => {
     // Load dynamic data from local storage
@@ -138,20 +139,35 @@ export default function CRMDashboard() {
       });
     }
 
+    // 3. Process Recent Hot Leads
+    const pending = inquiries.filter(i => i.status === 'New' || i.status === 'Follow Up').slice(0, 4);
+    setRecentLeads(pending);
+
+    // 4. Calculate Doughnut Chart Data (Sources)
+    const sourceCounts = {
+      'Facebook': 0,
+      'Telegram': 0,
+      'Website': 0,
+      'Referral': 0,
+      'Other': 0
+    };
+    inquiries.forEach(i => {
+      if (sourceCounts[i.source] !== undefined) {
+        sourceCounts[i.source]++;
+      } else {
+        sourceCounts['Other']++;
+      }
+    });
+
     if (doughnutChartRef.current) {
       const ctx = doughnutChartRef.current.getContext('2d');
       doughnutChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: ['Facebook', 'Telegram', 'Website', 'Referral'],
+          labels: ['Facebook', 'Telegram', 'Website', 'Referral', 'Other'],
           datasets: [{
-            data: [45, 25, 20, 10],
-            backgroundColor: [
-              '#3b82f6', // blue
-              '#06b6d4', // cyan
-              '#8b5cf6', // purple
-              '#f59e0b', // amber
-            ],
+            data: [sourceCounts['Facebook'], sourceCounts['Telegram'], sourceCounts['Website'], sourceCounts['Referral'], sourceCounts['Other']],
+            backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b', '#64748b'],
             borderWidth: 0,
             hoverOffset: 4
           }]
@@ -161,12 +177,21 @@ export default function CRMDashboard() {
           maintainAspectRatio: false,
           cutout: '75%',
           plugins: {
-            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20, usePointStyle: true } }
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#94a3b8',
+                usePointStyle: true,
+                padding: 20,
+                font: { family: "'Inter', sans-serif", size: 11, weight: 'bold' }
+              }
+            }
           }
         }
       });
     }
 
+    chartInstances.current = { lineChart, doughnutChart };
     return () => {
       if (lineChart) lineChart.destroy();
       if (doughnutChart) doughnutChart.destroy();
@@ -313,7 +338,7 @@ export default function CRMDashboard() {
             <canvas ref={doughnutChartRef}></canvas>
             {/* Center Text for Doughnut */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-30px]">
-              <span className="text-3xl font-black text-white">85</span>
+              <span className="text-3xl font-black text-white">{metrics.activeLeads}</span>
               <span className="text-xs font-bold text-slate-400 uppercase">Total Leads</span>
             </div>
           </div>
@@ -327,29 +352,29 @@ export default function CRMDashboard() {
             <h3 className="font-bold text-white text-lg">Recent Hot Leads</h3>
             <Link to="/crm/inquiries" className="text-sm font-bold text-brand-green hover:text-emerald-400">View All →</Link>
           </div>
-          <div className="divide-y divide-white/5">
-            {[
-              { name: 'Zaw Min Tun', source: 'Messenger', interest: '1 Month Diet', ai: '98% Conversion' },
-              { name: 'Aye Thandar', source: 'Telegram', interest: 'Weekly Keto', ai: '75% Conversion' },
-              { name: 'Kyaw Zin', source: 'Website', interest: 'General Pricing', ai: '45% Conversion' }
-            ].map((lead, i) => (
-              <div key={i} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-                    {lead.name.charAt(0)}
+          <div className="divide-y divide-white/5 h-[calc(100%-73px)] overflow-y-auto custom-scrollbar">
+            {recentLeads.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-sm">No pending leads. Good job!</div>
+            ) : (
+              recentLeads.map((lead, i) => (
+                <div key={i} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                      {lead.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white group-hover:text-brand-green transition-colors">{lead.name}</p>
+                      <p className="text-xs text-slate-400">{lead.source} • {lead.service}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-white group-hover:text-brand-green transition-colors">{lead.name}</p>
-                    <p className="text-xs text-slate-400">{lead.source} • {lead.interest}</p>
+                  <div className="text-right">
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
+                      {lead.status}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
-                    {lead.ai}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
