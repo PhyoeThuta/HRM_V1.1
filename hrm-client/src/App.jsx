@@ -54,6 +54,7 @@ import CRMDashboard from './pages/crm/CRMDashboard';
 import Inquiries from './pages/crm/Inquiries';
 import Customers from './pages/crm/Customers';
 import CustomerDetail from './pages/crm/CustomerDetail';
+import CustomerForm from './pages/crm/CustomerForm';
 
 // Protected route wrapper
 function Protected({ children, allowedRoles }) {
@@ -127,6 +128,7 @@ function AppRoutes() {
       <Route path="/crm" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CRMDashboard /></Protected>} />
       <Route path="/crm/inquiries" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Inquiries /></Protected>} />
       <Route path="/crm/customers" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Customers /></Protected>} />
+      <Route path="/crm/customers/new" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager']}><CustomerForm /></Protected>} />
       <Route path="/crm/customers/:id" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CustomerDetail /></Protected>} />
 
       {/* Employee portal */}

@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 
-const MOCK_CUSTOMERS = [
+const INITIAL_MOCK = [
   { id: 1, customer_code: 'BBD-001', full_name: 'Aung Aung', email: 'aung@gmail.com', phone: '09123456789', gender: 'Male', packages: 1 },
   { id: 2, customer_code: 'BBD-002', full_name: 'Mya Mya', email: 'mya@gmail.com', phone: '09876543210', gender: 'Female', packages: 2 },
   { id: 3, customer_code: 'BBD-003', full_name: 'Zaw Zaw', email: 'zaw@gmail.com', phone: '09777777777', gender: 'Male', packages: 0 },
@@ -11,7 +11,20 @@ const MOCK_CUSTOMERS = [
 
 export default function Customers() {
   const { isMarketingJunior, isBoss } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [customers, setCustomers] = useState([]);
+
+  useEffect(() => {
+    // Load from local storage or set initial mock
+    const stored = localStorage.getItem('crm_customers');
+    if (stored) {
+      setCustomers(JSON.parse(stored));
+    } else {
+      setCustomers(INITIAL_MOCK);
+      localStorage.setItem('crm_customers', JSON.stringify(INITIAL_MOCK));
+    }
+  }, []);
 
   return (
     <Layout title="Customers" subtitle="Manage all customer profiles and data">
@@ -29,13 +42,13 @@ export default function Customers() {
           </svg>
         </div>
         {!isMarketingJunior() && (
-          <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-colors">
-            + New Customer
+          <button onClick={() => navigate('/crm/customers/new')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2">
+            <span>+</span> New Customer
           </button>
         )}
       </div>
 
-      <div className="rounded-2xl overflow-hidden bg-surface-800 border border-white/5">
+      <div className="rounded-2xl overflow-hidden bg-surface-800 border border-white/5 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-surface-850">
@@ -48,28 +61,28 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {MOCK_CUSTOMERS.filter(c => c.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(customer => (
+              {customers.filter(c => c.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(customer => (
                 <tr key={customer.id} className="hover:bg-white/5 transition-colors">
                   <td className="py-4 px-6">
-                    <p className="font-bold text-white">{customer.full_name}</p>
-                    <p className="text-xs text-brand-green">{customer.customer_code}</p>
+                    <p className="font-bold text-white text-base">{customer.full_name}</p>
+                    <p className="text-xs font-bold text-brand-green mt-0.5">{customer.customer_code}</p>
                   </td>
                   <td className="py-4 px-6">
-                    <p className="text-white">{customer.phone}</p>
+                    <p className="text-white font-medium">{customer.phone}</p>
                     <p className="text-xs text-slate-400">{customer.email}</p>
                   </td>
-                  <td className="py-4 px-6 text-slate-300">{customer.gender}</td>
+                  <td className="py-4 px-6 text-slate-300 font-medium">{customer.gender}</td>
                   <td className="py-4 px-6 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${customer.packages > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${customer.packages > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
                       {customer.packages} Packages
                     </span>
                   </td>
-                  <td className="py-4 px-6 text-right space-x-3">
-                    <Link to={`/crm/customers/${customer.id}`} className="text-indigo-400 hover:text-indigo-300 font-semibold text-sm">
+                  <td className="py-4 px-6 text-right space-x-4">
+                    <Link to={`/crm/customers/${customer.id}`} className="text-indigo-400 hover:text-indigo-300 font-bold text-sm bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-colors">
                       View Profile
                     </Link>
                     {(!isMarketingJunior() || isBoss()) && (
-                      <button className="text-rose-400 hover:text-rose-300 font-semibold text-sm">Delete</button>
+                      <button className="text-rose-400 hover:text-rose-300 font-bold text-sm">Delete</button>
                     )}
                   </td>
                 </tr>
