@@ -151,7 +151,7 @@ export default function OvertimeTab() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#1e2235] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
+          <div className="bg-surface-800 rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
             <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
               <h2 className="text-lg font-bold text-white">Assign Overtime</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>

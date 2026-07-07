@@ -52,7 +52,7 @@ function HandoverHistorySection({ employeeId }) {
           <button
             key={`${h.role}-${h.id}`}
             onClick={() => setDetailId(h.id)}
-            className="w-full text-left p-3 rounded-xl border border-white/5 bg-[#161929] hover:bg-white/5 transition-colors"
+            className="w-full text-left p-3 rounded-xl border border-white/5 bg-surface-850 hover:bg-white/5 transition-colors"
           >
             <div className="flex justify-between items-start gap-2">
               <div>
@@ -77,7 +77,7 @@ function HandoverHistorySection({ employeeId }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailId(null)} />
           <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-surface-850 pb-2 z-10">
               <h2 className="text-base font-bold text-white">Handover detail</h2>
               <button onClick={() => setDetailId(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>
@@ -151,7 +151,7 @@ export default function EmployeeProfile() {
         
         {/* Left Col: Info */}
         <div className="space-y-6">
-          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+          <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <div className="flex items-center gap-4 mb-6">
               <div 
                 className="relative w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg overflow-hidden group cursor-pointer"
@@ -227,7 +227,7 @@ export default function EmployeeProfile() {
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+          <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Quick Stats</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/5 text-center">
@@ -246,7 +246,7 @@ export default function EmployeeProfile() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Attendance Overview */}
-          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+          <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Recent Attendance</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -280,11 +280,11 @@ export default function EmployeeProfile() {
           </div>
 
           {/* Leave Balances */}
-          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+          <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Leave Balances</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {leave_balances?.map(lb => (
-                <div key={lb.id} className="p-4 rounded-xl border border-white/5 bg-[#161929]">
+                <div key={lb.id} className="p-4 rounded-xl border border-white/5 bg-surface-850">
                   <div className="text-xs text-slate-500 mb-1 line-clamp-1">{lb.type_name}</div>
                   <div className="text-xl font-bold text-white">{lb.remaining_days} <span className="text-xs font-normal text-slate-500">days</span></div>
                   <div className="text-[10px] text-slate-600 mt-1">Used: {lb.used_days}</div>
@@ -295,17 +295,17 @@ export default function EmployeeProfile() {
           </div>
 
           {/* Handover history */}
-          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+          <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Handover History</h3>
             <HandoverHistorySection employeeId={id} />
           </div>
 
           {/* KPIs */}
-          <div className="p-6 rounded-2xl border border-white/5 bg-[#1e2235]">
+          <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Assigned KPIs</h3>
             <div className="space-y-3">
               {kpi_records?.map(k => (
-                <div key={k.id} className="p-4 rounded-xl border border-white/5 bg-[#161929] flex justify-between items-center">
+                <div key={k.id} className="p-4 rounded-xl border border-white/5 bg-surface-850 flex justify-between items-center">
                   <div>
                     <h4 className="font-bold text-white text-sm">{k.title}</h4>
                     <p className="text-xs text-slate-500 mt-1">Due: {k.due_date || 'N/A'}</p>

@@ -204,14 +204,14 @@ export default function Payroll() {
           <button onClick={() => setShowModal(true)} className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
             + Add Payroll Record
           </button>
-          <button onClick={() => setShowSettingsModal(true)} className="px-4 py-2.5 bg-[#1e2235] hover:bg-[#252a40] border border-white/10 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
+          <button onClick={() => setShowSettingsModal(true)} className="px-4 py-2.5 bg-surface-800 hover:bg-[#252a40] border border-white/10 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors">
             ⚙ KPI Settings
           </button>
         </div>
       </div>
 
       <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="px-5 py-3 border-b border-white/5 bg-[#161929]">
+        <div className="px-5 py-3 border-b border-white/5 bg-surface-850">
             <h2 className="text-sm font-bold text-white">Payroll Records</h2>
         </div>
         <div className="overflow-x-auto">
@@ -251,7 +251,7 @@ export default function Payroll() {
       </div>
 
       <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="px-5 py-3 border-b border-white/5 bg-[#161929]">
+        <div className="px-5 py-3 border-b border-white/5 bg-surface-850">
             <h2 className="text-sm font-bold text-white">KPI Reviews</h2>
         </div>
         <div className="overflow-x-auto">
@@ -292,7 +292,7 @@ export default function Payroll() {
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettingsModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-2xl bg-[#161929] border border-white/10 p-6 max-h-[90vh] overflow-y-auto">
+          <div className="relative rounded-2xl w-full max-w-2xl bg-surface-850 border border-white/10 p-6 max-h-[90vh] overflow-y-auto">
              <h2 className="text-xl font-bold text-white mb-6">KPI Settings</h2>
              <form onSubmit={handleSettingsSave} className="space-y-6">
                 <div>
@@ -370,7 +370,7 @@ export default function Payroll() {
               </div>
 
               {calcData && (
-                <div className="col-span-2 bg-[#1e2235] p-4 rounded-xl border border-white/5 my-2">
+                <div className="col-span-2 bg-surface-800 p-4 rounded-xl border border-white/5 my-2">
                     <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Calculation Breakdown</h3>
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between">

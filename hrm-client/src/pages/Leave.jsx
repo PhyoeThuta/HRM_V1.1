@@ -364,7 +364,7 @@ export default function Leave() {
               </div>
             </div>
           )) : (
-            <div className="col-span-full py-12 text-center text-slate-500 text-sm bg-[#161929] rounded-2xl border border-white/5">
+            <div className="col-span-full py-12 text-center text-slate-500 text-sm bg-surface-850 rounded-2xl border border-white/5">
               No leave types configured.
             </div>
           )}
@@ -457,7 +457,7 @@ export default function Leave() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHandoverView(null)} />
           <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-surface-850 pb-2 z-10">
               <h2 className="text-base font-bold text-white">
                 {handoverView.readOnly ? 'Handover history — ' : ''}
                 {handoverView.kind === 'return' ? 'Return handover' : 'Coverage handover'}
@@ -548,7 +548,7 @@ export default function Leave() {
       {/* Signature Modal */}
       {signatureModalTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#1e2235] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
+          <div className="bg-surface-800 rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
             <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
               <h2 className="text-lg font-bold text-white">E-Signature Required</h2>
               <button onClick={() => setSignatureModalTarget(null)} className="text-slate-400 hover:text-white transition-colors">

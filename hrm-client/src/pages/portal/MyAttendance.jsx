@@ -110,7 +110,7 @@ export default function MyAttendance() {
                   </div>
                   
                   {isExpanded && (
-                    <div className="overflow-x-auto bg-[#161929]">
+                    <div className="overflow-x-auto bg-surface-850">
                       <table className="w-full text-sm">
                         <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
                           <tr>

@@ -63,7 +63,7 @@ export default function RostersTab({ employees }) {
       {/* Default Shifts Section */}
       <section>
         <h2 className="text-xl font-bold text-white mb-4">Default Fixed Shifts</h2>
-        <div className="bg-[#1e2235] rounded-xl overflow-hidden border border-slate-700">
+        <div className="bg-surface-800 rounded-xl overflow-hidden border border-slate-700">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-[#2a2f45] text-slate-400">
               <tr>
@@ -106,7 +106,7 @@ export default function RostersTab({ employees }) {
           </button>
         </div>
         
-        <div className="bg-[#1e2235] rounded-xl overflow-hidden border border-slate-700">
+        <div className="bg-surface-800 rounded-xl overflow-hidden border border-slate-700">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-[#2a2f45] text-slate-400">
               <tr>
@@ -150,7 +150,7 @@ export default function RostersTab({ employees }) {
       {/* Roster Assignment Modal */}
       {showRosterModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1e2235] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
+          <div className="bg-surface-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
             <div className="p-6">
               <h3 className="text-xl font-bold text-white mb-6">Assign New Roster</h3>
               <form onSubmit={handleAssignRoster} className="space-y-4">

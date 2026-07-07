@@ -50,11 +50,11 @@ export default function MyProfile() {
             <p className="text-sm text-indigo-400 font-mono mb-6">{emp.employee_id || 'N/A'}</p>
             
             <div className="w-full space-y-3">
-              <div className="bg-[#1e2235] p-3 rounded-xl border border-white/5">
+              <div className="bg-surface-800 p-3 rounded-xl border border-white/5">
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Department</p>
                 <p className="text-sm text-white font-medium">{emp.dept_name || '—'}</p>
               </div>
-              <div className="bg-[#1e2235] p-3 rounded-xl border border-white/5">
+              <div className="bg-surface-800 p-3 rounded-xl border border-white/5">
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Position</p>
                 <p className="text-sm text-white font-medium">{emp.pos_title || '—'}</p>
               </div>

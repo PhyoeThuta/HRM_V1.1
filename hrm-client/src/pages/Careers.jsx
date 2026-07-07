@@ -50,7 +50,7 @@ export default function Careers() {
 
   return (
     <div className="min-h-screen bg-[#0f111a] text-slate-300 font-sans">
-      <header className="bg-[#161929] border-b border-white/10 p-6 flex justify-between items-center">
+      <header className="bg-surface-850 border-b border-white/10 p-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">C</div>
           <span className="text-xl font-bold text-white tracking-tight">Busy Boss Diet Careers</span>
@@ -67,7 +67,7 @@ export default function Careers() {
         </div>
 
         {selectedJob ? (
-          <div className="bg-[#1e2235] p-8 rounded-2xl border border-white/5 relative">
+          <div className="bg-surface-800 p-8 rounded-2xl border border-white/5 relative">
             <button 
               onClick={() => setSelectedJob(null)} 
               className="absolute top-6 right-6 text-slate-400 hover:text-white"
@@ -122,7 +122,7 @@ export default function Careers() {
               <p className="col-span-full text-center py-12 text-slate-500 text-lg">No open positions at the moment. Please check back later!</p>
             ) : (
               jobs?.map(job => (
-                <div key={job.id} className="bg-[#1e2235] p-6 rounded-2xl border border-white/5 hover:border-indigo-500/50 transition-colors flex flex-col h-full">
+                <div key={job.id} className="bg-surface-800 p-6 rounded-2xl border border-white/5 hover:border-indigo-500/50 transition-colors flex flex-col h-full">
                   <div className="mb-4">
                     <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-bold rounded-full">{job.department_name}</span>
                   </div>

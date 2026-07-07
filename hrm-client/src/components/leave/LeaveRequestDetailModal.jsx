@@ -52,7 +52,7 @@ export default function LeaveRequestDetailModal({
         className="relative rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4"
         style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}
       >
-        <div className="p-5 border-b border-white/5 flex justify-between items-start sticky top-0 bg-[#161929] z-10">
+        <div className="p-5 border-b border-white/5 flex justify-between items-start sticky top-0 bg-surface-850 z-10">
           <div>
             <h2 className="text-base font-bold text-white">{request.employee_name}</h2>
             <p className="text-xs text-slate-400 mt-0.5">

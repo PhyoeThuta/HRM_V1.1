@@ -227,12 +227,12 @@ export default function Employees() {
             placeholder="Search by name or ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-[#1e2235] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+            className="flex-1 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
           />
           <select 
             value={deptFilter} 
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="w-full sm:w-48 bg-[#1e2235] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+            className="w-full sm:w-48 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
           >
             <option value="">All Departments</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
@@ -261,7 +261,7 @@ export default function Employees() {
                       return (
                       <React.Fragment key={dept}>
                         <tr 
-                          className="cursor-pointer bg-[#161929] hover:bg-white/5 transition-colors border-t border-white/5"
+                          className="cursor-pointer bg-surface-850 hover:bg-white/5 transition-colors border-t border-white/5"
                           onClick={() => toggleDept(dept)}
                         >
                           <td colSpan="8" className="py-3 px-5">

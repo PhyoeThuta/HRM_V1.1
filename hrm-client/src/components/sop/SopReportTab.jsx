@@ -89,7 +89,7 @@ export default function SopReportTab({ positions }) {
   return (
     <div className="space-y-8">
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-end bg-[#1e2235] p-4 rounded-xl border border-slate-700">
+      <div className="flex flex-wrap gap-4 items-end bg-surface-800 p-4 rounded-xl border border-slate-700">
         <div>
           <label className="block text-xs font-semibold text-slate-400 mb-1">Select Month</label>
           <input
@@ -126,7 +126,7 @@ export default function SopReportTab({ positions }) {
               <span className="text-indigo-400">📅</span> Daily Tracking Grid
               <span className="text-xs text-slate-500 font-normal">— click ❌ to see missed tasks</span>
             </h3>
-            <div className="bg-[#1e2235] rounded-xl overflow-hidden border border-slate-700 overflow-x-auto">
+            <div className="bg-surface-800 rounded-xl overflow-hidden border border-slate-700 overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-300 min-w-max">
                 <thead className="bg-[#2a2f45] text-slate-400">
                   <tr>
@@ -204,7 +204,7 @@ export default function SopReportTab({ positions }) {
 
                     return (
                       <tr key={emp.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="p-3 font-medium sticky left-0 bg-[#1e2235] z-10 border-r border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                        <td className="p-3 font-medium sticky left-0 bg-surface-800 z-10 border-r border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                           {emp.Full_name}
                         </td>
                         <td className="p-3 text-center font-bold text-rose-400 border-r border-slate-700 bg-rose-500/5">
@@ -234,7 +234,7 @@ export default function SopReportTab({ positions }) {
                 const barColor = totalCount === 0 ? 'bg-slate-600' : pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
                 return (
-                  <div key={emp.id} className={`bg-[#1e2235] rounded-xl border ${totalCount === 0 ? 'border-slate-700/50 opacity-70' : 'border-slate-700'} overflow-hidden`}>
+                  <div key={emp.id} className={`bg-surface-800 rounded-xl border ${totalCount === 0 ? 'border-slate-700/50 opacity-70' : 'border-slate-700'} overflow-hidden`}>
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
                       <div className="flex items-center gap-3">
@@ -259,7 +259,7 @@ export default function SopReportTab({ positions }) {
                     </div>
 
                     {/* Progress bar */}
-                    <div className="px-4 py-2 bg-[#161929]/50">
+                    <div className="px-4 py-2 bg-surface-850/50">
                       <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
                         <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
                       </div>
@@ -301,7 +301,7 @@ export default function SopReportTab({ positions }) {
                 );
               })}
               {monthlySummary.length === 0 && (
-                 <div className="p-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-[#1e2235]">
+                 <div className="p-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-surface-800">
                    No employees found to report on.
                  </div>
               )}
@@ -313,7 +313,7 @@ export default function SopReportTab({ positions }) {
       {/* ── Missed Task Detail Modal ── */}
       {missedModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setMissedModal(null)}>
-          <div className="bg-[#1e2235] w-full max-w-md rounded-2xl shadow-2xl border border-rose-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-surface-800 w-full max-w-md rounded-2xl shadow-2xl border border-rose-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Modal header */}
             <div className="p-5 border-b border-slate-700 bg-rose-500/5">
               <div className="flex items-center justify-between">

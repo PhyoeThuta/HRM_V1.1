@@ -58,7 +58,7 @@ export default function BossChat() {
           )}
         </div>
 
-        <div className="p-4 bg-[#161929] border-t border-white/5">
+        <div className="p-4 bg-surface-850 border-t border-white/5">
           <form onSubmit={send} className="flex gap-3">
             <input
               type="text"

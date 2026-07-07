@@ -81,7 +81,7 @@ export default function CameraCheckin() {
             <>
               <img src={imgSrc} alt="Captured" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center backdrop-blur-sm">
-                <div className="bg-[#161929] px-6 py-4 rounded-2xl border border-white/10 text-center shadow-xl">
+                <div className="bg-surface-850 px-6 py-4 rounded-2xl border border-white/10 text-center shadow-xl">
                   <span className="text-4xl block mb-2">📸</span>
                   <p className="text-white font-bold text-sm">Photo Captured</p>
                   <div className="flex gap-3 mt-4">
@@ -99,7 +99,7 @@ export default function CameraCheckin() {
         </div>
 
         {/* Info Panel */}
-        <div className="p-6 bg-[#1e2235]">
+        <div className="p-6 bg-surface-800">
           <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Check-in Time</p>

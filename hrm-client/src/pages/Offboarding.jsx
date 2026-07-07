@@ -92,7 +92,7 @@ function ExitInterviewPage({ ob, onClose }) {
               value={form.interviewer_name}
               onChange={e => setForm(f => ({ ...f, interviewer_name: e.target.value }))}
               placeholder="— Select HR Interviewer —"
-              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
           <div>
@@ -101,7 +101,7 @@ function ExitInterviewPage({ ob, onClose }) {
               type="date"
               value={form.interview_date}
               onChange={e => setForm(f => ({ ...f, interview_date: e.target.value }))}
-              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
@@ -112,7 +112,7 @@ function ExitInterviewPage({ ob, onClose }) {
             onChange={e => setForm(f => ({ ...f, reason_for_leaving: e.target.value }))}
             placeholder="What is the main reason for your departure?"
             rows={3}
-            className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+            className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
           />
         </div>
       </div>
@@ -174,7 +174,7 @@ function ExitInterviewPage({ ob, onClose }) {
               onChange={e => setForm(f => ({ ...f, highlights: e.target.value }))}
               placeholder="Positive experiences, achievements, team dynamics..."
               rows={3}
-              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
           <div>
@@ -184,7 +184,7 @@ function ExitInterviewPage({ ob, onClose }) {
               onChange={e => setForm(f => ({ ...f, improvements: e.target.value }))}
               placeholder="Processes, culture, management, systems..."
               rows={3}
-              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
           <div>
@@ -194,7 +194,7 @@ function ExitInterviewPage({ ob, onClose }) {
               onChange={e => setForm(f => ({ ...f, additional_comments: e.target.value }))}
               placeholder="Anything else you'd like to share..."
               rows={3}
-              className="w-full bg-[#161929] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
         </div>

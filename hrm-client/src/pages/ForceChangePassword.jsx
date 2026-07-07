@@ -49,7 +49,7 @@ export default function ForceChangePassword() {
 
   return (
     <div className="min-h-screen bg-[#0f111a] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#161929] border border-white/10 rounded-2xl p-8 shadow-2xl">
+      <div className="w-full max-w-md bg-surface-850 border border-white/10 rounded-2xl p-8 shadow-2xl">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-rose-500/20">
             🔒
@@ -68,7 +68,7 @@ export default function ForceChangePassword() {
               required
               value={oldPassword}
               onChange={e => setOldPassword(e.target.value)}
-              className="w-full bg-[#1e2235] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-surface-800 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
               placeholder="Enter your current default password"
             />
           </div>
@@ -80,7 +80,7 @@ export default function ForceChangePassword() {
               required
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              className="w-full bg-[#1e2235] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-surface-800 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
               placeholder="At least 6 characters"
             />
           </div>
@@ -92,7 +92,7 @@ export default function ForceChangePassword() {
               required
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              className="w-full bg-[#1e2235] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-surface-800 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
               placeholder="Retype new password"
             />
           </div>

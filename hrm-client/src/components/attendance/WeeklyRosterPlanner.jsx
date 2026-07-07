@@ -74,7 +74,7 @@ export default function WeeklyRosterPlanner() {
   if (empLoading || schedLoading || shiftsLoading) return <div className="p-4 text-slate-400">Loading…</div>;
 
   return (
-    <div className="p-4 space-y-4 bg-[#1e2235] rounded-xl overflow-hidden border border-slate-700">
+    <div className="p-4 space-y-4 bg-surface-800 rounded-xl overflow-hidden border border-slate-700">
       <h2 className="text-xl font-bold text-white mb-2">Weekly Roster Planner</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm text-slate-300">

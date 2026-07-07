@@ -70,15 +70,15 @@ export default function MyPayslips() {
               </div>
               
               <div className="flex flex-wrap gap-4 text-xs">
-                <div className="bg-[#1e2235] rounded-xl px-4 py-2 border border-white/5">
+                <div className="bg-surface-800 rounded-xl px-4 py-2 border border-white/5">
                   <p className="text-slate-500 font-semibold mb-0.5">Base Salary</p>
                   <p className="text-slate-300 font-mono">${(p.base_salary || 0).toLocaleString()}</p>
                 </div>
-                <div className="bg-[#1e2235] rounded-xl px-4 py-2 border border-white/5">
+                <div className="bg-surface-800 rounded-xl px-4 py-2 border border-white/5">
                   <p className="text-slate-500 font-semibold mb-0.5">Bonus / Allowance</p>
                   <p className="text-emerald-400 font-mono">+${(p.bonus || p.allowance || 0).toLocaleString()}</p>
                 </div>
-                <div className="bg-[#1e2235] rounded-xl px-4 py-2 border border-white/5">
+                <div className="bg-surface-800 rounded-xl px-4 py-2 border border-white/5">
                   <p className="text-slate-500 font-semibold mb-0.5">Deductions</p>
                   <p className="text-rose-400 font-mono">-${(p.deductions || 0).toLocaleString()}</p>
                 </div>

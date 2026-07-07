@@ -50,10 +50,10 @@ export default function BossKPI() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-white/5 bg-[#1e2235] overflow-hidden">
+      <div className="rounded-2xl border border-white/5 bg-surface-800 overflow-hidden">
         {isLoading ? <div className="p-8 text-center text-slate-400">Loading KPIs...</div> : (
           <table className="w-full text-sm">
-            <thead className="bg-[#161929] border-b border-white/5 text-slate-400">
+            <thead className="bg-surface-850 border-b border-white/5 text-slate-400">
               <tr>
                 <th className="text-left py-4 px-6 font-semibold">Title</th>
                 <th className="text-left py-4 px-6 font-semibold">Assigned To</th>
@@ -79,10 +79,10 @@ export default function BossKPI() {
                       onChange={e => updateMutation.mutate({ id: k.id, status: e.target.value })}
                       className={`text-xs font-bold px-2 py-1 rounded outline-none border border-white/10 ${k.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}
                     >
-                      <option className="bg-[#161929] text-white">Assigned</option>
-                      <option className="bg-[#161929] text-white">In Progress</option>
-                      <option className="bg-[#161929] text-white">Completed</option>
-                      <option className="bg-[#161929] text-white">Cancelled</option>
+                      <option className="bg-surface-850 text-white">Assigned</option>
+                      <option className="bg-surface-850 text-white">In Progress</option>
+                      <option className="bg-surface-850 text-white">Completed</option>
+                      <option className="bg-surface-850 text-white">Cancelled</option>
                     </select>
                   </td>
                   <td className="py-4 px-6">
@@ -99,7 +99,7 @@ export default function BossKPI() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-[#161929] border border-white/10 rounded-2xl w-full max-w-md p-6">
+          <div className="relative bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md p-6">
             <h2 className="text-lg font-bold text-white mb-4">Assign KPI</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><label className="form-label">Title *</label><input required className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /></div>
