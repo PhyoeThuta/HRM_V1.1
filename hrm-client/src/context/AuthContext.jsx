@@ -33,10 +33,12 @@ export function AuthProvider({ children }) {
   const isAdmin = () => ['boss', 'hr_manager', 'general_manager', 'admin'].includes(user?.role);
   const isBoss = () => ['boss', 'admin'].includes(user?.role);
   const isFinance = () => ['boss', 'finance', 'admin'].includes(user?.role);
+  const isMarketing = () => ['boss', 'marketing_manager', 'admin'].includes(user?.role);
+  const isMarketingJunior = () => ['boss', 'marketing_manager', 'marketing_junior', 'admin'].includes(user?.role);
   const isEmployee = () => user?.role === 'employee';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin, isBoss, isFinance, isEmployee }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin, isBoss, isFinance, isMarketing, isMarketingJunior, isEmployee }}>
       {children}
     </AuthContext.Provider>
   );

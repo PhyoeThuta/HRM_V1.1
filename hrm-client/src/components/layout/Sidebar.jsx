@@ -58,7 +58,7 @@ const ICONS = {
 };
 
 export default function Sidebar({ isOpen, close }) {
-  const { user, logout, isAdmin, isBoss, isFinance, isEmployee } = useAuth();
+  const { user, logout, isAdmin, isBoss, isFinance, isEmployee, isMarketingJunior } = useAuth();
   const navigate = useNavigate();
 
   const handleNavClick = () => {
@@ -138,13 +138,21 @@ export default function Sidebar({ isOpen, close }) {
             <NavItem to="/sops" label="Daily SOPs" icon={ICONS.sops} />
 
             <NavSection title="People" />
-            <NavItem to="/peer-voting" label="Peer Voting" icon={ICONS.voting} />
+            <NavItem to="/audit-logs" label="Audit Logs" icon={ICONS.documents} />
             <NavItem to="/birthdays" label="Birthdays" icon={ICONS.birthdays} />
-
-            <NavSection title="Lifecycle" />
+            <NavItem to="/peer-voting" label="Peer Voting" icon={ICONS.voting} />
             <NavItem to="/onboarding" label="Onboarding" icon={ICONS.onboarding} />
             <NavItem to="/offboarding" label="Offboarding" icon={ICONS.offboarding} />
-            <NavItem to="/handovers" label="Handovers" icon={ICONS.documents} />
+            <NavItem to="/handovers" label="Handovers" icon={ICONS.handover} />
+
+            {isMarketingJunior() && (
+              <>
+                <NavSection title="CRM Portal" color="text-brand-green" />
+                <NavItem to="/crm" label="CRM Dashboard" icon={ICONS.dashboard} />
+                <NavItem to="/crm/inquiries" label="Inquiries (Leads)" icon={ICONS.chat} />
+                <NavItem to="/crm/customers" label="Customers Data" icon={ICONS.users} />
+              </>
+            )}
           </>
         )}
 

@@ -49,6 +49,12 @@ import EditEmployee from './pages/EditEmployee';
 import BossKPI from './pages/BossKPI';
 import Layout from './components/layout/Layout';
 
+// CRM Pages
+import CRMDashboard from './pages/crm/CRMDashboard';
+import Inquiries from './pages/crm/Inquiries';
+import Customers from './pages/crm/Customers';
+import CustomerDetail from './pages/crm/CustomerDetail';
+
 // Protected route wrapper
 function Protected({ children, allowedRoles }) {
   const { user } = useAuth();
@@ -116,6 +122,12 @@ function AppRoutes() {
       <Route path="/boss/users" element={<Protected allowedRoles={['boss', 'hr_manager', 'admin']}><UserAccounts /></Protected>} />
       <Route path="/finance" element={<Protected allowedRoles={['boss', 'finance', 'admin']}><FinanceDashboard /></Protected>} />
       <Route path="/audit-logs" element={<Protected allowedRoles={['boss', 'admin']}><AuditLogs /></Protected>} />
+
+      {/* CRM Routes */}
+      <Route path="/crm" element={<Protected allowedRoles={['boss', 'admin', 'marketing_manager', 'marketing_junior']}><CRMDashboard /></Protected>} />
+      <Route path="/crm/inquiries" element={<Protected allowedRoles={['boss', 'admin', 'marketing_manager', 'marketing_junior']}><Inquiries /></Protected>} />
+      <Route path="/crm/customers" element={<Protected allowedRoles={['boss', 'admin', 'marketing_manager', 'marketing_junior']}><Customers /></Protected>} />
+      <Route path="/crm/customers/:id" element={<Protected allowedRoles={['boss', 'admin', 'marketing_manager', 'marketing_junior']}><CustomerDetail /></Protected>} />
 
       {/* Employee portal */}
       <Route path="/portal" element={<EmployeeRoute><Portal /></EmployeeRoute>} />
