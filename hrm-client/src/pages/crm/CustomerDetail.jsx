@@ -14,6 +14,9 @@ export default function CustomerDetail() {
   // Modal State
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [photoForm, setPhotoForm] = useState({ type: 'Before', url: '' });
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [packageForm, setPackageForm] = useState({ name: '1 Month Boss Diet', duration: '30 Days', meal_count: 60, meal_type: 'LUNCH, DINNER' });
   const [metricsForm, setMetricsForm] = useState({
     current_weight: '',
@@ -126,11 +129,42 @@ export default function CustomerDetail() {
     return 'Obese';
   };
 
+  const handleAddPhoto = (e) => {
+    e.preventDefault();
+    if (!photoForm.url) return;
+    
+    const newPhoto = {
+      id: Date.now(),
+      type: photoForm.type,
+      url: photoForm.url,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
+    const updatedCustomers = stored.map(c => {
+      if (c.id.toString() === id.toString()) {
+        const gallery = c.gallery || [];
+        return { ...c, gallery: [newPhoto, ...gallery] };
+      }
+      return c;
+    });
+    
+    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
+    
+    const gallery = customer.gallery || [];
+    setCustomer({ ...customer, gallery: [newPhoto, ...gallery] });
+    
+    setShowGalleryModal(false);
+    setPhotoForm({ type: 'Before', url: '' });
+    toast.success('Photo added to gallery!');
+  };
+
   if (!customer) return <Layout title="Loading..."><div className="p-8 text-center text-slate-400">Loading profile...</div></Layout>;
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'metrics', label: 'Health & Metrics' },
+    { id: 'gallery', label: 'Progress Gallery' },
     { id: 'lifestyle', label: 'Lifestyle' },
     { id: 'packages', label: 'Packages & Meals' },
     { id: 'feedback', label: 'Feedback' },
@@ -224,6 +258,41 @@ export default function CustomerDetail() {
         </div>
       )}
 
+      {/* Add Photo Modal */}
+      {showGalleryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-brand-green/10 to-transparent">
+              <h3 className="font-black text-white text-lg">Add Progress Photo</h3>
+              <button onClick={() => setShowGalleryModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleAddPhoto} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Photo Type</label>
+                <div className="flex gap-4">
+                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${photoForm.type === 'Before' ? 'border-amber-500 bg-amber-500/10 text-amber-400' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>
+                    <input type="radio" name="photoType" value="Before" checked={photoForm.type === 'Before'} onChange={() => setPhotoForm({...photoForm, type: 'Before'})} className="hidden" />
+                    <span>📅</span> Before
+                  </label>
+                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${photoForm.type === 'After' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>
+                    <input type="radio" name="photoType" value="After" checked={photoForm.type === 'After'} onChange={() => setPhotoForm({...photoForm, type: 'After'})} className="hidden" />
+                    <span>🌟</span> After
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Image URL</label>
+                <input required type="url" value={photoForm.url} onChange={e => setPhotoForm({...photoForm, url: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="https://example.com/photo.jpg" />
+                <p className="text-xs text-slate-500 mt-2">Paste a public image URL to add to the gallery.</p>
+              </div>
+              <div className="pt-4 flex justify-end gap-3">
+                <button type="button" onClick={() => setShowGalleryModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
+                <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">Add Photo</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-between items-center mb-6">
         <button onClick={() => navigate('/crm/customers')} className="text-slate-400 hover:text-white flex items-center gap-2">
@@ -360,6 +429,44 @@ export default function CustomerDetail() {
                 <p className="text-white font-medium text-lg relative z-10">{customer.metrics?.allergies || customer.lifestyle?.food_restriction || 'None reported'}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'gallery' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-black text-white">Visual Progress Gallery</h3>
+              {user?.role !== 'marketing_junior' && (
+                <button onClick={() => setShowGalleryModal(true)} className="bg-brand-green text-black px-4 py-2 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105 transition-all flex items-center gap-2">
+                  <span>+</span> Add Photo
+                </button>
+              )}
+            </div>
+            
+            {(!customer.gallery || customer.gallery.length === 0) ? (
+              <div className="p-10 text-center border-2 border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
+                <div className="text-4xl mb-4 text-slate-600">📸</div>
+                <h4 className="text-white font-bold mb-2">No Photos Yet</h4>
+                <p className="text-slate-400 text-sm">Upload Before & After photos to track progress visually.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {customer.gallery.map(photo => (
+                  <div key={photo.id} className="group relative rounded-2xl overflow-hidden border border-white/10 bg-surface-900 aspect-[3/4]">
+                    <img src={photo.url} alt={photo.type} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                    <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
+                      <div>
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-black mb-2 ${photo.type === 'Before' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                          {photo.type.toUpperCase()}
+                        </span>
+                        <p className="text-white text-sm font-medium">{photo.date}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
