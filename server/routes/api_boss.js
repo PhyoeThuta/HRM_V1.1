@@ -108,7 +108,7 @@ EMPLOYEE MASTER DATA & PERFORMANCE:
       contextStr += `\nRECENT ANNOUNCEMENTS:\n${announcements.slice(0,5).map(a => `- [${a.created_at}] ${a.title}: ${a.content}`).join('\n')}\n`;
     }
 
-    const prompt = `You are Busy Boss Diet AI, an omniscient AI executive assistant for the Boss.
+    const prompt = `You are CorpHRM, an omniscient AI executive assistant for the Boss.
     You have complete access to the HR database. Do NOT say you will check the system later, you ALREADY have the data below.
     Context Data:
     ${contextStr}

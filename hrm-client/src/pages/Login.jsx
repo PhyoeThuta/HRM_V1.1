@@ -54,7 +54,7 @@ export default function Login() {
               </svg>
             </div>
             <div>
-              <p className="text-xl font-black text-white tracking-tight">Busy Boss Diet</p>
+              <p className="text-xl font-black text-white tracking-tight">CorpHRM</p>
               <p className="text-[10px] text-indigo-400 font-bold tracking-[0.3em] uppercase">Enterprise System</p>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-600 mt-5">Busy Boss Diet © {new Date().getFullYear()}. All rights reserved.</p>
+        <p className="text-center text-xs text-slate-600 mt-5">CorpHRM Enterprise © {new Date().getFullYear()}. All rights reserved.</p>
       </div>
     </div>
   );

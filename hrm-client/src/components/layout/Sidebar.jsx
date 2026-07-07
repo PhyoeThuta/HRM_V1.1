@@ -96,7 +96,7 @@ export default function Sidebar({ isOpen, close }) {
             </>
           ) : (
             <>
-              <p className="text-sm font-bold text-white leading-tight">Busy Boss Diet</p>
+              <p className="text-sm font-bold text-white leading-tight">CorpHRM</p>
               <p className="text-[10px] text-slate-400 font-medium tracking-widest">ENTERPRISE</p>
             </>
           )}

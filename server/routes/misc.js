@@ -652,7 +652,7 @@ router.post('/boss/announcements', requireAdmin, async (req, res) => {
         try {
           const dateStr = new Date().toISOString().split('T')[0];
           const prioEmoji = d.priority === 'Urgent' ? '🚨' : d.priority === 'High' ? '🔴' : '🟡';
-          const text = `🏢 *BUSY BOSS DIET ANNOUNCEMENT* 🏢\n➖➖➖➖➖➖➖➖➖➖➖➖\n📌 *Subject:* ${d.title}\n${prioEmoji} *Priority:* ${d.priority || 'Medium'}\n📅 *Date:* ${dateStr}\n\n💬 *Message:*\n${d.content}\n➖➖➖➖➖➖➖➖➖➖➖➖`;
+          const text = `🏢 *CORPHRM ANNOUNCEMENT* 🏢\n➖➖➖➖➖➖➖➖➖➖➖➖\n📌 *Subject:* ${d.title}\n${prioEmoji} *Priority:* ${d.priority || 'Medium'}\n📅 *Date:* ${dateStr}\n\n💬 *Message:*\n${d.content}\n➖➖➖➖➖➖➖➖➖➖➖➖`;
           fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

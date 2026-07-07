@@ -153,7 +153,7 @@ router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) =>
     const appUrl = req.headers.origin || 'http://34.87.23.76'; // Use request origin or fallback to IP
     
     const prompt = `
-      You are an expert HR copywriter for Busy Boss Diet. We are hiring for the following position:
+      You are an expert HR copywriter for CorpHRM Enterprise. We are hiring for the following position:
       - Job Title: ${pos.title}
       - Level: ${pos.level || 'Mid Level'}
       - Department/Team: ${pos.team || 'Any'}
@@ -169,7 +169,7 @@ router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) =>
     let postContent = result.response.text().trim();
 
     // Forcefully append the apply links so AI doesn't skip it
-    postContent += `\n\n🔗 **How to Apply / လျှောက်ထားရန်:**\nApply Online Here: ${appUrl}/careers\nOr send your CV to hr@busybossdiet.com`;
+    postContent += `\n\n🔗 **How to Apply / လျှောက်ထားရန်:**\nApply Online Here: ${appUrl}/careers\nOr send your CV to hr@corphrm.com`;
 
     // 2. Post to Facebook using Graph API
     const fbResponse = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/feed`, {
