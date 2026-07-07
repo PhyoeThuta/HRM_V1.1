@@ -91,9 +91,9 @@ export default function CustomerForm() {
     <Layout title="Add New Customer" subtitle="Create a comprehensive CRM profile">
       <div className="max-w-4xl mx-auto">
         
-        <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate('/crm/customers')} className="w-10 h-10 rounded-full bg-surface-800 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-all">
-            ←
+        <div className="flex flex-col gap-4 mb-6">
+          <button onClick={() => navigate('/crm/customers')} className="w-max text-slate-400 hover:text-white font-bold flex items-center gap-2 transition-colors">
+            ← Back to Customers
           </button>
           <h2 className="text-xl font-bold text-white">Customer Enrollment Form</h2>
         </div>

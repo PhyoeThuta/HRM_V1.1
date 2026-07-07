@@ -28,6 +28,11 @@ export default function Customers() {
 
   return (
     <Layout title="Customers" subtitle="Manage all customer profiles and data">
+      <div className="mb-4">
+        <button onClick={() => navigate('/crm')} className="text-slate-400 hover:text-white font-bold flex items-center gap-2 transition-colors">
+          ← Back to Dashboard
+        </button>
+      </div>
       <div className="flex justify-between items-center mb-6">
         <div className="relative w-full max-w-md">
           <input

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -12,6 +13,7 @@ const INITIAL_MOCK = [
 
 export default function Inquiries() {
   const { user, isBoss } = useAuth();
+  const navigate = useNavigate();
   const [inquiries, setInquiries] = useState([]);
   
   // Modal State
@@ -70,6 +72,12 @@ export default function Inquiries() {
   return (
     <Layout title="Inquiries (Leads)" subtitle="Manage prospective customers and sales pipeline">
       
+      <div className="mb-4">
+        <button onClick={() => navigate('/crm')} className="text-slate-400 hover:text-white font-bold flex items-center gap-2 transition-colors">
+          ← Back to Dashboard
+        </button>
+      </div>
+
       {/* Add Lead Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
