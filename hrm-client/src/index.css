@@ -82,6 +82,24 @@ body {
 [data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #FF7700; }
 [data-theme="light"] .toggle-track { background: rgba(255,119,0,0.2); }
 
+/* ===========================================
+   LIGHT MODE: Invert the whole page to white
+   =========================================== */
+html[data-theme="light"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* Restore images, avatars, emojis - double invert cancels out */
+html[data-theme="light"] img,
+html[data-theme="light"] video,
+html[data-theme="light"] canvas,
+html[data-theme="light"] .recharts-wrapper {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* Charts look better in light mode without double invert */
+html[data-theme="light"] .recharts-wrapper {
+  filter: none;
+}
+
 /* Animations */
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; }
