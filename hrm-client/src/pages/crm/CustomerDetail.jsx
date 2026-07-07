@@ -413,18 +413,35 @@ export default function CustomerDetail() {
         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] flex-shrink-0">
           {customer.full_name.charAt(0)}
         </div>
-        <div className="text-center md:text-left z-10">
-          <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
-            <h1 className="text-3xl font-black text-white">{customer.full_name}</h1>
-            <span className="bg-brand-green/10 border border-brand-green/20 text-brand-green px-3 py-1 rounded-full text-xs font-bold">{customer.customer_code}</span>
-          </div>
-          <p className="text-slate-400 text-sm mb-4">Facebook: {customer.facebook_name || 'N/A'}</p>
-          <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm">
-            <div className="flex items-center gap-2 text-slate-300 font-medium">
-              <span className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-400">📞</span> {customer.phone}
+        <div className="text-center md:text-left z-10 flex-1">
+          <div className="flex flex-col md:flex-row items-center justify-between w-full">
+            <div>
+              <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
+                <h1 className="text-3xl font-black text-white">{customer.full_name}</h1>
+                <span className="bg-brand-green/10 border border-brand-green/20 text-brand-green px-3 py-1 rounded-full text-xs font-bold">{customer.customer_code}</span>
+              </div>
+              <p className="text-slate-400 text-sm mb-4">Facebook: {customer.facebook_name || 'N/A'}</p>
+              <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm">
+                <div className="flex items-center gap-2 text-slate-300 font-medium">
+                  <span className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-400">📞</span> {customer.phone}
+                </div>
+                <div className="flex items-center gap-2 text-slate-300 font-medium">
+                  <span className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-400">✉️</span> {customer.email || 'N/A'}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-slate-300 font-medium">
-              <span className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-400">✉️</span> {customer.email || 'N/A'}
+            
+            {/* Quick Chat Button */}
+            <div className="mt-6 md:mt-0">
+              <a 
+                href={`https://m.me/${customer.facebook_name ? encodeURIComponent(customer.facebook_name) : ''}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 bg-[#0084ff] hover:bg-[#006bd6] text-white px-6 py-3 rounded-2xl font-black shadow-[0_0_20px_rgba(0,132,255,0.3)] hover:scale-105 transition-all"
+              >
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.9 1.48 5.485 3.79 7.152v3.315c0 .413.433.682.8.5.877-.433 2.502-1.282 3.86-2.072 1.135.313 2.327.485 3.55.485 5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.18 11.16l-2.45-2.618-4.78 2.618 5.25-5.568 2.45 2.618 4.78-2.618-5.25 5.568z"/></svg>
+                Messenger Chat
+              </a>
             </div>
           </div>
         </div>
