@@ -13,7 +13,7 @@ export default function Inquiries() {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    prospect_name: '', source: 'Facebook Messenger', service: '1 Month Boss Diet'
+    prospect_name: '', source: 'Facebook Messenger', service: ''
   });
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function Inquiries() {
       
       setShowModal(false);
       setIsSubmitting(false);
-      setFormData({ prospect_name: '', source: 'Facebook Messenger', service: '1 Month Boss Diet' });
+      setFormData({ prospect_name: '', source: 'Facebook Messenger', service: '' });
       toast.success('New lead added successfully!');
     }, 600);
   };
@@ -96,12 +96,7 @@ export default function Inquiries() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Service Interested In</label>
-                <select value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors">
-                  <option>1 Month Boss Diet</option>
-                  <option>Weekly Keto</option>
-                  <option>14 Days Detox</option>
-                  <option>General Pricing Inquiry</option>
-                </select>
+                <input required type="text" value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="e.g. 1 Month Boss Diet or Custom Request" />
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
