@@ -94,7 +94,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 CorpHRM API Server running on http://localhost:${PORT}`);
+  console.log(`\n🚀 Busy Boss Diet API Server running on http://localhost:${PORT}`);
   console.log(`📋 Health: http://localhost:${PORT}/api/health\n`);
   
   // Start background jobs

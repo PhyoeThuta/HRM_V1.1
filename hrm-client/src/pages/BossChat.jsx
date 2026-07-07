@@ -9,7 +9,7 @@ export default function BossChat() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    return [{ role: 'ai', text: 'Hello! I am CorpHRM Assistant. How can I help you manage your organization today?' }];
+    return [{ role: 'ai', text: 'Hello! I am Busy Boss Diet Assistant. How can I help you manage your organization today?' }];
   });
   const [input, setInput] = useState('');
 

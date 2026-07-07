@@ -28,7 +28,7 @@ export default function BossDashboard() {
         <div className="rounded-2xl p-6 flex flex-col items-center justify-center text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)', minHeight: '300px' }}>
           <div className="text-5xl mb-4">🤖</div>
           <h3 className="text-lg font-bold text-white mb-2">AI Assistant</h3>
-          <p className="text-slate-400 text-sm mb-4">Chat with the CorpHRM AI to generate reports or query HR data.</p>
+          <p className="text-slate-400 text-sm mb-4">Chat with the Busy Boss Diet AI to generate reports or query HR data.</p>
           <Link to="/boss/chat" className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">
             Launch Assistant
           </Link>
