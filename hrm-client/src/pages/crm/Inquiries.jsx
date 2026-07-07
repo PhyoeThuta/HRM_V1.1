@@ -22,10 +22,13 @@ export default function Inquiries() {
   const [newServiceInput, setNewServiceInput] = useState('');
 
   useEffect(() => {
-    // Load custom services
-    const storedServices = localStorage.getItem('crm_custom_services');
-    if (storedServices) {
-      setServices(JSON.parse(storedServices));
+    // Load custom packages from settings
+    const storedPackages = localStorage.getItem('crm_packages');
+    if (storedPackages) {
+      const pkgs = JSON.parse(storedPackages);
+      // Format as "PackageName - Duration"
+      const formatted = pkgs.map(p => `${p.name} - ${p.duration}`);
+      setServices(formatted);
     }
     // Load inquiries
     const stored = localStorage.getItem('crm_inquiries');
