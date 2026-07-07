@@ -181,9 +181,11 @@ export default function CRMDashboard() {
             <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
               <Link to="/crm/customers" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">View Customers</Link>
               <Link to="/crm/customers/new" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">New Enrollment</Link>
-              <div className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Diet Packages</div>
             </div>
           </div>
+
+          {/* Packages Menu */}
+          <div className="hover:text-brand-green transition-colors cursor-pointer py-2">Packages</div>
 
           {/* Reports Dropdown */}
           <div className="relative group cursor-pointer py-2">
