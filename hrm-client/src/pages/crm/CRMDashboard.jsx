@@ -41,6 +41,8 @@ export default function CRMDashboard() {
     convertedThisMonth: '0',
     activePackages: '0',
     revenue: '$0',
+  });
+  
   const [upcomingRenewals, setUpcomingRenewals] = useState([]);
   const [recentLeads, setRecentLeads] = useState([]);
   const [flaggedFeedback, setFlaggedFeedback] = useState([]);
