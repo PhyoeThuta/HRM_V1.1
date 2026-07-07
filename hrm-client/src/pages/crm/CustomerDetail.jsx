@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isMarketingJunior, isBoss } = useAuth();
+  const { user, isBoss } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [customer, setCustomer] = useState(null);
   
@@ -130,7 +130,7 @@ export default function CustomerDetail() {
         <button onClick={() => navigate('/crm/customers')} className="text-slate-400 hover:text-white flex items-center gap-2">
           ← Back to Customers
         </button>
-        {(!isMarketingJunior() || isBoss()) && (
+        {user?.role !== 'marketing_junior' && (
           <div className="flex gap-3">
             <button className="bg-surface-800 hover:bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
               Edit Customer
@@ -272,7 +272,7 @@ export default function CustomerDetail() {
                 <div className="text-4xl mb-4">🍱</div>
                 <h4 className="text-white font-bold mb-2">No Active Packages</h4>
                 <p className="text-slate-400 text-sm mb-6">This customer does not have any diet plans assigned yet.</p>
-                {!isMarketingJunior() && (
+                {user?.role !== 'marketing_junior' && (
                   <button onClick={() => setShowPackageModal(true)} className="px-6 py-3 bg-brand-green text-black font-black rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform">
                     Assign First Package
                   </button>
@@ -298,7 +298,7 @@ export default function CustomerDetail() {
               </div>
             ))}
             
-            {(customer.packages_list && customer.packages_list.length > 0 && !isMarketingJunior()) && (
+            {(customer.packages_list && customer.packages_list.length > 0 && user?.role !== 'marketing_junior') && (
               <button onClick={() => setShowPackageModal(true)} className="w-full py-4 mt-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-400 hover:text-white hover:border-white/30 transition-colors font-bold text-sm bg-white/[0.01]">
                 + Assign Another Package
               </button>

@@ -11,7 +11,7 @@ const INITIAL_MOCK = [
 ];
 
 export default function Inquiries() {
-  const { isMarketingJunior, isBoss } = useAuth();
+  const { user, isBoss } = useAuth();
   const [inquiries, setInquiries] = useState([]);
   
   // Modal State
@@ -121,7 +121,7 @@ export default function Inquiries() {
             </button>
           ))}
         </div>
-        {!isMarketingJunior() && (
+        {user?.role !== 'marketing_junior' && (
           <button onClick={() => setShowModal(true)} className="bg-brand-green text-black px-4 py-2.5 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105 transition-all flex items-center gap-2">
             <span>+</span> Manual Entry
           </button>
@@ -168,7 +168,7 @@ export default function Inquiries() {
                   </td>
                   <td className="py-4 px-6 text-right space-x-3">
                     <button className="text-indigo-400 hover:text-indigo-300 font-bold text-sm bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-colors">Chat</button>
-                    {(!isMarketingJunior() || isBoss()) && (
+                    {user?.role !== 'marketing_junior' && (
                       <button className="text-rose-400 hover:text-rose-300 font-bold text-sm">Drop</button>
                     )}
                   </td>

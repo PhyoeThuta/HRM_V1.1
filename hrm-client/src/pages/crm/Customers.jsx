@@ -10,7 +10,7 @@ const INITIAL_MOCK = [
 ];
 
 export default function Customers() {
-  const { isMarketingJunior, isBoss } = useAuth();
+  const { user, isBoss } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [customers, setCustomers] = useState([]);
@@ -41,7 +41,7 @@ export default function Customers() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
-        {!isMarketingJunior() && (
+        {user?.role !== 'marketing_junior' && (
           <button onClick={() => navigate('/crm/customers/new')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2">
             <span>+</span> New Customer
           </button>
@@ -81,7 +81,7 @@ export default function Customers() {
                     <Link to={`/crm/customers/${customer.id}`} className="text-indigo-400 hover:text-indigo-300 font-bold text-sm bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-colors">
                       View Profile
                     </Link>
-                    {(!isMarketingJunior() || isBoss()) && (
+                    {user?.role !== 'marketing_junior' && (
                       <button className="text-rose-400 hover:text-rose-300 font-bold text-sm">Delete</button>
                     )}
                   </td>
