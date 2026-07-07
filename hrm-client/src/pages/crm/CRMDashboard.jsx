@@ -375,14 +375,16 @@ export default function CRMDashboard() {
             {recentLeads.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">No pending leads. Good job!</div>
             ) : (
-              recentLeads.map((lead, i) => (
+              recentLeads.map((lead, i) => {
+                const leadName = lead.prospect_name || lead.name || 'Unknown';
+                return (
                 <div key={i} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-                      {lead.name.charAt(0)}
+                      {leadName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-white group-hover:text-brand-green transition-colors">{lead.name}</p>
+                      <p className="text-sm font-bold text-white group-hover:text-brand-green transition-colors">{leadName}</p>
                       <p className="text-xs text-slate-400">{lead.source} • {lead.service}</p>
                     </div>
                   </div>
@@ -392,7 +394,8 @@ export default function CRMDashboard() {
                     </span>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
