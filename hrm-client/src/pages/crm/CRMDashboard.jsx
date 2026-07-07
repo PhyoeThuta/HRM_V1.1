@@ -42,6 +42,7 @@ export default function CRMDashboard() {
     activePackages: '0',
     revenue: '$0',
   });
+  const [upcomingRenewals, setUpcomingRenewals] = useState([]);
 
   useEffect(() => {
     // Load dynamic data from local storage
@@ -49,9 +50,33 @@ export default function CRMDashboard() {
     const inquiries = JSON.parse(localStorage.getItem('crm_inquiries') || '[]');
     
     let activePkgs = 0;
+    let renewals = [];
+    const today = new Date();
+
     customers.forEach(c => {
       activePkgs += c.packages || 0;
+      
+      const pkgsList = c.packages_list || [];
+      pkgsList.forEach(pkg => {
+        if (pkg.expires_at) {
+          const expiryDate = new Date(pkg.expires_at);
+          const diffTime = expiryDate - today;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays <= 7 && diffDays >= -3) {
+            renewals.push({
+              customerName: c.full_name,
+              customerId: c.id,
+              packageName: pkg.name,
+              daysLeft: diffDays
+            });
+          }
+        }
+      });
     });
+
+    renewals.sort((a, b) => a.daysLeft - b.daysLeft);
+    setUpcomingRenewals(renewals);
 
     setMetrics({
       totalCustomers: customers.length.toString(),
@@ -295,7 +320,7 @@ export default function CRMDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Inquiries List */}
         <div className="rounded-3xl bg-surface-800 border border-white/5 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
@@ -325,6 +350,48 @@ export default function CRMDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Upcoming Renewals */}
+        <div className="rounded-3xl bg-surface-800 border border-white/5 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
+          <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+            <h3 className="font-bold text-white text-lg">Upcoming Renewals</h3>
+            <span className="text-xs bg-amber-500/20 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-full font-bold">{upcomingRenewals.length} Action Needed</span>
+          </div>
+          
+          <div className="p-4 h-[calc(100%-73px)] overflow-y-auto custom-scrollbar">
+            {upcomingRenewals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                <div className="text-4xl mb-4 opacity-50">🌱</div>
+                <h4 className="text-white font-bold mb-2">No Renewals Due</h4>
+                <p className="text-slate-400 text-sm">You're all caught up! No packages are expiring within the next 7 days.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {upcomingRenewals.map((renewal, i) => (
+                  <div key={i} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-brand-green/30 transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                      <Link to={`/crm/customers/${renewal.customerId}`} className="font-bold text-white hover:text-brand-green transition-colors">{renewal.customerName}</Link>
+                      <span className={`text-xs font-black px-2 py-1 rounded-lg border ${
+                        renewal.daysLeft < 0 ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+                        renewal.daysLeft === 0 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                        'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                      }`}>
+                        {renewal.daysLeft < 0 ? `Expired ${Math.abs(renewal.daysLeft)} days ago` : 
+                         renewal.daysLeft === 0 ? 'Expires Today' : 
+                         `In ${renewal.daysLeft} days`}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-400">{renewal.packageName}</p>
+                    <div className="mt-3 flex gap-2">
+                      <button className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-white hover:bg-white/10 transition-colors">Remind via Chat</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
