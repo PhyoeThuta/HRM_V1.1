@@ -14,6 +14,8 @@ export default function Packages() {
     price: ''
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   useEffect(() => {
     const stored = localStorage.getItem('crm_packages');
     if (stored) {
@@ -75,13 +77,12 @@ export default function Packages() {
     setFormData({ name: '', duration: '1 Month', price: '' });
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this package?')) {
-      const updated = packages.filter(p => p.id !== id);
-      setPackages(updated);
-      localStorage.setItem('crm_packages', JSON.stringify(updated));
-      toast.success('Package deleted!');
-    }
+  const confirmDelete = (id) => {
+    const updated = packages.filter(p => p.id !== id);
+    setPackages(updated);
+    localStorage.setItem('crm_packages', JSON.stringify(updated));
+    setDeleteConfirmId(null);
+    toast.success('Package deleted!');
   };
 
   return (
@@ -107,7 +108,7 @@ export default function Packages() {
               <button onClick={() => openEditModal(pkg)} className="text-blue-400 hover:text-blue-300 p-2 hover:bg-blue-500/10 rounded-lg flex items-center justify-center transition-colors" title="Edit Package">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
-              <button onClick={() => handleDelete(pkg.id)} className="text-rose-500 hover:text-rose-400 p-2 hover:bg-rose-500/10 rounded-lg flex items-center justify-center transition-colors" title="Delete Package">
+              <button onClick={() => setDeleteConfirmId(pkg.id)} className="text-rose-500 hover:text-rose-400 p-2 hover:bg-rose-500/10 rounded-lg flex items-center justify-center transition-colors" title="Delete Package">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
@@ -123,6 +124,32 @@ export default function Packages() {
         ))}
       </div>
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-800 border border-rose-500/20 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-black text-white mb-2">Delete Package?</h3>
+              <p className="text-slate-400 text-sm mb-6">Are you sure you want to delete this package? This action cannot be undone.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-300 bg-surface-900 border border-white/10 hover:bg-white/5 hover:text-white transition-colors">
+                  Cancel
+                </button>
+                <button onClick={() => confirmDelete(deleteConfirmId)} className="flex-1 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-600 shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-all">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
