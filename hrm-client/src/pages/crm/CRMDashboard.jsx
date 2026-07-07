@@ -35,6 +35,7 @@ export default function CRMDashboard() {
   const { user } = useAuth();
   const lineChartRef = useRef(null);
   const doughnutChartRef = useRef(null);
+  const chartInstances = useRef({});
   const [metrics, setMetrics] = useState({
     totalCustomers: '0',
     activeLeads: '0',
