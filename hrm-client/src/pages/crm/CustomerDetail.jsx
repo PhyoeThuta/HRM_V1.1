@@ -16,7 +16,6 @@ export default function CustomerDetail() {
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoForm, setPhotoForm] = useState({ type: 'Before', url: '' });
-  const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [packageForm, setPackageForm] = useState({ 
     name: '1 Month Boss Diet', 
     duration: '30 Days', 
