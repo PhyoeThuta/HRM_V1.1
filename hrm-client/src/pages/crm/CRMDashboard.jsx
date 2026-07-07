@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 
@@ -17,6 +18,16 @@ export default function CRMDashboard() {
   return (
     <Layout title="CRM Dashboard" subtitle="Overview of Sales, Leads, and Customer Health">
       
+      {/* Quick Navigation */}
+      <div className="flex gap-4 mb-8">
+        <Link to="/crm/inquiries" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-800 hover:bg-white/5 border border-white/5 font-bold text-slate-300 hover:text-white transition-colors">
+          <span>💬</span> Manage Inquiries (Leads)
+        </Link>
+        <Link to="/crm/customers" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-800 hover:bg-white/5 border border-white/5 font-bold text-slate-300 hover:text-white transition-colors">
+          <span>👥</span> Customers Database
+        </Link>
+      </div>
+
       {isBoss() && (
         <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
           <h2 className="text-amber-500 font-bold mb-2 flex items-center gap-2">

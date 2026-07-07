@@ -124,10 +124,10 @@ function AppRoutes() {
       <Route path="/audit-logs" element={<Protected allowedRoles={['boss', 'admin']}><AuditLogs /></Protected>} />
 
       {/* CRM Routes */}
-      <Route path="/crm" element={<Protected allowedRoles={['boss', 'admin', 'hr_manager', 'marketing_manager', 'marketing_junior']}><CRMDashboard /></Protected>} />
-      <Route path="/crm/inquiries" element={<Protected allowedRoles={['boss', 'admin', 'hr_manager', 'marketing_manager', 'marketing_junior']}><Inquiries /></Protected>} />
-      <Route path="/crm/customers" element={<Protected allowedRoles={['boss', 'admin', 'hr_manager', 'marketing_manager', 'marketing_junior']}><Customers /></Protected>} />
-      <Route path="/crm/customers/:id" element={<Protected allowedRoles={['boss', 'admin', 'hr_manager', 'marketing_manager', 'marketing_junior']}><CustomerDetail /></Protected>} />
+      <Route path="/crm" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CRMDashboard /></Protected>} />
+      <Route path="/crm/inquiries" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Inquiries /></Protected>} />
+      <Route path="/crm/customers" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Customers /></Protected>} />
+      <Route path="/crm/customers/:id" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CustomerDetail /></Protected>} />
 
       {/* Employee portal */}
       <Route path="/portal" element={<EmployeeRoute><Portal /></EmployeeRoute>} />

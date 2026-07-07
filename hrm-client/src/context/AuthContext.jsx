@@ -33,8 +33,8 @@ export function AuthProvider({ children }) {
   const isAdmin = () => ['boss', 'hr_manager', 'general_manager', 'admin'].includes(user?.role);
   const isBoss = () => ['boss', 'admin'].includes(user?.role);
   const isFinance = () => ['boss', 'finance', 'admin'].includes(user?.role);
-  const isMarketing = () => ['boss', 'hr_manager', 'marketing_manager', 'admin'].includes(user?.role);
-  const isMarketingJunior = () => ['boss', 'hr_manager', 'marketing_manager', 'marketing_junior', 'admin'].includes(user?.role);
+  const isMarketing = () => ['boss', 'manager', 'marketing_manager', 'admin'].includes(user?.role);
+  const isMarketingJunior = () => ['boss', 'manager', 'marketing_manager', 'marketing_junior', 'admin'].includes(user?.role);
   const isEmployee = () => user?.role === 'employee';
 
   return (
