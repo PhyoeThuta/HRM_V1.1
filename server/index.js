@@ -25,6 +25,7 @@ import handoverRouter from './routes/handover.js';
 import miscRouter from './routes/misc.js';
 import publicRouter from './routes/public.js';
 import financeRouter from './routes/finance.js';
+import crmRouter from './routes/crm.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -69,6 +70,7 @@ app.use('/api', lifecycleRouter);     // /api/onboarding, /api/offboarding
 app.use('/api/handover', handoverRouter);
 app.use('/api/boss', bossRouter);
 app.use('/api/finance', financeRouter);
+app.use('/api/crm', crmRouter);
 app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/sops, etc.
 
 // ── Health Check ───────────────────────────────────────────────

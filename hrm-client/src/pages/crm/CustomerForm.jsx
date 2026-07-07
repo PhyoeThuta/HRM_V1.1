@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
+import { crmApi } from '../../api/crm';
 
 export default function CustomerForm() {
   const navigate = useNavigate();
@@ -36,55 +37,20 @@ export default function CustomerForm() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API delay
-    setTimeout(() => {
-      // 1. Get existing customers from localStorage
-      const existing = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-      
-      // 2. Format new customer matching the table/detail structure
-      const newCustomer = {
-        id: Date.now(),
-        customer_code: `BBD-00${existing.length + 4}`,
-        full_name: formData.full_name,
-        facebook_name: formData.facebook_name,
-        age: formData.age,
-        gender: formData.gender,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        packages: 0, // Default active packages
-        lifestyle: {
-          food_restriction: formData.food_restriction || 'None',
-          activity_level: formData.activity_level,
-          fasting_willingness: formData.fasting_willingness
-        },
-        physical_status: {
-          current_weight: `${formData.current_weight} kg`,
-          goal_weight: `${formData.goal_weight} kg`,
-          height: `${formData.height} cm`,
-          time_frame: formData.time_frame
-        },
-        health: {
-          medical_condition: formData.medical_condition || 'None',
-          other_condition: formData.other_condition || 'None',
-          medicine_taking: formData.medicine_taking || 'None',
-          special_requests: formData.special_requests || 'None'
-        },
-        feedbacks: [],
-        packages_list: []
-      };
-
-      // 3. Save back to localStorage
-      localStorage.setItem('crm_customers', JSON.stringify([newCustomer, ...existing]));
-      
-      setIsSubmitting(false);
+    try {
+      await crmApi.createCustomer(formData);
       toast.success('Customer profile created successfully!');
       navigate('/crm/customers');
-    }, 800); // 800ms fake delay
+    } catch (err) {
+      toast.error('Failed to create customer. Please try again.');
+      console.error('[CustomerForm]', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

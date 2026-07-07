@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { crmApi } from '../../api/crm';
 
 export default function Inquiries() {
   const { user, isBoss } = useAuth();
@@ -22,22 +23,13 @@ export default function Inquiries() {
   const [newServiceInput, setNewServiceInput] = useState('');
 
   useEffect(() => {
-    // Load custom packages from settings
-    const storedPackages = localStorage.getItem('crm_packages');
-    if (storedPackages) {
-      const pkgs = JSON.parse(storedPackages);
-      // Format as "PackageName - Duration"
-      const formatted = pkgs.map(p => `${p.name} - ${p.duration}`);
-      setServices(formatted);
-    }
-    // Load inquiries
-    const stored = localStorage.getItem('crm_inquiries');
-    if (stored) {
-      setInquiries(JSON.parse(stored));
-    } else {
-      setInquiries([]);
-      localStorage.setItem('crm_inquiries', JSON.stringify([]));
-    }
+    // Load packages from API for the service dropdown
+    crmApi.getPackages().then(pkgs => {
+      if (pkgs.length > 0) setServices(pkgs.map(p => `${p.name} - ${p.duration}`));
+    }).catch(() => {});
+
+    // Load inquiries from API
+    crmApi.getInquiries().then(data => setInquiries(data)).catch(() => toast.error('Failed to load leads'));
   }, []);
 
   const handleAddService = (e) => {
@@ -53,30 +45,39 @@ export default function Inquiries() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    setTimeout(() => {
-      const newInquiry = {
-        id: Date.now(),
-        prospect_name: formData.prospect_name,
-        source: formData.source,
-        service: formData.service,
-        status: 'New',
-        ai_confidence: 'Pending AI Analysis',
-        date: new Date().toISOString().split('T')[0]
-      };
-      
-      const updated = [newInquiry, ...inquiries];
-      setInquiries(updated);
-      localStorage.setItem('crm_inquiries', JSON.stringify(updated));
-      
+    try {
+      const newInquiry = await crmApi.createInquiry(formData);
+      setInquiries(prev => [newInquiry, ...prev]);
       setShowModal(false);
-      setIsSubmitting(false);
       setFormData({ prospect_name: '', source: 'Facebook Messenger', service: services[0] });
       toast.success('New lead added successfully!');
-    }, 600);
+    } catch (err) {
+      toast.error('Failed to add lead');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStatusChange = async (inquiry, newStatus) => {
+    try {
+      await crmApi.updateInquiry(inquiry.id, { status: newStatus });
+      setInquiries(prev => prev.map(i => i.id === inquiry.id ? { ...i, status: newStatus } : i));
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await crmApi.deleteInquiry(id);
+      setInquiries(prev => prev.filter(i => i.id !== id));
+      toast.success('Lead removed.');
+    } catch (err) {
+      toast.error('Failed to delete lead');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -190,7 +191,7 @@ export default function Inquiries() {
               {inquiries.map(inquiry => (
                 <tr key={inquiry.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="py-4 px-6">
-                    <p className="font-bold text-slate-300">{inquiry.date}</p>
+                    <p className="font-bold text-slate-300">{(inquiry.created_at || inquiry.date || '').split('T')[0]}</p>
                     <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><span>📱</span> {inquiry.source}</p>
                   </td>
                   <td className="py-4 px-6">
@@ -202,19 +203,20 @@ export default function Inquiries() {
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(inquiry.status)}`}>
-                      {inquiry.status}
-                    </span>
+                    <select
+                      value={inquiry.status}
+                      onChange={e => handleStatusChange(inquiry, e.target.value)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold border bg-transparent cursor-pointer ${getStatusColor(inquiry.status)}`}
+                    >
+                      {['New','Contacted','Converted','Lost'].map(s => <option key={s} value={s} className="bg-surface-800 text-white">{s}</option>)}
+                    </select>
                   </td>
                   <td className="py-4 px-6">
-                    <span className={`font-bold ${inquiry.ai_confidence.includes('High') ? 'text-emerald-400' : inquiry.ai_confidence.includes('Low') ? 'text-rose-400' : inquiry.ai_confidence.includes('Pending') ? 'text-slate-400 animate-pulse' : 'text-amber-400'}`}>
-                      {inquiry.ai_confidence}
-                    </span>
+                    <span className="text-slate-400 text-xs font-medium">—</span>
                   </td>
                   <td className="py-4 px-6 text-right space-x-3">
-                    <button className="text-indigo-400 hover:text-indigo-300 font-bold text-sm bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-colors">Chat</button>
                     {user?.role !== 'marketing_junior' && (
-                      <button className="text-rose-400 hover:text-rose-300 font-bold text-sm">Drop</button>
+                      <button onClick={() => handleDelete(inquiry.id)} className="text-rose-400 hover:text-rose-300 font-bold text-sm">Delete</button>
                     )}
                   </td>
                 </tr>

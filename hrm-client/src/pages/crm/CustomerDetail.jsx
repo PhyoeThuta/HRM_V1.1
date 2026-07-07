@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { crmApi } from '../../api/crm';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -32,82 +33,57 @@ export default function CustomerDetail() {
     allergies: ''
   });
 
+  const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-    const found = stored.find(c => c.id.toString() === id.toString());
-    
-    // If not found in localStorage (might be the old mock ID), use a default
-    if (found) {
-      setCustomer(found);
-      if (found.metrics) {
-        setMetricsForm(found.metrics);
-      } else if (found.physical_status || found.health || found.lifestyle) {
-        setMetricsForm({
-          current_weight: found.physical_status?.current_weight || '',
-          goal_weight: found.physical_status?.goal_weight || '',
-          height: found.physical_status?.height || '',
-          medical_condition: found.health?.medical_condition || '',
-          allergies: found.lifestyle?.food_restriction || ''
-        });
+    const fetchCustomer = async () => {
+      try {
+        const data = await crmApi.getCustomer(id);
+        setCustomer(data);
+        // Pre-fill metrics form from DB health data
+        if (data.health) {
+          setMetricsForm({
+            current_weight: data.health.current_weight || '',
+            goal_weight: data.health.goal_weight || '',
+            height: data.health.height || '',
+            medical_condition: data.health.medical_condition || '',
+            allergies: data.health.allergies || ''
+          });
+        }
+      } catch (e) {
+        toast.error('Failed to load customer profile');
+        console.error(e);
       }
-    } else {
-      // Fallback for hardcoded mock IDs (1, 2, 3) if they were deleted from localstorage
-      setCustomer({
-        id: id, customer_code: 'BBD-XXX', full_name: 'Unknown Customer', age: 0, gender: 'Unknown', email: '', phone: '', address: '',
-        lifestyle: { food_restriction: '', activity_level: '', fasting_willingness: '' },
-        physical_status: { current_weight: '', goal_weight: '', height: '', time_frame: '' },
-        health: { medical_condition: '', other_condition: '', medicine_taking: '', special_requests: '' },
-        packages: [], feedbacks: []
-      });
-    }
+    };
+    fetchCustomer();
   }, [id]);
 
-  const handleAssignPackage = (e) => {
+  const handleAssignPackage = async (e) => {
     e.preventDefault();
-    const newPkg = {
-      id: Date.now(),
-      name: packageForm.name,
-      duration: packageForm.duration,
-      expires_at: packageForm.expires_at || new Date().toISOString().split('T')[0], // Use exact date from form
-      meal_count: packageForm.meal_count,
-      meal_type: packageForm.meal_type
-    };
-
-    // Update Local Storage
-    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-    const updatedCustomers = stored.map(c => {
-      if (c.id.toString() === id.toString()) {
-        const pkgs = c.packages_list || c.packages || []; // handle if packages was a number before
-        const pkgArray = Array.isArray(pkgs) ? pkgs : [];
-        return { ...c, packages: c.packages + 1, packages_list: [newPkg, ...pkgArray] };
-      }
-      return c;
-    });
-    
-    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
-    
-    // Update local state
-    const pkgs = customer.packages_list || customer.packages || [];
-    const pkgArray = Array.isArray(pkgs) ? pkgs : [];
-    setCustomer({ ...customer, packages_list: [newPkg, ...pkgArray] });
-    
-    setShowPackageModal(false);
-    toast.success('Package successfully assigned!');
+    try {
+      const newPkg = await crmApi.assignPackage(id, packageForm);
+      setCustomer(prev => ({ ...prev, packages_list: [newPkg, ...(prev.packages_list || [])] }));
+      setShowPackageModal(false);
+      toast.success('Package successfully assigned!');
+    } catch (err) {
+      toast.error('Failed to assign package');
+      console.error(err);
+    }
   };
 
-  const handleUpdateMetrics = (e) => {
+  const handleUpdateMetrics = async (e) => {
     e.preventDefault();
-    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-    const updatedCustomers = stored.map(c => {
-      if (c.id.toString() === id.toString()) {
-        return { ...c, metrics: metricsForm };
-      }
-      return c;
-    });
-    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
-    setCustomer({ ...customer, metrics: metricsForm });
-    setShowMetricsModal(false);
-    toast.success('Health & Metrics updated successfully!');
+    try {
+      await crmApi.updateHealth(id, metricsForm);
+      setCustomer(prev => ({ ...prev, health: { ...prev.health, ...metricsForm } }));
+      setShowMetricsModal(false);
+      toast.success('Health & Metrics updated successfully!');
+    } catch (err) {
+      toast.error('Failed to update metrics');
+      console.error(err);
+    }
   };
 
   const calculateBMI = () => {
@@ -135,71 +111,55 @@ export default function CustomerDetail() {
     return 'Obese';
   };
 
-  const handleAddPhoto = (e) => {
+  const handleAddPhoto = async (e) => {
     e.preventDefault();
-    if (!photoForm.url) return;
-    
-    const newPhoto = {
-      id: Date.now(),
-      type: photoForm.type,
-      url: photoForm.url,
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-    const updatedCustomers = stored.map(c => {
-      if (c.id.toString() === id.toString()) {
-        const gallery = c.gallery || [];
-        return { ...c, gallery: [newPhoto, ...gallery] };
+    if (!photoForm.url && !selectedFile) {
+      toast.error('Please select a file or enter an image URL');
+      return;
+    }
+    setIsUploading(true);
+    try {
+      let newPhoto;
+      if (selectedFile) {
+        newPhoto = await crmApi.uploadPhoto(id, selectedFile, photoForm.type);
+      } else {
+        newPhoto = await crmApi.addPhotoByUrl(id, photoForm.url, photoForm.type);
       }
-      return c;
-    });
-    
-    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
-    
-    const gallery = customer.gallery || [];
-    setCustomer({ ...customer, gallery: [newPhoto, ...gallery] });
-    
-    setShowGalleryModal(false);
-    setPhotoForm({ type: 'Before', url: '' });
-    toast.success('Photo added to gallery!');
+      setCustomer(prev => ({ ...prev, gallery: [newPhoto, ...(prev.gallery || [])] }));
+      setShowGalleryModal(false);
+      setPhotoForm({ type: 'Before', url: '' });
+      setSelectedFile(null);
+      toast.success('Photo added to gallery!');
+    } catch (err) {
+      toast.error('Failed to upload photo');
+      console.error(err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
-    // Check file size (limit to ~1MB to protect localStorage)
-    if (file.size > 1024 * 1024) {
-      toast.error('File is too large. Please select an image under 1MB to save storage.');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Max 5MB.');
       return;
     }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoForm({ ...photoForm, url: reader.result });
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    setPhotoForm(prev => ({ ...prev, url: '' })); // clear URL if file chosen
   };
 
-  const confirmDeletePhoto = () => {
+  const confirmDeletePhoto = async () => {
     if (!photoToDelete) return;
-    
-    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-    const updatedCustomers = stored.map(c => {
-      if (c.id.toString() === id.toString()) {
-        const gallery = c.gallery || [];
-        return { ...c, gallery: gallery.filter(p => p.id !== photoToDelete) };
-      }
-      return c;
-    });
-    
-    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
-    
-    const gallery = customer.gallery || [];
-    setCustomer({ ...customer, gallery: gallery.filter(p => p.id !== photoToDelete) });
-    setPhotoToDelete(null);
-    toast.success('Photo deleted from gallery.');
+    try {
+      await crmApi.deletePhoto(photoToDelete);
+      setCustomer(prev => ({ ...prev, gallery: (prev.gallery || []).filter(p => p.id !== photoToDelete) }));
+      setPhotoToDelete(null);
+      toast.success('Photo deleted from gallery.');
+    } catch (err) {
+      toast.error('Failed to delete photo');
+      console.error(err);
+    }
   };
 
   if (!customer) return <Layout title="Loading..."><div className="p-8 text-center text-slate-400">Loading profile...</div></Layout>;
@@ -334,13 +294,23 @@ export default function CustomerDetail() {
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Upload Photo</label>
                 <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-surface-900 border-white/10 hover:border-brand-green/50 hover:bg-white/5 transition-colors">
+                  <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${selectedFile ? 'border-brand-green bg-brand-green/5' : 'bg-surface-900 border-white/10 hover:border-brand-green/50 hover:bg-white/5'}`}>
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 mb-3 text-slate-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                      </svg>
-                      <p className="mb-2 text-sm text-slate-400"><span className="font-bold text-brand-green">Click to upload</span> or drag and drop</p>
-                      <p className="text-xs text-slate-500">PNG, JPG or GIF (MAX. 1MB)</p>
+                      {selectedFile ? (
+                        <>
+                          <span className="text-3xl mb-2">✅</span>
+                          <p className="text-sm text-brand-green font-bold">{selectedFile.name}</p>
+                          <p className="text-xs text-slate-500 mt-1">Click to change</p>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-8 h-8 mb-3 text-slate-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                          </svg>
+                          <p className="mb-2 text-sm text-slate-400"><span className="font-bold text-brand-green">Click to upload</span> or drag and drop</p>
+                          <p className="text-xs text-slate-500">PNG, JPG or GIF (MAX. 5MB)</p>
+                        </>
+                      )}
                     </div>
                     <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                   </label>
@@ -353,14 +323,13 @@ export default function CustomerDetail() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Image URL</label>
-                <input required={!photoForm.url} type="url" value={photoForm.url.startsWith('data:') ? '' : photoForm.url} onChange={e => setPhotoForm({...photoForm, url: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="https://example.com/photo.jpg" />
-                {photoForm.url.startsWith('data:') && (
-                  <p className="text-xs text-emerald-400 mt-2 font-bold flex items-center gap-1"><span>✓</span> Local image selected</p>
-                )}
+                <input required={!photoForm.url && !selectedFile} disabled={!!selectedFile} type="url" value={photoForm.url} onChange={e => setPhotoForm({...photoForm, url: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green disabled:opacity-40" placeholder="https://example.com/photo.jpg" />
               </div>
               <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowGalleryModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">Add Photo</button>
+                <button type="button" onClick={() => { setShowGalleryModal(false); setSelectedFile(null); }} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
+                <button type="submit" disabled={isUploading} className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-60 flex items-center gap-2">
+                  {isUploading ? <><span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin"/> Uploading...</> : 'Add Photo'}
+                </button>
               </div>
             </form>
           </div>

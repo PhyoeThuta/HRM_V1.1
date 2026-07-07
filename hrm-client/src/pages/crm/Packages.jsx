@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
+import { crmApi } from '../../api/crm';
 
 export default function Packages() {
   const navigate = useNavigate();
@@ -17,19 +18,7 @@ export default function Packages() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem('crm_packages');
-    if (stored) {
-      setPackages(JSON.parse(stored));
-    } else {
-      // Default initial packages
-      const defaultPkgs = [
-        { id: 1, name: 'Boss Diet', duration: '1 Month', price: '150000' },
-        { id: 2, name: 'Keto Diet', duration: '1 Week', price: '45000' },
-        { id: 3, name: 'Detox Plan', duration: '14 Days', price: '80000' }
-      ];
-      setPackages(defaultPkgs);
-      localStorage.setItem('crm_packages', JSON.stringify(defaultPkgs));
-    }
+    crmApi.getPackages().then(data => setPackages(data)).catch(() => toast.error('Failed to load packages'));
   }, []);
 
   const openAddModal = () => {
@@ -48,41 +37,35 @@ export default function Packages() {
     setShowModal(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    let updated;
-    
-    if (editingId) {
-      // Edit existing package
-      updated = packages.map(pkg => 
-        pkg.id === editingId ? { ...pkg, name: formData.name, duration: formData.duration, price: formData.price } : pkg
-      );
-      toast.success('Package updated successfully!');
-    } else {
-      // Add new package
-      const newPkg = {
-        id: Date.now(),
-        name: formData.name,
-        duration: formData.duration,
-        price: formData.price
-      };
-      updated = [...packages, newPkg];
-      toast.success('Package added successfully!');
+    try {
+      if (editingId) {
+        await crmApi.updatePackage(editingId, formData);
+        setPackages(prev => prev.map(p => p.id === editingId ? { ...p, ...formData } : p));
+        toast.success('Package updated successfully!');
+      } else {
+        const newPkg = await crmApi.createPackage(formData);
+        setPackages(prev => [...prev, newPkg]);
+        toast.success('Package added successfully!');
+      }
+    } catch (err) {
+      toast.error('Failed to save package');
     }
-    
-    setPackages(updated);
-    localStorage.setItem('crm_packages', JSON.stringify(updated));
     setShowModal(false);
     setEditingId(null);
     setFormData({ name: '', duration: '1 Month', price: '' });
   };
 
-  const confirmDelete = (id) => {
-    const updated = packages.filter(p => p.id !== id);
-    setPackages(updated);
-    localStorage.setItem('crm_packages', JSON.stringify(updated));
-    setDeleteConfirmId(null);
-    toast.success('Package deleted!');
+  const confirmDelete = async (id) => {
+    try {
+      await crmApi.deletePackage(id);
+      setPackages(prev => prev.filter(p => p.id !== id));
+      setDeleteConfirmId(null);
+      toast.success('Package deleted!');
+    } catch (err) {
+      toast.error('Failed to delete package');
+    }
   };
 
   return (

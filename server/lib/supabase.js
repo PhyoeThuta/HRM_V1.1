@@ -5,15 +5,24 @@ dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('[SUPABASE] Missing SUPABASE_URL or SUPABASE_KEY in .env');
   process.exit(1);
 }
 
+// Anon client (existing HRM system)
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   realtime: { transport: WebSocket },
 });
+
+// Service role admin client (CRM — bypasses RLS for backend operations)
+export const supabaseAdmin = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+  : supabase; // fallback to anon if key missing
 
 // ── DB helpers ────────────────────────────────────────────────
 export async function dbFetch(table, columns = '*', filters = {}, options = {}) {

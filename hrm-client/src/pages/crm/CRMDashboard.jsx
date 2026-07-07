@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Chart, registerables } from 'chart.js';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
+import { crmApi } from '../../api/crm';
 
 Chart.register(...registerables);
 
@@ -49,50 +50,21 @@ export default function CRMDashboard() {
   const [flaggedFeedback, setFlaggedFeedback] = useState([]);
 
   useEffect(() => {
-    // Load dynamic data from local storage
-    const customers = JSON.parse(localStorage.getItem('crm_customers') || '[]');
-    const inquiries = JSON.parse(localStorage.getItem('crm_inquiries') || '[]');
-    
-    let activePkgs = 0;
-    let renewals = [];
-    const today = new Date();
-
-    customers.forEach(c => {
-      activePkgs += c.packages || 0;
-      
-      const pkgsList = c.packages_list || [];
-      pkgsList.forEach(pkg => {
-        if (pkg.expires_at) {
-          const expiryDate = new Date(pkg.expires_at);
-          const diffTime = expiryDate - today;
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays <= 7 && diffDays >= -3) {
-            renewals.push({
-              customerName: c.full_name,
-              customerId: c.id,
-              packageName: pkg.name,
-              daysLeft: diffDays
-            });
-          }
-        }
+    // Load real data from Supabase via API
+    crmApi.getDashboard().then(data => {
+      setMetrics({
+        totalCustomers: String(data.totalCustomers || 0),
+        activeLeads: String(data.activeLeads || 0),
+        convertedThisMonth: String(data.convertedThisMonth || 0),
+        activePackages: String(data.activePackages || 0),
+        revenue: '—', // billing module not yet implemented
       });
-    });
+      setUpcomingRenewals(data.upcomingRenewals || []);
+      setRecentLeads(data.recentLeads || []);
+    }).catch(err => console.error('[CRM Dashboard]', err));
 
-    renewals.sort((a, b) => a.daysLeft - b.daysLeft);
-    setUpcomingRenewals(renewals);
-
-    setMetrics({
-      totalCustomers: customers.length.toString(),
-      activeLeads: inquiries.length.toString(),
-      convertedThisMonth: inquiries.filter(i => i.status === 'Converted').length.toString(),
-      activePackages: activePkgs.toString(),
-      revenue: '$0', // Still mocked since no billing module yet
-    });
-
-    // 2. Setup Charts
-    const monthsData = [0, 0, 0, 0, 0, 0, inquiries.length]; // Simplified dynamic data, putting all current leads in current month
-
+    // Setup Charts (static for now — will improve with real monthly data later)
+    const monthsData = [0, 0, 0, 0, 0, 0, 0];
     let lineChart, doughnutChart;
 
     if (lineChartRef.current) {
