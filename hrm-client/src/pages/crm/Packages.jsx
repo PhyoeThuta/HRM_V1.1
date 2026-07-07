@@ -7,6 +7,7 @@ export default function Packages() {
   const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     duration: '1 Month',
@@ -29,20 +30,49 @@ export default function Packages() {
     }
   }, []);
 
+  const openAddModal = () => {
+    setEditingId(null);
+    setFormData({ name: '', duration: '1 Month', price: '' });
+    setShowModal(true);
+  };
+
+  const openEditModal = (pkg) => {
+    setEditingId(pkg.id);
+    setFormData({
+      name: pkg.name,
+      duration: pkg.duration,
+      price: pkg.price || ''
+    });
+    setShowModal(true);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newPkg = {
-      id: Date.now(),
-      name: formData.name,
-      duration: formData.duration,
-      price: formData.price
-    };
-    const updated = [...packages, newPkg];
+    let updated;
+    
+    if (editingId) {
+      // Edit existing package
+      updated = packages.map(pkg => 
+        pkg.id === editingId ? { ...pkg, name: formData.name, duration: formData.duration, price: formData.price } : pkg
+      );
+      toast.success('Package updated successfully!');
+    } else {
+      // Add new package
+      const newPkg = {
+        id: Date.now(),
+        name: formData.name,
+        duration: formData.duration,
+        price: formData.price
+      };
+      updated = [...packages, newPkg];
+      toast.success('Package added successfully!');
+    }
+    
     setPackages(updated);
     localStorage.setItem('crm_packages', JSON.stringify(updated));
     setShowModal(false);
+    setEditingId(null);
     setFormData({ name: '', duration: '1 Month', price: '' });
-    toast.success('Package added successfully!');
   };
 
   const handleDelete = (id) => {
@@ -63,7 +93,7 @@ export default function Packages() {
       </div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-white">Available Packages</h2>
-        <button onClick={() => setShowModal(true)} className="bg-brand-green text-black px-4 py-2 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105 transition-all flex items-center gap-2">
+        <button onClick={openAddModal} className="bg-brand-green text-black px-4 py-2 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105 transition-all flex items-center gap-2">
           <span>+</span> Add Package
         </button>
       </div>
@@ -71,10 +101,18 @@ export default function Packages() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {packages.map(pkg => (
           <div key={pkg.id} className="bg-surface-800 p-6 rounded-2xl border border-white/5 relative group hover:border-brand-green/30 transition-colors">
-            <button onClick={() => handleDelete(pkg.id)} className="absolute top-4 right-4 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-rose-500/10 rounded-lg">
-              ✕
-            </button>
-            <div className="text-sm font-bold text-emerald-400 bg-emerald-500/10 w-max px-3 py-1 rounded-full mb-3">
+            
+            {/* Action Buttons */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => openEditModal(pkg)} className="text-blue-400 hover:text-blue-300 p-2 hover:bg-blue-500/10 rounded-lg flex items-center justify-center transition-colors" title="Edit Package">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </button>
+              <button onClick={() => handleDelete(pkg.id)} className="text-rose-500 hover:text-rose-400 p-2 hover:bg-rose-500/10 rounded-lg flex items-center justify-center transition-colors" title="Delete Package">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+
+            <div className="text-sm font-bold text-emerald-400 bg-emerald-500/10 w-max px-3 py-1 rounded-full mb-3 mt-2">
               {pkg.duration}
             </div>
             <h3 className="text-xl font-black text-white mb-2">{pkg.name}</h3>
@@ -89,7 +127,7 @@ export default function Packages() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-emerald-500/10 to-transparent">
-              <h3 className="font-black text-white text-lg">Add New Package</h3>
+              <h3 className="font-black text-white text-lg">{editingId ? 'Edit Package' : 'Add New Package'}</h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -117,7 +155,7 @@ export default function Packages() {
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
                 <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all">
-                  Save Package
+                  {editingId ? 'Update Package' : 'Save Package'}
                 </button>
               </div>
             </form>
