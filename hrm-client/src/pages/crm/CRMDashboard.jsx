@@ -117,38 +117,10 @@ export default function CRMDashboard() {
       });
     }
 
-    // 3. Process Recent Hot Leads
-    const pending = inquiries.filter(i => i.status === 'New' || i.status === 'Follow Up').slice(0, 4);
-    setRecentLeads(pending);
-
-    // 4. Process AI Flagged Feedback
-    let flagged = [];
-    customers.forEach(c => {
-      if (c.feedbacks) {
-        c.feedbacks.forEach(f => {
-          if (f.ai_flagged) {
-            flagged.push({ customerName: c.full_name, text: f.text, date: f.date });
-          }
-        });
-      }
-    });
-    setFlaggedFeedback(flagged);
-
-    // 4. Calculate Doughnut Chart Data (Sources)
+    // 3. Source breakdown for Doughnut Chart (static for now)
     const sourceCounts = {
-      'Facebook': 0,
-      'Telegram': 0,
-      'Website': 0,
-      'Referral': 0,
-      'Other': 0
+      'Facebook': 0, 'Telegram': 0, 'Website': 0, 'Referral': 0, 'Other': 0
     };
-    inquiries.forEach(i => {
-      if (sourceCounts[i.source] !== undefined) {
-        sourceCounts[i.source]++;
-      } else {
-        sourceCounts['Other']++;
-      }
-    });
 
     if (doughnutChartRef.current) {
       const ctx = doughnutChartRef.current.getContext('2d');
