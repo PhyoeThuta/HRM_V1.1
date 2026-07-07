@@ -17,7 +17,13 @@ export default function CustomerDetail() {
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoForm, setPhotoForm] = useState({ type: 'Before', url: '' });
   const [showMetricsModal, setShowMetricsModal] = useState(false);
-  const [packageForm, setPackageForm] = useState({ name: '1 Month Boss Diet', duration: '30 Days', meal_count: 60, meal_type: 'LUNCH, DINNER' });
+  const [packageForm, setPackageForm] = useState({ 
+    name: '1 Month Boss Diet', 
+    duration: '30 Days', 
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 30 days but editable
+    meal_count: 60, 
+    meal_type: 'LUNCH, DINNER' 
+  });
   const [metricsForm, setMetricsForm] = useState({
     current_weight: '',
     goal_weight: '',
@@ -62,7 +68,7 @@ export default function CustomerDetail() {
       id: Date.now(),
       name: packageForm.name,
       duration: packageForm.duration,
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +30 days approx
+      expires_at: packageForm.expires_at || new Date().toISOString().split('T')[0], // Use exact date from form
       meal_count: packageForm.meal_count,
       meal_type: packageForm.meal_type
     };
@@ -188,13 +194,21 @@ export default function CustomerDetail() {
                   <option>1 Month Boss Diet</option>
                   <option>Weekly Keto Plan</option>
                   <option>14 Days Detox</option>
+                  <option>2 Days Daily Plan</option>
+                  <option>1 Day Trial Plan</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Duration</label>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Duration (Text)</label>
                   <input type="text" value={packageForm.duration} onChange={e => setPackageForm({...packageForm, duration: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Exact Expiry Date</label>
+                  <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({...packageForm, expires_at: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
                   <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({...packageForm, meal_count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
