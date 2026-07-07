@@ -36,7 +36,7 @@ function EmployeeModal({ open, onClose, departments, positions, managers, candid
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div className="relative rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4 bg-surface-850 border border-white/10">
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h2 className="text-base font-bold text-white">Add New Employee</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
@@ -240,13 +240,13 @@ export default function Employees() {
         </div>
       )}
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl overflow-hidden bg-surface-800 border border-white/5">
         {(tab === 'active' ? isLoading : recycleLoading) ? (
           <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead style={{ background: 'var(--bg-850, #161929)' }}>
+              <thead className="bg-surface-850">
                 <tr>
                   {['Employee ID', 'Full Name', 'Department', 'Position', 'Status', 'Email', 'Hire Date', 'Actions'].map(h => (
                     <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>

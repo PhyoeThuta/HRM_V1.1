@@ -249,7 +249,7 @@ export default function Recruitment() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 bg-surface-850 border border-white/10">
             <h2 className="text-base font-bold text-white mb-4">Add Candidate</h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div><label className="form-label">Name *</label><input name="candidate_name" required className="form-input" /></div>
@@ -274,7 +274,7 @@ export default function Recruitment() {
       {showPositionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPositionModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl bg-surface-850 border border-white/5">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-sm font-bold text-white">Add Position</h2>
               <button onClick={() => setShowPositionModal(false)} className="text-slate-500 hover:text-white">✕</button>

@@ -259,7 +259,7 @@ export default function SOPs() {
                 const isExpanded = expandedGroups[posTitle];
 
                 return (
-                  <div key={posTitle} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={posTitle} className="rounded-2xl overflow-hidden bg-surface-800 border border-white/5">
                     <div className="flex justify-between items-center p-5 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => toggleGroup(posTitle)}>
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-lg">

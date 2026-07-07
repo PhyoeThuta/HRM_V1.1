@@ -189,7 +189,7 @@ export default function Positions() {
       {(showModal || editTarget) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowModal(false); setEditTarget(null); }} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 bg-surface-850 border border-white/10">
             <h2 className="text-base font-bold text-white mb-4">{editTarget ? 'Edit Position' : 'New Position'}</h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div><label className="form-label">Title *</label><input name="title" required defaultValue={editTarget?.title || ''} className="form-input" /></div>

@@ -37,15 +37,15 @@ export default function Onboarding() {
         <div className="space-y-6">
           {/* Top Metric Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-2xl p-6 flex flex-col items-center justify-center" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-2xl p-6 flex flex-col items-center justify-center bg-surface-850 border border-white/5">
               <span className="text-3xl font-bold text-white mb-2">{stats.pre_boarding}</span>
               <span className="text-sm font-medium text-slate-400">Pre-boarding</span>
             </div>
-            <div className="rounded-2xl p-6 flex flex-col items-center justify-center" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-2xl p-6 flex flex-col items-center justify-center bg-surface-850 border border-white/5">
               <span className="text-3xl font-bold text-white mb-2">{stats.in_progress}</span>
               <span className="text-sm font-medium text-slate-400">In Progress</span>
             </div>
-            <div className="rounded-2xl p-6 flex flex-col items-center justify-center" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-2xl p-6 flex flex-col items-center justify-center bg-surface-850 border border-white/5">
               <span className="text-3xl font-bold text-white mb-2">{stats.completed}</span>
               <span className="text-sm font-medium text-slate-400">Completed</span>
             </div>
@@ -53,14 +53,14 @@ export default function Onboarding() {
 
           {/* New Hires Alert Grid */}
           {newHires.length > 0 && (
-            <div className="rounded-2xl p-6" style={{ background: '#1e1b4b', border: '1px solid rgba(99,102,241,0.2)' }}>
+            <div className="rounded-2xl p-6 bg-indigo-950/20 border border-indigo-500/20">
               <div className="flex items-center gap-2 mb-4">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white text-xs font-bold">!</span>
                 <h3 className="text-sm font-bold text-white">{newHires.length} New Hire(s) Without Onboarding</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {newHires.map(emp => (
-                  <div key={emp.id} className="flex items-center justify-between rounded-xl p-4 transition-all hover:bg-white/5" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={emp.id} className="flex items-center justify-between rounded-xl p-4 transition-all hover:bg-white/5 bg-surface-850 border border-white/5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-sm font-bold text-white shadow-lg">
                         {(emp.Full_name || '?')[0].toUpperCase()}
@@ -103,7 +103,7 @@ export default function Onboarding() {
                 };
 
                 return (
-                  <div key={ob.id} className="rounded-2xl p-6 flex flex-col justify-between" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={ob.id} className="rounded-2xl p-6 flex flex-col justify-between bg-surface-850 border border-white/5">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                       
                       {/* Left: Employee Info */}
