@@ -20,7 +20,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 // Service role admin client (CRM — bypasses RLS for backend operations)
 export const supabaseAdmin = supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
+      auth: { autoRefreshToken: false, persistSession: false },
+      realtime: { transport: WebSocket }
     })
   : supabase; // fallback to anon if key missing
 
