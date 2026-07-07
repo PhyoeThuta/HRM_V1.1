@@ -122,6 +122,51 @@ body {
 [data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #f59e0b; }
 [data-theme="light"] .toggle-track { background: rgba(245,158,11,0.2); }
 
+/* ========================================
+   LIGHT MODE GLOBAL OVERRIDES
+   Make text-white, text-slate auto-adapt
+   ======================================== */
+html[data-theme="light"] .text-white { color: rgb(15 23 42) !important; }
+html[data-theme="light"] .text-slate-300 { color: rgb(51 65 85) !important; }
+html[data-theme="light"] .text-slate-400 { color: rgb(71 85 105) !important; }
+html[data-theme="light"] .text-slate-500 { color: rgb(100 116 139) !important; }
+html[data-theme="light"] .text-slate-600 { color: rgb(71 85 105) !important; }
+
+/* Card / modal backgrounds */
+html[data-theme="light"] [style*="rgba(255,255,255,0.05)"],
+html[data-theme="light"] [style*="rgba(255, 255, 255, 0.05)"] {
+  background: rgba(0,0,0,0.04) !important;
+}
+html[data-theme="light"] [style*="rgba(255,255,255,0.1)"],
+html[data-theme="light"] [style*="rgba(255, 255, 255, 0.1)"] {
+  border-color: rgba(0,0,0,0.1) !important;
+}
+
+/* Scrollbar for light mode */
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+/* Form inputs in light mode */
+html[data-theme="light"] .form-input {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.15);
+  color: rgb(15 23 42);
+}
+html[data-theme="light"] .form-input:focus {
+  border-color: rgb(163 184 31);
+  background: rgba(163,184,31,0.06);
+  box-shadow: 0 0 0 3px rgba(163,184,31,0.15);
+}
+html[data-theme="light"] .form-input option { background: white; color: #0f172a; }
+html[data-theme="light"] .form-label { color: rgb(71 85 105); }
+
+/* Theme toggle in light mode */
+html[data-theme="light"] #theme-toggle {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.1);
+  color: rgb(71 85 105);
+}
+
 
 
 /* Animations */

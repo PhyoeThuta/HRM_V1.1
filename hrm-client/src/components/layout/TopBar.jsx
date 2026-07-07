@@ -75,8 +75,8 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           </svg>
         </button>
         <div>
-          <h1 className="text-base font-bold text-white">{title || 'Dashboard'}</h1>
-          <p className="text-xs text-slate-400 hidden sm:block">{subtitle || 'Corporate HR Automation System'}</p>
+          <h1 className="text-base font-bold" style={{ color: 'rgb(var(--color-text-inverse))' }}>{title || 'Dashboard'}</h1>
+          <p className="text-xs hidden sm:block" style={{ color: 'rgb(var(--color-slate-400))' }}>{subtitle || 'Corporate HR Automation System'}</p>
         </div>
       </div>
       <div className="flex items-center gap-2 md:gap-3">
