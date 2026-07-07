@@ -170,12 +170,12 @@ export default function Leave() {
 
       {/* Leave Balances Table */}
       {activeTab === 'balances' && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
           {isLoading ? <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
           : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead style={{ background: 'rgb(var(--color-surface-850))' }}>
+                <thead style={{ background: '#161929' }}>
                   <tr>
                     <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee</th>
                     <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Type</th>
@@ -228,12 +228,12 @@ export default function Leave() {
 
       {/* Requests Table */}
       {activeTab === 'requests' && (
-        <div className="rounded-2xl" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
           {isLoading ? <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
           : (
             <div className="overflow-x-auto rounded-2xl">
               <table className="w-full text-sm">
-                <thead style={{ background: 'rgb(var(--color-surface-850))' }}>
+                <thead style={{ background: '#161929' }}>
                   <tr>
                     {['Employee', 'Leave', 'Period', 'Progress', ''].map(h => (
                       <th key={h || 'actions'} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider last:text-right">
@@ -335,7 +335,7 @@ export default function Leave() {
       {activeTab === 'types' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {leaveTypes.length > 0 ? leaveTypes.map(t => (
-            <div key={t.id} className="rounded-2xl p-6 flex flex-col justify-between transition-transform hover:-translate-y-1" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={t.id} className="rounded-2xl p-6 flex flex-col justify-between transition-transform hover:-translate-y-1" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${t.is_paid !== false ? 'text-emerald-400 bg-emerald-400/10' : 'text-slate-400 bg-white/5'}`}>
@@ -364,7 +364,7 @@ export default function Leave() {
               </div>
             </div>
           )) : (
-            <div className="col-span-full py-12 text-center text-slate-500 text-sm bg-[rgb(var(--color-surface-850))] rounded-2xl border border-white/5">
+            <div className="col-span-full py-12 text-center text-slate-500 text-sm bg-[#161929] rounded-2xl border border-white/5">
               No leave types configured.
             </div>
           )}
@@ -375,7 +375,7 @@ export default function Leave() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-white">New Leave Request</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">✕</button>
@@ -411,7 +411,7 @@ export default function Leave() {
       {coverageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCoverageModal(null)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-white">Start coverage handover</h2>
               <button onClick={() => setCoverageModal(null)} className="text-slate-400 hover:text-white">✕</button>
@@ -456,8 +456,8 @@ export default function Leave() {
       {handoverView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHandoverView(null)} />
-          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[rgb(var(--color-surface-850))] pb-2 z-10">
+          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#161929] pb-2 z-10">
               <h2 className="text-base font-bold text-white">
                 {handoverView.readOnly ? 'Handover history — ' : ''}
                 {handoverView.kind === 'return' ? 'Return handover' : 'Coverage handover'}
@@ -516,7 +516,7 @@ export default function Leave() {
       {showTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowTypeModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-white">{editTypeData ? 'Edit' : 'Add'} Leave Type</h2>
               <button onClick={() => setShowTypeModal(false)} className="text-slate-400 hover:text-white">✕</button>
@@ -548,7 +548,7 @@ export default function Leave() {
       {/* Signature Modal */}
       {signatureModalTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[rgb(var(--color-surface-800))] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
+          <div className="bg-[#1e2235] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
             <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
               <h2 className="text-lg font-bold text-white">E-Signature Required</h2>
               <button onClick={() => setSignatureModalTarget(null)} className="text-slate-400 hover:text-white transition-colors">

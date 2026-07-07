@@ -151,7 +151,7 @@ export default function Recruitment() {
       ) : activeTab === 'pipeline' ? (
         <div className="flex overflow-x-auto gap-6 pb-4">
           {columns.map(col => (
-            <div key={col.id} className="min-w-[320px] w-[320px] flex flex-col h-[calc(100vh-320px)] bg-[rgb(var(--color-surface-800))] border border-white/5 rounded-2xl p-4">
+            <div key={col.id} className="min-w-[320px] w-[320px] flex flex-col h-[calc(100vh-320px)] bg-[#1e2235] border border-white/5 rounded-2xl p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xs font-bold text-indigo-400 tracking-wider">{col.title}</h3>
                 <span className="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-full">{col.items.length}</span>
@@ -199,14 +199,14 @@ export default function Recruitment() {
                   placeholder="Search by name, email, or position applied..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[rgb(var(--color-surface-850))] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                  className="w-full bg-[#161929] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500" 
                 />
               </div>
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {(activeTab === 'hired' ? hired : talentPool).length === 0 ? (
-              <div className="col-span-full py-20 text-center text-slate-500 bg-[rgb(var(--color-surface-800))] rounded-2xl border border-white/5 border-dashed">
+              <div className="col-span-full py-20 text-center text-slate-500 bg-[#1e2235] rounded-2xl border border-white/5 border-dashed">
                 No candidates in {activeTab === 'hired' ? 'Hired' : 'Talent Pool'}.
               </div>
             ) : (
@@ -249,7 +249,7 @@ export default function Recruitment() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
             <h2 className="text-base font-bold text-white mb-4">Add Candidate</h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div><label className="form-label">Name *</label><input name="candidate_name" required className="form-input" /></div>
@@ -274,7 +274,7 @@ export default function Recruitment() {
       {showPositionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPositionModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-sm font-bold text-white">Add Position</h2>
               <button onClick={() => setShowPositionModal(false)} className="text-slate-500 hover:text-white">✕</button>
@@ -283,12 +283,12 @@ export default function Recruitment() {
             <form onSubmit={handlePositionSave} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">JOB TITLE *</label>
-                <input name="title" required placeholder="e.g. Senior Engineer" className="w-full bg-[rgb(var(--color-surface-800))] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                <input name="title" required placeholder="e.g. Senior Engineer" className="w-full bg-[#1e2235] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold text-slate-400 mb-1">LEVEL</label>
-                  <select name="level" className="w-full bg-[rgb(var(--color-surface-800))] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <select name="level" className="w-full bg-[#1e2235] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                     <option value="Mid">Mid</option>
                     <option value="Supervisor">Supervisor</option>
                     <option value="Manager">Manager</option>
@@ -296,7 +296,7 @@ export default function Recruitment() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold text-slate-400 mb-1">TEAM / DEPT</label>
-                  <select name="department" className="w-full bg-[rgb(var(--color-surface-800))] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <select name="department" className="w-full bg-[#1e2235] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                     <option value="">— Select Dept —</option>
                     {departments.map(d => <option key={d.id} value={d.Department_name}>{d.Department_name}</option>)}
                   </select>
@@ -304,7 +304,7 @@ export default function Recruitment() {
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">BASE SALARY</label>
-                <input type="number" name="base_salary" defaultValue="0" className="w-full bg-[rgb(var(--color-surface-800))] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                <input type="number" name="base_salary" defaultValue="0" className="w-full bg-[#1e2235] border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowPositionModal(false)} className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold rounded-lg transition-colors">
@@ -322,7 +322,7 @@ export default function Recruitment() {
       {/* INTERVIEW GUIDE MODAL */}
       {guideModalCandidate && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[rgb(var(--color-surface-850))] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]">
+          <div className="bg-[#161929] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#1a1d2e]">
               <div>
                 <h2 className="text-xl font-bold text-white">Interview Guide</h2>
@@ -388,7 +388,7 @@ export default function Recruitment() {
       {/* GLOBAL CONFIRM DIALOG */}
       {confirmDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-[rgb(var(--color-surface-850))] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+          <div className="bg-[#161929] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
             <div className="p-6 text-center">
               <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-400 mx-auto flex items-center justify-center text-3xl mb-4">
                 ❓
@@ -443,7 +443,7 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert }) {
   const [newStatus, setNewStatus] = useState(c.status || 'Applied');
 
   return (
-    <div className="bg-[rgb(var(--color-surface-850))] border border-white/5 p-4 rounded-xl shadow-lg">
+    <div className="bg-[#161929] border border-white/5 p-4 rounded-xl shadow-lg">
       <div className="flex gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg flex-shrink-0">
           {initial}
@@ -483,7 +483,7 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert }) {
         <select 
           value={newStatus} 
           onChange={e => setNewStatus(e.target.value)}
-          className="w-full bg-[rgb(var(--color-surface-800))] border border-white/10 text-white text-xs px-2 py-1.5 rounded-lg outline-none"
+          className="w-full bg-[#1e2235] border border-white/10 text-white text-xs px-2 py-1.5 rounded-lg outline-none"
         >
           {['Applied', 'Screening', 'Interview', 'Offer', 'Hired'].map((stage, idx) => {
             const currentIdx = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired'].indexOf(c.status || 'Applied');
@@ -533,7 +533,7 @@ function TalentPoolCard({ candidate: c, onReconsider, onDelete, positions }) {
   const colorClass = colors[charCode % colors.length];
 
   return (
-    <div className="bg-[rgb(var(--color-surface-850))] border border-white/5 p-4 rounded-xl shadow-lg flex flex-col h-full">
+    <div className="bg-[#161929] border border-white/5 p-4 rounded-xl shadow-lg flex flex-col h-full">
       <div className="flex gap-4 mb-4">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 ${colorClass}`}>
           {initial}
@@ -554,7 +554,7 @@ function TalentPoolCard({ candidate: c, onReconsider, onDelete, positions }) {
         <select 
           value={reconsiderPos} 
           onChange={e => setReconsiderPos(e.target.value)}
-          className="w-full bg-[rgb(var(--color-surface-800))] border border-white/10 text-white text-xs px-3 py-2 rounded-lg outline-none appearance-none"
+          className="w-full bg-[#1e2235] border border-white/10 text-white text-xs px-3 py-2 rounded-lg outline-none appearance-none"
         >
           <option value="">— Reconsider for Position —</option>
           {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}

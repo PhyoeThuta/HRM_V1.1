@@ -34,7 +34,7 @@ export default function Login() {
   };
 
   return (
-    <div id="html-root" data-theme="dark" className="min-h-screen flex items-center justify-center overflow-hidden relative" style={{ background: 'rgb(var(--color-surface-950))' }}>
+    <div id="html-root" data-theme="dark" className="min-h-screen flex items-center justify-center overflow-hidden relative" style={{ background: '#080b14' }}>
       {/* Animated Background Orbs */}
       <div className="absolute w-96 h-96 rounded-full opacity-15 animate-float" style={{ background: '#6366f1', filter: 'blur(80px)', top: '-5%', left: '-5%' }} />
       <div className="absolute w-72 h-72 rounded-full opacity-15 animate-float" style={{ background: '#8b5cf6', filter: 'blur(80px)', bottom: '-5%', right: '10%', animationDelay: '2s' }} />

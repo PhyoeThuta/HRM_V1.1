@@ -8,50 +8,10 @@
   padding: 0;
 }
 
-:root {
-  /* DARK MODE (Default CorpHRM) */
-  --color-brand-400: 129 140 248; /* #818cf8 */
-  --color-brand-500: 99 102 241;  /* #6366f1 */
-  --color-brand-600: 79 70 229;   /* #4f46e5 */
-  --color-brand-700: 67 56 202;   /* #4338ca */
-
-  --color-surface-800: 30 34 53;  /* #1e2235 */
-  --color-surface-850: 22 25 41;  /* #161929 */
-  --color-surface-900: 15 17 32;  /* #0f1120 */
-  --color-surface-950: 8 11 20;   /* #080b14 */
-
-  --color-text-inverse: 255 255 255; /* white */
-  --color-slate-400: 148 163 184;    /* slate-400 */
-  
-  --color-border: 255, 255, 255;
-  --alpha-border: 0.1;
-  --color-header-bg: rgba(15,17,32,0.8);
-}
-
-html[data-theme="light"] {
-  /* LIGHT MODE (Busy Boss Diet - Native!) */
-  --color-brand-400: 179 198 76;  /* #b3c64c */
-  --color-brand-500: 163 184 31;  /* #A3B81F */
-  --color-brand-600: 130 147 25;  /* #829319 */
-  --color-brand-700: 98 110 19;   /* #626e13 */
-
-  --color-surface-800: 255 255 255; /* white */
-  --color-surface-850: 248 250 252; /* slate-50 */
-  --color-surface-900: 241 245 249; /* slate-100 */
-  --color-surface-950: 226 232 240; /* slate-200 */
-
-  --color-text-inverse: 15 23 42;    /* slate-900 (black text on white cards) */
-  --color-slate-400: 71 85 105;      /* slate-600 */
-  
-  --color-border: 0, 0, 0;
-  --alpha-border: 0.1;
-  --color-header-bg: rgb(163, 184, 31); /* Solid Green Header */
-}
-
 body {
   font-family: 'Inter', ui-sans-serif, system-ui;
-  background-color: rgb(var(--color-surface-950));
-  color: rgb(var(--color-text-inverse));
+  background-color: #080b14;
+  color: #f1f5f9;
   min-height: 100vh;
 }
 
@@ -74,9 +34,9 @@ body {
   outline: none;
 }
 .form-input:focus {
-  border-color: #6366f1;
-  background: rgba(99,102,241,0.08);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  border-color: #A3B81F;
+  background: rgba(163,184,31,0.08);
+  box-shadow: 0 0 0 3px rgba(163,184,31,0.15);
 }
 .form-input option { background: #161929; }
 .form-label {
@@ -89,24 +49,24 @@ body {
   margin-bottom: 0.375rem;
 }
 
-/* Theme toggle button */
+/* Theme toggle button - simplified, dark mode only badge */
 #theme-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(163,184,31,0.1);
+  border: 1px solid rgba(163,184,31,0.25);
   border-radius: 9999px;
   padding: 4px 10px;
   cursor: pointer;
   font-size: 12px;
-  color: #94a3b8;
+  color: #A3B81F;
   transition: all 0.2s;
 }
-#theme-toggle:hover { background: rgba(255,255,255,0.08); color: white; }
+#theme-toggle:hover { background: rgba(163,184,31,0.2); }
 .toggle-track {
   width: 28px; height: 15px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(163,184,31,0.2);
   border-radius: 9999px;
   position: relative;
   transition: background 0.2s;
@@ -115,59 +75,12 @@ body {
   position: absolute;
   top: 2px; left: 2px;
   width: 11px; height: 11px;
-  background: #6366f1;
+  background: #A3B81F;
   border-radius: 50%;
   transition: transform 0.2s;
 }
-[data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #f59e0b; }
-[data-theme="light"] .toggle-track { background: rgba(245,158,11,0.2); }
-
-/* ========================================
-   LIGHT MODE GLOBAL OVERRIDES
-   Make text-white, text-slate auto-adapt
-   ======================================== */
-html[data-theme="light"] .text-white { color: rgb(15 23 42) !important; }
-html[data-theme="light"] .text-slate-300 { color: rgb(51 65 85) !important; }
-html[data-theme="light"] .text-slate-400 { color: rgb(71 85 105) !important; }
-html[data-theme="light"] .text-slate-500 { color: rgb(100 116 139) !important; }
-html[data-theme="light"] .text-slate-600 { color: rgb(71 85 105) !important; }
-
-/* Card / modal backgrounds */
-html[data-theme="light"] [style*="rgba(255,255,255,0.05)"],
-html[data-theme="light"] [style*="rgba(255, 255, 255, 0.05)"] {
-  background: rgba(0,0,0,0.04) !important;
-}
-html[data-theme="light"] [style*="rgba(255,255,255,0.1)"],
-html[data-theme="light"] [style*="rgba(255, 255, 255, 0.1)"] {
-  border-color: rgba(0,0,0,0.1) !important;
-}
-
-/* Scrollbar for light mode */
-html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
-html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
-
-/* Form inputs in light mode */
-html[data-theme="light"] .form-input {
-  background: rgba(0,0,0,0.04);
-  border-color: rgba(0,0,0,0.15);
-  color: rgb(15 23 42);
-}
-html[data-theme="light"] .form-input:focus {
-  border-color: rgb(163 184 31);
-  background: rgba(163,184,31,0.06);
-  box-shadow: 0 0 0 3px rgba(163,184,31,0.15);
-}
-html[data-theme="light"] .form-input option { background: white; color: #0f172a; }
-html[data-theme="light"] .form-label { color: rgb(71 85 105); }
-
-/* Theme toggle in light mode */
-html[data-theme="light"] #theme-toggle {
-  background: rgba(0,0,0,0.05);
-  border-color: rgba(0,0,0,0.1);
-  color: rgb(71 85 105);
-}
-
-
+[data-theme="light"] .toggle-thumb { transform: translateX(13px); background: #FF7700; }
+[data-theme="light"] .toggle-track { background: rgba(255,119,0,0.2); }
 
 /* Animations */
 @keyframes pulse-glow {
@@ -193,4 +106,12 @@ html[data-theme="light"] #theme-toggle {
   background: rgba(255,255,255,0.04);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Brand accent glow utilities */
+.glow-green {
+  box-shadow: 0 0 20px rgba(163,184,31,0.3);
+}
+.glow-orange {
+  box-shadow: 0 0 20px rgba(255,119,0,0.3);
 }

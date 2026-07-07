@@ -75,17 +75,17 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           </svg>
         </button>
         <div>
-          <h1 className="text-base font-bold" style={{ color: 'rgb(var(--color-text-inverse))' }}>{title || 'Dashboard'}</h1>
-          <p className="text-xs hidden sm:block" style={{ color: 'rgb(var(--color-slate-400))' }}>{subtitle || 'Corporate HR Automation System'}</p>
+          <h1 className="text-base font-bold text-white">{title || 'Dashboard'}</h1>
+          <p className="text-xs text-slate-400 hidden sm:block">{subtitle || 'Corporate HR Automation System'}</p>
         </div>
       </div>
       <div className="flex items-center gap-2 md:gap-3">
         
         {/* User Pill */}
         {user && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/10 hidden sm:flex">
-            <span className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[8px] text-white">👤</span>
-            <span className="text-[11px] font-semibold text-indigo-400 capitalize">{roleLabel}</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border hidden sm:flex" style={{ borderColor: 'rgba(163,184,31,0.3)', background: 'rgba(163,184,31,0.1)' }}>
+            <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white" style={{ background: '#A3B81F' }}>👤</span>
+            <span className="text-[11px] font-semibold capitalize" style={{ color: '#A3B81F' }}>{roleLabel}</span>
           </div>
         )}
 
@@ -106,16 +106,16 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-in" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  Notifications
-                  {unreadCount > 0 && (
-                    <span className="text-[10px] font-bold tracking-widest uppercase bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">{unreadCount} New</span>
-                  )}
-                </h3>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full" style={{ background: 'rgba(163,184,31,0.15)', color: '#A3B81F' }}>{unreadCount} New</span>
+                    )}
+                  </h3>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-wider">
+                  <button onClick={markAllRead} className="text-[10px] font-bold hover:opacity-70 transition-colors uppercase tracking-wider" style={{ color: '#A3B81F' }}>
                     Mark All Read
                   </button>
                 )}

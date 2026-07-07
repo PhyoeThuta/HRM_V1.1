@@ -27,7 +27,7 @@ export default function HandoverTab({ obId, obEmployeeId }) {
 
   if (!handover) {
     return (
-      <div className="rounded-2xl p-8 text-center" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-8 text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
         <p className="text-slate-400 text-sm mb-4">No handover case linked to this offboarding record.</p>
         <button
           onClick={() => createMutation.mutate()}

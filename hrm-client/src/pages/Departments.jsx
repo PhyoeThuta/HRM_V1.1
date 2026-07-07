@@ -57,7 +57,7 @@ export default function Departments() {
         {isLoading ? (
           <div className="col-span-full py-16 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
         ) : departments.map(d => (
-          <div key={d.id} className="rounded-2xl p-5 relative overflow-hidden group" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div key={d.id} className="rounded-2xl p-5 relative overflow-hidden group" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-colors" />
             <h3 className="text-lg font-bold text-white mb-1">{d.Department_name}</h3>
             <p className="text-xs text-slate-400 line-clamp-2 mb-4">{d.Descriptions || 'No description provided.'}</p>
@@ -79,7 +79,7 @@ export default function Departments() {
       {(showModal || editTarget) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowModal(false); setEditTarget(null); }} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'rgb(var(--color-surface-850))', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: '#161929', border: '1px solid rgba(255,255,255,0.1)' }}>
             <h2 className="text-base font-bold text-white mb-4">{editTarget ? 'Edit Department' : 'New Department'}</h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div><label className="form-label">Department Name *</label><input name="Department_name" defaultValue={editTarget?.Department_name || ''} required className="form-input" /></div>

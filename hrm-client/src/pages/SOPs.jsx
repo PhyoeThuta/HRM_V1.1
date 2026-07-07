@@ -152,13 +152,13 @@ export default function SOPs() {
             {loadingTemplates ? (
               <div className="py-8 text-center text-slate-400 text-sm">Loading templates...</div>
             ) : templates.length === 0 ? (
-              <div className="py-10 text-center bg-[rgb(var(--color-surface-800))] rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
+              <div className="py-10 text-center bg-[#1e2235] rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
                 No SOP templates yet. Click "+ New Template" to add one.
               </div>
             ) : (
               <div className="grid gap-4">
                 {templates.map(tpl => (
-                  <div key={tpl.id} className="bg-[rgb(var(--color-surface-800))] rounded-2xl border border-white/5 p-5">
+                  <div key={tpl.id} className="bg-[#1e2235] rounded-2xl border border-white/5 p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-base">
@@ -199,7 +199,7 @@ export default function SOPs() {
           {isAdmin() && (
             <section>
               <h2 className="text-lg font-bold text-white mb-4">🗓️ Monthly Auto-Assign</h2>
-              <div className="bg-[rgb(var(--color-surface-800))] rounded-2xl border border-white/5 p-6">
+              <div className="bg-[#1e2235] rounded-2xl border border-white/5 p-6">
                 <p className="text-sm text-slate-400 mb-5">
                   Select a month and click the button. The system will automatically create SOP tasks for <strong className="text-white">every day of the month</strong> for all employees based on the templates above. Already-existing records will be skipped.
                 </p>
@@ -250,7 +250,7 @@ export default function SOPs() {
               {isLoading ? (
                 <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
               ) : Object.entries(groupedSops).length === 0 ? (
-                <div className="py-12 text-center bg-[rgb(var(--color-surface-800))] rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
+                <div className="py-12 text-center bg-[#1e2235] rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
                   No SOP records found. Use the Auto-Assign button above to generate this month's records.
                 </div>
               ) : Object.entries(groupedSops).map(([posTitle, groupSops]) => {
@@ -259,7 +259,7 @@ export default function SOPs() {
                 const isExpanded = expandedGroups[posTitle];
 
                 return (
-                  <div key={posTitle} className="rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={posTitle} className="rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="flex justify-between items-center p-5 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => toggleGroup(posTitle)}>
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-lg">
@@ -279,7 +279,7 @@ export default function SOPs() {
                     </div>
 
                     {isExpanded && (
-                      <div className="p-5 border-t border-white/5 bg-[rgb(var(--color-surface-850))]/50 space-y-3">
+                      <div className="p-5 border-t border-white/5 bg-[#161929]/50 space-y-3">
                         {Object.entries(
                           groupSops.reduce((acc, sop) => {
                             const key = `${sop.task_description}__${sop.title}`;
@@ -292,7 +292,7 @@ export default function SOPs() {
                           const taskCompleted = taskSops.filter(s => s.is_completed).length;
 
                           return (
-                            <div key={key} className="p-4 rounded-xl bg-[rgb(var(--color-surface-800))] border border-white/5">
+                            <div key={key} className="p-4 rounded-xl bg-[#1e2235] border border-white/5">
                               <div className="flex justify-between items-start mb-4">
                                 <div>
                                   <p className="text-xs text-indigo-400 font-semibold mb-1">{title}</p>
@@ -322,7 +322,7 @@ export default function SOPs() {
 
                               <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
                                 {taskSops.map(s => (
-                                  <div key={s.id} className="flex justify-between items-center bg-[rgb(var(--color-surface-850))] p-3 rounded-lg border border-white/5">
+                                  <div key={s.id} className="flex justify-between items-center bg-[#161929] p-3 rounded-lg border border-white/5">
                                     <div className="flex items-center gap-3">
                                       <span className={`w-2 h-2 rounded-full ${s.is_completed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                                       <span className="text-sm text-slate-300 font-medium">{s.employee_name}</span>
@@ -364,7 +364,7 @@ export default function SOPs() {
       {activeVideoUrl && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setActiveVideoUrl(null)} />
-          <div className="relative bg-[rgb(var(--color-surface-850))] rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 overflow-hidden flex flex-col">
+          <div className="relative bg-[#161929] rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 overflow-hidden flex flex-col">
             <div className="flex justify-between items-center p-4 border-b border-white/10">
               <h3 className="text-white font-bold">SOP Proof Video</h3>
               <button onClick={() => setActiveVideoUrl(null)} className="text-slate-400 hover:text-white text-2xl">✕</button>
@@ -377,7 +377,7 @@ export default function SOPs() {
       {/* ── Template Save Modal ── */}
       {showTemplateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowTemplateModal(false)}>
-          <div className="bg-[rgb(var(--color-surface-800))] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#1e2235] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b border-slate-700 bg-indigo-500/5">
               <div className="flex items-center justify-between">
                 <div>
@@ -430,7 +430,7 @@ export default function SOPs() {
       {/* ── Edit Task Modal ── */}
       {editTarget && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditTarget(null)}>
-          <div className="bg-[rgb(var(--color-surface-800))] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#1e2235] w-full max-w-lg rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b border-slate-700 bg-indigo-500/5">
               <div className="flex items-center justify-between">
                 <div>

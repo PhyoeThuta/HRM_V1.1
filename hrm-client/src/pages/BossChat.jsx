@@ -39,7 +39,7 @@ export default function BossChat() {
 
   return (
     <Layout title="AI Assistant" subtitle="Gemini-powered HR intelligence">
-      <div className="flex flex-col h-[calc(100vh-180px)] rounded-2xl overflow-hidden" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="flex flex-col h-[calc(100vh-180px)] rounded-2xl overflow-hidden" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.map((m, i) => (
@@ -58,7 +58,7 @@ export default function BossChat() {
           )}
         </div>
 
-        <div className="p-4 bg-[rgb(var(--color-surface-850))] border-t border-white/5">
+        <div className="p-4 bg-[#161929] border-t border-white/5">
           <form onSubmit={send} className="flex gap-3">
             <input
               type="text"

@@ -8,15 +8,15 @@ const NavItem = ({ to, label, icon, end }) => (
     className={({ isActive }) =>
       `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
         isActive
-          ? 'bg-indigo-600/20 text-indigo-600 border border-indigo-500/40 shadow-sm'
-          : 'text-slate-500 hover:bg-indigo-50/10 hover:text-indigo-500'
+          ? 'bg-brand-green/15 text-brand-green border border-brand-green/30'
+          : 'text-slate-400 hover:bg-white/5 hover:text-white'
       }`
     }
   >
     {({ isActive }) => (
       <>
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-indigo-500/20' : 'group-hover:bg-indigo-500/10'}`}>
-          <svg className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-slate-400 group-hover:text-indigo-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-brand-green/20' : 'group-hover:bg-white/5'}`}>
+          <svg className={`w-4 h-4 ${isActive ? 'text-brand-green' : 'text-slate-500 group-hover:text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
             <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
           </svg>
         </div>
@@ -26,8 +26,8 @@ const NavItem = ({ to, label, icon, end }) => (
   </NavLink>
 );
 
-const NavSection = ({ title, color }) => (
-  <p style={{ color: color || 'rgb(var(--color-slate-400))' }} className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest">{title}</p>
+const NavSection = ({ title, color = 'text-slate-500' }) => (
+  <p className={`px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest ${color}`}>{title}</p>
 );
 
 // SVG icon paths
@@ -78,12 +78,12 @@ export default function Sidebar({ isOpen, close }) {
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-40 w-64 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} bg-surface-900`} 
-      style={{ borderRight: '1px solid rgba(var(--color-border), var(--alpha-border))' }}
+      className={`fixed inset-y-0 left-0 z-40 w-64 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      style={{ background: '#0f1120', borderRight: '1px solid rgba(255,255,255,0.05)' }}
     >
       {/* Logo */}
-      <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(var(--color-border), var(--alpha-border))' }}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center shadow-lg flex-shrink-0">
+      <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0" style={{ background: 'linear-gradient(135deg, #A3B81F, #FF7700)' }}>
           <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d={isEmployee() ? ICONS.users : ICONS.employees} />
           </svg>
@@ -91,13 +91,13 @@ export default function Sidebar({ isOpen, close }) {
         <div>
           {isEmployee() ? (
             <>
-              <p className="text-sm font-bold leading-tight text-white">My Portal 🚀</p>
-              <p className="text-[10px] font-medium tracking-widest text-slate-400">EMPLOYEE</p>
+              <p className="text-sm font-bold text-white leading-tight">My Portal 🚀</p>
+              <p className="text-[10px] text-slate-400 font-medium tracking-widest">EMPLOYEE</p>
             </>
           ) : (
             <>
-              <p className="text-sm font-bold leading-tight text-white">Busy Boss Diet</p>
-              <p className="text-[10px] font-medium tracking-widest text-slate-400">ENTERPRISE</p>
+              <p className="text-sm font-bold text-white leading-tight">Busy Boss Diet</p>
+              <p className="text-[10px] font-medium tracking-widest" style={{ color: '#A3B81F' }}>ENTERPRISE</p>
             </>
           )}
         </div>
@@ -181,7 +181,7 @@ export default function Sidebar({ isOpen, close }) {
       </nav>
 
       {/* User Footer */}
-      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(var(--color-border), var(--alpha-border))' }}>
+      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center gap-2.5 px-1">
           <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${roleGrad} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
             {(user?.full_name || user?.username || 'U')[0].toUpperCase()}

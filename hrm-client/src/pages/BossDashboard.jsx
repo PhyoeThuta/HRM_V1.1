@@ -17,7 +17,7 @@ export default function BossDashboard() {
           { label: 'Open Positions', value: summary.open_positions, color: 'amber' },
           { label: 'Active Leave', value: summary.on_leave, color: 'rose' },
         ].map(s => (
-          <div key={s.label} className="rounded-2xl p-5" style={{ background: 'rgb(var(--color-surface-800))', border: `1px solid rgba(var(--color-${s.color}-500, 255,255,255), 0.1)` }}>
+          <div key={s.label} className="rounded-2xl p-5" style={{ background: '#1e2235', border: `1px solid rgba(var(--color-${s.color}-500, 255,255,255), 0.1)` }}>
             <p className="text-3xl font-black text-white mb-1">{isLoading ? '...' : s.value}</p>
             <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{s.label}</p>
           </div>
@@ -25,7 +25,7 @@ export default function BossDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-2xl p-6 flex flex-col items-center justify-center text-center" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)', minHeight: '300px' }}>
+        <div className="rounded-2xl p-6 flex flex-col items-center justify-center text-center" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)', minHeight: '300px' }}>
           <div className="text-5xl mb-4">🤖</div>
           <h3 className="text-lg font-bold text-white mb-2">AI Assistant</h3>
           <p className="text-slate-400 text-sm mb-4">Chat with the Busy Boss Diet AI to generate reports or query HR data.</p>
@@ -34,7 +34,7 @@ export default function BossDashboard() {
           </Link>
         </div>
         
-        <div className="rounded-2xl p-6" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)', minHeight: '300px' }}>
+        <div className="rounded-2xl p-6" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)', minHeight: '300px' }}>
           <h3 className="text-lg font-bold text-white mb-4">Recent System Activity</h3>
           {isLoading ? <p className="text-slate-500 text-sm">Loading...</p> : (
             <p className="text-slate-500 text-sm">Activity feed will be connected to the audit logs.</p>

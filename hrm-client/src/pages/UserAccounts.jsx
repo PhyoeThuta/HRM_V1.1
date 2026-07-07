@@ -160,7 +160,7 @@ export default function UserAccounts() {
             placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-64 bg-[rgb(var(--color-surface-800))] text-slate-300 text-sm rounded-xl px-4 py-2 border border-white/5 outline-none focus:border-indigo-500"
+            className="w-full sm:w-64 bg-[#1e2235] text-slate-300 text-sm rounded-xl px-4 py-2 border border-white/5 outline-none focus:border-indigo-500"
           />
         </div>
         <button onClick={() => { handleCancelEdit(); setShowFormModal(true); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl whitespace-nowrap shadow-lg shadow-indigo-600/20">
@@ -180,7 +180,7 @@ export default function UserAccounts() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {groupedUsers[role].map(u => (
-                  <div key={u.id} className={`p-5 rounded-2xl border transition-colors flex flex-col justify-between h-full ${!u.is_active ? 'bg-[#11131f]/50 border-rose-500/20' : 'bg-[rgb(var(--color-surface-800))] border-white/5 hover:border-indigo-500/30'}`}>
+                  <div key={u.id} className={`p-5 rounded-2xl border transition-colors flex flex-col justify-between h-full ${!u.is_active ? 'bg-[#11131f]/50 border-rose-500/20' : 'bg-[#1e2235] border-white/5 hover:border-indigo-500/30'}`}>
                     
                     <div className="flex items-start gap-4 mb-6">
                       <div className={`w-12 h-12 rounded-full font-bold flex items-center justify-center text-xl shrink-0 ${!u.is_active ? 'bg-slate-800 text-slate-500' : 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300'}`}>
@@ -230,7 +230,7 @@ export default function UserAccounts() {
       {/* Form Modal */}
       {showFormModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[rgb(var(--color-surface-800))] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+          <div className="bg-[#1e2235] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
             <h2 className="text-lg font-bold text-white mb-6">
               {editTargetId ? 'Edit Account' : 'Create New Account'}
             </h2>
@@ -291,7 +291,7 @@ export default function UserAccounts() {
       {/* Reset Password Modal */}
       {resetTargetId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[rgb(var(--color-surface-800))] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
+          <div className="bg-[#1e2235] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
             <h3 className="text-lg font-bold text-white mb-2">Reset Password</h3>
             <p className="text-slate-400 text-xs mb-6">Enter a new password for this user account.</p>
             

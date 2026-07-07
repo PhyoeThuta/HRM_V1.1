@@ -49,7 +49,7 @@ export default function EditEmployee() {
 
   return (
     <Layout title="Edit Employee" subtitle={`Update details for ${form.Full_name || 'Employee'}`}>
-      <div className="max-w-4xl mx-auto rounded-2xl border border-white/5 bg-[rgb(var(--color-surface-800))]">
+      <div className="max-w-4xl mx-auto rounded-2xl border border-white/5 bg-[#1e2235]">
         <form onSubmit={handleSave} className="p-6 md:p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div><label className="form-label">Employee ID *</label><input required className="form-input" value={form.employee_id} onChange={e => set('employee_id', e.target.value)} /></div>

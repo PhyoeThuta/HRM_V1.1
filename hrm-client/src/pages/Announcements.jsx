@@ -72,7 +72,7 @@ export default function Announcements() {
             const isPast = a.expiry_date && a.expiry_date < today;
             return activeTab === 'active' ? !isPast : isPast;
           }).map(a => (
-            <div key={a.id} className="p-6 rounded-2xl border border-white/5 bg-[rgb(var(--color-surface-800))] relative">
+            <div key={a.id} className="p-6 rounded-2xl border border-white/5 bg-[#1e2235] relative">
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -107,7 +107,7 @@ export default function Announcements() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-[rgb(var(--color-surface-850))] border border-white/10 rounded-2xl w-full max-w-lg p-6">
+          <div className="relative bg-[#161929] border border-white/10 rounded-2xl w-full max-w-lg p-6">
             <h2 className="text-lg font-bold text-white mb-4">Post Announcement</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><label className="form-label">Title *</label><input required className="form-input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /></div>

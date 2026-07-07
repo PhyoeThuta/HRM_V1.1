@@ -69,7 +69,7 @@ export default function HandoverPanel({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl p-5" style={{ background: 'rgb(var(--color-surface-800))', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="rounded-2xl p-5" style={{ background: '#1e2235', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
