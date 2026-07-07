@@ -117,7 +117,7 @@ html[data-theme="light"] aside {
 html[data-theme="light"] aside .text-white { color: #111827 !important; }
 html[data-theme="light"] aside .text-slate-400 { color: #6b7280 !important; }
 html[data-theme="light"] aside p { color: #111827 !important; }
-html[data-theme="light"] aside .text-[10px] { color: #6b7280 !important; }
+html[data-theme="light"] aside .text-\[10px\] { color: #6b7280 !important; }
 html[data-theme="light"] aside [style*="color: '#A3B81F'"] { color: #A3B81F !important; }
 /* Section labels */
 html[data-theme="light"] aside .text-slate-500 { color: #9ca3af !important; }
