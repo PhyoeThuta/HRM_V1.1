@@ -1,98 +1,275 @@
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Chart, registerables } from 'chart.js';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 
+Chart.register(...registerables);
+
+function StatCard({ label, value, gradient, icon, trend, subtext }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-surface-800 border border-white/5 group">
+      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 translate-x-10 -translate-y-10 bg-gradient-to-br ${gradient} group-hover:scale-110 transition-transform duration-500`} />
+      
+      <div className="flex justify-between items-start mb-4 relative z-10">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br ${gradient} bg-opacity-20 backdrop-blur-sm shadow-inner`}>
+          <span className="text-2xl">{icon}</span>
+        </div>
+        {trend && (
+          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${trend > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+            {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
+          </div>
+        )}
+      </div>
+      
+      <div className="relative z-10">
+        <p className="text-3xl font-black text-white tracking-tight mb-1">{value}</p>
+        <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+        {subtext && <p className="text-xs text-slate-500 mt-2 font-medium">{subtext}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function CRMDashboard() {
-  const { user, isBoss, isMarketingJunior } = useAuth();
+  const { user } = useAuth();
+  const lineChartRef = useRef(null);
+  const doughnutChartRef = useRef(null);
 
   // Mock data for UI
   const metrics = {
-    totalCustomers: 1250,
-    activeLeads: 85,
-    convertedThisMonth: 42,
-    activePackages: 310,
-    satisfactionRate: 94
+    totalCustomers: '1,250',
+    activeLeads: '85',
+    convertedThisMonth: '42',
+    activePackages: '310',
+    revenue: '$45,200',
   };
 
+  useEffect(() => {
+    let lineChart, doughnutChart;
+
+    if (lineChartRef.current) {
+      const ctx = lineChartRef.current.getContext('2d');
+      // Create gradient for line chart
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(16, 185, 129, 0.5)'); // Emerald 500
+      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+      lineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+          datasets: [{
+            label: 'New Customers',
+            data: [35, 42, 55, 48, 65, 59, 85],
+            borderColor: '#10b981', // emerald-500
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(30, 34, 53, 0.9)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false,
+            }
+          },
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' }, beginAtZero: true },
+            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+          },
+          interaction: { intersect: false, mode: 'index' },
+        }
+      });
+    }
+
+    if (doughnutChartRef.current) {
+      const ctx = doughnutChartRef.current.getContext('2d');
+      doughnutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Facebook', 'Telegram', 'Website', 'Referral'],
+          datasets: [{
+            data: [45, 25, 20, 10],
+            backgroundColor: [
+              '#3b82f6', // blue
+              '#06b6d4', // cyan
+              '#8b5cf6', // purple
+              '#f59e0b', // amber
+            ],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '75%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20, usePointStyle: true } }
+          }
+        }
+      });
+    }
+
+    return () => {
+      if (lineChart) lineChart.destroy();
+      if (doughnutChart) doughnutChart.destroy();
+    };
+  }, []);
+
   return (
-    <Layout title="CRM Dashboard" subtitle="Overview of Sales, Leads, and Customer Health">
+    <Layout title="Analytics Dashboard" subtitle="Real-time sales, leads, and performance metrics">
       
-      {/* Quick Navigation */}
-      <div className="flex gap-4 mb-8">
-        <Link to="/crm/inquiries" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-800 hover:bg-white/5 border border-white/5 font-bold text-slate-300 hover:text-white transition-colors">
-          <span>💬</span> Manage Inquiries (Leads)
+      {/* Premium Quick Navigation Bar */}
+      <div className="flex flex-wrap items-center gap-4 mb-8 bg-surface-800 p-2 rounded-2xl border border-white/5 shadow-lg w-max">
+        <div className="px-4 py-2 font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-green to-emerald-400">
+          CRM PORTAL
+        </div>
+        <div className="w-px h-6 bg-white/10 mx-2"></div>
+        <Link to="/crm/inquiries" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-bold transition-all group">
+          <span className="group-hover:scale-110 transition-transform">💬</span> Manage Leads
         </Link>
-        <Link to="/crm/customers" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-800 hover:bg-white/5 border border-white/5 font-bold text-slate-300 hover:text-white transition-colors">
-          <span>👥</span> Customers Database
+        <Link to="/crm/customers" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold transition-all group">
+          <span className="group-hover:scale-110 transition-transform">👥</span> View Customers
         </Link>
       </div>
 
-      {isBoss() && (
-        <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-          <h2 className="text-amber-500 font-bold mb-2 flex items-center gap-2">
-            <span>👑</span> Executive Summary
-          </h2>
-          <p className="text-sm text-slate-300">
-            Welcome back. This month, the CRM system tracked <strong>{metrics.activeLeads} active leads</strong> and successfully converted <strong>{metrics.convertedThisMonth} new customers</strong>. 
-            Customer satisfaction remains high at <strong>{metrics.satisfactionRate}%</strong> with {metrics.activePackages} active diet packages currently being served.
-          </p>
-        </div>
-      )}
-
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        {[
-          { label: 'Total Customers', value: metrics.totalCustomers, color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20' },
-          { label: 'Active Leads', value: metrics.activeLeads, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-          { label: 'Converted (This Month)', value: metrics.convertedThisMonth, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-          { label: 'Active Packages', value: metrics.activePackages, color: 'text-brand-green', bg: 'bg-brand-green/10', border: 'border-brand-green/20' }
-        ].map((m, i) => (
-          <div key={i} className={`rounded-2xl p-6 border ${m.bg} ${m.border}`}>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{m.label}</p>
-            <p className={`text-3xl font-black ${m.color}`}>{m.value.toLocaleString()}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard 
+          label="Total Revenue" 
+          value={metrics.revenue} 
+          gradient="from-emerald-400 to-teal-500" 
+          icon="💰" 
+          trend={12.5}
+          subtext="Compared to last month"
+        />
+        <StatCard 
+          label="Total Customers" 
+          value={metrics.totalCustomers} 
+          gradient="from-indigo-400 to-blue-500" 
+          icon="👥" 
+          trend={8.2}
+          subtext="Active users in system"
+        />
+        <StatCard 
+          label="Active Leads" 
+          value={metrics.activeLeads} 
+          gradient="from-amber-400 to-orange-500" 
+          icon="🔥" 
+          trend={-2.4}
+          subtext="Pending conversions"
+        />
+        <StatCard 
+          label="Active Packages" 
+          value={metrics.activePackages} 
+          gradient="from-purple-400 to-pink-500" 
+          icon="🍱" 
+          trend={15.3}
+          subtext="Diet plans currently running"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Main Chart */}
+        <div className="lg:col-span-2 rounded-3xl bg-surface-800 border border-white/5 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="font-bold text-white text-lg">Customer Growth</h3>
+              <p className="text-sm text-slate-400">New conversions over the last 7 months</p>
+            </div>
+            <select className="bg-surface-900 border border-white/10 text-white text-sm rounded-xl px-4 py-2 focus:outline-none focus:border-brand-green">
+              <option>This Year</option>
+              <option>Last 6 Months</option>
+            </select>
           </div>
-        ))}
+          <div className="h-[300px] w-full">
+            <canvas ref={lineChartRef}></canvas>
+          </div>
+        </div>
+
+        {/* Doughnut Chart */}
+        <div className="rounded-3xl bg-surface-800 border border-white/5 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
+          <div>
+            <h3 className="font-bold text-white text-lg">Lead Sources</h3>
+            <p className="text-sm text-slate-400">Where inquiries are coming from</p>
+          </div>
+          <div className="flex-1 min-h-[250px] mt-4 relative flex items-center justify-center">
+            <canvas ref={doughnutChartRef}></canvas>
+            {/* Center Text for Doughnut */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-30px]">
+              <span className="text-3xl font-black text-white">85</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">Total Leads</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Inquiries (For Marketing/Boss) */}
-        <div className="rounded-2xl bg-surface-800 border border-white/5 overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
-            <h3 className="font-bold text-white">Recent Leads (Inquiries)</h3>
-            <span className="text-xs bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full font-bold">Action Needed</span>
+        {/* Recent Inquiries List */}
+        <div className="rounded-3xl bg-surface-800 border border-white/5 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+            <h3 className="font-bold text-white text-lg">Recent Hot Leads</h3>
+            <Link to="/crm/inquiries" className="text-sm font-bold text-brand-green hover:text-emerald-400">View All →</Link>
           </div>
           <div className="divide-y divide-white/5">
             {[
-              { name: 'Zaw Min Tun', source: 'Messenger', interest: '1 Month Diet', ai: 'High Confidence' },
-              { name: 'Aye Thandar', source: 'Telegram', interest: 'Weekly Keto', ai: 'Needs Follow-up' },
-              { name: 'Kyaw Zin', source: 'Website', interest: 'General Pricing', ai: 'Low Confidence' }
+              { name: 'Zaw Min Tun', source: 'Messenger', interest: '1 Month Diet', ai: '98% Conversion' },
+              { name: 'Aye Thandar', source: 'Telegram', interest: 'Weekly Keto', ai: '75% Conversion' },
+              { name: 'Kyaw Zin', source: 'Website', interest: 'General Pricing', ai: '45% Conversion' }
             ].map((lead, i) => (
-              <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                <div>
-                  <p className="text-sm font-bold text-white">{lead.name}</p>
-                  <p className="text-xs text-slate-400">{lead.source} • {lead.interest}</p>
+              <div key={i} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                    {lead.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white group-hover:text-brand-green transition-colors">{lead.name}</p>
+                    <p className="text-xs text-slate-400">{lead.source} • {lead.interest}</p>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-xs font-bold ${lead.ai.includes('High') ? 'text-emerald-400' : 'text-amber-400'}`}>{lead.ai}</p>
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
+                    {lead.ai}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* AI Flagged Feedback (For Boss & Managers) */}
-        <div className="rounded-2xl bg-surface-800 border border-white/5 overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
-            <h3 className="font-bold text-white">AI Flagged Feedbacks</h3>
-            <span className="text-xs bg-rose-500/20 text-rose-400 px-2.5 py-1 rounded-full font-bold">Attention</span>
+        {/* AI Flagged Feedback */}
+        <div className="rounded-3xl bg-surface-800 border border-white/5 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+          <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+            <h3 className="font-bold text-white text-lg">AI Sentiment Analysis</h3>
+            <span className="text-xs bg-brand-green/20 text-brand-green border border-brand-green/30 px-3 py-1 rounded-full font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]">All Clear</span>
           </div>
-          <div className="p-6 text-center text-sm text-slate-400">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl">🎉</span>
+          <div className="p-8 flex flex-col items-center justify-center text-center h-[calc(100%-73px)]">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400/20 to-teal-500/20 flex items-center justify-center mb-6 relative">
+              <div className="absolute inset-0 rounded-full border-2 border-emerald-400/30 animate-[spin_4s_linear_infinite]"></div>
+              <span className="text-4xl">✨</span>
             </div>
-            <p className="font-bold text-white mb-1">No Critical Complaints</p>
-            <p>AI has not flagged any negative feedback today. Customers are happy with their diet plans!</p>
+            <h4 className="text-xl font-black text-white mb-2">Excellent Health Score</h4>
+            <p className="text-slate-400 max-w-sm">
+              AI has analyzed all recent customer feedback across social platforms. No critical complaints detected today. Clients are loving the Busy Boss Diet plans!
+            </p>
           </div>
         </div>
       </div>
