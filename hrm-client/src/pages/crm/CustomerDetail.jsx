@@ -165,6 +165,23 @@ export default function CustomerDetail() {
     toast.success('Photo added to gallery!');
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Check file size (limit to ~1MB to protect localStorage)
+    if (file.size > 1024 * 1024) {
+      toast.error('File is too large. Please select an image under 1MB to save storage.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoForm({ ...photoForm, url: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const confirmDeletePhoto = () => {
     if (!photoToDelete) return;
     
@@ -315,9 +332,31 @@ export default function CustomerDetail() {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Upload Photo</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-surface-900 border-white/10 hover:border-brand-green/50 hover:bg-white/5 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-3 text-slate-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                      </svg>
+                      <p className="mb-2 text-sm text-slate-400"><span className="font-bold text-brand-green">Click to upload</span> or drag and drop</p>
+                      <p className="text-xs text-slate-500">PNG, JPG or GIF (MAX. 1MB)</p>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                  </label>
+                </div>
+              </div>
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase">Or paste link</span>
+                <div className="flex-grow border-t border-white/10"></div>
+              </div>
+              <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Image URL</label>
-                <input required type="url" value={photoForm.url} onChange={e => setPhotoForm({...photoForm, url: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="https://example.com/photo.jpg" />
-                <p className="text-xs text-slate-500 mt-2">Paste a public image URL to add to the gallery.</p>
+                <input required={!photoForm.url} type="url" value={photoForm.url.startsWith('data:') ? '' : photoForm.url} onChange={e => setPhotoForm({...photoForm, url: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="https://example.com/photo.jpg" />
+                {photoForm.url.startsWith('data:') && (
+                  <p className="text-xs text-emerald-400 mt-2 font-bold flex items-center gap-1"><span>✓</span> Local image selected</p>
+                )}
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowGalleryModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
