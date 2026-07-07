@@ -41,9 +41,9 @@ export default function CRMDashboard() {
     convertedThisMonth: '0',
     activePackages: '0',
     revenue: '$0',
-  });
   const [upcomingRenewals, setUpcomingRenewals] = useState([]);
   const [recentLeads, setRecentLeads] = useState([]);
+  const [flaggedFeedback, setFlaggedFeedback] = useState([]);
 
   useEffect(() => {
     // Load dynamic data from local storage
@@ -87,6 +87,9 @@ export default function CRMDashboard() {
       revenue: '$0', // Still mocked since no billing module yet
     });
 
+    // 2. Setup Charts
+    const monthsData = [0, 0, 0, 0, 0, 0, inquiries.length]; // Simplified dynamic data, putting all current leads in current month
+
     let lineChart, doughnutChart;
 
     if (lineChartRef.current) {
@@ -99,10 +102,10 @@ export default function CRMDashboard() {
       lineChart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+          labels: ['Month-6', 'Month-5', 'Month-4', 'Month-3', 'Month-2', 'Last Month', 'This Month'],
           datasets: [{
-            label: 'New Customers',
-            data: [35, 42, 55, 48, 65, 59, 85],
+            label: 'New Leads',
+            data: monthsData,
             borderColor: '#10b981', // emerald-500
             backgroundColor: gradient,
             borderWidth: 3,
@@ -142,6 +145,19 @@ export default function CRMDashboard() {
     // 3. Process Recent Hot Leads
     const pending = inquiries.filter(i => i.status === 'New' || i.status === 'Follow Up').slice(0, 4);
     setRecentLeads(pending);
+
+    // 4. Process AI Flagged Feedback
+    let flagged = [];
+    customers.forEach(c => {
+      if (c.feedbacks) {
+        c.feedbacks.forEach(f => {
+          if (f.ai_flagged) {
+            flagged.push({ customerName: c.full_name, text: f.text, date: f.date });
+          }
+        });
+      }
+    });
+    setFlaggedFeedback(flagged);
 
     // 4. Calculate Doughnut Chart Data (Sources)
     const sourceCounts = {
@@ -422,20 +438,41 @@ export default function CRMDashboard() {
 
         {/* AI Flagged Feedback */}
         <div className="rounded-3xl bg-surface-800 border border-white/5 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+          <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${flaggedFeedback.length > 0 ? 'from-rose-400 to-red-500' : 'from-emerald-400 to-teal-500'}`}></div>
           <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
             <h3 className="font-bold text-white text-lg">AI Sentiment Analysis</h3>
-            <span className="text-xs bg-brand-green/20 text-brand-green border border-brand-green/30 px-3 py-1 rounded-full font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]">All Clear</span>
+            {flaggedFeedback.length > 0 ? (
+              <span className="text-xs bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full font-bold shadow-[0_0_15px_rgba(244,63,94,0.3)] animate-pulse">{flaggedFeedback.length} Issues Detected</span>
+            ) : (
+              <span className="text-xs bg-brand-green/20 text-brand-green border border-brand-green/30 px-3 py-1 rounded-full font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]">All Clear</span>
+            )}
           </div>
-          <div className="p-8 flex flex-col items-center justify-center text-center h-[calc(100%-73px)]">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400/20 to-teal-500/20 flex items-center justify-center mb-6 relative">
-              <div className="absolute inset-0 rounded-full border-2 border-emerald-400/30 animate-[spin_4s_linear_infinite]"></div>
-              <span className="text-4xl">✨</span>
-            </div>
-            <h4 className="text-xl font-black text-white mb-2">Excellent Health Score</h4>
-            <p className="text-slate-400 max-w-sm">
-              AI has analyzed all recent customer feedback across social platforms. No critical complaints detected today. Clients are loving the Busy Boss Diet plans!
-            </p>
+          <div className="p-4 h-[calc(100%-73px)] overflow-y-auto custom-scrollbar">
+            {flaggedFeedback.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center h-full p-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400/20 to-teal-500/20 flex items-center justify-center mb-4 relative">
+                  <div className="absolute inset-0 rounded-full border-2 border-emerald-400/30 animate-[spin_4s_linear_infinite]"></div>
+                  <span className="text-3xl">✨</span>
+                </div>
+                <h4 className="text-xl font-black text-white mb-2">Excellent Health Score</h4>
+                <p className="text-slate-400 max-w-sm text-sm">
+                  AI has analyzed all recent customer feedback across social platforms. No critical complaints detected today. Clients are loving the Busy Boss Diet plans!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {flaggedFeedback.map((fb, i) => (
+                  <div key={i} className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-white">{fb.customerName}</span>
+                      <span className="text-xs text-rose-400 font-black">{fb.date}</span>
+                    </div>
+                    <p className="text-sm text-slate-300 italic">"{fb.text}"</p>
+                    <button className="mt-3 text-xs font-bold bg-rose-500 text-white px-3 py-1.5 rounded-lg hover:bg-rose-600 transition-colors">Review Case</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
