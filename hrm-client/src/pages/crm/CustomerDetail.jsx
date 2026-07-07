@@ -90,11 +90,13 @@ export default function CustomerDetail() {
     // Basic calculation if height is cm and weight is lb or kg. Assuming height cm, weight kg for BMI.
     // If user inputs lbs, we should ideally convert, but for simplicity let's just do standard metric BMI if possible.
     // Let's assume height is in cm (e.g. 170) and weight is in lbs (e.g. 150).
-    const weightLbs = parseFloat(metricsForm.current_weight) || parseFloat(customer?.metrics?.current_weight);
-    const heightCm = parseFloat(metricsForm.height) || parseFloat(customer?.metrics?.height);
+    const weightVal = parseFloat(metricsForm.current_weight) || parseFloat(customer?.health?.current_weight);
+    const heightCm = parseFloat(metricsForm.height) || parseFloat(customer?.health?.height);
     
-    if (weightLbs && heightCm) {
-      const weightKg = weightLbs * 0.453592;
+    if (weightVal && heightCm) {
+      // If value already in kg (from backend), don't convert. If lbs, convert.
+      const isLbs = (metricsForm.current_weight || customer?.health?.current_weight || '').toString().toLowerCase().includes('lb');
+      const weightKg = isLbs ? weightVal * 0.453592 : weightVal;
       const heightM = heightCm / 100;
       const bmi = weightKg / (heightM * heightM);
       return bmi.toFixed(1);
@@ -483,15 +485,15 @@ export default function CustomerDetail() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="p-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center relative overflow-hidden group">
                 <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 relative z-10">Current Weight</p>
-                <p className="text-3xl text-white font-black relative z-10">{customer.metrics?.current_weight || customer.physical_status?.current_weight || 'N/A'}</p>
+                <p className="text-3xl text-white font-black relative z-10">{customer.health?.current_weight || 'N/A'}</p>
               </div>
               <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center relative overflow-hidden group">
                 <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2 relative z-10">Target Weight</p>
-                <p className="text-3xl text-white font-black relative z-10">{customer.metrics?.goal_weight || customer.physical_status?.goal_weight || 'N/A'}</p>
+                <p className="text-3xl text-white font-black relative z-10">{customer.health?.goal_weight || 'N/A'}</p>
               </div>
               <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Height</p>
-                <p className="text-3xl text-white font-black">{customer.metrics?.height ? `${customer.metrics.height} cm` : 'N/A'}</p>
+                <p className="text-3xl text-white font-black">{customer.health?.height || 'N/A'}</p>
               </div>
               <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center relative">
                 <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">BMI Status</p>
@@ -505,11 +507,11 @@ export default function CustomerDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 relative overflow-hidden">
                 <p className="text-xs text-rose-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>⚠️</span> Medical Conditions</p>
-                <p className="text-white font-medium text-lg relative z-10">{customer.metrics?.medical_condition || customer.health?.medical_condition || 'None reported'}</p>
+                <p className="text-white font-medium text-lg relative z-10">{customer.health?.medical_condition || 'None reported'}</p>
               </div>
               <div className="p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20 relative overflow-hidden">
                 <p className="text-xs text-orange-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>🥜</span> Food Allergies</p>
-                <p className="text-white font-medium text-lg relative z-10">{customer.metrics?.allergies || customer.lifestyle?.food_restriction || 'None reported'}</p>
+                <p className="text-white font-medium text-lg relative z-10">{customer.health?.allergies || customer.lifestyle?.food_restriction || 'None reported'}</p>
               </div>
             </div>
           </div>
