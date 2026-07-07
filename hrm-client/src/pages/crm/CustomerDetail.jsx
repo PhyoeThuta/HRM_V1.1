@@ -164,6 +164,25 @@ export default function CustomerDetail() {
     toast.success('Photo added to gallery!');
   };
 
+  const handleDeletePhoto = (photoId) => {
+    if (!window.confirm('Are you sure you want to delete this photo?')) return;
+    
+    const stored = JSON.parse(localStorage.getItem('crm_customers') || '[]');
+    const updatedCustomers = stored.map(c => {
+      if (c.id.toString() === id.toString()) {
+        const gallery = c.gallery || [];
+        return { ...c, gallery: gallery.filter(p => p.id !== photoId) };
+      }
+      return c;
+    });
+    
+    localStorage.setItem('crm_customers', JSON.stringify(updatedCustomers));
+    
+    const gallery = customer.gallery || [];
+    setCustomer({ ...customer, gallery: gallery.filter(p => p.id !== photoId) });
+    toast.success('Photo deleted from gallery.');
+  };
+
   if (!customer) return <Layout title="Loading..."><div className="p-8 text-center text-slate-400">Loading profile...</div></Layout>;
 
   const tabs = [
@@ -475,6 +494,11 @@ export default function CustomerDetail() {
                         </span>
                         <p className="text-white text-sm font-medium">{photo.date}</p>
                       </div>
+                      {user?.role !== 'marketing_junior' && (
+                        <button onClick={() => handleDeletePhoto(photo.id)} className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center hover:bg-rose-500/40 hover:text-white transition-colors border border-rose-500/30">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
