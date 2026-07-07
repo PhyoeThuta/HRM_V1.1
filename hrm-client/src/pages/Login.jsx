@@ -48,11 +48,7 @@ export default function Login() {
         <div className="glass rounded-3xl p-8 shadow-2xl">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="Busy Boss Diet Logo" className="w-14 h-14 object-contain rounded-2xl shadow-lg bg-white p-1" />
             <div>
               <p className="text-xl font-black text-white tracking-tight">Busy Boss Diet</p>
               <p className="text-[10px] text-indigo-400 font-bold tracking-[0.3em] uppercase">Enterprise System</p>

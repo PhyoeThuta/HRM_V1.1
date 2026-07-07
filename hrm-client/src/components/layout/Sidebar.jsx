@@ -83,11 +83,7 @@ export default function Sidebar({ isOpen, close }) {
     >
       {/* Logo */}
       <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0" style={{ background: 'linear-gradient(135deg, #A3B81F, #FF7700)' }}>
-          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d={isEmployee() ? ICONS.users : ICONS.employees} />
-          </svg>
-        </div>
+        <img src="/logo.png" alt="Busy Boss Diet Logo" className="w-10 h-10 object-contain rounded-xl shadow-sm bg-white p-1 flex-shrink-0" />
         <div>
           {isEmployee() ? (
             <>
