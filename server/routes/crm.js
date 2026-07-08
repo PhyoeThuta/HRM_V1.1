@@ -60,7 +60,7 @@ router.get('/customers', verifyToken, async (req, res) => {
 router.post('/customers', verifyToken, async (req, res) => {
   try {
     const {
-      full_name, facebook_name, age, gender, email, phone, address,
+      full_name, facebook_name, age, gender, email, phone, address, delivery_address, delivery_notes,
       food_restriction, activity_level, fasting_willingness,
       current_weight, goal_weight, height, time_frame,
       medical_condition, other_condition, medicine_taking, special_requests
@@ -74,7 +74,7 @@ router.post('/customers', verifyToken, async (req, res) => {
     const { data: customer, error: custErr } = await supabaseAdmin
       .schema('crm')
       .from('customers')
-      .insert({ full_name, facebook_name, age: age || null, gender, email, phone, address, customer_code })
+      .insert({ full_name, facebook_name, age: age || null, gender, email, phone, address, delivery_address, delivery_notes, customer_code })
       .select()
       .single();
 
@@ -190,10 +190,10 @@ router.delete('/customers/:id', verifyToken, async (req, res) => {
 router.post('/customers/:id/packages', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, duration, meal_type, meal_count, start_date, expires_at } = req.body;
+    const { name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status } = req.body;
 
     const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .insert({ customer_id: id, name, duration, meal_type, meal_count, start_date, expires_at })
+      .insert({ customer_id: id, name, duration, meal_type, meal_count, start_date, expires_at, payment_status: payment_status || 'Unpaid', status: status || 'Active' })
       .select()
       .single();
 
@@ -209,9 +209,9 @@ router.post('/customers/:id/packages', verifyToken, async (req, res) => {
 router.put('/customer-packages/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, duration, meal_type, meal_count, start_date, expires_at } = req.body;
+    const { name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status } = req.body;
     const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .update({ name, duration, meal_type, meal_count, start_date, expires_at })
+      .update({ name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status })
       .eq('id', id)
       .select()
       .single();
@@ -236,6 +236,142 @@ router.delete('/customer-packages/:id', verifyToken, async (req, res) => {
     return res.json({ success: true });
   } catch (e) {
     console.error('[CRM DELETE CUSTOMER_PACKAGE]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/crm/customer-packages/:id/pause
+router.put('/customer-packages/:id/pause', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
+      .update({ status: 'Paused' })
+      .eq('id', id)
+      .select().single();
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/crm/customer-packages/:id/resume
+router.put('/customer-packages/:id/resume', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { days_paused } = req.body; // To extend expiry date
+    
+    // First get current expiry
+    const { data: pkg, error: pkgErr } = await supabaseAdmin.schema('crm').from('customer_packages').select('expires_at').eq('id', id).single();
+    if (pkgErr) throw pkgErr;
+    
+    let newExpiry = pkg.expires_at;
+    if (days_paused && pkg.expires_at) {
+      const expDate = new Date(pkg.expires_at);
+      expDate.setDate(expDate.getDate() + parseInt(days_paused));
+      newExpiry = expDate.toISOString().split('T')[0];
+    }
+
+    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
+      .update({ status: 'Active', expires_at: newExpiry })
+      .eq('id', id)
+      .select().single();
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/crm/kitchen-dashboard/deduct-meals
+router.post('/kitchen-dashboard/deduct-meals', verifyToken, async (req, res) => {
+  try {
+    // We fetch all active packages that have meal_count > 0 and deduct 1
+    const { data: packages, error: fetchErr } = await supabaseAdmin.schema('crm')
+      .from('customer_packages')
+      .select('id, meal_count')
+      .eq('status', 'Active')
+      .gt('meal_count', 0);
+      
+    if (fetchErr) throw fetchErr;
+    
+    let deductedCount = 0;
+    // Basic loop update (in production, use RPC for bulk update)
+    for (const pkg of packages) {
+      const { error } = await supabaseAdmin.schema('crm')
+        .from('customer_packages')
+        .update({ meal_count: pkg.meal_count - 1 })
+        .eq('id', pkg.id);
+      if (!error) deductedCount++;
+    }
+    
+    return res.json({ success: true, message: `Deducted 1 meal from ${deductedCount} active packages.` });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/crm/kitchen-dashboard
+router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
+  try {
+    // Get all active packages today with customer info
+    const { data: packages, error } = await supabaseAdmin.schema('crm')
+      .from('customer_packages')
+      .select(`
+        *,
+        customers:customer_id ( full_name, phone, address, delivery_address, delivery_notes ),
+        customer_health!inner ( allergies, medical_condition, special_requests ),
+        customer_lifestyle!inner ( food_restriction )
+      `)
+      .eq('status', 'Active')
+      .gt('meal_count', 0);
+
+    if (error) throw error;
+    
+    let totalLunch = 0;
+    let totalDinner = 0;
+    const specialRequests = [];
+
+    // Parse the data for kitchen view
+    const deliveryList = packages.map(pkg => {
+      let isLunch = pkg.meal_type.toLowerCase().includes('lunch');
+      let isDinner = pkg.meal_type.toLowerCase().includes('dinner');
+      
+      if (isLunch) totalLunch++;
+      if (isDinner) totalDinner++;
+      
+      const restrictions = [];
+      const health = pkg.customer_health || {};
+      const lifestyle = pkg.customer_lifestyle || {};
+      
+      if (health.allergies && health.allergies !== 'None') restrictions.push(health.allergies);
+      if (health.special_requests && health.special_requests !== 'None') restrictions.push(health.special_requests);
+      if (lifestyle.food_restriction && lifestyle.food_restriction !== 'None') restrictions.push(lifestyle.food_restriction);
+      
+      const restrictionStr = restrictions.join(', ');
+      if (restrictionStr) {
+        specialRequests.push({ customer: pkg.customers.full_name, request: restrictionStr, type: pkg.meal_type });
+      }
+
+      return {
+        package_id: pkg.id,
+        customer_id: pkg.customer_id,
+        name: pkg.customers.full_name,
+        phone: pkg.customers.phone,
+        delivery_address: pkg.customers.delivery_address || pkg.customers.address || 'No Address',
+        delivery_notes: pkg.customers.delivery_notes || '',
+        meal_type: pkg.meal_type,
+        restrictions: restrictionStr || 'None'
+      };
+    });
+
+    return res.json({
+      headcount: { totalLunch, totalDinner },
+      specialRequests,
+      deliveryList
+    });
+  } catch (e) {
+    console.error('[CRM KITCHEN DASHBOARD]', e);
     return res.status(500).json({ error: e.message });
   }
 });

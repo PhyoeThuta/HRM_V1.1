@@ -26,7 +26,9 @@ export default function CustomerDetail() {
     start_date: new Date().toISOString().split('T')[0],
     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 30 days but editable
     meal_count: 60, 
-    meal_type: 'LUNCH, DINNER' 
+    meal_type: 'LUNCH, DINNER',
+    payment_status: 'Unpaid',
+    status: 'Active'
   });
   const [metricsForm, setMetricsForm] = useState({
     current_weight: '',
@@ -134,7 +136,9 @@ export default function CustomerDetail() {
       start_date: new Date().toISOString().split('T')[0],
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       meal_count: 60, 
-      meal_type: 'LUNCH, DINNER'
+      meal_type: 'LUNCH, DINNER',
+      payment_status: 'Unpaid',
+      status: 'Active'
     });
     setShowPackageModal(true);
   };
@@ -147,9 +151,40 @@ export default function CustomerDetail() {
       start_date: pkg.start_date || new Date().toISOString().split('T')[0],
       expires_at: pkg.expires_at,
       meal_count: pkg.meal_count,
-      meal_type: pkg.meal_type
+      meal_type: pkg.meal_type,
+      payment_status: pkg.payment_status || 'Unpaid',
+      status: pkg.status || 'Active'
     });
     setShowPackageModal(true);
+  };
+
+  const handlePausePackage = async (id) => {
+    try {
+      const updatedPkg = await crmApi.pausePackage(id);
+      setCustomer(prev => ({
+        ...prev,
+        packages_list: (prev.packages_list || []).map(p => p.id === id ? updatedPkg : p)
+      }));
+      toast.success('Package paused!');
+    } catch (err) {
+      toast.error('Failed to pause package');
+    }
+  };
+
+  const handleResumePackage = async (id, oldExpiry) => {
+    // Simple prompt for days paused
+    const days = window.prompt("How many days was the package paused for? (This will extend the expiry date)", "3");
+    if (!days) return;
+    try {
+      const updatedPkg = await crmApi.resumePackage(id, parseInt(days));
+      setCustomer(prev => ({
+        ...prev,
+        packages_list: (prev.packages_list || []).map(p => p.id === id ? updatedPkg : p)
+      }));
+      toast.success('Package resumed and expiry extended!');
+    } catch (err) {
+      toast.error('Failed to resume package');
+    }
   };
 
   const confirmDeletePackage = async () => {
@@ -306,14 +341,24 @@ export default function CustomerDetail() {
                   <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({...packageForm, expires_at: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Meal Type Timetable</label>
-                <select value={packageForm.meal_type} onChange={e => setPackageForm({...packageForm, meal_type: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
-                  <option>LUNCH, DINNER</option>
-                  <option>LUNCH ONLY</option>
-                  <option>DINNER ONLY</option>
-                  <option>BREAKFAST, LUNCH, DINNER</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Meal Type Timetable</label>
+                  <select value={packageForm.meal_type} onChange={e => setPackageForm({...packageForm, meal_type: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
+                    <option>LUNCH, DINNER</option>
+                    <option>LUNCH ONLY</option>
+                    <option>DINNER ONLY</option>
+                    <option>BREAKFAST, LUNCH, DINNER</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Payment Status</label>
+                  <select value={packageForm.payment_status} onChange={e => setPackageForm({...packageForm, payment_status: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
+                    <option>Unpaid</option>
+                    <option>Partial</option>
+                    <option>Paid</option>
+                  </select>
+                </div>
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => { setShowPackageModal(false); setEditingPackageId(null); }} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
@@ -708,10 +753,29 @@ export default function CustomerDetail() {
                 </div>
                 <div className="flex flex-col items-start md:items-end w-full md:w-auto">
                   <div className="flex items-center gap-3 mb-3 w-full md:w-auto justify-between md:justify-end">
-                    <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.1)]">ACTIVE PLAN</span>
+                    {pkg.status === 'Paused' ? (
+                      <span className="inline-block bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.1)]">PAUSED</span>
+                    ) : pkg.status === 'Expired' ? (
+                      <span className="inline-block bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-1.5 rounded-full text-xs font-black">EXPIRED</span>
+                    ) : (
+                      <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.1)]">ACTIVE PLAN</span>
+                    )}
+
+                    <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-black border ${pkg.payment_status === 'Paid' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : pkg.payment_status === 'Partial' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
+                      {pkg.payment_status || 'Unpaid'}
+                    </span>
                     
                     {user?.role !== 'marketing_junior' && (
                       <div className="flex gap-2">
+                        {pkg.status === 'Paused' ? (
+                          <button onClick={() => handleResumePackage(pkg.id, pkg.expires_at)} className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors border border-emerald-500/20" title="Resume Package">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          </button>
+                        ) : (
+                          <button onClick={() => handlePausePackage(pkg.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors border border-amber-500/20" title="Pause Package">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          </button>
+                        )}
                         <button onClick={() => openEditPackage(pkg)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-slate-300 hover:text-white transition-colors border border-white/10" title="Edit Package">
                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>

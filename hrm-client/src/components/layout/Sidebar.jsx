@@ -145,12 +145,9 @@ export default function Sidebar({ isOpen, close }) {
             <NavItem to="/offboarding" label="Offboarding" icon={ICONS.offboarding} />
             <NavItem to="/handovers" label="Handovers" icon={ICONS.handover} />
 
-            {isMarketingJunior() && (
-              <>
-                <NavSection title="CRM System" color="text-brand-green" />
-                <NavItem to="/crm" label="My CRM Portal" icon={ICONS.portal} />
-              </>
-            )}
+            <NavSection title="CRM & Kitchen" color="text-brand-green" />
+            <NavItem to="/crm" label="CRM Dashboard" icon={ICONS.portal} />
+            <NavItem to="/crm/kitchen" label="Kitchen & Delivery" icon={ICONS.handover} />
           </>
         )}
 

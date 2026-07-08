@@ -33,6 +33,18 @@ export const crmApi = {
   // Delete assigned package
   deleteAssignedPackage: (id) => api.delete(`/crm/customer-packages/${id}`).then(r => r.data),
 
+  // Pause package
+  pausePackage: (id) => api.put(`/crm/customer-packages/${id}/pause`).then(r => r.data),
+
+  // Resume package
+  resumePackage: (id, days_paused) => api.put(`/crm/customer-packages/${id}/resume`, { days_paused }).then(r => r.data),
+
+  // Get Kitchen Dashboard data
+  getKitchenDashboard: () => api.get('/crm/kitchen-dashboard').then(r => r.data),
+
+  // Deduct daily meals
+  deductDailyMeals: () => api.post('/crm/kitchen-dashboard/deduct-meals').then(r => r.data),
+
   // ──────────────────────────────────────────────────────────────
   // GALLERY PHOTOS
   // ──────────────────────────────────────────────────────────────

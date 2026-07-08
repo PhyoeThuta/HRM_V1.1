@@ -17,6 +17,8 @@ export default function CustomerForm() {
     email: '',
     phone: '',
     address: '',
+    delivery_address: '',
+    delivery_notes: '',
     // Lifestyle
     food_restriction: '',
     activity_level: 'Sedentary',
@@ -100,8 +102,16 @@ export default function CustomerForm() {
                 <input required name="phone" value={formData.phone} onChange={handleChange} type="tel" className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="e.g. 09123456789" />
               </div>
               <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-slate-400 mb-2">Home Address</label>
+                <textarea name="address" value={formData.address} onChange={handleChange} rows="2" className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="Home address"></textarea>
+              </div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-slate-400 mb-2">Delivery Address *</label>
-                <textarea required name="address" value={formData.address} onChange={handleChange} rows="2" className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="Full address for meal delivery"></textarea>
+                <textarea required name="delivery_address" value={formData.delivery_address} onChange={handleChange} rows="2" className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="Full address for meal delivery"></textarea>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-slate-400 mb-2">Delivery Notes (Optional)</label>
+                <input name="delivery_notes" value={formData.delivery_notes} onChange={handleChange} type="text" className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="e.g. Leave at security gate, call when arrived" />
               </div>
             </div>
           </div>
