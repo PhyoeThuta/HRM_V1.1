@@ -14,6 +14,8 @@ export default function CustomerDetail() {
   
   // Modal State
   const [showPackageModal, setShowPackageModal] = useState(false);
+  const [editingPackageId, setEditingPackageId] = useState(null);
+  const [deletePackageId, setDeletePackageId] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
@@ -63,12 +65,62 @@ export default function CustomerDetail() {
   const handleAssignPackage = async (e) => {
     e.preventDefault();
     try {
-      const newPkg = await crmApi.assignPackage(id, packageForm);
-      setCustomer(prev => ({ ...prev, packages_list: [newPkg, ...(prev.packages_list || [])] }));
+      if (editingPackageId) {
+        const updatedPkg = await crmApi.updateAssignedPackage(editingPackageId, packageForm);
+        setCustomer(prev => ({
+          ...prev,
+          packages_list: (prev.packages_list || []).map(p => p.id === editingPackageId ? updatedPkg : p)
+        }));
+        toast.success('Package updated successfully!');
+      } else {
+        const newPkg = await crmApi.assignPackage(id, packageForm);
+        setCustomer(prev => ({ ...prev, packages_list: [newPkg, ...(prev.packages_list || [])] }));
+        toast.success('Package successfully assigned!');
+      }
       setShowPackageModal(false);
-      toast.success('Package successfully assigned!');
+      setEditingPackageId(null);
     } catch (err) {
-      toast.error('Failed to assign package');
+      toast.error('Failed to save package');
+      console.error(err);
+    }
+  };
+
+  const openAddPackage = () => {
+    setEditingPackageId(null);
+    setPackageForm({
+      name: '1 Month Boss Diet', 
+      duration: '30 Days', 
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      meal_count: 60, 
+      meal_type: 'LUNCH, DINNER'
+    });
+    setShowPackageModal(true);
+  };
+
+  const openEditPackage = (pkg) => {
+    setEditingPackageId(pkg.id);
+    setPackageForm({
+      name: pkg.name,
+      duration: pkg.duration,
+      expires_at: pkg.expires_at,
+      meal_count: pkg.meal_count,
+      meal_type: pkg.meal_type
+    });
+    setShowPackageModal(true);
+  };
+
+  const confirmDeletePackage = async () => {
+    if (!deletePackageId) return;
+    try {
+      await crmApi.deleteAssignedPackage(deletePackageId);
+      setCustomer(prev => ({
+        ...prev,
+        packages_list: (prev.packages_list || []).filter(p => p.id !== deletePackageId)
+      }));
+      setDeletePackageId(null);
+      toast.success('Package deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete package');
       console.error(err);
     }
   };
@@ -183,8 +235,8 @@ export default function CustomerDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-brand-green/10 to-transparent">
-              <h3 className="font-black text-white text-lg">Assign Diet Package</h3>
-              <button onClick={() => setShowPackageModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              <h3 className="font-black text-white text-lg">{editingPackageId ? 'Edit Diet Package' : 'Assign Diet Package'}</h3>
+              <button onClick={() => { setShowPackageModal(false); setEditingPackageId(null); }} className="text-slate-400 hover:text-white">✕</button>
             </div>
             <form onSubmit={handleAssignPackage} className="p-6 space-y-4">
               <div>
@@ -223,8 +275,10 @@ export default function CustomerDetail() {
                 </select>
               </div>
               <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowPackageModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">Assign Package</button>
+                <button type="button" onClick={() => { setShowPackageModal(false); setEditingPackageId(null); }} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
+                <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  {editingPackageId ? 'Update Package' : 'Assign Package'}
+                </button>
               </div>
             </form>
           </div>
@@ -354,6 +408,30 @@ export default function CustomerDetail() {
                   Cancel
                 </button>
                 <button onClick={confirmDeletePhoto} className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-colors border border-rose-500/50">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Package Confirmation Modal */}
+      {deletePackageId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              </div>
+              <h3 className="font-black text-white text-xl mb-2">Delete Package?</h3>
+              <p className="text-slate-400 text-sm mb-8">Are you sure you want to remove this assigned package? This action cannot be undone.</p>
+              
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setDeletePackageId(null)} className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white hover:bg-white/5 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={confirmDeletePackage} className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-colors border border-rose-500/50">
                   Delete
                 </button>
               </div>
@@ -568,7 +646,7 @@ export default function CustomerDetail() {
                 <h4 className="text-white font-bold mb-2">No Active Packages</h4>
                 <p className="text-slate-400 text-sm mb-6">This customer does not have any diet plans assigned yet.</p>
                 {user?.role !== 'marketing_junior' && (
-                  <button onClick={() => setShowPackageModal(true)} className="px-6 py-3 bg-brand-green text-black font-black rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform">
+                  <button onClick={openAddPackage} className="px-6 py-3 bg-brand-green text-black font-black rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform">
                     Assign First Package
                   </button>
                 )}
@@ -589,12 +667,18 @@ export default function CustomerDetail() {
                   <p className="text-sm font-bold text-slate-300 bg-surface-900 px-4 py-2 rounded-xl border border-white/5">
                     {pkg.meal_count} Meals <span className="text-brand-green">({pkg.meal_type})</span>
                   </p>
+                  {user?.role !== 'marketing_junior' && (
+                    <div className="flex gap-2 justify-end md:justify-center mt-3">
+                      <button onClick={() => openEditPackage(pkg)} className="px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10">Edit</button>
+                      <button onClick={() => setDeletePackageId(pkg.id)} className="px-3 py-1.5 text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20">Delete</button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
             
             {(customer.packages_list && customer.packages_list.length > 0 && user?.role !== 'marketing_junior') && (
-              <button onClick={() => setShowPackageModal(true)} className="w-full py-4 mt-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-400 hover:text-white hover:border-white/30 transition-colors font-bold text-sm bg-white/[0.01]">
+              <button onClick={openAddPackage} className="w-full py-4 mt-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-400 hover:text-white hover:border-white/30 transition-colors font-bold text-sm bg-white/[0.01]">
                 + Assign Another Package
               </button>
             )}

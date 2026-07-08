@@ -205,6 +205,41 @@ router.post('/customers/:id/packages', verifyToken, async (req, res) => {
   }
 });
 
+// PUT /api/crm/customer-packages/:id
+router.put('/customer-packages/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, duration, meal_type, meal_count, expires_at } = req.body;
+    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
+      .update({ name, duration, meal_type, meal_count, expires_at })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM PUT CUSTOMER_PACKAGE]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/crm/customer-packages/:id
+router.delete('/customer-packages/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabaseAdmin.schema('crm').from('customer_packages')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[CRM DELETE CUSTOMER_PACKAGE]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // ──────────────────────────────────────────────────────────────────
 // GALLERY PHOTOS
 // ──────────────────────────────────────────────────────────────────

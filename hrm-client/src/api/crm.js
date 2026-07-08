@@ -27,6 +27,12 @@ export const crmApi = {
   assignPackage: (customerId, data) =>
     api.post(`/crm/customers/${customerId}/packages`, data).then(r => r.data),
 
+  // Update assigned package
+  updateAssignedPackage: (id, data) => api.put(`/crm/customer-packages/${id}`, data).then(r => r.data),
+
+  // Delete assigned package
+  deleteAssignedPackage: (id) => api.delete(`/crm/customer-packages/${id}`).then(r => r.data),
+
   // ──────────────────────────────────────────────────────────────
   // GALLERY PHOTOS
   // ──────────────────────────────────────────────────────────────
