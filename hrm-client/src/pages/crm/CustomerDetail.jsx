@@ -108,6 +108,24 @@ export default function CustomerDetail() {
     }
   };
 
+  const handlePackageNameChange = (e) => {
+    const val = e.target.value;
+    let duration = '30 Days';
+    let meal_count = 60;
+    
+    if (val === 'Weekly Keto Plan') { duration = '7 Days'; meal_count = 14; }
+    else if (val === '14 Days Detox') { duration = '14 Days'; meal_count = 28; }
+    else if (val === '2 Days Daily Plan') { duration = '2 Days'; meal_count = 4; }
+    else if (val === '1 Day Trial Plan') { duration = '1 Day'; meal_count = 2; }
+    
+    setPackageForm(prev => ({
+      ...prev,
+      name: val,
+      duration,
+      meal_count
+    }));
+  };
+
   const openAddPackage = () => {
     setEditingPackageId(null);
     setPackageForm({
@@ -266,7 +284,7 @@ export default function CustomerDetail() {
             <form onSubmit={handleAssignPackage} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Package Name</label>
-                <select value={packageForm.name} onChange={e => setPackageForm({...packageForm, name: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
+                <select value={packageForm.name} onChange={handlePackageNameChange} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
                   <option>1 Month Boss Diet</option>
                   <option>Weekly Keto Plan</option>
                   <option>14 Days Detox</option>
@@ -274,15 +292,9 @@ export default function CustomerDetail() {
                   <option>1 Day Trial Plan</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Duration (Text)</label>
-                  <input type="text" value={packageForm.duration} onChange={e => setPackageForm({...packageForm, duration: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
-                  <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({...packageForm, meal_count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
-                </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
+                <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({...packageForm, meal_count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
