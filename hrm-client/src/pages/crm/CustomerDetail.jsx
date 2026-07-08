@@ -23,6 +23,7 @@ export default function CustomerDetail() {
   const [packageForm, setPackageForm] = useState({ 
     name: '1 Month Boss Diet', 
     duration: '30 Days', 
+    start_date: new Date().toISOString().split('T')[0],
     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 30 days but editable
     meal_count: 60, 
     meal_type: 'LUNCH, DINNER' 
@@ -38,6 +39,28 @@ export default function CustomerDetail() {
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (!packageForm.start_date || !packageForm.duration) return;
+    
+    let daysToAdd = 30;
+    const durStr = packageForm.duration.toLowerCase();
+    if (durStr.includes('month')) daysToAdd = (parseInt(durStr) || 1) * 30;
+    else if (durStr.includes('week')) daysToAdd = (parseInt(durStr) || 1) * 7;
+    else if (durStr.includes('day')) daysToAdd = parseInt(durStr) || 1;
+
+    const startDate = new Date(packageForm.start_date);
+    if (!isNaN(startDate.getTime())) {
+      const expiresAt = new Date(startDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+      setPackageForm(prev => {
+        const calculatedExpiry = expiresAt.toISOString().split('T')[0];
+        if (prev.expires_at !== calculatedExpiry) {
+           return { ...prev, expires_at: calculatedExpiry };
+        }
+        return prev;
+      });
+    }
+  }, [packageForm.start_date, packageForm.duration]);
 
   useEffect(() => {
     const fetchCustomer = async () => {
@@ -90,6 +113,7 @@ export default function CustomerDetail() {
     setPackageForm({
       name: '1 Month Boss Diet', 
       duration: '30 Days', 
+      start_date: new Date().toISOString().split('T')[0],
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       meal_count: 60, 
       meal_type: 'LUNCH, DINNER'
@@ -102,6 +126,7 @@ export default function CustomerDetail() {
     setPackageForm({
       name: pkg.name,
       duration: pkg.duration,
+      start_date: pkg.start_date || new Date().toISOString().split('T')[0],
       expires_at: pkg.expires_at,
       meal_count: pkg.meal_count,
       meal_type: pkg.meal_type
@@ -255,14 +280,18 @@ export default function CustomerDetail() {
                   <input type="text" value={packageForm.duration} onChange={e => setPackageForm({...packageForm, duration: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Exact Expiry Date</label>
-                  <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({...packageForm, expires_at: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
+                  <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({...packageForm, meal_count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
-                  <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({...packageForm, meal_count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Start Date</label>
+                  <input required type="date" value={packageForm.start_date} onChange={e => setPackageForm({...packageForm, start_date: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Exact Expiry Date</label>
+                  <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({...packageForm, expires_at: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
                 </div>
               </div>
               <div>
@@ -657,8 +686,11 @@ export default function CustomerDetail() {
               <div key={pkg.id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-brand-green/30 transition-colors">
                 <div>
                   <h3 className="text-xl font-black text-white mb-2">{pkg.name}</h3>
-                  <div className="flex items-center gap-4 text-sm font-medium">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm font-medium">
                     <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg">Duration: {pkg.duration}</span>
+                    {pkg.start_date && (
+                      <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg flex items-center gap-1"><span>📅</span> Start: {pkg.start_date}</span>
+                    )}
                     <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg flex items-center gap-1"><span>⏳</span> Expires: {pkg.expires_at}</span>
                   </div>
                 </div>

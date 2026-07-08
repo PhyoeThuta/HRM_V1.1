@@ -190,10 +190,10 @@ router.delete('/customers/:id', verifyToken, async (req, res) => {
 router.post('/customers/:id/packages', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, duration, meal_type, meal_count, expires_at } = req.body;
+    const { name, duration, meal_type, meal_count, start_date, expires_at } = req.body;
 
     const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .insert({ customer_id: id, name, duration, meal_type, meal_count, expires_at })
+      .insert({ customer_id: id, name, duration, meal_type, meal_count, start_date, expires_at })
       .select()
       .single();
 
@@ -209,9 +209,9 @@ router.post('/customers/:id/packages', verifyToken, async (req, res) => {
 router.put('/customer-packages/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, duration, meal_type, meal_count, expires_at } = req.body;
+    const { name, duration, meal_type, meal_count, start_date, expires_at } = req.body;
     const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .update({ name, duration, meal_type, meal_count, expires_at })
+      .update({ name, duration, meal_type, meal_count, start_date, expires_at })
       .eq('id', id)
       .select()
       .single();
