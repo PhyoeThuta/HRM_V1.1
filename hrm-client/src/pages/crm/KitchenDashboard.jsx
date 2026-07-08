@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { crmApi } from '../../api/crm';
-import Layout from '../../components/Layout';
+import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
 
 const KitchenDashboard = () => {
