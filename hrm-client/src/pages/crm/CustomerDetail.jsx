@@ -29,8 +29,8 @@ export default function CustomerDetail() {
   const [packageForm, setPackageForm] = useState({ 
     name: '1 Month Boss Diet', 
     duration: '30 Days', 
-    start_date: new Date().toISOString().split('T')[0],
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 30 days but editable
+    start_date: '',
+    expires_at: '',
     meal_count: 60, 
     meal_type: 'LUNCH, DINNER',
     payment_status: 'Unpaid',
@@ -139,8 +139,8 @@ export default function CustomerDetail() {
     setPackageForm({
       name: '1 Month Boss Diet', 
       duration: '30 Days', 
-      start_date: new Date().toISOString().split('T')[0],
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      start_date: '',
+      expires_at: '',
       meal_count: 60, 
       meal_type: 'LUNCH, DINNER',
       payment_status: 'Unpaid',
