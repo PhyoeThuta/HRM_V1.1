@@ -662,17 +662,24 @@ export default function CustomerDetail() {
                     <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg flex items-center gap-1"><span>⏳</span> Expires: {pkg.expires_at}</span>
                   </div>
                 </div>
-                <div className="text-left md:text-right w-full md:w-auto">
-                  <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black mb-3 shadow-[0_0_10px_rgba(16,185,129,0.1)]">ACTIVE PLAN</span>
+                <div className="flex flex-col items-start md:items-end w-full md:w-auto">
+                  <div className="flex items-center gap-3 mb-3 w-full md:w-auto justify-between md:justify-end">
+                    <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.1)]">ACTIVE PLAN</span>
+                    
+                    {user?.role !== 'marketing_junior' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => openEditPackage(pkg)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-slate-300 hover:text-white transition-colors border border-white/10" title="Edit Package">
+                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onClick={() => setDeletePackageId(pkg.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors border border-rose-500/20" title="Delete Package">
+                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <p className="text-sm font-bold text-slate-300 bg-surface-900 px-4 py-2 rounded-xl border border-white/5">
                     {pkg.meal_count} Meals <span className="text-brand-green">({pkg.meal_type})</span>
                   </p>
-                  {user?.role !== 'marketing_junior' && (
-                    <div className="flex gap-2 justify-end md:justify-center mt-3">
-                      <button onClick={() => openEditPackage(pkg)} className="px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10">Edit</button>
-                      <button onClick={() => setDeletePackageId(pkg.id)} className="px-3 py-1.5 text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20">Delete</button>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
