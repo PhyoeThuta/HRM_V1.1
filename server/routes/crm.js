@@ -608,12 +608,22 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
     ]);
 
+    const mappedRenewals = (upcomingRenewals || []).map(pkg => {
+      const daysLeft = Math.ceil((new Date(pkg.expires_at) - new Date(today)) / (1000 * 60 * 60 * 24));
+      return {
+        customerId: pkg.customer_id,
+        customerName: pkg.customers?.full_name || 'Unknown',
+        packageName: pkg.name,
+        daysLeft: daysLeft
+      };
+    });
+
     return res.json({
       totalCustomers: totalCustomers || 0,
       activeLeads: totalLeads || 0,
       convertedThisMonth: convertedLeads?.length || 0,
       activePackages: activePackages?.length || 0,
-      upcomingRenewals: upcomingRenewals || [],
+      upcomingRenewals: mappedRenewals,
       recentLeads: recentLeads || [],
     });
   } catch (e) {
