@@ -16,8 +16,8 @@ router.get('/', async (req, res) => {
       dbFetch('positions', 'id,title'),
     ]);
     const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
-    candidates.forEach(c => { 
-      c.position_title = posMap[c.position_id] || '—'; 
+    candidates.forEach(c => {
+      c.position_title = posMap[c.position_id] || '—';
       c.candidate_name = c.full_name;
     });
     return res.json({ candidates, positions });
@@ -67,7 +67,7 @@ router.post('/:id/interview-guide', requireAdmin, async (req, res) => {
   try {
     const cand = await dbFetchOne('recruitment_candidates', '*', { id: req.params.id });
     if (!cand) return res.status(404).json({ error: 'Candidate not found' });
-    
+
     let posTitle = 'Unknown Role';
     if (cand.position_id) {
       const pos = await dbFetchOne('positions', 'title', { id: cand.position_id });
@@ -84,17 +84,17 @@ router.post('/:id/interview-guide', requireAdmin, async (req, res) => {
     Candidate Cover Letter/Notes: ${cand.notes || 'None provided.'}
     Return ONLY a clean text/markdown guide, no JSON.
     `;
-    
+
     const result = await model.generateContent(prompt);
     const guideText = result.response.text().trim();
-    
+
     await dbUpdate('recruitment_candidates', req.params.id, {
       interview_guide: guideText,
       updated_at: new Date().toISOString()
     });
-    
+
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Generated interview guide for candidate ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
-    
+
     return res.json({ success: true, interview_guide: guideText });
   } catch (e) {
     console.error('[Generate Guide Error]', e);
@@ -107,16 +107,16 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
   try {
     const cand = await dbFetchOne('recruitment_candidates', '*', { id: req.params.id });
     if (!cand) return res.status(404).json({ error: 'Candidate not found' });
-    
+
     // Update status to Interview
     await dbUpdate('recruitment_candidates', req.params.id, {
       status: 'Interview',
       updated_at: new Date().toISOString()
     });
-    
+
     // In a real application, we would send an email here using nodemailer or Resend
     console.log(`[SIMULATED EMAIL] Sent interview offer to ${cand.email || 'Candidate'} with Interview Guide.`);
-    
+
     // Add a notification so HR knows it was sent
     await dbInsert('system_notifications', {
       recipient_role: 'hr_manager',
@@ -125,9 +125,9 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       link_url: '/recruitment',
       created_at: new Date().toISOString()
     });
-    
+
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Sent interview offer to candidate ${cand.full_name}`, ip_address: req.ip || '0.0.0.0' });
-    
+
     return res.json({ success: true, message: 'Interview offer sent successfully!' });
   } catch (e) {
     console.error('[Send Interview Error]', e);
@@ -153,7 +153,7 @@ router.post('/:id/convert', requireAdmin, async (req, res) => {
       if (pos && pos.title) {
         const shifts = await dbFetch('shifts', 'id, shift_name');
         const posTitle = pos.title.toLowerCase();
-        
+
         let matchedShift = null;
         if (posTitle.includes('reception')) {
           matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('reception'));
@@ -162,12 +162,12 @@ router.post('/:id/convert', requireAdmin, async (req, res) => {
         } else if (posTitle.includes('housekeep')) {
           matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('housekeep'));
         }
-        
+
         if (!matchedShift) {
           // Fallback to Office Regular
           matchedShift = shifts.find(s => s.shift_name.toLowerCase().includes('office'));
         }
-        
+
         if (matchedShift) {
           defaultShiftId = matchedShift.id;
         }
