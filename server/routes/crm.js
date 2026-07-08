@@ -592,6 +592,11 @@ router.get('/dashboard', verifyToken, async (req, res) => {
     const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
+    const sevenMonthsAgo = new Date();
+    sevenMonthsAgo.setMonth(sevenMonthsAgo.getMonth() - 6);
+    sevenMonthsAgo.setDate(1);
+    const sevenMonthsAgoStr = sevenMonthsAgo.toISOString().split('T')[0];
+
     const [
       { count: totalCustomers },
       { count: totalLeads },
@@ -599,6 +604,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       { data: activePackages },
       { data: upcomingRenewals },
       { data: recentLeads },
+      { data: recentCustomers },
     ] = await Promise.all([
       supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'Converted'),
@@ -606,6 +612,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact' }).gte('expires_at', today),
       supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
+      supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
     ]);
 
     const mappedRenewals = (upcomingRenewals || []).map(pkg => {
@@ -618,6 +625,18 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       };
     });
 
+    const customerGrowth = [0, 0, 0, 0, 0, 0, 0];
+    const currM = new Date().getMonth();
+    const currY = new Date().getFullYear();
+
+    (recentCustomers || []).forEach(c => {
+      const d = new Date(c.created_at);
+      const diff = (currY - d.getFullYear()) * 12 + (currM - d.getMonth());
+      if (diff >= 0 && diff <= 6) {
+        customerGrowth[6 - diff] += 1;
+      }
+    });
+
     return res.json({
       totalCustomers: totalCustomers || 0,
       activeLeads: totalLeads || 0,
@@ -625,6 +644,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       activePackages: activePackages?.length || 0,
       upcomingRenewals: mappedRenewals,
       recentLeads: recentLeads || [],
+      customerGrowth: customerGrowth
     });
   } catch (e) {
     console.error('[CRM DASHBOARD]', e.message);

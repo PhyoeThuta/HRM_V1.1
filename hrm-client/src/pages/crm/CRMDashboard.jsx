@@ -61,6 +61,11 @@ export default function CRMDashboard() {
       });
       setUpcomingRenewals(data.upcomingRenewals || []);
       setRecentLeads(data.recentLeads || []);
+
+      if (chartInstances.current?.lineChart) {
+        chartInstances.current.lineChart.data.datasets[0].data = data.customerGrowth || [0, 0, 0, 0, 0, 0, 0];
+        chartInstances.current.lineChart.update();
+      }
     }).catch(err => console.error('[CRM Dashboard]', err));
 
     // Setup Charts (static for now — will improve with real monthly data later)
@@ -156,8 +161,8 @@ export default function CRMDashboard() {
 
     chartInstances.current = { lineChart, doughnutChart };
     return () => {
-      if (lineChart) lineChart.destroy();
-      if (doughnutChart) doughnutChart.destroy();
+      if (chartInstances.current.lineChart) chartInstances.current.lineChart.destroy();
+      if (chartInstances.current.doughnutChart) chartInstances.current.doughnutChart.destroy();
     };
   }, []);
 
