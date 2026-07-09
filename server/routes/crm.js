@@ -26,6 +26,84 @@ async function generateCustomerCode() {
 }
 
 // ──────────────────────────────────────────────────────────────────
+// SETTINGS (LEVELS)
+// ──────────────────────────────────────────────────────────────────
+
+// GET /api/crm/level-settings
+router.get('/level-settings', verifyToken, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .schema('crm')
+      .from('level_settings')
+      .select('*')
+      .order('required_purchases', { ascending: true });
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM GET LEVEL SETTINGS]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/crm/level-settings
+router.post('/level-settings', verifyToken, async (req, res) => {
+  try {
+    const { id, level_name, required_purchases, color } = req.body;
+    
+    if (!level_name || required_purchases === undefined) {
+      return res.status(400).json({ error: 'Level name and required purchases are required' });
+    }
+
+    let result;
+    if (id) {
+      // Update
+      const { data, error } = await supabaseAdmin
+        .schema('crm')
+        .from('level_settings')
+        .update({ level_name, required_purchases: parseInt(required_purchases), color })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      result = data;
+    } else {
+      // Insert
+      const { data, error } = await supabaseAdmin
+        .schema('crm')
+        .from('level_settings')
+        .insert({ level_name, required_purchases: parseInt(required_purchases), color })
+        .select()
+        .single();
+      if (error) throw error;
+      result = data;
+    }
+
+    return res.json(result);
+  } catch (e) {
+    console.error('[CRM POST LEVEL SETTING]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/crm/level-settings/:id
+router.delete('/level-settings/:id', verifyToken, async (req, res) => {
+  try {
+    const { error } = await supabaseAdmin
+      .schema('crm')
+      .from('level_settings')
+      .delete()
+      .eq('id', req.params.id);
+      
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[CRM DELETE LEVEL SETTING]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────────
 // CUSTOMERS
 // ──────────────────────────────────────────────────────────────────
 
@@ -43,11 +121,34 @@ router.get('/customers', verifyToken, async (req, res) => {
 
     if (error) throw error;
 
-    // Flatten package count
-    const result = data.map(c => ({
-      ...c,
-      packages: c.customer_packages?.[0]?.count || 0,
-    }));
+    // Fetch level settings to calculate levels
+    const { data: levelSettings } = await supabaseAdmin
+      .schema('crm')
+      .from('level_settings')
+      .select('*')
+      .order('required_purchases', { ascending: false });
+
+    // Flatten package count and calculate level
+    const result = data.map(c => {
+      const packageCount = c.customer_packages?.[0]?.count || 0;
+      
+      // Determine level based on packageCount
+      let calculatedLevel = null;
+      if (levelSettings && levelSettings.length > 0) {
+        for (const setting of levelSettings) {
+          if (packageCount >= setting.required_purchases) {
+            calculatedLevel = setting;
+            break; // found the highest level since it's ordered descending
+          }
+        }
+      }
+
+      return {
+        ...c,
+        packages: packageCount,
+        level: calculatedLevel,
+      };
+    });
 
     return res.json(result);
   } catch (e) {
@@ -130,11 +231,32 @@ router.get('/customers/:id', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('feedbacks').select('*').eq('customer_id', id).order('created_at', { ascending: false }),
     ]);
 
+    const packagesList = packagesRes.data || [];
+    const packageCount = packagesList.length;
+
+    // Fetch level settings to calculate level
+    const { data: levelSettings } = await supabaseAdmin
+      .schema('crm')
+      .from('level_settings')
+      .select('*')
+      .order('required_purchases', { ascending: false });
+
+    let calculatedLevel = null;
+    if (levelSettings && levelSettings.length > 0) {
+      for (const setting of levelSettings) {
+        if (packageCount >= setting.required_purchases) {
+          calculatedLevel = setting;
+          break;
+        }
+      }
+    }
+
     return res.json({
       ...customer,
       health: healthRes.data || {},
       lifestyle: lifestyleRes.data || {},
-      packages_list: packagesRes.data || [],
+      packages_list: packagesList,
+      level: calculatedLevel,
       gallery: galleryRes.data || [],
       feedbacks: feedbackRes.data || [],
     });

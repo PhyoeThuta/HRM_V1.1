@@ -114,7 +114,21 @@ export default function Customers() {
                 {filtered.map(customer => (
                   <tr key={customer.id} className="hover:bg-white/5 transition-colors">
                     <td className="py-4 px-6">
-                      <p className="font-bold text-white text-base">{customer.full_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-white text-base">{customer.full_name}</p>
+                        {customer.level && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            customer.level.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                            customer.level.color === 'green' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                            customer.level.color === 'purple' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                            customer.level.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            customer.level.color === 'rose' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                            'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                          }`}>
+                            {customer.level.level_name}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs font-bold text-brand-green mt-0.5">{customer.customer_code}</p>
                     </td>
                     <td className="py-4 px-6">

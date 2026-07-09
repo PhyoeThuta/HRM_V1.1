@@ -95,4 +95,14 @@ export const crmApi = {
   // ──────────────────────────────────────────────────────────────
 
   getDashboard: () => api.get('/crm/dashboard').then(r => r.data),
+
+  // ──────────────────────────────────────────────────────────────
+  // LEVEL SETTINGS
+  // ──────────────────────────────────────────────────────────────
+
+  getLevelSettings: () => api.get('/crm/level-settings').then(r => r.data),
+
+  saveLevelSetting: (data) => api.post('/crm/level-settings', data).then(r => r.data),
+
+  deleteLevelSetting: (id) => api.delete(`/crm/level-settings/${id}`).then(r => r.data),
 };

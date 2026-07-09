@@ -604,6 +604,19 @@ export default function CustomerDetail() {
               <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
                 <h1 className="text-3xl font-black text-white">{customer.full_name}</h1>
                 <span className="bg-brand-green/10 border border-brand-green/20 text-brand-green px-3 py-1 rounded-full text-xs font-bold">{customer.customer_code}</span>
+                {customer.level && (
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                    customer.level.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]' :
+                    customer.level.color === 'green' ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]' :
+                    customer.level.color === 'purple' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
+                    customer.level.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
+                    customer.level.color === 'rose' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.2)]' :
+                    'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                  }`}>
+                    {customer.level.level_name} 
+                    <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.packages_list?.length || 0} packages)</span>
+                  </span>
+                )}
               </div>
               <p className="text-slate-400 text-sm mb-4">Facebook: {customer.facebook_name || 'N/A'}</p>
               <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm">
