@@ -48,6 +48,7 @@ export default function CRMDashboard() {
   const [upcomingRenewals, setUpcomingRenewals] = useState([]);
   const [recentLeads, setRecentLeads] = useState([]);
   const [flaggedFeedback, setFlaggedFeedback] = useState([]);
+  const [totalSources, setTotalSources] = useState(0);
 
   useEffect(() => {
     // Load real data from Supabase via API
@@ -69,6 +70,8 @@ export default function CRMDashboard() {
       
       if (chartInstances.current?.doughnutChart && data.sourceCounts) {
         const sc = data.sourceCounts;
+        const total = Object.values(sc).reduce((a, b) => a + b, 0);
+        setTotalSources(total);
         chartInstances.current.doughnutChart.data.datasets[0].data = [sc['Facebook'], sc['Telegram'], sc['Website'], sc['Referral'], sc['Other']];
         chartInstances.current.doughnutChart.update();
       }
@@ -314,7 +317,7 @@ export default function CRMDashboard() {
             <canvas ref={doughnutChartRef}></canvas>
             {/* Center Text for Doughnut */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-30px]">
-              <span className="text-3xl font-black text-white">{metrics.activeLeads}</span>
+              <span className="text-3xl font-black text-white">{totalSources}</span>
               <span className="text-xs font-bold text-slate-400 uppercase">Total Leads</span>
             </div>
           </div>
