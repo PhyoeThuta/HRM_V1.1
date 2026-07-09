@@ -702,7 +702,7 @@ router.post('/webhooks/zernio', async (req, res) => {
     if (!text) text = "[Zernio Msg] " + JSON.stringify(payload).substring(0, 100);
 
     // Extract prospect name or ID
-    let prospectName = payload.sender_name || payload.contact_name || payload.name || 'Zernio Contact';
+    let prospectName = payload.sender?.name || payload.message?.sender?.name || payload.sender_name || payload.contact_name || payload.name || 'Zernio Contact';
     if (payload.entry?.[0]?.messaging?.[0]?.sender?.id) {
       prospectName = 'FB User ' + payload.entry[0].messaging[0].sender.id;
     }
