@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { verifyToken } from '../middleware/auth.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
 
@@ -623,7 +624,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
     
     if (!message_text) return res.status(400).json({ error: 'message_text is required' });
 
-    const { data, error } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+    // 1. Insert the new message
+    const { data: newMsg, error: insertError } = await supabaseAdmin.schema('crm').from('inquiries_messages')
       .insert({ 
         inquiry_id: id, 
         message_text, 
@@ -633,14 +635,81 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (insertError) throw insertError;
     
-    // Update the last_analyzed_msg_count on the inquiry (mock update for now)
-    await supabaseAdmin.schema('crm').from('inquiries')
-      .update({ updated_at: new Date() })
-      .eq('id', id);
+    // 2. Run AI Analysis in the background (don't block the request response)
+    // We only trigger AI if the prospect sends a message, or to update context
+    if (process.env.GEMINI_API_KEY) {
+      setTimeout(async () => {
+        try {
+          // Fetch last 15 messages for context
+          const { data: history } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+            .select('sender_type, message_text')
+            .eq('inquiry_id', id)
+            .order('created_at', { ascending: true })
+            .limit(15);
+            
+          const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
+          
+          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+          
+          const prompt = `
+You are an expert CRM AI Assistant for a Diet & Meal Delivery service. 
+Analyze the following conversation history between a PROSPECT and our ADMIN.
 
-    return res.status(201).json(data);
+Chat History:
+${chatHistory}
+
+Task:
+Provide a JSON response analyzing the prospect's intent, sentiment, recommended action for the admin, and a confidence score (0-100) of how likely they are to purchase a diet package.
+The JSON must have the following exact keys:
+{
+  "intent": "string (e.g., pricing_inquiry, general_question, complaint, ready_to_buy)",
+  "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
+  "recommended_action": "string (1-2 sentences of what the admin should reply)",
+  "confidence_score": integer (0 to 100)
+}
+
+Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
+          `;
+          
+          const result = await model.generateContent(prompt);
+          let aiText = result.response.text().trim();
+          if (aiText.startsWith('\`\`\`json')) {
+            aiText = aiText.substring(7, aiText.length - 3).trim();
+          } else if (aiText.startsWith('\`\`\`')) {
+            aiText = aiText.substring(3, aiText.length - 3).trim();
+          }
+          
+          const aiJson = JSON.parse(aiText);
+          
+          // Update the inquiry
+          await supabaseAdmin.schema('crm').from('inquiries')
+            .update({ 
+              updated_at: new Date(),
+              ai_analysis_result: {
+                intent: aiJson.intent,
+                sentiment: aiJson.sentiment,
+                recommended_action: aiJson.recommended_action
+              },
+              service_interest_confidence: aiJson.confidence_score,
+              status: aiJson.confidence_score > 80 ? 'in_progress' : undefined
+            })
+            .eq('id', id);
+            
+        } catch (aiErr) {
+          console.error('[CRM AI ANALYSIS ERROR]', aiErr);
+        }
+      }, 100);
+    } else {
+      // No Gemini Key, just update timestamp
+      await supabaseAdmin.schema('crm').from('inquiries')
+        .update({ updated_at: new Date() })
+        .eq('id', id);
+    }
+
+    return res.status(201).json(newMsg);
   } catch (e) {
     console.error('[CRM POST INQUIRY MESSAGE]', e.message);
     return res.status(500).json({ error: e.message });

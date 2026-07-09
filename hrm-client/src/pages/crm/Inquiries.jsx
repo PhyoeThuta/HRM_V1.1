@@ -25,11 +25,24 @@ export default function Inquiries() {
       if (data.length > 0 && !selectedInquiry) {
         handleSelectInquiry(data[0]);
       } else if (selectedInquiry) {
-        // Update selected inquiry data
         const updated = data.find(i => i.id === selectedInquiry.id);
         if (updated) setSelectedInquiry(updated);
       }
     }).catch(() => toast.error('Failed to load inquiries'));
+  };
+
+  const handleCreateTestLead = async () => {
+    try {
+      const newInq = await crmApi.createInquiry({
+        prospect_name: 'Test Customer ' + Math.floor(Math.random() * 1000),
+        source: 'messenger',
+        service_interest: 'Boss Diet'
+      });
+      toast.success('Test Lead created!');
+      loadInquiries();
+    } catch (err) {
+      toast.error('Failed to create test lead');
+    }
   };
 
   const handleSelectInquiry = async (inquiry) => {
@@ -56,6 +69,9 @@ export default function Inquiries() {
       setMessages([...messages, msg]);
       setNewMessage('');
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      
+      // Wait 3 seconds for Gemini AI to finish background job, then refresh
+      setTimeout(() => loadInquiries(), 3000);
     } catch (err) {
       toast.error('Failed to send message');
     } finally {
@@ -63,34 +79,30 @@ export default function Inquiries() {
     }
   };
 
-  // Mock function to simulate a prospect replying and AI analyzing it
+  // Simulate a prospect replying. This now triggers the REAL Gemini AI on the backend!
   const handleSimulateProspect = async () => {
     if (!selectedInquiry) return;
+    setIsSending(true);
     try {
       const msg = await crmApi.postInquiryMessage(selectedInquiry.id, {
-        message_text: "Hi, I am interested in the 30 days boss diet. How much is it?",
+        message_text: "Hi, I am interested in losing weight. How much does a 30-day package cost?",
         sender_type: 'prospect'
       });
       setMessages(prev => [...prev, msg]);
-      
-      // Simulate AI Analysis update
-      await crmApi.updateInquiry(selectedInquiry.id, {
-        service_interest_confidence: 92,
-        status: 'in_progress',
-        ai_analysis_result: { 
-          intent: "pricing_inquiry", 
-          sentiment: "positive", 
-          key_entities: ["30 days boss diet", "price"],
-          recommended_action: "Send pricing details and link to Boss Diet package."
-        }
-      });
-      
-      toast.success('Simulated prospect message received!');
-      loadInquiries(); // refresh to get new AI data
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      
+      toast.success('Message sent! Waiting for Gemini AI Analysis...', { duration: 4000 });
+      
+      // The backend runs the AI in a setTimeout. We wait 4 seconds, then fetch the updated inquiry.
+      setTimeout(() => {
+        loadInquiries();
+        setIsSending(false);
+      }, 4000);
+      
     } catch (err) {
       console.error(err);
       toast.error('Failed to simulate message');
+      setIsSending(false);
     }
   };
 
@@ -127,7 +139,12 @@ export default function Inquiries() {
         {/* Left Pane: Inbox List */}
         <div className="w-full md:w-1/3 bg-surface-800 border border-white/5 rounded-3xl overflow-hidden flex flex-col shadow-xl">
           <div className="p-4 border-b border-white/5 bg-surface-850">
-            <h3 className="font-black text-white text-lg">Inbox ({inquiries.length})</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-black text-white text-lg">Inbox ({inquiries.length})</h3>
+              <button onClick={handleCreateTestLead} className="px-2 py-1 bg-brand-green/20 text-brand-green hover:bg-brand-green hover:text-black rounded-lg text-xs font-bold transition-colors">
+                + New Lead
+              </button>
+            </div>
             <div className="mt-3 flex gap-2">
               <button className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white">All</button>
               <button className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-white/10 text-slate-400 hover:text-white hover:bg-white/5">New</button>
@@ -136,7 +153,12 @@ export default function Inquiries() {
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
             {inquiries.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">No inquiries found.</div>
+              <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
+                <p className="text-slate-500">No inquiries found.</p>
+                <button onClick={handleCreateTestLead} className="px-4 py-2 bg-brand-green text-black font-bold rounded-xl hover:scale-105 transition-transform">
+                  Create Test Lead
+                </button>
+              </div>
             ) : (
               inquiries.map(inq => (
                 <div 
