@@ -25,9 +25,9 @@ jobs:
           # 2. Pull latest code from GitHub (init if first time)
           if [ ! -d ".git" ]; then
             git init
-            git remote add origin git@github.com:PhyoeThuta/HRM_V1.1.git
+            git remote add origin https://github.com/PhyoeThuta/HRM_V1.1.git
           else
-            git remote set-url origin git@github.com:PhyoeThuta/HRM_V1.1.git
+            git remote set-url origin https://github.com/PhyoeThuta/HRM_V1.1.git
           fi
           
           git fetch --all
@@ -43,8 +43,10 @@ jobs:
           echo "Restarting Backend API..."
           cd ../server
           npm install
-          # Forcibly restart all pm2 processes to guarantee the old process is updated with new code
-          pm2 restart all || pm2 start index.js --name "hrm-api"
+          
+          # Completely delete old ghost processes and start fresh from the correct directory
+          pm2 delete all || true
+          pm2 start index.js --name "hrm_react_api"
           pm2 save
           
           echo "Deployment Successful!"
