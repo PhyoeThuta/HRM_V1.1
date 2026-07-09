@@ -756,8 +756,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
     // 2. Run AI Analysis in the background
     setTimeout(() => triggerAIAnalysis(id), 100);
 
-    // 3. Send message to Facebook via Graph API if it's an admin reply
-    if ((!sender_type || sender_type === 'admin') && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
+    // 3. Send message to Facebook via Zernio (or direct FB fallback) if it's an admin reply
+    if ((!sender_type || sender_type === 'admin') && (process.env.ZERNIO_API_KEY || process.env.FACEBOOK_PAGE_ACCESS_TOKEN)) {
       try {
         const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
           .select('metadata')
