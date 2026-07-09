@@ -26,6 +26,8 @@ jobs:
           if [ ! -d ".git" ]; then
             git init
             git remote add origin https://github.com/PhyoeThuta/HRM_V1.1.git
+          else
+            git remote set-url origin https://github.com/PhyoeThuta/HRM_V1.1.git
           fi
           
           git fetch --all
