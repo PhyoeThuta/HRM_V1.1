@@ -41,8 +41,8 @@ jobs:
           echo "Restarting Backend API..."
           cd ../server
           npm install
-          # Restart the process by script name to ensure old process is restarted regardless of its name
-          pm2 restart index.js || pm2 start index.js --name "corphrm-api"
+          # Forcibly restart all pm2 processes to guarantee the old process is updated with new code
+          pm2 restart all || pm2 start index.js --name "hrm-api"
           pm2 save
           
           echo "Deployment Successful!"
