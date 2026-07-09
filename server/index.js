@@ -55,7 +55,13 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // ── Routes ─────────────────────────────────────────────────────
+// Health Check must be at the top to avoid being blocked by global middlewares in other routers
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
+});
+
 app.use('/api/public', publicRouter); // /api/public/jobs, /api/public/apply
+app.use('/api/crm', crmRouter);       // Must be before orgRouter to prevent verifyToken leakage to public webhooks
 app.use('/api/auth', authRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/employees', employeesRouter);
@@ -70,13 +76,7 @@ app.use('/api', lifecycleRouter);     // /api/onboarding, /api/offboarding
 app.use('/api/handover', handoverRouter);
 app.use('/api/boss', bossRouter);
 app.use('/api/finance', financeRouter);
-app.use('/api/crm', crmRouter);
 app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/sops, etc.
-
-// ── Health Check ───────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
-});
 
 // ── Test Endpoints ─────────────────────────────────────────────
 app.post('/api/test/trigger-birthdays', async (req, res) => {
