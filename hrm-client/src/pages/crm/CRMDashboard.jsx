@@ -66,6 +66,12 @@ export default function CRMDashboard() {
         chartInstances.current.lineChart.data.datasets[0].data = data.customerGrowth || [0, 0, 0, 0, 0, 0, 0];
         chartInstances.current.lineChart.update();
       }
+      
+      if (chartInstances.current?.doughnutChart && data.sourceCounts) {
+        const sc = data.sourceCounts;
+        chartInstances.current.doughnutChart.data.datasets[0].data = [sc['Facebook'], sc['Telegram'], sc['Website'], sc['Referral'], sc['Other']];
+        chartInstances.current.doughnutChart.update();
+      }
     }).catch(err => console.error('[CRM Dashboard]', err));
 
     // Setup Charts (static for now — will improve with real monthly data later)

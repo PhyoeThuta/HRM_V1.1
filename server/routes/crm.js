@@ -975,14 +975,16 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       { data: upcomingRenewals },
       { data: recentLeads },
       { data: recentCustomers },
+      { data: allInquiriesForSource },
     ] = await Promise.all([
       supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
-      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'Converted'),
-      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'Converted').gte('created_at', thisMonthStart),
+      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
+      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
       supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact' }).gte('expires_at', today),
       supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
       supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
+      supabaseAdmin.schema('crm').from('inquiries').select('source'),
     ]);
 
     const mappedRenewals = (upcomingRenewals || []).map(pkg => {
@@ -1007,6 +1009,18 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       }
     });
 
+    const sourceCounts = {
+      'Facebook': 0, 'Telegram': 0, 'Website': 0, 'Referral': 0, 'Other': 0
+    };
+    (allInquiriesForSource || []).forEach(inq => {
+      let src = inq.source?.toLowerCase() || '';
+      if (src === 'messenger' || src === 'facebook') sourceCounts['Facebook']++;
+      else if (src === 'telegram') sourceCounts['Telegram']++;
+      else if (src === 'website') sourceCounts['Website']++;
+      else if (src === 'referral') sourceCounts['Referral']++;
+      else sourceCounts['Other']++;
+    });
+
     return res.json({
       totalCustomers: totalCustomers || 0,
       activeLeads: totalLeads || 0,
@@ -1014,7 +1028,8 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       activePackages: activePackages?.length || 0,
       upcomingRenewals: mappedRenewals,
       recentLeads: recentLeads || [],
-      customerGrowth: customerGrowth
+      customerGrowth: customerGrowth,
+      sourceCounts: sourceCounts
     });
   } catch (e) {
     console.error('[CRM DASHBOARD]', e.message);
