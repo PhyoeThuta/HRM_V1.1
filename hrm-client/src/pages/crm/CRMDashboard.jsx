@@ -186,7 +186,8 @@ export default function CRMDashboard() {
               Leads <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
             <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
-              <Link to="/crm/inquiries" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Manage Leads</Link>
+              <Link to="/crm/leads-overview" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Overview Pipeline</Link>
+              <Link to="/crm/inquiries" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Manage Leads (Inbox)</Link>
             </div>
           </div>
 
