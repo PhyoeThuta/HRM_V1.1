@@ -650,7 +650,7 @@ The JSON must have the following exact keys:
 {
   "intent": "string (e.g., pricing_inquiry, general_question, complaint, ready_to_buy)",
   "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
-  "recommended_action": "string (1-2 sentences of what the admin should reply)",
+  "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100)
 }
 
