@@ -720,8 +720,15 @@ router.post('/webhooks/zernio', async (req, res) => {
       inquiryId = newInq.id;
     }
 
+    const cleanMetadata = {
+      conversationId: payload.message?.conversationId || payload.conversationId,
+      sender: {
+        id: payload.sender?.id || payload.message?.sender?.id || payload.entry?.[0]?.messaging?.[0]?.sender?.id
+      }
+    };
+
     await supabaseAdmin.schema('crm').from('inquiries_messages')
-      .insert({ inquiry_id: inquiryId, message_text: text, sender_type: 'prospect', metadata: payload });
+      .insert({ inquiry_id: inquiryId, message_text: text, sender_type: 'prospect', metadata: cleanMetadata });
 
     setTimeout(() => triggerAIAnalysis(inquiryId), 100);
 
