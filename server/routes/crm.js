@@ -645,13 +645,14 @@ Chat History:
 ${chatHistory}
 
 Task:
-Provide a JSON response analyzing the prospect's intent, sentiment, recommended action for the admin, and a confidence score (0-100) of how likely they are to purchase a diet package.
+Provide a JSON response analyzing the prospect's intent, sentiment, recommended action for the admin, a confidence score (0-100) of how likely they are to purchase a diet package, and the determined pipeline_status.
 The JSON must have the following exact keys:
 {
   "intent": "string (e.g., pricing_inquiry, general_question, complaint, ready_to_buy)",
   "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
-  "confidence_score": integer (0 to 100)
+  "confidence_score": integer (0 to 100),
+  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed'). Use 'new' if just starting, 'in_progress' if negotiating/asking details, 'converted' if they agree to buy/transfer money, 'closed' if they decline/not interested."
 }
 
 Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
@@ -673,7 +674,7 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
           recommended_action: aiJson.recommended_action
         },
         service_interest_confidence: aiJson.confidence_score,
-        status: aiJson.confidence_score > 80 ? 'in_progress' : undefined
+        status: aiJson.pipeline_status || 'new'
       })
       .eq('id', inquiryId);
   } catch (aiErr) {
