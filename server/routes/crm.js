@@ -949,4 +949,18 @@ router.get('/dashboard', verifyToken, async (req, res) => {
   }
 });
 
+// DELETE /api/crm/inquiries/:id
+router.delete('/inquiries/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await supabaseAdmin.schema('crm').from('inquiries_messages').delete().eq('inquiry_id', id);
+    const { error } = await supabaseAdmin.schema('crm').from('inquiries').delete().eq('id', id);
+    if (error) throw error;
+    return res.status(200).json({ success: true });
+  } catch (e) {
+    console.error('[CRM DELETE INQUIRY]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

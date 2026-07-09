@@ -56,6 +56,19 @@ export default function Inquiries() {
     }
   };
 
+  const handleDeleteInquiry = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this test data?')) return;
+    try {
+      await crmApi.deleteInquiry(id);
+      toast.success('Deleted successfully');
+      if (selectedInquiry?.id === id) setSelectedInquiry(null);
+      loadInquiries();
+    } catch (err) {
+      toast.error('Failed to delete');
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedInquiry) return;
@@ -170,12 +183,25 @@ export default function Inquiries() {
                       : 'bg-transparent border-transparent hover:bg-white/5'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className={`font-bold ${selectedInquiry?.id === inq.id ? 'text-brand-green' : 'text-white'}`}>
-                      {inq.prospect_name}
-                    </h4>
-                    <span className="text-xs text-slate-500">{new Date(inq.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                  </div>
+                  <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-lime-400 group-hover:text-lime-300 transition-colors">
+                        {inq.prospect_name}
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">
+                          {new Date(inq.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button 
+                          onClick={(e) => handleDeleteInquiry(inq.id, e)}
+                          className="text-slate-500 hover:text-red-400 transition-colors"
+                          title="Delete"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-sm">{getSourceIcon(inq.source)}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusColor(inq.status)}`}>
