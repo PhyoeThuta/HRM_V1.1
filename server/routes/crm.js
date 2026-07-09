@@ -702,7 +702,7 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     // Check if inquiry exists
     const { data: existing } = await supabaseAdmin.schema('crm').from('inquiries')
-      .select('id').eq('prospect_name', prospectName).order('created_at', { ascending: false }).limit(1).single();
+      .select('id').eq('prospect_name', prospectName).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
     let inquiryId = existing?.id;
     
