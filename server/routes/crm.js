@@ -635,7 +635,7 @@ async function triggerAIAnalysis(inquiryId) {
     const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
     
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
     const prompt = `
 You are an expert CRM AI Assistant for a Diet & Meal Delivery service. 
