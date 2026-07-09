@@ -769,27 +769,48 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
 
         if (prospectMsgs && prospectMsgs.length > 0) {
           const meta = prospectMsgs[0].metadata;
-          let psid = meta?.sender?.id || meta?.message?.sender?.id || meta?.entry?.[0]?.messaging?.[0]?.sender?.id;
+          const conversationId = meta?.message?.conversationId || meta?.conversationId;
           
-          if (psid) {
-            const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
-            const fbResponse = await fetch(fbUrl, {
+          if (conversationId && process.env.ZERNIO_API_KEY) {
+            const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+            const zernioResponse = await fetch(zernioUrl, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`,
+                'Content-Type': 'application/json' 
+              },
               body: JSON.stringify({
-                recipient: { id: psid },
-                message: { text: message_text },
-                messaging_type: 'RESPONSE'
+                accountId: process.env.ZERNIO_ACCOUNT_ID,
+                message: message_text
               })
             });
-            const fbResult = await fbResponse.json();
-            if (fbResult.error) {
-              console.error('[FB SEND ERROR]', fbResult.error);
+            const zernioResult = await zernioResponse.json();
+            if (zernioResult.error) {
+              console.error('[ZERNIO SEND ERROR]', zernioResult.error);
+            }
+          } else {
+            // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
+            let psid = meta?.sender?.id || meta?.message?.sender?.id || meta?.entry?.[0]?.messaging?.[0]?.sender?.id;
+            if (psid && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
+              const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
+              const fbResponse = await fetch(fbUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  recipient: { id: psid },
+                  message: { text: message_text },
+                  messaging_type: 'RESPONSE'
+                })
+              });
+              const fbResult = await fbResponse.json();
+              if (fbResult.error) {
+                console.error('[FB SEND ERROR]', fbResult.error);
+              }
             }
           }
         }
       } catch (fbErr) {
-        console.error('[FB FETCH ERROR]', fbErr.message);
+        console.error('[REPLY SEND ERROR]', fbErr.message);
       }
     }
 
