@@ -582,7 +582,10 @@ router.get('/inquiries', verifyToken, async (req, res) => {
     const { data, error } = await supabaseAdmin
       .schema('crm')
       .from('inquiries')
-      .select('*')
+      .select(`
+        *,
+        inquiries_messages ( id, message_text, sender_type, created_at )
+      `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -593,14 +596,71 @@ router.get('/inquiries', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/crm/inquiries/:id/messages
+router.get('/inquiries/:id/messages', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .schema('crm')
+      .from('inquiries_messages')
+      .select('*')
+      .eq('inquiry_id', id)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM GET INQUIRY MESSAGES]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/crm/inquiries/:id/messages
+router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message_text, sender_type, metadata } = req.body;
+    
+    if (!message_text) return res.status(400).json({ error: 'message_text is required' });
+
+    const { data, error } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+      .insert({ 
+        inquiry_id: id, 
+        message_text, 
+        sender_type: sender_type || 'admin', 
+        metadata 
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Update the last_analyzed_msg_count on the inquiry (mock update for now)
+    await supabaseAdmin.schema('crm').from('inquiries')
+      .update({ updated_at: new Date() })
+      .eq('id', id);
+
+    return res.status(201).json(data);
+  } catch (e) {
+    console.error('[CRM POST INQUIRY MESSAGE]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/crm/inquiries
 router.post('/inquiries', verifyToken, async (req, res) => {
   try {
-    const { prospect_name, source, service } = req.body;
+    const { prospect_name, prospect_contact, source, service_interest } = req.body;
     if (!prospect_name) return res.status(400).json({ error: 'prospect_name is required' });
 
     const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
-      .insert({ prospect_name, source, service, status: 'New' })
+      .insert({ 
+        prospect_name, 
+        prospect_contact,
+        source: source || 'messenger', 
+        service_interest, 
+        status: 'new' 
+      })
       .select()
       .single();
 
@@ -616,10 +676,16 @@ router.post('/inquiries', verifyToken, async (req, res) => {
 router.put('/inquiries/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, ai_analysis_result, service_interest_confidence } = req.body;
+
+    const updateData = { updated_at: new Date() };
+    if (status) updateData.status = status;
+    if (notes !== undefined) updateData.notes = notes;
+    if (ai_analysis_result) updateData.ai_analysis_result = ai_analysis_result;
+    if (service_interest_confidence !== undefined) updateData.service_interest_confidence = service_interest_confidence;
 
     const { error } = await supabaseAdmin.schema('crm').from('inquiries')
-      .update({ status, notes, updated_at: new Date() })
+      .update(updateData)
       .eq('id', id);
 
     if (error) throw error;

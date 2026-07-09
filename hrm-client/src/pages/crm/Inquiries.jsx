@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
@@ -6,224 +6,307 @@ import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 
 export default function Inquiries() {
-  const { user, isBoss } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [inquiries, setInquiries] = useState([]);
-  
-  // Modal State
-  const [showModal, setShowModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    prospect_name: '', source: 'Facebook Messenger', service: ''
-  });
-
-  // Services State
-  const [services, setServices] = useState(['1 Month Boss Diet', 'Weekly Keto', '14 Days Detox', 'General Pricing Inquiry']);
-  const [showAddService, setShowAddService] = useState(false);
-  const [newServiceInput, setNewServiceInput] = useState('');
+  const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    // Load packages from API for the service dropdown
-    crmApi.getPackages().then(pkgs => {
-      if (pkgs.length > 0) setServices(pkgs.map(p => `${p.name} - ${p.duration}`));
-    }).catch(() => {});
-
-    // Load inquiries from API
-    crmApi.getInquiries().then(data => setInquiries(data)).catch(() => toast.error('Failed to load leads'));
+    loadInquiries();
   }, []);
 
-  const handleAddService = (e) => {
-    e.preventDefault();
-    if (newServiceInput.trim()) {
-      const updatedServices = [...services, newServiceInput.trim()];
-      setServices(updatedServices);
-      localStorage.setItem('crm_custom_services', JSON.stringify(updatedServices));
-      setFormData({ ...formData, service: newServiceInput.trim() });
-      setNewServiceInput('');
-      setShowAddService(false);
-      toast.success('New package added to list!');
+  const loadInquiries = () => {
+    crmApi.getInquiries().then(data => {
+      setInquiries(data);
+      if (data.length > 0 && !selectedInquiry) {
+        handleSelectInquiry(data[0]);
+      } else if (selectedInquiry) {
+        // Update selected inquiry data
+        const updated = data.find(i => i.id === selectedInquiry.id);
+        if (updated) setSelectedInquiry(updated);
+      }
+    }).catch(() => toast.error('Failed to load inquiries'));
+  };
+
+  const handleSelectInquiry = async (inquiry) => {
+    setSelectedInquiry(inquiry);
+    try {
+      const msgs = await crmApi.getInquiryMessages(inquiry.id);
+      setMessages(msgs);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } catch (err) {
+      toast.error('Failed to load messages');
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!newMessage.trim() || !selectedInquiry) return;
+    
+    setIsSending(true);
     try {
-      const newInquiry = await crmApi.createInquiry(formData);
-      setInquiries(prev => [newInquiry, ...prev]);
-      setShowModal(false);
-      setFormData({ prospect_name: '', source: 'Facebook Messenger', service: services[0] });
-      toast.success('New lead added successfully!');
+      const msg = await crmApi.postInquiryMessage(selectedInquiry.id, {
+        message_text: newMessage,
+        sender_type: 'admin'
+      });
+      setMessages([...messages, msg]);
+      setNewMessage('');
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (err) {
-      toast.error('Failed to add lead');
+      toast.error('Failed to send message');
     } finally {
-      setIsSubmitting(false);
+      setIsSending(false);
     }
   };
 
-  const handleStatusChange = async (inquiry, newStatus) => {
+  // Mock function to simulate a prospect replying and AI analyzing it
+  const handleSimulateProspect = async () => {
+    if (!selectedInquiry) return;
     try {
-      await crmApi.updateInquiry(inquiry.id, { status: newStatus });
-      setInquiries(prev => prev.map(i => i.id === inquiry.id ? { ...i, status: newStatus } : i));
+      const msg = await crmApi.postInquiryMessage(selectedInquiry.id, {
+        message_text: "Hi, I am interested in the 30 days boss diet. How much is it?",
+        sender_type: 'prospect'
+      });
+      setMessages(prev => [...prev, msg]);
+      
+      // Simulate AI Analysis update
+      await crmApi.updateInquiry(selectedInquiry.id, {
+        service_interest_confidence: 92,
+        status: 'in_progress',
+        ai_analysis_result: { 
+          intent: "pricing_inquiry", 
+          sentiment: "positive", 
+          key_entities: ["30 days boss diet", "price"],
+          recommended_action: "Send pricing details and link to Boss Diet package."
+        }
+      });
+      
+      toast.success('Simulated prospect message received!');
+      loadInquiries(); // refresh to get new AI data
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (err) {
-      toast.error('Failed to update status');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await crmApi.deleteInquiry(id);
-      setInquiries(prev => prev.filter(i => i.id !== id));
-      toast.success('Lead removed.');
-    } catch (err) {
-      toast.error('Failed to delete lead');
+      console.error(err);
+      toast.error('Failed to simulate message');
     }
   };
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'New': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'Contacted': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'Converted': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'Lost': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      case 'new': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'in_progress': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'converted': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'closed': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
       default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
     }
   };
 
+  const getSourceIcon = (source) => {
+    switch(source) {
+      case 'messenger': return '💬';
+      case 'telegram': return '✈️';
+      case 'website': return '🌐';
+      case 'instagram': return '📸';
+      default: return '📱';
+    }
+  };
+
   return (
-    <Layout title="Inquiries (Leads)" subtitle="Manage prospective customers and sales pipeline">
-      
+    <Layout title="Omni-channel Inbox" subtitle="AI-powered customer inquiries and messaging">
       <div className="mb-4">
         <button onClick={() => navigate('/crm')} className="text-slate-400 hover:text-white font-bold flex items-center gap-2 transition-colors">
           ← Back to Dashboard
         </button>
       </div>
 
-      {/* Add Lead Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-indigo-500/10 to-transparent">
-              <h3 className="font-black text-white text-lg flex items-center gap-2"><span>💬</span> Add New Lead</h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>
+      <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)] min-h-[600px]">
+        
+        {/* Left Pane: Inbox List */}
+        <div className="w-full md:w-1/3 bg-surface-800 border border-white/5 rounded-3xl overflow-hidden flex flex-col shadow-xl">
+          <div className="p-4 border-b border-white/5 bg-surface-850">
+            <h3 className="font-black text-white text-lg">Inbox ({inquiries.length})</h3>
+            <div className="mt-3 flex gap-2">
+              <button className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white">All</button>
+              <button className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-white/10 text-slate-400 hover:text-white hover:bg-white/5">New</button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Prospect Name *</label>
-                <input required type="text" value={formData.prospect_name} onChange={e => setFormData({...formData, prospect_name: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="e.g. Su Su" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Source *</label>
-                <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors">
-                  <option>Facebook Messenger</option>
-                  <option>Telegram</option>
-                  <option>Viber</option>
-                  <option>Website</option>
-                  <option>Phone Call</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Service Interested In *</label>
-                {!showAddService ? (
-                  <div className="flex gap-2">
-                    <select required value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})} className="flex-1 bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors">
-                      <option value="">Select a package...</option>
-                      {services.map((s, idx) => (
-                        <option key={idx} value={s}>{s}</option>
-                      ))}
-                    </select>
-                    <button type="button" onClick={() => setShowAddService(true)} className="px-4 bg-brand-green/10 text-brand-green border border-brand-green/20 hover:bg-brand-green hover:text-black font-bold rounded-xl transition-all" title="Add New Package">
-                      + Add
+          </div>
+          
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
+            {inquiries.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">No inquiries found.</div>
+            ) : (
+              inquiries.map(inq => (
+                <div 
+                  key={inq.id}
+                  onClick={() => handleSelectInquiry(inq)}
+                  className={`p-4 rounded-2xl cursor-pointer transition-all border ${
+                    selectedInquiry?.id === inq.id 
+                      ? 'bg-brand-green/5 border-brand-green/30' 
+                      : 'bg-transparent border-transparent hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className={`font-bold ${selectedInquiry?.id === inq.id ? 'text-brand-green' : 'text-white'}`}>
+                      {inq.prospect_name}
+                    </h4>
+                    <span className="text-xs text-slate-500">{new Date(inq.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm">{getSourceIcon(inq.source)}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusColor(inq.status)}`}>
+                      {inq.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 truncate">
+                    {inq.inquiries_messages && inq.inquiries_messages.length > 0 
+                      ? inq.inquiries_messages[inq.inquiries_messages.length-1].message_text 
+                      : 'No messages yet...'}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Right Pane: Chat & AI Analysis */}
+        <div className="w-full md:w-2/3 flex flex-col md:flex-row gap-6">
+          
+          {/* Chat Window */}
+          <div className="flex-1 bg-surface-800 border border-white/5 rounded-3xl shadow-xl flex flex-col overflow-hidden">
+            {selectedInquiry ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b border-white/5 bg-surface-850 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-lg border border-indigo-500/30">
+                      {selectedInquiry.prospect_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-white">{selectedInquiry.prospect_name}</h3>
+                      <p className="text-xs text-slate-400">{selectedInquiry.prospect_contact || 'No contact provided'}</p>
+                    </div>
+                  </div>
+                  <button onClick={handleSimulateProspect} className="px-3 py-1.5 bg-white/5 text-slate-300 hover:text-white rounded-lg text-xs font-bold border border-white/10 transition-colors">
+                    Simulate Reply 🤖
+                  </button>
+                </div>
+
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-slate-500 mt-10">Start the conversation...</div>
+                  ) : (
+                    messages.map((msg, idx) => {
+                      const isAdmin = msg.sender_type === 'admin' || msg.sender_type === 'ai_bot';
+                      return (
+                        <div key={msg.id || idx} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                          <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                            isAdmin 
+                              ? 'bg-brand-green/20 text-brand-green border border-brand-green/30 rounded-tr-none' 
+                              : 'bg-white/10 text-slate-200 border border-white/10 rounded-tl-none'
+                          }`}>
+                            <p className="text-sm font-medium whitespace-pre-wrap">{msg.message_text}</p>
+                          </div>
+                          <span className="text-[10px] text-slate-500 mt-1 mx-1 font-medium uppercase">
+                            {msg.sender_type} • {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        </div>
+                      )
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Message Input */}
+                <div className="p-4 border-t border-white/5 bg-surface-850">
+                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type your message..." 
+                      className="flex-1 bg-surface-900 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-green transition-colors"
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={isSending || !newMessage.trim()}
+                      className="px-6 py-2.5 bg-brand-green text-black font-black rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center"
+                    >
+                      {isSending ? '...' : 'Send'}
                     </button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-slate-500 font-medium">
+                Select an inquiry to view conversation
+              </div>
+            )}
+          </div>
+
+          {/* AI Analysis Sidebar */}
+          {selectedInquiry && (
+            <div className="w-full md:w-64 bg-surface-800 border border-indigo-500/20 rounded-3xl p-5 shadow-xl flex flex-col relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+              
+              <h3 className="font-black text-white mb-6 flex items-center gap-2">
+                <span>✨</span> AI Insights
+              </h3>
+
+              <div className="space-y-6 flex-1">
+                {/* Confidence Score */}
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Purchase Confidence</p>
+                  <div className="flex items-end gap-2">
+                    <span className="text-4xl font-black text-white">{selectedInquiry.service_interest_confidence || 0}</span>
+                    <span className="text-slate-500 mb-1 font-bold">%</span>
+                  </div>
+                  <div className="w-full bg-white/5 h-2 rounded-full mt-3 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${
+                        selectedInquiry.service_interest_confidence > 75 ? 'bg-emerald-500' :
+                        selectedInquiry.service_interest_confidence > 40 ? 'bg-amber-500' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${selectedInquiry.service_interest_confidence || 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* AI Analysis Result */}
+                {selectedInquiry.ai_analysis_result ? (
+                  <div className="space-y-4 pt-4 border-t border-white/5">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Detected Intent</p>
+                      <p className="text-indigo-400 font-bold bg-indigo-500/10 inline-block px-2 py-1 rounded-md text-sm">
+                        {selectedInquiry.ai_analysis_result.intent || 'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Customer Sentiment</p>
+                      <p className="text-white font-medium capitalize text-sm">
+                        {selectedInquiry.ai_analysis_result.sentiment || 'Neutral'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Recommended Action</p>
+                      <p className="text-slate-300 text-sm leading-relaxed">
+                        {selectedInquiry.ai_analysis_result.recommended_action || 'Continue conversation naturally.'}
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <input autoFocus type="text" value={newServiceInput} onChange={e => setNewServiceInput(e.target.value)} className="flex-1 bg-surface-900 border border-brand-green/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green transition-colors" placeholder="Type new package name..." />
-                    <button type="button" onClick={handleAddService} className="px-4 bg-brand-green text-black font-bold rounded-xl hover:scale-105 transition-transform">
-                      Save
-                    </button>
-                    <button type="button" onClick={() => setShowAddService(false)} className="px-3 bg-surface-900 border border-white/10 text-slate-400 hover:text-white font-bold rounded-xl transition-colors">
-                      ✕
-                    </button>
+                  <div className="pt-4 border-t border-white/5 text-center text-slate-500 text-sm">
+                    No AI analysis available yet. Wait for customer response.
                   </div>
                 )}
               </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
-                <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 rounded-xl font-black text-white bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all flex items-center gap-2">
-                  {isSubmitting ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : 'Save Lead'}
-                </button>
-              </div>
-            </form>
-          </div>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-2">
-          {['All', 'New', 'Contacted', 'Converted', 'Lost'].map(filter => (
-            <button key={filter} className="px-4 py-2 rounded-xl text-sm font-bold bg-surface-800 border border-white/5 text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-              {filter}
-            </button>
-          ))}
-        </div>
-        {user?.role !== 'marketing_junior' && (
-          <button onClick={() => setShowModal(true)} className="bg-brand-green text-black px-4 py-2.5 rounded-xl text-sm font-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105 transition-all flex items-center gap-2">
-            <span>+</span> Manual Entry
-          </button>
-        )}
-      </div>
-
-      <div className="rounded-3xl overflow-hidden bg-surface-800 border border-white/5 shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-surface-850 border-b border-white/5">
-              <tr>
-                <th className="py-5 px-6 text-xs font-black text-slate-400 uppercase tracking-wider">Date / Source</th>
-                <th className="py-5 px-6 text-xs font-black text-slate-400 uppercase tracking-wider">Prospect</th>
-                <th className="py-5 px-6 text-xs font-black text-slate-400 uppercase tracking-wider">Interest</th>
-                <th className="py-5 px-6 text-xs font-black text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="py-5 px-6 text-xs font-black text-slate-400 uppercase tracking-wider">AI Confidence</th>
-                <th className="py-5 px-6 text-xs font-black text-slate-400 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {inquiries.map(inquiry => (
-                <tr key={inquiry.id} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="py-4 px-6">
-                    <p className="font-bold text-slate-300">{(inquiry.created_at || inquiry.date || '').split('T')[0]}</p>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><span>📱</span> {inquiry.source}</p>
-                  </td>
-                  <td className="py-4 px-6">
-                    <p className="font-bold text-white text-base group-hover:text-brand-green transition-colors">{inquiry.prospect_name}</p>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-lg text-slate-300 font-medium">
-                      {inquiry.service}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <select
-                      value={inquiry.status}
-                      onChange={e => handleStatusChange(inquiry, e.target.value)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold border bg-transparent cursor-pointer ${getStatusColor(inquiry.status)}`}
-                    >
-                      {['New','Contacted','Converted','Lost'].map(s => <option key={s} value={s} className="bg-surface-800 text-white">{s}</option>)}
-                    </select>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-slate-400 text-xs font-medium">—</span>
-                  </td>
-                  <td className="py-4 px-6 text-right space-x-3">
-                    {user?.role !== 'marketing_junior' && (
-                      <button onClick={() => handleDelete(inquiry.id)} className="text-rose-400 hover:text-rose-300 font-bold text-sm">Delete</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
     </Layout>
   );

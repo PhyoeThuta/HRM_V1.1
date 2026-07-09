@@ -72,6 +72,10 @@ export const crmApi = {
 
   getInquiries: () => api.get('/crm/inquiries').then(r => r.data),
 
+  getInquiryMessages: (id) => api.get(`/crm/inquiries/${id}/messages`).then(r => r.data),
+
+  postInquiryMessage: (id, data) => api.post(`/crm/inquiries/${id}/messages`, data).then(r => r.data),
+
   createInquiry: (data) => api.post('/crm/inquiries', data).then(r => r.data),
 
   updateInquiry: (id, data) => api.put(`/crm/inquiries/${id}`, data).then(r => r.data),
