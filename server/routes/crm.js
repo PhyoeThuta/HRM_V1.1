@@ -756,6 +756,43 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
     // 2. Run AI Analysis in the background
     setTimeout(() => triggerAIAnalysis(id), 100);
 
+    // 3. Send message to Facebook via Graph API if it's an admin reply
+    if ((!sender_type || sender_type === 'admin') && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
+      try {
+        const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+          .select('metadata')
+          .eq('inquiry_id', id)
+          .eq('sender_type', 'prospect')
+          .not('metadata', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (prospectMsgs && prospectMsgs.length > 0) {
+          const meta = prospectMsgs[0].metadata;
+          let psid = meta?.sender?.id || meta?.message?.sender?.id || meta?.entry?.[0]?.messaging?.[0]?.sender?.id;
+          
+          if (psid) {
+            const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
+            const fbResponse = await fetch(fbUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: { id: psid },
+                message: { text: message_text },
+                messaging_type: 'RESPONSE'
+              })
+            });
+            const fbResult = await fbResponse.json();
+            if (fbResult.error) {
+              console.error('[FB SEND ERROR]', fbResult.error);
+            }
+          }
+        }
+      } catch (fbErr) {
+        console.error('[FB FETCH ERROR]', fbErr.message);
+      }
+    }
+
     return res.status(201).json(newMsg);
   } catch (e) {
     console.error('[CRM POST INQUIRY MESSAGE]', e.message);
