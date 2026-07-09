@@ -14,10 +14,13 @@ jobs:
 
     - name: Deploy via SSH to GCP
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         host: ${{ secrets.GCP_VM_IP }}
         username: ${{ secrets.GCP_USERNAME }}
         key: ${{ secrets.GCP_SSH_KEY }}
+        envs: GITHUB_TOKEN
         script: |
           # 1. Navigate to project folder
           cd /var/www/hrm_react
@@ -25,9 +28,9 @@ jobs:
           # 2. Pull latest code from GitHub (init if first time)
           if [ ! -d ".git" ]; then
             git init
-            git remote add origin https://github.com/PhyoeThuta/HRM_V1.1.git
+            git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/PhyoeThuta/HRM_V1.1.git
           else
-            git remote set-url origin https://github.com/PhyoeThuta/HRM_V1.1.git
+            git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/PhyoeThuta/HRM_V1.1.git
           fi
           
           git fetch --all
