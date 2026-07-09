@@ -693,8 +693,10 @@ router.post('/webhooks/zernio', async (req, res) => {
     console.log('[ZERNIO WEBHOOK RECEIVED]', JSON.stringify(payload).substring(0, 500));
 
     // Try to extract text based on common webhook formats
-    let text = payload.text || payload.message || payload.body || '';
-    if (!text && payload.entry?.[0]?.messaging?.[0]?.message?.text) {
+    let text = '';
+    if (typeof payload.text === 'string') text = payload.text;
+    else if (payload.message && typeof payload.message.text === 'string') text = payload.message.text;
+    else if (payload.entry?.[0]?.messaging?.[0]?.message?.text) {
       text = payload.entry[0].messaging[0].message.text;
     }
     if (!text) text = "[Zernio Msg] " + JSON.stringify(payload).substring(0, 100);
