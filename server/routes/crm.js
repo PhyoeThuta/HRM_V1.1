@@ -681,6 +681,11 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
   }
 }
 
+// GET /api/crm/webhooks/zernio (For Webhook Verification Pings)
+router.get('/webhooks/zernio', (req, res) => {
+  return res.status(200).send(req.query['hub.challenge'] || 'OK');
+});
+
 // POST /api/crm/webhooks/zernio (No verifyToken because it's a public webhook)
 router.post('/webhooks/zernio', async (req, res) => {
   try {
