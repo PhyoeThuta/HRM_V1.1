@@ -94,6 +94,11 @@ export default function LevelSettings() {
   return (
     <Layout>
       <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+        <div className="mb-4">
+          <button onClick={() => window.history.back()} className="text-slate-400 hover:text-white font-bold flex items-center gap-2 transition-colors">
+            ← Back
+          </button>
+        </div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Customer Level Settings</h1>

@@ -604,7 +604,7 @@ export default function CustomerDetail() {
               <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
                 <h1 className="text-3xl font-black text-white">{customer.full_name}</h1>
                 <span className="bg-brand-green/10 border border-brand-green/20 text-brand-green px-3 py-1 rounded-full text-xs font-bold">{customer.customer_code}</span>
-                {customer.level && (
+                {customer.level ? (
                   <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
                     customer.level.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]' :
                     customer.level.color === 'green' ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]' :
@@ -615,6 +615,10 @@ export default function CustomerDetail() {
                   }`}>
                     {customer.level.level_name} 
                     <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.packages_list?.length || 0} packages)</span>
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border bg-white/5 text-slate-400 border-white/10">
+                    No Level <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.packages_list?.length || 0} packages)</span>
                   </span>
                 )}
               </div>

@@ -116,7 +116,7 @@ export default function Customers() {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-white text-base">{customer.full_name}</p>
-                        {customer.level && (
+                        {customer.level ? (
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                             customer.level.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                             customer.level.color === 'green' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
@@ -126,6 +126,10 @@ export default function Customers() {
                             'bg-slate-500/10 text-slate-400 border-slate-500/20'
                           }`}>
                             {customer.level.level_name}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-white/5 text-slate-400 border-white/10">
+                            No Level
                           </span>
                         )}
                       </div>
