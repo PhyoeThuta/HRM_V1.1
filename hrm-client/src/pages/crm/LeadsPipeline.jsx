@@ -103,6 +103,17 @@ export default function LeadsPipeline() {
       
       {/* Top Navbar matched from CRMDashboard */}
       <div className="flex items-center justify-between mb-8 bg-white dark:bg-surface-800 p-4 rounded-full border border-slate-200 dark:border-white/5 shadow-lg w-full transition-colors">
+        
+        {/* Back Button & Brand */}
+        <div className="flex items-center gap-4 ml-2">
+          <button onClick={() => navigate('/crm')} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 hover:text-brand-green hover:bg-emerald-50 dark:hover:bg-brand-green/10 transition-colors" title="Back to Dashboard">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          </button>
+          <div className="text-2xl font-black text-brand-green tracking-tight uppercase hidden md:block">
+            CRM
+          </div>
+        </div>
+
         <div className="hidden lg:flex items-center gap-8 text-sm font-bold text-slate-700 dark:text-slate-300 px-4">
           <div className="relative group cursor-pointer py-2">
             <div className="flex items-center gap-1 hover:text-brand-green transition-colors text-brand-green">
