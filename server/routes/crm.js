@@ -616,6 +616,115 @@ router.get('/inquiries/:id/messages', verifyToken, async (req, res) => {
   }
 });
 
+// AI Analysis Helper
+async function triggerAIAnalysis(inquiryId) {
+  if (!process.env.GEMINI_API_KEY) {
+    await supabaseAdmin.schema('crm').from('inquiries').update({ updated_at: new Date() }).eq('id', inquiryId);
+    return;
+  }
+  
+  try {
+    const { data: history } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+      .select('sender_type, message_text')
+      .eq('inquiry_id', inquiryId)
+      .order('created_at', { ascending: true })
+      .limit(15);
+      
+    if (!history || history.length === 0) return;
+      
+    const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
+    
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    const prompt = `
+You are an expert CRM AI Assistant for a Diet & Meal Delivery service. 
+Analyze the following conversation history between a PROSPECT and our ADMIN.
+
+Chat History:
+${chatHistory}
+
+Task:
+Provide a JSON response analyzing the prospect's intent, sentiment, recommended action for the admin, and a confidence score (0-100) of how likely they are to purchase a diet package.
+The JSON must have the following exact keys:
+{
+  "intent": "string (e.g., pricing_inquiry, general_question, complaint, ready_to_buy)",
+  "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
+  "recommended_action": "string (1-2 sentences of what the admin should reply)",
+  "confidence_score": integer (0 to 100)
+}
+
+Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
+    `;
+    
+    const result = await model.generateContent(prompt);
+    let aiText = result.response.text().trim();
+    if (aiText.startsWith('\`\`\`json')) aiText = aiText.substring(7, aiText.length - 3).trim();
+    else if (aiText.startsWith('\`\`\`')) aiText = aiText.substring(3, aiText.length - 3).trim();
+    
+    const aiJson = JSON.parse(aiText);
+    
+    await supabaseAdmin.schema('crm').from('inquiries')
+      .update({ 
+        updated_at: new Date(),
+        ai_analysis_result: {
+          intent: aiJson.intent,
+          sentiment: aiJson.sentiment,
+          recommended_action: aiJson.recommended_action
+        },
+        service_interest_confidence: aiJson.confidence_score,
+        status: aiJson.confidence_score > 80 ? 'in_progress' : undefined
+      })
+      .eq('id', inquiryId);
+  } catch (aiErr) {
+    console.error('[CRM AI ANALYSIS ERROR]', aiErr);
+  }
+}
+
+// POST /api/crm/webhooks/zernio (No verifyToken because it's a public webhook)
+router.post('/webhooks/zernio', async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('[ZERNIO WEBHOOK RECEIVED]', JSON.stringify(payload).substring(0, 500));
+
+    // Try to extract text based on common webhook formats
+    let text = payload.text || payload.message || payload.body || '';
+    if (!text && payload.entry?.[0]?.messaging?.[0]?.message?.text) {
+      text = payload.entry[0].messaging[0].message.text;
+    }
+    if (!text) text = "[Zernio Msg] " + JSON.stringify(payload).substring(0, 100);
+
+    // Extract prospect name or ID
+    let prospectName = payload.sender_name || payload.contact_name || payload.name || 'Zernio Contact';
+    if (payload.entry?.[0]?.messaging?.[0]?.sender?.id) {
+      prospectName = 'FB User ' + payload.entry[0].messaging[0].sender.id;
+    }
+
+    // Check if inquiry exists
+    const { data: existing } = await supabaseAdmin.schema('crm').from('inquiries')
+      .select('id').eq('prospect_name', prospectName).order('created_at', { ascending: false }).limit(1).single();
+
+    let inquiryId = existing?.id;
+    
+    if (!inquiryId) {
+      const { data: newInq } = await supabaseAdmin.schema('crm').from('inquiries')
+        .insert({ prospect_name: prospectName, source: 'messenger', service_interest: 'Zernio Incoming' })
+        .select('id').single();
+      inquiryId = newInq.id;
+    }
+
+    await supabaseAdmin.schema('crm').from('inquiries_messages')
+      .insert({ inquiry_id: inquiryId, message_text: text, sender_type: 'prospect', metadata: payload });
+
+    setTimeout(() => triggerAIAnalysis(inquiryId), 100);
+
+    return res.status(200).send('OK');
+  } catch (err) {
+    console.error('[ZERNIO WEBHOOK ERROR]', err);
+    return res.status(500).send('Internal Error');
+  }
+});
+
 // POST /api/crm/inquiries/:id/messages
 router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
   try {
@@ -637,77 +746,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
 
     if (insertError) throw insertError;
     
-    // 2. Run AI Analysis in the background (don't block the request response)
-    // We only trigger AI if the prospect sends a message, or to update context
-    if (process.env.GEMINI_API_KEY) {
-      setTimeout(async () => {
-        try {
-          // Fetch last 15 messages for context
-          const { data: history } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-            .select('sender_type, message_text')
-            .eq('inquiry_id', id)
-            .order('created_at', { ascending: true })
-            .limit(15);
-            
-          const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
-          
-          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-          
-          const prompt = `
-You are an expert CRM AI Assistant for a Diet & Meal Delivery service. 
-Analyze the following conversation history between a PROSPECT and our ADMIN.
-
-Chat History:
-${chatHistory}
-
-Task:
-Provide a JSON response analyzing the prospect's intent, sentiment, recommended action for the admin, and a confidence score (0-100) of how likely they are to purchase a diet package.
-The JSON must have the following exact keys:
-{
-  "intent": "string (e.g., pricing_inquiry, general_question, complaint, ready_to_buy)",
-  "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
-  "recommended_action": "string (1-2 sentences of what the admin should reply)",
-  "confidence_score": integer (0 to 100)
-}
-
-Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
-          `;
-          
-          const result = await model.generateContent(prompt);
-          let aiText = result.response.text().trim();
-          if (aiText.startsWith('\`\`\`json')) {
-            aiText = aiText.substring(7, aiText.length - 3).trim();
-          } else if (aiText.startsWith('\`\`\`')) {
-            aiText = aiText.substring(3, aiText.length - 3).trim();
-          }
-          
-          const aiJson = JSON.parse(aiText);
-          
-          // Update the inquiry
-          await supabaseAdmin.schema('crm').from('inquiries')
-            .update({ 
-              updated_at: new Date(),
-              ai_analysis_result: {
-                intent: aiJson.intent,
-                sentiment: aiJson.sentiment,
-                recommended_action: aiJson.recommended_action
-              },
-              service_interest_confidence: aiJson.confidence_score,
-              status: aiJson.confidence_score > 80 ? 'in_progress' : undefined
-            })
-            .eq('id', id);
-            
-        } catch (aiErr) {
-          console.error('[CRM AI ANALYSIS ERROR]', aiErr);
-        }
-      }, 100);
-    } else {
-      // No Gemini Key, just update timestamp
-      await supabaseAdmin.schema('crm').from('inquiries')
-        .update({ updated_at: new Date() })
-        .eq('id', id);
-    }
+    // 2. Run AI Analysis in the background
+    setTimeout(() => triggerAIAnalysis(id), 100);
 
     return res.status(201).json(newMsg);
   } catch (e) {
