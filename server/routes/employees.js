@@ -158,20 +158,31 @@ router.get('/:id', async (req, res) => {
 router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) => {
   try {
     const d = req.body;
-    const result = await dbInsert('Employees', {
-      employee_id: d.employee_id, Full_name: d.Full_name,
-      email: d.email || null, phone: d.phone || null,
-      Dept_id: d.Dept_id || null, position_id: d.position_id || null,
-      Manager_id: d.Manager_id || null,
-      hire_date: d.hire_date || null, date_of_birth: d.date_of_birth || null,
-      national_id: d.national_id || null, address: d.address || null,
-      employment_type: d.employment_type || 'Full-Time',
-      status: d.status || 'Active',
-      salary: d.salary ? parseFloat(d.salary) : null,
-      salary: d.salary ? parseFloat(d.salary) : null,
-      created_at: new Date().toISOString(),
-    });
-    if (!result) return res.status(500).json({ error: 'Failed to add employee' });
+    
+    // Clean data (remove empty strings)
+    const cleanData = Object.fromEntries(
+      Object.entries({
+        employee_id: d.employee_id, Full_name: d.Full_name,
+        email: d.email || null, phone: d.phone || null,
+        Dept_id: d.Dept_id || null, position_id: d.position_id || null,
+        Manager_id: d.Manager_id || null,
+        hire_date: d.hire_date || null, date_of_birth: d.date_of_birth || null,
+        national_id: d.national_id || null, address: d.address || null,
+        employment_type: d.employment_type || 'Full-Time',
+        status: d.status || 'Active',
+        salary: d.salary ? parseFloat(d.salary) : null,
+        created_at: new Date().toISOString(),
+      }).filter(([, v]) => v !== null && v !== undefined && v !== '')
+    );
+
+    const { data: resultData, error: insertError } = await supabase.from('Employees').insert(cleanData).select();
+    
+    if (insertError) {
+      console.error('[EMPLOYEE INSERT ERROR]', insertError);
+      return res.status(400).json({ error: insertError.message || 'Failed to add employee' });
+    }
+    
+    const result = resultData?.[0];
 
     // Audit log
     await dbInsert('sys_audit_logs', {
