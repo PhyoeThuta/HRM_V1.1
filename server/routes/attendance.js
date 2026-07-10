@@ -281,6 +281,15 @@ router.post('/scan', async (req, res) => {
     const openRecords = await dbFetch('attendance_records', '*', { employee_id: qrData.employee_id }, { order: 'check_in', ascending: false, limit: 10 });
     const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
     
+    // Prevent double-scanning duplicates within 2 minutes
+    const latestRecord = openRecords[0];
+    if (latestRecord) {
+      const lastActionTime = new Date(latestRecord.check_out || latestRecord.check_in);
+      if (new Date(now) - lastActionTime < 2 * 60 * 1000) {
+        return res.status(429).json({ error: 'Please wait at least 2 minutes between scans to prevent duplicates.' });
+      }
+    }
+
     if (todayOpen) {
       const overtime_hours = await calcOvertime(qrData.employee_id, now);
       await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
@@ -313,6 +322,15 @@ router.post('/photo-checkin', async (req, res) => {
     const openRecords = await dbFetch('attendance_records', '*', { employee_id }, { order: 'check_in', ascending: false, limit: 10 });
     const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
     
+    // Prevent double-clicking/network queue duplicates within 2 minutes
+    const latestRecord = openRecords[0];
+    if (latestRecord) {
+      const lastActionTime = new Date(latestRecord.check_out || latestRecord.check_in);
+      if (new Date(now) - lastActionTime < 2 * 60 * 1000) {
+        return res.status(429).json({ error: 'Please wait at least 2 minutes between check-ins to prevent duplicates.' });
+      }
+    }
+
     if (todayOpen) {
       const overtime_hours = await calcOvertime(employee_id, now);
       await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
