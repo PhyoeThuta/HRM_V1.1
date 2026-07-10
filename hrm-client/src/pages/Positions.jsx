@@ -4,17 +4,24 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import PositionAnnouncementModal from '../components/positions/PositionAnnouncementModal';
 
 export default function Positions() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isPostingFB, setIsPostingFB] = useState(null);
+  const [announceTarget, setAnnounceTarget] = useState(null);
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({ queryKey: ['positions'], queryFn: () => api.get('/positions').then(r => r.data) });
+
+  const { data: fbConnection } = useQuery({
+    queryKey: ['positions-fb-connection'],
+    queryFn: () => api.get('/positions/facebook-connection').then(r => r.data),
+    enabled: isAdmin(),
+  });
 
   const addMutation = useMutation({
     mutationFn: (body) => api.post('/positions', body),
@@ -39,18 +46,6 @@ export default function Positions() {
       editMutation.mutate({ id: editTarget.id, body });
     } else {
       addMutation.mutate(body);
-    }
-  };
-
-  const handleFBPost = async (id) => {
-    setIsPostingFB(id);
-    try {
-      const res = await api.post(`/positions/${id}/post-to-facebook`);
-      toast.success('Successfully posted to Facebook Page!');
-    } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to auto-post to Facebook');
-    } finally {
-      setIsPostingFB(null);
     }
   };
 
@@ -105,6 +100,20 @@ export default function Positions() {
         )}
       </div>
 
+      {isAdmin() && fbConnection && (
+        <div className={`mb-6 rounded-xl px-4 py-3 text-xs flex items-center gap-2 border ${
+          fbConnection.configured && fbConnection.healthStatus !== 'error'
+            ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300'
+            : 'bg-amber-500/5 border-amber-500/30 text-amber-200'
+        }`}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          <span>
+            Facebook via <strong>{fbConnection.provider === 'zernio' ? 'Zernio' : fbConnection.provider === 'graph_api' ? 'Graph API' : '—'}</strong>
+            {fbConnection.message ? ` — ${fbConnection.message}` : ''}
+          </span>
+        </div>
+      )}
+
       <div className="space-y-8">
         {isLoading ? (
           <div className="py-10 text-center">
@@ -151,16 +160,11 @@ export default function Positions() {
               <div className="flex items-center gap-3">
                 {p.is_hiring && isAdmin() && (
                   <button
-                    title="Auto Generate & Post to Facebook using AI"
-                    onClick={() => handleFBPost(p.id)}
-                    disabled={isPostingFB === p.id}
+                    title="Compose Facebook announcement (image + text)"
+                    onClick={() => setAnnounceTarget(p)}
                     className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-colors"
                   >
-                    {isPostingFB === p.id ? (
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                    )}
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                   </button>
                 )}
                 <div className="flex items-center gap-2" title="Publish to Career Page">
@@ -207,6 +211,14 @@ export default function Positions() {
             </form>
           </div>
         </div>
+      )}
+
+      {announceTarget && (
+        <PositionAnnouncementModal
+          position={announceTarget}
+          connection={fbConnection}
+          onClose={() => setAnnounceTarget(null)}
+        />
       )}
 
       {deleteTarget && (

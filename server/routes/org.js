@@ -1,9 +1,21 @@
 import express from 'express';
+import multer from 'multer';
 import { dbFetch, dbInsert, dbUpdate, dbDelete, dbFetchOne } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  getFacebookConnectionStatus,
+  generatePositionCaption,
+  publishPositionToFacebook,
+} from '../lib/positionFacebook.js';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype?.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
 
 const router = express.Router();
 router.use(verifyToken);
@@ -134,72 +146,86 @@ router.delete('/positions/:id', requireAdmin, async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) => {
+// GET /api/positions/facebook-connection — Zernio / Graph status
+router.get('/positions/facebook-connection', requireAdmin, async (req, res) => {
+  try {
+    const status = await getFacebookConnectionStatus();
+    return res.json(status);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/positions/:id/generate-caption — AI draft for announcement
+router.post('/positions/:id/generate-caption', requireAdmin, async (req, res) => {
+  try {
+    const pos = await dbFetchOne('positions', '*', { id: req.params.id });
+    if (!pos) return res.status(404).json({ error: 'Position not found' });
+    if (!pos.is_hiring) return res.status(400).json({ error: 'Position is not open for hiring.' });
+
+    const appUrl = process.env.PUBLIC_APP_URL || req.headers.origin || 'http://localhost:5173';
+    const caption = await generatePositionCaption(pos, appUrl);
+    return res.json({ caption });
+  } catch (e) {
+    console.error('Generate caption error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/positions/:id/publish-facebook — publish with caption + optional image (Zernio flow)
+router.post('/positions/:id/publish-facebook', requireAdmin, upload.single('image'), async (req, res) => {
   try {
     const posId = req.params.id;
     const pos = await dbFetchOne('positions', '*', { id: posId });
     if (!pos) return res.status(404).json({ error: 'Position not found' });
     if (!pos.is_hiring) return res.status(400).json({ error: 'Position is not open for hiring.' });
 
-    const PAGE_ID = process.env.FACEBOOK_PAGE_ID;
-    const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const caption = (req.body.caption || '').trim();
+    if (!caption) return res.status(400).json({ error: 'Caption is required.' });
 
-    if (!PAGE_ID || !PAGE_TOKEN) {
-      return res.status(500).json({ error: 'Facebook credentials not configured in server.' });
+    let imageBuffer = null;
+    let imageMeta = null;
+    if (req.file) {
+      imageBuffer = req.file.buffer;
+      imageMeta = { filename: req.file.originalname, mimetype: req.file.mimetype };
     }
 
-    // 1. Generate Facebook Post Content with AI
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const appUrl = req.headers.origin || 'http://34.87.23.76'; // Use request origin or fallback to IP
-    
-    const prompt = `
-      You are an expert HR copywriter for Busy Boss Diet. We are hiring for the following position:
-      - Job Title: ${pos.title}
-      - Level: ${pos.level || 'Mid Level'}
-      - Department/Team: ${pos.team || 'Any'}
-      - Base Salary: ${pos.base_salary ? pos.base_salary + ' MMK' : 'Competitive'}
+    const result = await publishPositionToFacebook(caption, imageBuffer, imageMeta);
 
-      Write a highly engaging, professional, and attractive Facebook post (in Burmese and English) announcing this job opening.
-      Include emojis.
-      Keep it clean and readable for Facebook users.
-      Return ONLY the post text. Do not include any placeholder links.
-    `;
-
-    const result = await model.generateContent(prompt);
-    let postContent = result.response.text().trim();
-
-    // Forcefully append the apply links so AI doesn't skip it
-    postContent += `\n\n🔗 **How to Apply / လျှောက်ထားရန်:**\nApply Online Here: ${appUrl}/careers\nOr send your CV to hr@busybossdiet.com`;
-
-    // 2. Post to Facebook using Graph API
-    const fbResponse = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/feed`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: postContent,
-        access_token: PAGE_TOKEN
-      })
-    });
-
-    const fbData = await fbResponse.json();
-
-    if (fbData.error) {
-      console.error('FB API Error:', fbData.error);
-      throw new Error(fbData.error.message || 'Failed to post to Facebook');
-    }
-
-    // Audit log
     await dbInsert('sys_audit_logs', {
       user_id: req.user.id,
       action: 'CREATE',
       module: 'Positions',
-      details: `Used AI to automatically post job opening for ${pos.title} to Facebook. Post ID: ${fbData.id}`,
+      details: `Published hiring announcement for ${pos.title} via ${result.provider}. Post: ${result.zernioPostId || result.postId}`,
       ip_address: req.ip || '0.0.0.0'
     });
 
-    return res.json({ success: true, post_id: fbData.id, message: postContent });
+    return res.json({
+      success: true,
+      caption,
+      provider: result.provider,
+      zernio_post_id: result.zernioPostId,
+      facebook_post_url: result.facebookUrl,
+      post_id: result.postId,
+    });
+  } catch (e) {
+    console.error('Publish Facebook error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Legacy: quick AI post (text only, no preview) — redirects to generate + graph/zernio
+router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) => {
+  try {
+    const pos = await dbFetchOne('positions', '*', { id: req.params.id });
+    if (!pos) return res.status(404).json({ error: 'Position not found' });
+    if (!pos.is_hiring) return res.status(400).json({ error: 'Position is not open for hiring.' });
+
+    const appUrl = process.env.PUBLIC_APP_URL || req.headers.origin || 'http://localhost:5173';
+    const caption = await generatePositionCaption(pos, appUrl);
+    const result = await publishPositionToFacebook(caption, null, null);
+
+    return res.json({ success: true, message: caption, post_id: result.postId, facebook_post_url: result.facebookUrl });
   } catch (e) {
     console.error('FB Auto Post Error:', e);
     return res.status(500).json({ error: e.message });
