@@ -6,15 +6,19 @@ let io = null;
 
 const CRM_ROLES = ['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior'];
 
-/**
- * Attach Socket.IO to the HTTP server for CRM sales inbox realtime.
- * Agents connect with JWT; customers stay on Messenger/Zernio (HTTP webhook → push here).
- */
 export function initCrmRealtime(httpServer) {
+  const corsOrigins = (
+    process.env.CRM_WS_CORS_ORIGINS ||
+    'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,https://hrm.duolinkmm.com'
+  )
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   io = new Server(httpServer, {
     path: '/socket.io',
     cors: {
-      origin: ['http://localhost:5173', 'http://localhost:4173', 'http://127.0.0.1:5173'],
+      origin: corsOrigins,
       credentials: true,
     },
   });
