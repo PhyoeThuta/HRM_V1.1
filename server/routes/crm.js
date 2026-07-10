@@ -1,8 +1,13 @@
 import express from 'express';
 import multer from 'multer';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { supabaseAdmin, isSupabaseServiceRoleConfigured } from '../lib/supabase.js';
 import { verifyToken } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  emitInquiryMessage,
+  emitInquiryUpdated,
+  emitInquiryCreated,
+} from '../lib/crmRealtime.js';
 
 const router = express.Router();
 
@@ -580,6 +585,11 @@ router.delete('/gallery/:photoId', verifyToken, async (req, res) => {
 // GET /api/crm/inquiries
 router.get('/inquiries', verifyToken, async (req, res) => {
   try {
+    if (!isSupabaseServiceRoleConfigured()) {
+      return res.status(500).json({
+        error: 'CRM requires SUPABASE_SERVICE_KEY in server/.env (Supabase → Project Settings → API → service_role). Anon key cannot read crm.inquiries.',
+      });
+    }
     const { data, error } = await supabaseAdmin
       .schema('crm')
       .from('inquiries')
@@ -593,7 +603,10 @@ router.get('/inquiries', verifyToken, async (req, res) => {
     return res.json(data);
   } catch (e) {
     console.error('[CRM GET INQUIRIES]', e.message);
-    return res.status(500).json({ error: e.message });
+    const hint = /permission denied/i.test(e.message)
+      ? ' Check SUPABASE_SERVICE_KEY and run GRANT USAGE ON SCHEMA crm TO service_role; plus table grants from server/scripts/ai_inquiries_schema.sql'
+      : '';
+    return res.status(500).json({ error: e.message + hint });
   }
 });
 
@@ -665,18 +678,24 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
     
     const aiJson = JSON.parse(aiText);
     
-    await supabaseAdmin.schema('crm').from('inquiries')
-      .update({ 
-        updated_at: new Date(),
-        ai_analysis_result: {
-          intent: aiJson.intent,
-          sentiment: aiJson.sentiment,
-          recommended_action: aiJson.recommended_action
-        },
-        service_interest_confidence: aiJson.confidence_score,
-        status: aiJson.pipeline_status || 'new'
-      })
-      .eq('id', inquiryId);
+    const updatePayload = { 
+      updated_at: new Date().toISOString(),
+      ai_analysis_result: {
+        intent: aiJson.intent,
+        sentiment: aiJson.sentiment,
+        recommended_action: aiJson.recommended_action
+      },
+      service_interest_confidence: aiJson.confidence_score,
+      status: aiJson.pipeline_status || 'new'
+    };
+
+    const { data: updated } = await supabaseAdmin.schema('crm').from('inquiries')
+      .update(updatePayload)
+      .eq('id', inquiryId)
+      .select()
+      .single();
+
+    if (updated) emitInquiryUpdated(updated);
   } catch (aiErr) {
     console.error('[CRM AI ANALYSIS ERROR]', aiErr);
   }
@@ -713,12 +732,16 @@ router.post('/webhooks/zernio', async (req, res) => {
       .select('id').eq('prospect_name', prospectName).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
     let inquiryId = existing?.id;
+    let createdInquiry = null;
     
     if (!inquiryId) {
       const { data: newInq } = await supabaseAdmin.schema('crm').from('inquiries')
         .insert({ prospect_name: prospectName, source: 'messenger', service_interest: 'Zernio Incoming' })
-        .select('id').single();
+        .select()
+        .single();
       inquiryId = newInq.id;
+      createdInquiry = newInq;
+      emitInquiryCreated(newInq);
     }
 
     const cleanMetadata = {
@@ -728,12 +751,16 @@ router.post('/webhooks/zernio', async (req, res) => {
       }
     };
 
-    await supabaseAdmin.schema('crm').from('inquiries_messages')
-      .insert({ inquiry_id: inquiryId, message_text: text, sender_type: 'prospect', metadata: cleanMetadata });
+    const { data: newMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+      .insert({ inquiry_id: inquiryId, message_text: text, sender_type: 'prospect', metadata: cleanMetadata })
+      .select()
+      .single();
+
+    if (newMsg) emitInquiryMessage(inquiryId, newMsg);
 
     setTimeout(() => triggerAIAnalysis(inquiryId), 100);
 
-    return res.status(200).send('OK');
+    return res.status(200).json({ ok: true, inquiry_id: inquiryId, message_id: newMsg?.id, created: !!createdInquiry });
   } catch (err) {
     console.error('[ZERNIO WEBHOOK ERROR]', err);
     return res.status(500).send('Internal Error');
@@ -760,6 +787,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
       .single();
 
     if (insertError) throw insertError;
+
+    emitInquiryMessage(id, newMsg);
     
     // 2. Run AI Analysis in the background
     setTimeout(() => triggerAIAnalysis(id), 100);
@@ -778,8 +807,9 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
         if (prospectMsgs && prospectMsgs.length > 0) {
           const meta = prospectMsgs[0].metadata;
           const conversationId = meta?.message?.conversationId || meta?.conversationId;
+          const zernioAccountId = process.env.ZERNIO_FACEBOOK_ACCOUNT_ID;
           
-          if (conversationId && process.env.ZERNIO_API_KEY) {
+          if (conversationId && process.env.ZERNIO_API_KEY && zernioAccountId) {
             const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
             const zernioResponse = await fetch(zernioUrl, {
               method: 'POST',
@@ -788,7 +818,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
                 'Content-Type': 'application/json' 
               },
               body: JSON.stringify({
-                accountId: process.env.ZERNIO_ACCOUNT_ID,
+                accountId: zernioAccountId,
                 message: message_text
               })
             });
@@ -847,6 +877,7 @@ router.post('/inquiries', verifyToken, async (req, res) => {
       .single();
 
     if (error) throw error;
+    emitInquiryCreated(data);
     return res.status(201).json(data);
   } catch (e) {
     console.error('[CRM POST INQUIRY]', e.message);
@@ -860,18 +891,21 @@ router.put('/inquiries/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { status, notes, ai_analysis_result, service_interest_confidence } = req.body;
 
-    const updateData = { updated_at: new Date() };
+    const updateData = { updated_at: new Date().toISOString() };
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (ai_analysis_result) updateData.ai_analysis_result = ai_analysis_result;
     if (service_interest_confidence !== undefined) updateData.service_interest_confidence = service_interest_confidence;
 
-    const { error } = await supabaseAdmin.schema('crm').from('inquiries')
+    const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
       .update(updateData)
-      .eq('id', id);
+      .eq('id', id)
+      .select()
+      .single();
 
     if (error) throw error;
-    return res.json({ success: true });
+    if (data) emitInquiryUpdated(data);
+    return res.json({ success: true, inquiry: data });
   } catch (e) {
     console.error('[CRM PUT INQUIRY]', e.message);
     return res.status(500).json({ error: e.message });

@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -7,6 +8,7 @@ import cookieParser from 'cookie-parser';
 dotenv.config();
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
+import { initCrmRealtime } from './lib/crmRealtime.js';
 
 // Routes
 import authRouter from './routes/auth.js';
@@ -28,6 +30,7 @@ import financeRouter from './routes/finance.js';
 import crmRouter from './routes/crm.js';
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // ── Security & Middleware ──────────────────────────────────────
@@ -95,10 +98,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.stack || err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+initCrmRealtime(server);
+
+server.listen(PORT, () => {
   console.log(`\n🚀 Busy Boss Diet API Server running on http://localhost:${PORT}`);
-  console.log(`📋 Health: http://localhost:${PORT}/api/health\n`);
-  
+  console.log(`📋 Health: http://localhost:${PORT}/api/health`);
+  console.log(`🔌 CRM WebSocket: ws://localhost:${PORT}/socket.io\n`);
+
   // Start background jobs
   startBirthdayCron();
 });

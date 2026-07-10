@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
+import { getCrmSocket, joinInquiryRoom, leaveInquiryRoom, disconnectCrmSocket } from '../../lib/crmSocket';
 
 export default function Inquiries() {
   const { user } = useAuth();
@@ -13,33 +14,122 @@ export default function Inquiries() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [wsStatus, setWsStatus] = useState('connecting');
   const messagesEndRef = useRef(null);
+  const selectedIdRef = useRef(null);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedInquiry?.id || null;
+  }, [selectedInquiry?.id]);
 
   useEffect(() => {
     loadInquiries();
   }, []);
 
+  // Realtime: customer (Zernio webhook) + agent replies + AI updates
+  useEffect(() => {
+    const socket = getCrmSocket();
+    if (!socket) {
+      setWsStatus('offline');
+      return undefined;
+    }
+
+    const onConnect = () => setWsStatus('live');
+    const onDisconnect = () => setWsStatus('offline');
+
+    const onMessage = ({ inquiry_id, message }) => {
+      if (!message?.id) return;
+
+      setInquiries(prev => {
+        const idx = prev.findIndex(i => i.id === inquiry_id);
+        if (idx === -1) {
+          // Unknown thread — refresh list
+          loadInquiries();
+          return prev;
+        }
+        const next = [...prev];
+        const inq = { ...next[idx] };
+        const existingMsgs = inq.inquiries_messages || [];
+        if (!existingMsgs.some(m => m.id === message.id)) {
+          inq.inquiries_messages = [...existingMsgs, message];
+        }
+        inq.updated_at = message.created_at || new Date().toISOString();
+        next.splice(idx, 1);
+        next.unshift(inq);
+        return next;
+      });
+
+      if (selectedIdRef.current === inquiry_id) {
+        setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, message]));
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        if (message.sender_type === 'prospect') {
+          toast('New customer message', { icon: '💬', duration: 2500 });
+        }
+      } else if (message.sender_type === 'prospect') {
+        toast(`New message from a lead`, { icon: '💬', duration: 3000 });
+      }
+    };
+
+    const onUpdated = ({ inquiry_id, inquiry }) => {
+      if (!inquiry_id || !inquiry) return;
+      setInquiries(prev => prev.map(i => (i.id === inquiry_id ? { ...i, ...inquiry } : i)));
+      if (selectedIdRef.current === inquiry_id) {
+        setSelectedInquiry(prev => (prev ? { ...prev, ...inquiry } : prev));
+      }
+    };
+
+    const onCreated = ({ inquiry }) => {
+      if (!inquiry?.id) return;
+      setInquiries(prev => (prev.some(i => i.id === inquiry.id) ? prev : [{ ...inquiry, inquiries_messages: [] }, ...prev]));
+      toast.success(`New lead: ${inquiry.prospect_name}`);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('inquiry:message', onMessage);
+    socket.on('inquiry:updated', onUpdated);
+    socket.on('inquiry:created', onCreated);
+    if (socket.connected) setWsStatus('live');
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('inquiry:message', onMessage);
+      socket.off('inquiry:updated', onUpdated);
+      socket.off('inquiry:created', onCreated);
+      disconnectCrmSocket();
+    };
+  }, []);
+
+  useEffect(() => {
+    const id = selectedInquiry?.id;
+    if (!id) return undefined;
+    joinInquiryRoom(id);
+    return () => leaveInquiryRoom(id);
+  }, [selectedInquiry?.id]);
+
   const loadInquiries = () => {
     crmApi.getInquiries().then(data => {
       setInquiries(data);
-      if (data.length > 0 && !selectedInquiry) {
+      if (data.length > 0 && !selectedIdRef.current) {
         handleSelectInquiry(data[0]);
-      } else if (selectedInquiry) {
-        const updated = data.find(i => i.id === selectedInquiry.id);
-        if (updated) setSelectedInquiry(updated);
+      } else if (selectedIdRef.current) {
+        const updated = data.find(i => i.id === selectedIdRef.current);
+        if (updated) setSelectedInquiry(prev => ({ ...prev, ...updated }));
       }
     }).catch(() => toast.error('Failed to load inquiries'));
   };
 
   const handleCreateTestLead = async () => {
     try {
-      const newInq = await crmApi.createInquiry({
+      await crmApi.createInquiry({
         prospect_name: 'Test Customer ' + Math.floor(Math.random() * 1000),
         source: 'messenger',
         service_interest: 'Boss Diet'
       });
       toast.success('Test Lead created!');
-      loadInquiries();
+      // Realtime inquiry:created will update list; fallback refresh
+      setTimeout(loadInquiries, 300);
     } catch (err) {
       toast.error('Failed to create test lead');
     }
@@ -79,12 +169,10 @@ export default function Inquiries() {
         message_text: newMessage,
         sender_type: 'admin'
       });
-      setMessages([...messages, msg]);
+      setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
       setNewMessage('');
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      
-      // Wait 3 seconds for Gemini AI to finish background job, then refresh
-      setTimeout(() => loadInquiries(), 3000);
+      // AI insights arrive via inquiry:updated websocket — no fixed delay needed
     } catch (err) {
       toast.error('Failed to send message');
     } finally {
@@ -101,20 +189,13 @@ export default function Inquiries() {
         message_text: "Hi, I am interested in losing weight. How much does a 30-day package cost?",
         sender_type: 'prospect'
       });
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      
-      toast.success('Message sent! Waiting for Gemini AI Analysis...', { duration: 4000 });
-      
-      // The backend runs the AI in a setTimeout. We wait 4 seconds, then fetch the updated inquiry.
-      setTimeout(() => {
-        loadInquiries();
-        setIsSending(false);
-      }, 4000);
-      
+      toast.success('Prospect message sent — AI analysis will update live', { duration: 3000 });
     } catch (err) {
       console.error(err);
       toast.error('Failed to simulate message');
+    } finally {
       setIsSending(false);
     }
   };
@@ -153,7 +234,19 @@ export default function Inquiries() {
         <div className="w-full md:w-1/3 bg-surface-800 border border-white/5 rounded-3xl overflow-hidden flex flex-col shadow-xl">
           <div className="p-4 border-b border-white/5 bg-surface-850">
             <div className="flex justify-between items-center">
-              <h3 className="font-black text-white text-lg">Inbox ({inquiries.length})</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-black text-white text-lg">Inbox ({inquiries.length})</h3>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    wsStatus === 'live'
+                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                      : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                  }`}
+                  title="Realtime connection to customer messages"
+                >
+                  {wsStatus === 'live' ? '● Live' : '○ Offline'}
+                </span>
+              </div>
               <button onClick={handleCreateTestLead} className="px-2 py-1 bg-brand-green/20 text-brand-green hover:bg-brand-green hover:text-black rounded-lg text-xs font-bold transition-colors">
                 + New Lead
               </button>

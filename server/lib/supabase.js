@@ -25,6 +25,16 @@ export const supabaseAdmin = supabaseServiceKey
     })
   : supabase; // fallback to anon if key missing
 
+if (!supabaseServiceKey) {
+  console.warn(
+    '[SUPABASE] SUPABASE_SERVICE_KEY is missing — CRM routes will fail with "permission denied" on crm.* tables. Add the service_role key from Supabase → Project Settings → API.'
+  );
+}
+
+export function isSupabaseServiceRoleConfigured() {
+  return !!supabaseServiceKey;
+}
+
 // ── DB helpers ────────────────────────────────────────────────
 export async function dbFetch(table, columns = '*', filters = {}, options = {}) {
   try {
