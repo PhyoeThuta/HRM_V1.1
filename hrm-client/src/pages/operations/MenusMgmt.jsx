@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
+import OpsNavBar from './OpsNavBar';
 
 export default function MenusMgmt() {
   const queryClient = useQueryClient();
@@ -36,7 +37,8 @@ export default function MenusMgmt() {
   };
 
   return (
-    <Layout title="Menus & Recipes 🍲" subtitle="Manage master menus and their bill of materials">
+    <Layout title="Operations Hub" subtitle="Manage master menus and their bill of materials">
+      <OpsNavBar />
       <div className="flex justify-end mb-6">
         <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 transition-all">
           + Add New Menu

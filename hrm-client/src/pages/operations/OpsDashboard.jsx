@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
+import OpsNavBar from './OpsNavBar';
 
 export default function OpsDashboard() {
   const { data: dailyMenus, isLoading } = useQuery({ queryKey: ['daily-menus'], queryFn: () => api.get('/operations/daily-menus').then(res => res.data) });
   const { data: orders } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
 
   return (
-    <Layout title="Operations Dashboard 🚀" subtitle="Overview of daily kitchen operations and menus">
+    <Layout title="Operations Hub" subtitle="Overview of daily kitchen operations and menus">
+      <OpsNavBar />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-surface-800 p-6 rounded-2xl border border-white/5">
           <p className="text-slate-400 text-sm mb-1 font-bold">Total Daily Menus</p>

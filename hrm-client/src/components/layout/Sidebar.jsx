@@ -152,10 +152,7 @@ export default function Sidebar({ isOpen, close }) {
             {(user?.username === 'cnx-0028' || isAdmin()) && (
               <>
                 <NavSection title="Ops & Inventory" color="text-fuchsia-400" />
-                <NavItem to="/operations/dashboard" label="Ops Dashboard" icon={ICONS.dashboard} />
-                <NavItem to="/operations/menus" label="Menus & Recipes" icon={ICONS.documents} />
-                <NavItem to="/operations/orders" label="Orders Mgmt" icon={ICONS.portal} />
-                <NavItem to="/inventory/dashboard" label="Inventory Overview" icon={ICONS.sops} />
+                <NavItem to="/operations/dashboard" label="Ops Hub" icon={ICONS.dashboard} />
               </>
             )}
           </>

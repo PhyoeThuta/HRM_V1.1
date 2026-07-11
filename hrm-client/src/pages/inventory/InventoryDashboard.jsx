@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
+import OpsNavBar from '../operations/OpsNavBar';
 
 export default function InventoryDashboard() {
   const { data: balances, isLoading: loadingBalances } = useQuery({ queryKey: ['inventory-balances'], queryFn: () => api.get('/inventory/balances').then(res => res.data) });
   const { data: transactions, isLoading: loadingTx } = useQuery({ queryKey: ['inventory-transactions'], queryFn: () => api.get('/inventory/transactions').then(res => res.data) });
 
   return (
-    <Layout title="Inventory Overview 📦" subtitle="Track ingredients, tools, and usage">
+    <Layout title="Operations Hub" subtitle="Track ingredients, tools, and usage">
+      <OpsNavBar />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Balances Panel */}

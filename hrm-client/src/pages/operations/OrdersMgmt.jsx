@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
+import OpsNavBar from './OpsNavBar';
 
 export default function OrdersMgmt() {
   const queryClient = useQueryClient();
@@ -26,7 +27,8 @@ export default function OrdersMgmt() {
   };
 
   return (
-    <Layout title="Orders Management 📦" subtitle="Manage customer meal orders and deliveries">
+    <Layout title="Operations Hub" subtitle="Manage customer meal orders and deliveries">
+      <OpsNavBar />
       <div className="bg-surface-800 rounded-2xl border border-white/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
