@@ -131,6 +131,47 @@ router.delete('/menus/:id', async (req, res) => {
     await opsDelete('menus', id);
     return res.json({ success: true });
   } catch (e) {
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ==========================================
+// DYNAMIC COSTING
+// ==========================================
+
+router.post('/recalculate-bom', async (req, res) => {
+  try {
+    // Fetch all recipes with their current inventory cost
+    const { data: recipes, error: rErr } = await supabase.from('operations_recipes').select('*');
+    if (rErr) throw rErr;
+    
+    const { data: balances, error: bErr } = await supabase.from('inventory_balances').select('item_id, one_unit_cost');
+    if (bErr) throw bErr;
+    
+    // Create lookup map for costs
+    const costMap = new Map();
+    for (const b of balances) {
+      costMap.set(b.item_id, b.one_unit_cost || 0);
+    }
+    
+    // Group by menu_id and sum up
+    const menuBom = new Map();
+    for (const r of recipes) {
+      const cost = costMap.get(r.inventory_item_id) || 0;
+      const total = cost * (r.qty || 0);
+      
+      if (!menuBom.has(r.menu_id)) menuBom.set(r.menu_id, 0);
+      menuBom.set(r.menu_id, menuBom.get(r.menu_id) + total);
+    }
+    
+    // Update all menus
+    for (const [menuId, totalBom] of menuBom.entries()) {
+      await supabase.from('operations_menus').update({ total_bill_of_materials: totalBom }).eq('id', menuId);
+    }
+    
+    return res.json({ success: true, updated: menuBom.size });
+  } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 });

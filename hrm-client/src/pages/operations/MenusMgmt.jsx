@@ -68,10 +68,26 @@ export default function MenusMgmt() {
     });
   };
 
+  const recalculateMutation = useMutation({
+    mutationFn: () => api.post('/operations/recalculate-bom'),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries(['menus']);
+      toast.success(`Recalculated costs for ${res.data.updated} menus`);
+    },
+    onError: () => toast.error('Failed to recalculate costs')
+  });
+
   return (
     <Layout title="Operations Hub" subtitle="Manage master menus and their bill of materials">
       <OpsNavBar />
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-end gap-3 mb-6">
+        <button 
+          onClick={() => recalculateMutation.mutate()} 
+          disabled={recalculateMutation.isLoading}
+          className="px-5 py-2.5 bg-surface-700 hover:bg-surface-600 text-slate-300 font-bold rounded-xl transition-all"
+        >
+          {recalculateMutation.isLoading ? 'Recalculating...' : 'Recalculate BOM Costs'}
+        </button>
         <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 transition-all">
           + Add New Menu
         </button>
@@ -84,6 +100,7 @@ export default function MenusMgmt() {
               <tr className="bg-surface-900/50 border-b border-white/5 text-xs uppercase tracking-widest text-slate-400">
                 <th className="px-6 py-4 font-bold">Code</th>
                 <th className="px-6 py-4 font-bold">Name (EN/MM)</th>
+                <th className="px-6 py-4 font-bold">BOM Cost</th>
                 <th className="px-6 py-4 font-bold">Sales Price</th>
                 <th className="px-6 py-4 font-bold">Recipe (BOM)</th>
                 <th className="px-6 py-4 font-bold text-right">Actions</th>
@@ -103,6 +120,7 @@ export default function MenusMgmt() {
                     <p className="font-bold text-white">{menu.name_en}</p>
                     <p className="text-xs text-slate-400">{menu.name_mm}</p>
                   </td>
+                  <td className="px-6 py-4 text-rose-400 font-bold">{Number(menu.total_bill_of_materials || 0).toFixed(2)} THB</td>
                   <td className="px-6 py-4 text-emerald-400 font-bold">{menu.sales_prices} THB</td>
                   <td className="px-6 py-4">
                     <button 
