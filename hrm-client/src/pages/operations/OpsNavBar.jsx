@@ -39,6 +39,12 @@ export default function OpsNavBar() {
         >
           Inventory
         </Link>
+        <Link 
+          to="/crm/kitchen" 
+          className={`py-2 px-4 rounded-full transition-colors whitespace-nowrap ${isActive('/crm/kitchen') ? 'bg-fuchsia-50 dark:bg-white/5 text-fuchsia-600 dark:text-fuchsia-400' : 'hover:text-fuchsia-500'}`}
+        >
+          Kitchen & Delivery
+        </Link>
       </div>
     </div>
   );
