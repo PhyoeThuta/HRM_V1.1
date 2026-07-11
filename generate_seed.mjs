@@ -41,7 +41,16 @@ function parseCosting() {
       if (!match) continue;
       
       const salesPriceRaw = data[r+1] && data[r+1][c] ? data[r+1][c].toString() : '';
-      const code = match[1].trim();
+      let code = match[1].trim();
+      
+      // Deduplicate code if already exists
+      let codeIndex = 1;
+      let originalCode = code;
+      while (menus.some(m => m.code === code)) {
+        codeIndex++;
+        code = `${originalCode}-${codeIndex}`;
+      }
+      
       const name_en = esc(match[2]);
       const name_mm = match[3] ? esc(match[3]) : '';
       
