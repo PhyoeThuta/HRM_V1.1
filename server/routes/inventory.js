@@ -135,12 +135,17 @@ router.get('/balances', async (req, res) => {
   try {
     const { data: balances, error } = await supabase.schema('inventory')
       .from('balances')
-      .select(`
-        *,
-        inventory_items:items (*)
-      `);
+      .select('*');
     if (error) throw error;
-    return res.json(balances);
+    
+    const { data: items } = await supabase.schema('inventory').from('items').select('*');
+    
+    const enriched = balances.map(b => ({
+      ...b,
+      inventory_items: items?.find(i => i.id === b.item_id) || null
+    }));
+
+    return res.json(enriched);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -168,14 +173,19 @@ router.get('/transactions', async (req, res) => {
   try {
     const { data: transactions, error } = await supabase.schema('inventory')
       .from('transactions')
-      .select(`
-        *,
-        inventory_items:items (name_eng, item_code, unit_of_measure)
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) throw error;
-    return res.json(transactions);
+
+    const { data: items } = await supabase.schema('inventory').from('items').select('id, name_eng, item_code, unit_of_measure');
+    
+    const enriched = transactions.map(t => ({
+      ...t,
+      inventory_items: items?.find(i => i.id === t.item_id) || null
+    }));
+
+    return res.json(enriched);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

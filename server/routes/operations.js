@@ -77,19 +77,24 @@ router.get('/menus', async (req, res) => {
   try {
     const { data: menus, error } = await supabase.schema('operations')
       .from('menus')
-      .select(`
-        *,
-        recipes (
-          *,
-          inventory_items:inventory.items (name_eng, unit_of_measure, item_code)
-        )
-      `)
+      .select('*')
       .order('name_en', { ascending: true });
-    // Note: Cross schema joins (inventory.items) might be tricky depending on postgREST setup.
-    // If it fails, we will need to fetch recipes and items separately, but PostgREST supports it if foreign key is explicit.
     
     if (error) throw error;
-    return res.json(menus);
+
+    const { data: recipes } = await supabase.schema('operations').from('recipes').select('*');
+    const { data: items } = await supabase.schema('inventory').from('items').select('id, name_eng, unit_of_measure, item_code');
+
+    const enriched = menus.map(m => {
+      const menuRecipes = recipes?.filter(r => r.menu_id === m.id) || [];
+      const enrichedRecipes = menuRecipes.map(r => ({
+        ...r,
+        inventory_items: items?.find(i => i.id === r.inventory_item_id) || null
+      }));
+      return { ...m, recipes: enrichedRecipes };
+    });
+
+    return res.json(enriched);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -162,16 +167,25 @@ router.get('/daily-menus', async (req, res) => {
   try {
     const { data: dailyMenus, error } = await supabase.schema('operations')
       .from('daily_menus')
-      .select(`
-        *,
-        menu_types (
-          *,
-          menus (*)
-        )
-      `)
-      .order('date', { ascending: false });
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(30);
+    
     if (error) throw error;
-    return res.json(dailyMenus);
+
+    const { data: menuTypes } = await supabase.schema('operations').from('menu_types').select('*');
+    const { data: menus } = await supabase.schema('operations').from('menus').select('*');
+
+    const enriched = dailyMenus.map(dm => {
+      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
+      const enrichedTypes = types.map(mt => ({
+        ...mt,
+        menus: menus?.find(m => m.id === mt.menu_id) || null
+      }));
+      return { ...dm, menu_types: enrichedTypes };
+    });
+
+    return res.json(enriched);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -209,17 +223,12 @@ router.get('/orders', async (req, res) => {
   try {
     const { data: orders, error } = await supabase.schema('operations')
       .from('orders')
-      .select(`
-        *,
-        daily_menus (
-          date,
-          meal_type,
-          menu_types (menus (name_en))
-        )
-      `)
+      .select('*')
       .order('date', { ascending: false });
       
     if (error) throw error;
+    
+    const { data: dailyMenus } = await supabase.schema('operations').from('daily_menus').select('*');
     
     const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
     let customersMap = {};
@@ -232,6 +241,7 @@ router.get('/orders', async (req, res) => {
     
     const enrichedOrders = orders.map(o => ({
       ...o,
+      daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menus_id) || null,
       customer: customersMap[o.customer_id] || { full_name: 'Unknown' }
     }));
     
