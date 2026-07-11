@@ -19,6 +19,12 @@ import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
 import Offboarding from './pages/Offboarding';
 import Handovers from './pages/Handovers';
+
+// Ops & Inventory
+import OpsDashboard from './pages/operations/OpsDashboard';
+import MenusMgmt from './pages/operations/MenusMgmt';
+import OrdersMgmt from './pages/operations/OrdersMgmt';
+import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import Documents from './pages/Documents';
 import SOPs from './pages/SOPs';
 import PeerVoting from './pages/PeerVoting';
@@ -86,6 +92,16 @@ function EmployeeRoute({ children }) {
   return children;
 }
 
+const OperationsRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  const adminRoles = ['boss', 'general_manager', 'admin'];
+  if (user.username === 'cnx-0028' || adminRoles.includes(user.role)) {
+    return children;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
 });
@@ -99,6 +115,12 @@ function AppRoutes() {
       <Route path="/careers" element={<Careers />} />
       <Route path="/login" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Login />} />
       <Route path="/force-change-password" element={user?.must_change_password ? <ForceChangePassword /> : <Navigate to="/" replace />} />
+
+      {/* Operations & Inventory Routes */}
+      <Route path="/operations/dashboard" element={<OperationsRoute><OpsDashboard /></OperationsRoute>} />
+      <Route path="/operations/menus" element={<OperationsRoute><MenusMgmt /></OperationsRoute>} />
+      <Route path="/operations/orders" element={<OperationsRoute><OrdersMgmt /></OperationsRoute>} />
+      <Route path="/inventory/dashboard" element={<OperationsRoute><InventoryDashboard /></OperationsRoute>} />
 
       {/* Admin routes */}
       <Route path="/dashboard" element={<Protected allowedRoles={adminRoles}><Dashboard /></Protected>} />

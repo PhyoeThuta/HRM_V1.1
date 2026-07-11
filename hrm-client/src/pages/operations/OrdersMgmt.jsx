@@ -1,0 +1,153 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import Layout from '../../components/layout/Layout';
+import api from '../../api/client';
+import OpsNavBar from './OpsNavBar';
+
+export default function OrdersMgmt() {
+  const queryClient = useQueryClient();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState({ customer_id: '', daily_menus_id: '', count: 1, date: new Date().toISOString().split('T')[0] });
+
+  const { data: orders, isLoading } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
+  const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/crm/customers').then(res => res.data) });
+  const { data: dailyMenus } = useQuery({ queryKey: ['daily-menus'], queryFn: () => api.get('/operations/daily-menus').then(res => res.data) });
+
+  const createOrderMutation = useMutation({
+    mutationFn: (data) => api.post('/operations/orders', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['orders']);
+      toast.success('Order created successfully');
+      setIsModalOpen(false);
+      setOrderForm({ customer_id: '', daily_menus_id: '', count: 1, date: new Date().toISOString().split('T')[0] });
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to create order')
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, delivery_status }) => api.put(`/operations/orders/${id}/status`, { delivery_status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['orders']);
+      toast.success('Order status updated');
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update order status')
+  });
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'DELIVERED': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'PENDING': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'CANCELLED': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      default: return 'bg-white/5 text-slate-300 border-white/10';
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    createOrderMutation.mutate(orderForm);
+  };
+
+  return (
+    <Layout title="Operations Hub" subtitle="Manage customer meal orders and deliveries">
+      <OpsNavBar />
+      
+      <div className="flex justify-end mb-6">
+        <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 transition-all">
+          + Add New Order
+        </button>
+      </div>
+
+      <div className="bg-surface-800 rounded-2xl border border-white/5 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-surface-900/50 border-b border-white/5 text-xs uppercase tracking-widest text-slate-400">
+                <th className="px-6 py-4 font-bold">Date</th>
+                <th className="px-6 py-4 font-bold">Customer</th>
+                <th className="px-6 py-4 font-bold">Menu Type</th>
+                <th className="px-6 py-4 font-bold">Qty</th>
+                <th className="px-6 py-4 font-bold">Status</th>
+                <th className="px-6 py-4 font-bold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {isLoading ? (
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">Loading orders...</td></tr>
+              ) : orders?.length === 0 ? (
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">No orders found.</td></tr>
+              ) : orders?.map(order => (
+                <tr key={order.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="px-6 py-4 text-sm font-medium text-white">{order.date}</td>
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-white">{order.customer?.full_name}</p>
+                    <p className="text-xs text-slate-400 truncate max-w-[200px]">{order.customer?.delivery_address}</p>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-fuchsia-300">
+                    {order.daily_menus?.meal_type}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-bold text-white">{order.count}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${getStatusColor(order.delivery_status)}`}>
+                      {order.delivery_status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {order.delivery_status !== 'DELIVERED' && (
+                      <button 
+                        onClick={() => { if(window.confirm('Mark as DELIVERED? This will auto-deduct inventory for this order.')) statusMutation.mutate({ id: order.id, delivery_status: 'DELIVERED' }) }} 
+                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-emerald-500/20"
+                      >
+                        Mark Delivered
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Order Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-800 w-full max-w-md rounded-2xl border border-white/10 shadow-2xl p-6">
+            <h3 className="text-xl font-bold text-white mb-6">Create Customer Order</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-2">Customer</label>
+                <select required value={orderForm.customer_id} onChange={e => setOrderForm({...orderForm, customer_id: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-fuchsia-500">
+                  <option value="">-- Select Customer --</option>
+                  {customers?.map(c => <option key={c.id} value={c.id}>{c.full_name} ({c.phone})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-2">Delivery Date</label>
+                <input required type="date" value={orderForm.date} onChange={e => setOrderForm({...orderForm, date: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-fuchsia-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-2">Daily Menu (Meal Plan)</label>
+                <select required value={orderForm.daily_menus_id} onChange={e => setOrderForm({...orderForm, daily_menus_id: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-fuchsia-500">
+                  <option value="">-- Select Planned Menu --</option>
+                  {dailyMenus?.map(dm => <option key={dm.id} value={dm.id}>{dm.date} - {dm.meal_type}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-2">Quantity (Meals)</label>
+                <input required type="number" min="1" value={orderForm.count} onChange={e => setOrderForm({...orderForm, count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-fuchsia-500" />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors">Cancel</button>
+                <button type="submit" disabled={createOrderMutation.isPending} className="flex-1 py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50">
+                  Save Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </Layout>
+  );
+}
