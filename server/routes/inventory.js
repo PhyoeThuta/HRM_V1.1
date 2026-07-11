@@ -8,9 +8,7 @@ router.use(requireOperations);
 
 // DB helpers for 'inventory' schema
 async function invFetch(table, columns = '*', filters = {}, options = {}) {
-  try {
-    let q = supabase.schema('inventory').from(table).select(columns);
-    for (const [col, val] of Object.entries(filters)) {
+    let q = supabase.from('inventory_' + table).select(columns);
       q = q.eq(col, val);
     }
     if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
@@ -35,7 +33,7 @@ async function invInsert(table, data) {
     const clean = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
     );
-    const { data: result, error } = await supabase.schema('inventory').from(table).insert(clean).select();
+    const { data: result, error } = await supabase.from('inventory_' + table).insert(clean).select();
     if (error) throw error;
     return result?.[0] || null;
   } catch (e) {
@@ -49,7 +47,7 @@ async function invUpdate(table, id, data, idCol = 'id') {
     const clean = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== undefined)
     );
-    const { data: result, error } = await supabase.schema('inventory').from(table).update(clean).eq(idCol, id).select();
+    const { data: result, error } = await supabase.from('inventory_' + table).update(clean).eq(idCol, id).select();
     if (error) throw error;
     return result?.[0] || null;
   } catch (e) {
@@ -60,7 +58,7 @@ async function invUpdate(table, id, data, idCol = 'id') {
 
 async function invDelete(table, id, idCol = 'id') {
   try {
-    const { error } = await supabase.schema('inventory').from(table).delete().eq(idCol, id);
+    const { error } = await supabase.from('inventory_' + table).delete().eq(idCol, id);
     if (error) throw error;
     return true;
   } catch (e) {
@@ -133,12 +131,12 @@ router.delete('/items/:id', async (req, res) => {
 
 router.get('/balances', async (req, res) => {
   try {
-    const { data: balances, error } = await supabase.schema('inventory')
-      .from('balances')
+    const { data: balances, error } = await supabase
+      .from('inventory_balances')
       .select('*');
     if (error) throw error;
     
-    const { data: items } = await supabase.schema('inventory').from('items').select('*');
+    const { data: items } = await supabase.from('inventory_items').select('*');
     
     const enriched = balances.map(b => ({
       ...b,
@@ -171,14 +169,14 @@ router.put('/balances/:id', async (req, res) => {
 
 router.get('/transactions', async (req, res) => {
   try {
-    const { data: transactions, error } = await supabase.schema('inventory')
-      .from('transactions')
+    const { data: transactions, error } = await supabase
+      .from('inventory_transactions')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) throw error;
 
-    const { data: items } = await supabase.schema('inventory').from('items').select('id, name_eng, item_code, unit_of_measure');
+    const { data: items } = await supabase.from('inventory_items').select('id, name_eng, item_code, unit_of_measure');
     
     const enriched = transactions.map(t => ({
       ...t,

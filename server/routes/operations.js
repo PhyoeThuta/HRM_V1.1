@@ -8,9 +8,7 @@ router.use(requireOperations);
 
 // DB helpers for 'operations' schema
 async function opsFetch(table, columns = '*', filters = {}, options = {}) {
-  try {
-    let q = supabase.schema('operations').from(table).select(columns);
-    for (const [col, val] of Object.entries(filters)) {
+    let q = supabase.from('operations_' + table).select(columns);
       q = q.eq(col, val);
     }
     if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
@@ -35,7 +33,7 @@ async function opsInsert(table, data) {
     const clean = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
     );
-    const { data: result, error } = await supabase.schema('operations').from(table).insert(clean).select();
+    const { data: result, error } = await supabase.from('operations_' + table).insert(clean).select();
     if (error) throw error;
     return result?.[0] || null;
   } catch (e) {
@@ -49,7 +47,7 @@ async function opsUpdate(table, id, data, idCol = 'id') {
     const clean = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== undefined)
     );
-    const { data: result, error } = await supabase.schema('operations').from(table).update(clean).eq(idCol, id).select();
+    const { data: result, error } = await supabase.from('operations_' + table).update(clean).eq(idCol, id).select();
     if (error) throw error;
     return result?.[0] || null;
   } catch (e) {
@@ -60,7 +58,7 @@ async function opsUpdate(table, id, data, idCol = 'id') {
 
 async function opsDelete(table, id, idCol = 'id') {
   try {
-    const { error } = await supabase.schema('operations').from(table).delete().eq(idCol, id);
+    const { error } = await supabase.from('operations_' + table).delete().eq(idCol, id);
     if (error) throw error;
     return true;
   } catch (e) {
@@ -75,15 +73,15 @@ async function opsDelete(table, id, idCol = 'id') {
 
 router.get('/menus', async (req, res) => {
   try {
-    const { data: menus, error } = await supabase.schema('operations')
-      .from('menus')
+    const { data: menus, error } = await supabase
+      .from('operations_menus')
       .select('*')
       .order('name_en', { ascending: true });
     
     if (error) throw error;
 
-    const { data: recipes } = await supabase.schema('operations').from('recipes').select('*');
-    const { data: items } = await supabase.schema('inventory').from('items').select('id, name_eng, unit_of_measure, item_code');
+    const { data: recipes } = await supabase.from('operations_recipes').select('*');
+    const { data: items } = await supabase.from('inventory_items').select('id, name_eng, unit_of_measure, item_code');
 
     const enriched = menus.map(m => {
       const menuRecipes = recipes?.filter(r => r.menu_id === m.id) || [];
@@ -165,16 +163,16 @@ router.delete('/recipes/:id', async (req, res) => {
 
 router.get('/daily-menus', async (req, res) => {
   try {
-    const { data: dailyMenus, error } = await supabase.schema('operations')
-      .from('daily_menus')
+    const { data: dailyMenus, error } = await supabase
+      .from('operations_daily_menus')
       .select('*')
       .order('date', { ascending: false })
       .limit(30);
     
     if (error) throw error;
 
-    const { data: menuTypes } = await supabase.schema('operations').from('menu_types').select('*');
-    const { data: menus } = await supabase.schema('operations').from('menus').select('*');
+    const { data: menuTypes } = await supabase.from('operations_menu_types').select('*');
+    const { data: menus } = await supabase.from('operations_menus').select('*');
 
     const enriched = dailyMenus.map(dm => {
       const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
@@ -206,7 +204,7 @@ router.post('/daily-menus', async (req, res) => {
         is_main: mt.is_main || false,
         created_by: req.user.id
       }));
-      await supabase.schema('operations').from('menu_types').insert(typesToInsert);
+      await supabase.from('operations_menu_types').insert(typesToInsert);
     }
     
     return res.json(dailyMenu);
@@ -221,14 +219,14 @@ router.post('/daily-menus', async (req, res) => {
 
 router.get('/orders', async (req, res) => {
   try {
-    const { data: orders, error } = await supabase.schema('operations')
-      .from('orders')
+    const { data: orders, error } = await supabase
+      .from('operations_orders')
       .select('*')
       .order('date', { ascending: false });
       
     if (error) throw error;
     
-    const { data: dailyMenus } = await supabase.schema('operations').from('daily_menus').select('*');
+    const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
     
     const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
     let customersMap = {};
