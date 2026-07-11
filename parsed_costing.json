@@ -1,0 +1,2185 @@
+[
+  {
+    "code": "FGB 0002",
+    "name_en": "Fried Beef with Bell Pepper",
+    "name_mm": "အမဲငရုတ်ပွ + ထမင်း",
+    "sales_prices": 120,
+    "total_bill_of_materials": 397.51449999999994,
+    "ingredients": [
+      {
+        "name": "Beef Lean",
+        "cost_per_unit": 0.24534,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 24.534
+      },
+      {
+        "name": "Bell Pepper",
+        "cost_per_unit": 0.1,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 5
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Turmeric Powder",
+        "cost_per_unit": 0.276,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.552
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Chili Colored Powder",
+        "cost_per_unit": 0.3125,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.9375
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.081
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.20834999999999998
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Pork Tenderloin",
+        "cost_per_unit": 0.14152,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 14.152000000000001
+      },
+      {
+        "name": "Cauliflower",
+        "cost_per_unit": 0.03,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 1.5
+      },
+      {
+        "name": "French Bean",
+        "cost_per_unit": 0.045,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.8999999999999999
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.5
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.4376
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.20834999999999998
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Baby Corn",
+        "cost_per_unit": 0.0625,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.25
+      },
+      {
+        "name": "Broccoli",
+        "cost_per_unit": 0.075,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.5
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.825
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.6199899999999999
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.081
+      },
+      {
+        "name": "Black Pepper",
+        "cost_per_unit": 0.344,
+        "qty": 1,
+        "unit": "g",
+        "total_cost": 0.344
+      },
+      {
+        "name": "Dried Chili",
+        "cost_per_unit": 0.4,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 1.2000000000000002
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Chicken Thigh",
+        "cost_per_unit": 0.07813,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 7.813000000000001
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.25
+      },
+      {
+        "name": "Bell Pepper",
+        "cost_per_unit": 0.1,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 5
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.41669999999999996
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Dried Chili",
+        "cost_per_unit": 0.4,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 1.2000000000000002
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.081
+      },
+      {
+        "name": "Black Pepper",
+        "cost_per_unit": 0.344,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.688
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.825
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.6199899999999999
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Thin Pork Layer",
+        "cost_per_unit": 0.1305,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 13.05
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.5
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.41669999999999996
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "White Pepper Powder",
+        "cost_per_unit": 0.22857,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 1.14285
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.4984
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 4,
+        "unit": "ml",
+        "total_cost": 0.35428
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Shrimp",
+        "cost_per_unit": 0.22667,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 22.667
+      },
+      {
+        "name": "Bell Pepper",
+        "cost_per_unit": 0.1,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 5
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.41669999999999996
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.5
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.081
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.825
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.6199899999999999
+      },
+      {
+        "name": "Black Pepper",
+        "cost_per_unit": 0.344,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 1.032
+      },
+      {
+        "name": "Dried Chili",
+        "cost_per_unit": 0.4,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 1.2000000000000002
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Pork Tenderloin",
+        "cost_per_unit": 0.14152,
+        "qty": 150,
+        "unit": "g",
+        "total_cost": 21.228
+      },
+      {
+        "name": "Thai Fragrant Rice",
+        "cost_per_unit": 0.023,
+        "qty": 140,
+        "unit": "g",
+        "total_cost": 3.2199999999999998
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.4376
+      },
+      {
+        "name": "Baby Corn",
+        "cost_per_unit": 0.0625,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.25
+      },
+      {
+        "name": "Cabbage (White Cabbage)",
+        "cost_per_unit": 0.035,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Cauliflower",
+        "cost_per_unit": 0.03,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.6
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Corn powder",
+        "cost_per_unit": 0.1,
+        "qty": 7,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Quail egg",
+        "cost_per_unit": 1.14,
+        "qty": 2,
+        "unit": "pcs",
+        "total_cost": 2.28
+      },
+      {
+        "name": "Snow Pear",
+        "cost_per_unit": 0.079,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.58
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Squid Ring",
+        "cost_per_unit": 0.155,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 15.5
+      },
+      {
+        "name": "Bell Pepper",
+        "cost_per_unit": 0.1,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 5
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.41669999999999996
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.4984
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 5,
+        "unit": "ml",
+        "total_cost": 0.44284999999999997
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.5
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Squid Ring",
+        "cost_per_unit": 0.155,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 15.5
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1
+      },
+      {
+        "name": "Green Chili",
+        "cost_per_unit": 0.16,
+        "qty": 15,
+        "unit": "g",
+        "total_cost": 2.4
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.41669999999999996
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Chili Colored Powder",
+        "cost_per_unit": 0.3125,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.9375
+      },
+      {
+        "name": "Turmeric Powder",
+        "cost_per_unit": 0.276,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.552
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Pork Tenderloin",
+        "cost_per_unit": 0.14152,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 14.152000000000001
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.6564
+      },
+      {
+        "name": "Bell Pepper",
+        "cost_per_unit": 0.1,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 3
+      },
+      {
+        "name": "Snow Pear",
+        "cost_per_unit": 0.079,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 2.37
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.41669999999999996
+      },
+      {
+        "name": "Baby Corn",
+        "cost_per_unit": 0.0625,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.25
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.075
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Tomato",
+        "cost_per_unit": 0.03,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.8999999999999999
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.4984
+      },
+      {
+        "name": "Chili Sauce",
+        "cost_per_unit": 0.0589,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 2.945
+      },
+      {
+        "name": "Corn powder",
+        "cost_per_unit": 0.1,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 1
+      },
+      {
+        "name": "Vinegar",
+        "cost_per_unit": 0.03,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.21
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.135
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Fish cake",
+        "cost_per_unit": 0.19,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 19
+      },
+      {
+        "name": "Cabbage",
+        "cost_per_unit": 0.027,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.8099999999999999
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.76
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.20834999999999998
+      },
+      {
+        "name": "Green Chili",
+        "cost_per_unit": 0.16,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 1.6
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.329
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Fish Sauce",
+        "cost_per_unit": 0.0414,
+        "qty": 5,
+        "unit": "ml",
+        "total_cost": 0.207
+      },
+      {
+        "name": "Lime Juice",
+        "cost_per_unit": 0.025,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.17500000000000002
+      },
+      {
+        "name": "Turmeric Powder",
+        "cost_per_unit": 0.276,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.552
+      },
+      {
+        "name": "Tomato",
+        "cost_per_unit": 0.03,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.6
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      },
+      {
+        "name": "Shrimp",
+        "cost_per_unit": 0.22667,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 22.667
+      },
+      {
+        "name": "Green Chili",
+        "cost_per_unit": 0.16,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 8
+      },
+      {
+        "name": "Turmeric Powder",
+        "cost_per_unit": 0.276,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.552
+      },
+      {
+        "name": "Chili Colored Powder",
+        "cost_per_unit": 0.3125,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.9375
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.03
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.21000000000000002
+      },
+      {
+        "name": "OverHead Cost",
+        "cost_per_unit": 0,
+        "qty": 1,
+        "unit": "",
+        "total_cost": 0
+      },
+      {
+        "name": "Rice",
+        "cost_per_unit": 0.023,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.3
+      },
+      {
+        "name": "Grace(B002)(Rice Box / 2)",
+        "cost_per_unit": 5.94,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.94
+      }
+    ]
+  },
+  {
+    "code": "FGN 0001",
+    "name_en": "Wa Ou Noddle",
+    "name_mm": "ဝဥခေါက်ဆွဲ",
+    "sales_prices": 110,
+    "total_bill_of_materials": 204.88393000000008,
+    "ingredients": [
+      {
+        "name": "Wa-Ooh Noodle",
+        "cost_per_unit": 0.09,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 9
+      },
+      {
+        "name": "Peanut Butter",
+        "cost_per_unit": 0.285,
+        "qty": 15,
+        "unit": "g",
+        "total_cost": 4.2749999999999995
+      },
+      {
+        "name": "Chinese Kale",
+        "cost_per_unit": 0.04167,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.8333999999999999
+      },
+      {
+        "name": "Mala Paste",
+        "cost_per_unit": 0.1,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 3
+      },
+      {
+        "name": "Pork Soup Bone",
+        "cost_per_unit": 0.049,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 2.45
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.03
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.135
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Vinegar",
+        "cost_per_unit": 0.03,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.44999999999999996
+      },
+      {
+        "name": "Ginger",
+        "cost_per_unit": 0.04167,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.20834999999999998
+      },
+      {
+        "name": "Pork Ball",
+        "cost_per_unit": 0.135,
+        "qty": 70,
+        "unit": "g",
+        "total_cost": 9.450000000000001
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "JH-PSB-26B/Big(Soup Box)",
+        "cost_per_unit": 7.12,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 7.12
+      },
+      {
+        "name": "Chicken Thigh",
+        "cost_per_unit": 0.07813,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 7.813000000000001
+      },
+      {
+        "name": "Wheat Noodle",
+        "cost_per_unit": 0.068,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 3.4000000000000004
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.4376
+      },
+      {
+        "name": "Scallion / Spring Onion",
+        "cost_per_unit": 0.05,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.5
+      },
+      {
+        "name": "Cabbage",
+        "cost_per_unit": 0.027,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.8099999999999999
+      },
+      {
+        "name": "Chinese Celery",
+        "cost_per_unit": 0.03,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.3
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "Asparagus bean(Long Beans)",
+        "cost_per_unit": 0.03,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.6
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.825
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.6199899999999999
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.135
+      },
+      {
+        "name": "Black Pepper",
+        "cost_per_unit": 0.344,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.688
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Rice Vermicelli Small",
+        "cost_per_unit": 0.06528,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 3.2640000000000002
+      },
+      {
+        "name": "Chicken Thigh",
+        "cost_per_unit": 0.07813,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 7.813000000000001
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.4376
+      },
+      {
+        "name": "Cabbage",
+        "cost_per_unit": 0.027,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.8099999999999999
+      },
+      {
+        "name": "Asparagus bean(Long Beans)",
+        "cost_per_unit": 0.03,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.6
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.135
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.825
+      },
+      {
+        "name": "Healthy Boy Sweet Soy Sauce",
+        "cost_per_unit": 0.08857,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.6199899999999999
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.4984
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Black Pepper",
+        "cost_per_unit": 0.344,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 1.032
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Pork Ball",
+        "cost_per_unit": 0.135,
+        "qty": 70,
+        "unit": "g",
+        "total_cost": 9.450000000000001
+      },
+      {
+        "name": "Rice Vermicelli Small",
+        "cost_per_unit": 0.06528,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 3.2640000000000002
+      },
+      {
+        "name": "Pork Soup Bone",
+        "cost_per_unit": 0.049,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 2.45
+      },
+      {
+        "name": "Chinese Kale",
+        "cost_per_unit": 0.04167,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 2.0835
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.075
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.135
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "JH-PSB-26B/Big(Soup Box)",
+        "cost_per_unit": 7.12,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 7.12
+      },
+      {
+        "name": "JH-PSB-2B(Sauce Box)",
+        "cost_per_unit": 2.33,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 2.33
+      },
+      {
+        "name": "Bean Vermicelli",
+        "cost_per_unit": 0.2125,
+        "qty": 40,
+        "unit": "g",
+        "total_cost": 8.5
+      },
+      {
+        "name": "Shrimp",
+        "cost_per_unit": 0.22667,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 11.3335
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.4376
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Tamarind Juice",
+        "cost_per_unit": 0,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0
+      },
+      {
+        "name": "Fish Sauce",
+        "cost_per_unit": 0.0414,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.2898
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "DK 082  / 16B ( Soup Box )",
+        "cost_per_unit": 7.12,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 6
+      },
+      {
+        "name": "JH-PSB-2B(Sauce Box)",
+        "cost_per_unit": 2.33,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 2.33
+      },
+      {
+        "name": "Pork Tenderloin",
+        "cost_per_unit": 0.14152,
+        "qty": 70,
+        "unit": "g",
+        "total_cost": 9.9064
+      },
+      {
+        "name": "Rice Noodle",
+        "cost_per_unit": 0.08,
+        "qty": 50,
+        "unit": "g",
+        "total_cost": 4
+      },
+      {
+        "name": "Wa-Ooh Noodle",
+        "cost_per_unit": 0.09,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.7999999999999998
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.2188
+      },
+      {
+        "name": "Cauliflower",
+        "cost_per_unit": 0.03,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.3
+      },
+      {
+        "name": "Baby Corn",
+        "cost_per_unit": 0.0625,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.625
+      },
+      {
+        "name": "Bok Choy",
+        "cost_per_unit": 0.11,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 1.1
+      },
+      {
+        "name": "Quail egg",
+        "cost_per_unit": 1.14,
+        "qty": 2,
+        "unit": "pcs",
+        "total_cost": 2.28
+      },
+      {
+        "name": "Mala Paste",
+        "cost_per_unit": 0.1,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 2
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "JH-PSB-26B/Big(Soup Box)",
+        "cost_per_unit": 7.12,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 7.12
+      },
+      {
+        "name": "JH-PSB-12B(Rice Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "DK 082  / 16B ( Soup Box )",
+        "cost_per_unit": 7.12,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 7.12
+      },
+      {
+        "name": "JH-PSB-2B(Sauce Box)",
+        "cost_per_unit": 2.33,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 2.33
+      }
+    ]
+  },
+  {
+    "code": "FGV 0023",
+    "name_en": "Fried Mixed Vegetables",
+    "name_mm": "အစိမ်းကြော်",
+    "sales_prices": 45,
+    "total_bill_of_materials": 122.89459999999997,
+    "ingredients": [
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.6564
+      },
+      {
+        "name": "Cabbage",
+        "cost_per_unit": 0.027,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 2.7
+      },
+      {
+        "name": "Cauliflower",
+        "cost_per_unit": 0.03,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.8999999999999999
+      },
+      {
+        "name": "Baby Corn",
+        "cost_per_unit": 0.0625,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1.25
+      },
+      {
+        "name": "Tomato",
+        "cost_per_unit": 0.03,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.3
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 1.14
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 15,
+        "unit": "ml",
+        "total_cost": 0.705
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.075
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 7,
+        "unit": "g",
+        "total_cost": 0.49000000000000005
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.081
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.4984
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Cabbage (White Cabbage)",
+        "cost_per_unit": 0.035,
+        "qty": 150,
+        "unit": "g",
+        "total_cost": 5.250000000000001
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Turmeric Powder",
+        "cost_per_unit": 0.276,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.552
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.21000000000000002
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 5,
+        "unit": "ml",
+        "total_cost": 0.356
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Bean Sprout",
+        "cost_per_unit": 0.03,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 3
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.76
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.329
+      },
+      {
+        "name": "Turmeric Powder",
+        "cost_per_unit": 0.276,
+        "qty": 1,
+        "unit": "g",
+        "total_cost": 0.276
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 2,
+        "unit": "g",
+        "total_cost": 0.03
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.21000000000000002
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Water Spinach (Morning Glory)",
+        "cost_per_unit": 0.03,
+        "qty": 150,
+        "unit": "g",
+        "total_cost": 4.5
+      },
+      {
+        "name": "Tomato",
+        "cost_per_unit": 0.03,
+        "qty": 30,
+        "unit": "g",
+        "total_cost": 0.8999999999999999
+      },
+      {
+        "name": "Green Chili",
+        "cost_per_unit": 0.16,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 1.6
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.385
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.4984
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.329
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Chinese Kale",
+        "cost_per_unit": 0.04167,
+        "qty": 200,
+        "unit": "g",
+        "total_cost": 8.334
+      },
+      {
+        "name": "Oyster Sauce",
+        "cost_per_unit": 0.0712,
+        "qty": 34,
+        "unit": "ml",
+        "total_cost": 2.4208
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.7000000000000001
+      },
+      {
+        "name": "Pure Refined Sugar",
+        "cost_per_unit": 0.027,
+        "qty": 6,
+        "unit": "g",
+        "total_cost": 0.162
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.21000000000000002
+      },
+      {
+        "name": "Golden Mountain Soy Sauce",
+        "cost_per_unit": 0.055,
+        "qty": 5,
+        "unit": "ml",
+        "total_cost": 0.275
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.329
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Wood Ear Mushroom",
+        "cost_per_unit": 0.13,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 13
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.76
+      },
+      {
+        "name": "Carrot",
+        "cost_per_unit": 0.02188,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.4376
+      },
+      {
+        "name": "Coriander (Cilantro)",
+        "cost_per_unit": 0.05,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 0.5
+      },
+      {
+        "name": "Green Chili",
+        "cost_per_unit": 0.16,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 1.6
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Lime Juice",
+        "cost_per_unit": 0.025,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.17500000000000002
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "Tomato",
+        "cost_per_unit": 0.03,
+        "qty": 100,
+        "unit": "g",
+        "total_cost": 3
+      },
+      {
+        "name": "Shallot",
+        "cost_per_unit": 0.038,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 0.76
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 1,
+        "unit": "g",
+        "total_cost": 0.07
+      },
+      {
+        "name": "Green Chili",
+        "cost_per_unit": 0.16,
+        "qty": 10,
+        "unit": "g",
+        "total_cost": 1.6
+      },
+      {
+        "name": "Coriander (Cilantro)",
+        "cost_per_unit": 0.05,
+        "qty": 20,
+        "unit": "g",
+        "total_cost": 1
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35000000000000003
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.045
+      },
+      {
+        "name": "Lime",
+        "cost_per_unit": 0.05,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.25
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      },
+      {
+        "name": "English Gourd",
+        "cost_per_unit": 0.05,
+        "qty": 200,
+        "unit": "g",
+        "total_cost": 10
+      },
+      {
+        "name": "Garlic",
+        "cost_per_unit": 0.07,
+        "qty": 1,
+        "unit": "g",
+        "total_cost": 0.07
+      },
+      {
+        "name": "King Rice Bran Oil 5 L",
+        "cost_per_unit": 0.047,
+        "qty": 7,
+        "unit": "ml",
+        "total_cost": 0.33
+      },
+      {
+        "name": "Chicken Seasoning Powder",
+        "cost_per_unit": 0.07,
+        "qty": 5,
+        "unit": "g",
+        "total_cost": 0.35
+      },
+      {
+        "name": "Salt",
+        "cost_per_unit": 0.015,
+        "qty": 3,
+        "unit": "g",
+        "total_cost": 0.05
+      },
+      {
+        "name": "JH-PSB-12B(Side Dish Box)",
+        "cost_per_unit": 5.52,
+        "qty": 1,
+        "unit": "pcs",
+        "total_cost": 5.52
+      }
+    ]
+  }
+]
