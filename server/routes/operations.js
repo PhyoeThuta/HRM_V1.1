@@ -8,7 +8,9 @@ router.use(requireOperations);
 
 // DB helpers for 'operations' schema
 async function opsFetch(table, columns = '*', filters = {}, options = {}) {
+  try {
     let q = supabase.from('operations_' + table).select(columns);
+    for (const [col, val] of Object.entries(filters)) {
       q = q.eq(col, val);
     }
     if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
