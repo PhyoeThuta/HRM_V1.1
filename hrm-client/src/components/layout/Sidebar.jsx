@@ -152,7 +152,6 @@ export default function Sidebar({ isOpen, close }) {
               <>
                 <NavSection title="Ops & Inventory" color="text-fuchsia-400" />
                 <NavItem to="/operations/dashboard" label="Ops Hub" icon={ICONS.dashboard} />
-                <NavItem to="/crm/kitchen" label="Kitchen & Delivery" icon={ICONS.handover} />
               </>
             )}
           </>
