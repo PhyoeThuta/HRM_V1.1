@@ -45,7 +45,8 @@ app.use(cors({
       'http://localhost:4173', 
       'http://127.0.0.1:5173', 
       'http://localhost:3000', 
-      'http://localhost:3001'
+      'http://localhost:3001',
+      'https://hrm.duolinkmm.com'
     ];
     if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
     if (process.env.DIET_BUDDY_URL) allowedOrigins.push(process.env.DIET_BUDDY_URL);
