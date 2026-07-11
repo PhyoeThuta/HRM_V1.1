@@ -1190,7 +1190,7 @@ router.post('/inquiries/:id/generate-link', verifyToken, async (req, res) => {
       
     if (error) throw error;
     
-    const baseUrl = process.env.FRONTEND_ONBOARDING_URL || 'http://localhost:3000';
+    const baseUrl = process.env.DIET_BUDDY_URL || process.env.FRONTEND_ONBOARDING_URL || 'http://localhost:3000';
     const link = `${baseUrl}/onboarding?token=${data.onboarding_token}`;
     
     return res.json({ link });
