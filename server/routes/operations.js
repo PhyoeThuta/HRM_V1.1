@@ -131,7 +131,6 @@ router.delete('/menus/:id', async (req, res) => {
     await opsDelete('menus', id);
     return res.json({ success: true });
   } catch (e) {
-  } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 });
