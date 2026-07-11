@@ -9,7 +9,7 @@ export default function MenusMgmt() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name_en: '', name_mm: '', code: '', sales_prices: '', total_bill_of_materials: '' });
 
-  const { data: menus, isLoading } = useQuery(['menus'], () => api.get('/operations/menus').then(res => res.data));
+  const { data: menus, isLoading } = useQuery({ queryKey: ['menus'], queryFn: () => api.get('/operations/menus').then(res => res.data) });
 
   const createMutation = useMutation({
     mutationFn: (data) => api.post('/operations/menus', data),

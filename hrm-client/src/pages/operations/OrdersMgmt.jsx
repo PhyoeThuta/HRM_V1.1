@@ -5,7 +5,7 @@ import api from '../../api/client';
 
 export default function OrdersMgmt() {
   const queryClient = useQueryClient();
-  const { data: orders, isLoading } = useQuery(['orders'], () => api.get('/operations/orders').then(res => res.data));
+  const { data: orders, isLoading } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, delivery_status }) => api.put(`/operations/orders/${id}/status`, { delivery_status }),

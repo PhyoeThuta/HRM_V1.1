@@ -3,8 +3,8 @@ import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 
 export default function OpsDashboard() {
-  const { data: dailyMenus, isLoading } = useQuery(['daily-menus'], () => api.get('/operations/daily-menus').then(res => res.data));
-  const { data: orders } = useQuery(['orders'], () => api.get('/operations/orders').then(res => res.data));
+  const { data: dailyMenus, isLoading } = useQuery({ queryKey: ['daily-menus'], queryFn: () => api.get('/operations/daily-menus').then(res => res.data) });
+  const { data: orders } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
 
   return (
     <Layout title="Operations Dashboard 🚀" subtitle="Overview of daily kitchen operations and menus">

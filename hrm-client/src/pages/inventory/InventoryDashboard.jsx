@@ -3,8 +3,8 @@ import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 
 export default function InventoryDashboard() {
-  const { data: balances, isLoading: loadingBalances } = useQuery(['inventory-balances'], () => api.get('/inventory/balances').then(res => res.data));
-  const { data: transactions, isLoading: loadingTx } = useQuery(['inventory-transactions'], () => api.get('/inventory/transactions').then(res => res.data));
+  const { data: balances, isLoading: loadingBalances } = useQuery({ queryKey: ['inventory-balances'], queryFn: () => api.get('/inventory/balances').then(res => res.data) });
+  const { data: transactions, isLoading: loadingTx } = useQuery({ queryKey: ['inventory-transactions'], queryFn: () => api.get('/inventory/transactions').then(res => res.data) });
 
   return (
     <Layout title="Inventory Overview 📦" subtitle="Track ingredients, tools, and usage">
