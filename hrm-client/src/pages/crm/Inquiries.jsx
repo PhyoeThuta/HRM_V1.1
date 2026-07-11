@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -108,10 +108,21 @@ export default function Inquiries() {
     return () => leaveInquiryRoom(id);
   }, [selectedInquiry?.id]);
 
+  const location = useLocation();
+
   const loadInquiries = () => {
     crmApi.getInquiries().then(data => {
       setInquiries(data);
       if (data.length > 0 && !selectedIdRef.current) {
+        const queryParams = new URLSearchParams(location.search);
+        const urlId = queryParams.get('id');
+        if (urlId) {
+          const targetInquiry = data.find(i => i.id === parseInt(urlId));
+          if (targetInquiry) {
+            handleSelectInquiry(targetInquiry);
+            return;
+          }
+        }
         handleSelectInquiry(data[0]);
       } else if (selectedIdRef.current) {
         const updated = data.find(i => i.id === selectedIdRef.current);
@@ -177,6 +188,19 @@ export default function Inquiries() {
       toast.error('Failed to send message');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleGenerateLink = async () => {
+    if (!selectedInquiry) return;
+    try {
+      const res = await crmApi.generateOnboardingLink(selectedInquiry.id);
+      if (res.link) {
+        await navigator.clipboard.writeText(res.link);
+        toast.success('Onboarding link copied to clipboard!');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to generate link');
     }
   };
 
@@ -330,9 +354,26 @@ export default function Inquiries() {
                       <p className="text-xs text-slate-400">{selectedInquiry.prospect_contact || 'No contact provided'}</p>
                     </div>
                   </div>
-                  <button onClick={handleSimulateProspect} className="px-3 py-1.5 bg-white/5 text-slate-300 hover:text-white rounded-lg text-xs font-bold border border-white/10 transition-colors">
-                    Simulate Reply 🤖
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {selectedInquiry.customer_id ? (
+                      <button 
+                        onClick={() => navigate(`/crm/customers/${selectedInquiry.customer_id}`)} 
+                        className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                      >
+                        ✓ Form Completed — View Profile
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleGenerateLink} 
+                        className="px-3 py-1.5 bg-brand-green/10 text-brand-green hover:bg-brand-green hover:text-black rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                      >
+                        🔗 Get Onboarding Link
+                      </button>
+                    )}
+                    <button onClick={handleSimulateProspect} className="px-3 py-1.5 bg-white/5 text-slate-300 hover:text-white rounded-lg text-xs font-bold border border-white/10 transition-colors">
+                      Simulate Reply 🤖
+                    </button>
+                  </div>
                 </div>
 
                 {/* Messages Area */}

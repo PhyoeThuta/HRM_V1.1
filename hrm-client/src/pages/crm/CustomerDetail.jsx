@@ -11,7 +11,12 @@ export default function CustomerDetail() {
   const { user, isBoss } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [customer, setCustomer] = useState(null);
-  
+  const [linkedInquiries, setLinkedInquiries] = useState([]);
+  const [unlinkedInquiries, setUnlinkedInquiries] = useState([]);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [inquiryToUnlink, setInquiryToUnlink] = useState(null);
+
   // Modal State
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [editingPackageId, setEditingPackageId] = useState(null);
@@ -19,19 +24,33 @@ export default function CustomerDetail() {
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
-  
+
+  // Edit Customer Modal State
+  const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
+  const [customerForm, setCustomerForm] = useState({
+    full_name: '',
+    facebook_name: '',
+    age: '',
+    gender: 'female',
+    email: '',
+    phone: '',
+    address: '',
+    delivery_address: '',
+    delivery_notes: ''
+  });
+
   // Custom Resume Modal State
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [packageToResume, setPackageToResume] = useState(null);
   const [resumeDays, setResumeDays] = useState(3);
-  
+
   const [photoForm, setPhotoForm] = useState({ type: 'Before', url: '' });
-  const [packageForm, setPackageForm] = useState({ 
-    name: '1 Month Boss Diet', 
-    duration: '30 Days', 
+  const [packageForm, setPackageForm] = useState({
+    name: '1 Month Boss Diet',
+    duration: '30 Days',
     start_date: '',
     expires_at: '',
-    meal_count: 60, 
+    meal_count: 60,
     meal_type: 'LUNCH, DINNER',
     payment_status: 'Unpaid',
     status: 'Active'
@@ -50,7 +69,7 @@ export default function CustomerDetail() {
 
   useEffect(() => {
     if (!packageForm.start_date || !packageForm.duration) return;
-    
+
     let daysToAdd = 30;
     const durStr = packageForm.duration.toLowerCase();
     if (durStr.includes('month')) daysToAdd = (parseInt(durStr) || 1) * 30;
@@ -63,7 +82,7 @@ export default function CustomerDetail() {
       setPackageForm(prev => {
         const calculatedExpiry = expiresAt.toISOString().split('T')[0];
         if (prev.expires_at !== calculatedExpiry) {
-           return { ...prev, expires_at: calculatedExpiry };
+          return { ...prev, expires_at: calculatedExpiry };
         }
         return prev;
       });
@@ -71,10 +90,14 @@ export default function CustomerDetail() {
   }, [packageForm.start_date, packageForm.duration]);
 
   useEffect(() => {
-    const fetchCustomer = async () => {
+    const fetchCustomerAndInquiries = async () => {
       try {
-        const data = await crmApi.getCustomer(id);
+        const [data, inquiriesData] = await Promise.all([
+          crmApi.getCustomer(id),
+          crmApi.getCustomerInquiries(id)
+        ]);
         setCustomer(data);
+        setLinkedInquiries(inquiriesData);
         // Pre-fill metrics form from DB health data
         if (data.health) {
           setMetricsForm({
@@ -90,8 +113,49 @@ export default function CustomerDetail() {
         console.error(e);
       }
     };
-    fetchCustomer();
+    fetchCustomerAndInquiries();
   }, [id]);
+
+  const openLinkModal = async () => {
+    try {
+      const data = await crmApi.getInquiries(true); // unlinked only
+      setUnlinkedInquiries(data);
+      setShowLinkModal(true);
+    } catch (err) {
+      toast.error('Failed to fetch unlinked inquiries');
+    }
+  };
+
+  const handleLinkInquiry = async (inquiryId) => {
+    setIsLinking(true);
+    try {
+      await crmApi.linkInquiryToCustomer(inquiryId, id);
+      toast.success('Inquiry linked successfully');
+      setShowLinkModal(false);
+      const updatedInquiries = await crmApi.getCustomerInquiries(id);
+      setLinkedInquiries(updatedInquiries);
+    } catch (e) {
+      toast.error('Failed to link inquiry');
+      console.error(e);
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  const handleUnlinkInquiry = async () => {
+    if (!inquiryToUnlink) return;
+    try {
+      await crmApi.linkInquiryToCustomer(inquiryToUnlink, null);
+      toast.success("Inquiry unlinked successfully");
+      const updatedInquiries = await crmApi.getCustomerInquiries(id);
+      setLinkedInquiries(updatedInquiries);
+    } catch (e) {
+      toast.error("Failed to unlink inquiry");
+      console.error(e);
+    } finally {
+      setInquiryToUnlink(null);
+    }
+  };
 
   const handleAssignPackage = async (e) => {
     e.preventDefault();
@@ -116,16 +180,46 @@ export default function CustomerDetail() {
     }
   };
 
+  const openEditCustomer = () => {
+    setCustomerForm({
+      full_name: customer?.full_name || '',
+      facebook_name: customer?.facebook_name || '',
+      age: customer?.age || '',
+      gender: customer?.gender || 'female',
+      email: customer?.email || '',
+      phone: customer?.phone || '',
+      address: customer?.address || '',
+      delivery_address: customer?.delivery_address || '',
+      delivery_notes: customer?.delivery_notes || ''
+    });
+    setShowEditCustomerModal(true);
+  };
+
+  const handleUpdateCustomer = async (e) => {
+    e.preventDefault();
+    try {
+      await crmApi.updateCustomer(id, customerForm);
+      toast.success('Customer updated successfully');
+      setShowEditCustomerModal(false);
+      // Reload customer
+      const updatedCustomer = await crmApi.getCustomer(id);
+      setCustomer(updatedCustomer);
+    } catch (e) {
+      toast.error('Failed to update customer');
+      console.error(e);
+    }
+  };
+
   const handlePackageNameChange = (e) => {
     const val = e.target.value;
     let duration = '30 Days';
     let meal_count = 60;
-    
+
     if (val === 'Weekly Keto Plan') { duration = '7 Days'; meal_count = 14; }
     else if (val === '14 Days Detox') { duration = '14 Days'; meal_count = 28; }
     else if (val === '2 Days Daily Plan') { duration = '2 Days'; meal_count = 4; }
     else if (val === '1 Day Trial Plan') { duration = '1 Day'; meal_count = 2; }
-    
+
     setPackageForm(prev => ({
       ...prev,
       name: val,
@@ -137,11 +231,11 @@ export default function CustomerDetail() {
   const openAddPackage = () => {
     setEditingPackageId(null);
     setPackageForm({
-      name: '1 Month Boss Diet', 
-      duration: '30 Days', 
+      name: '1 Month Boss Diet',
+      duration: '30 Days',
       start_date: '',
       expires_at: '',
-      meal_count: 60, 
+      meal_count: 60,
       meal_type: 'LUNCH, DINNER',
       payment_status: 'Unpaid',
       status: 'Active'
@@ -234,7 +328,7 @@ export default function CustomerDetail() {
     // Let's assume height is in cm (e.g. 170) and weight is in lbs (e.g. 150).
     const weightVal = parseFloat(metricsForm.current_weight) || parseFloat(customer?.health?.current_weight);
     const heightCm = parseFloat(metricsForm.height) || parseFloat(customer?.health?.height);
-    
+
     if (weightVal && heightCm) {
       // If value already in kg (from backend), don't convert. If lbs, convert.
       const isLbs = (metricsForm.current_weight || customer?.health?.current_weight || '').toString().toLowerCase().includes('lb');
@@ -314,12 +408,13 @@ export default function CustomerDetail() {
     { id: 'gallery', label: 'Progress Gallery' },
     { id: 'lifestyle', label: 'Lifestyle' },
     { id: 'packages', label: 'Packages & Meals' },
+    { id: 'communications', label: 'Communications' },
     { id: 'feedback', label: 'Feedback' },
   ];
 
   return (
     <Layout title="Customer Profile" subtitle={`Details for ${customer.full_name}`}>
-      
+
       {/* Resume Package Modal */}
       {showResumeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -337,12 +432,12 @@ export default function CustomerDetail() {
               </p>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Days Paused</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="1"
-                  value={resumeDays} 
-                  onChange={e => setResumeDays(e.target.value)} 
-                  className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" 
+                  value={resumeDays}
+                  onChange={e => setResumeDays(e.target.value)}
+                  className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green"
                 />
               </div>
               <div className="flex gap-3 mt-6">
@@ -379,22 +474,22 @@ export default function CustomerDetail() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
-                <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({...packageForm, meal_count: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
+                <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({ ...packageForm, meal_count: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Start Date</label>
-                  <input required type="date" value={packageForm.start_date} onChange={e => setPackageForm({...packageForm, start_date: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
+                  <input required type="date" value={packageForm.start_date} onChange={e => setPackageForm({ ...packageForm, start_date: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Exact Expiry Date</label>
-                  <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({...packageForm, expires_at: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
+                  <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({ ...packageForm, expires_at: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Meal Type Timetable</label>
-                  <select value={packageForm.meal_type} onChange={e => setPackageForm({...packageForm, meal_type: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
+                  <select value={packageForm.meal_type} onChange={e => setPackageForm({ ...packageForm, meal_type: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
                     <option>LUNCH, DINNER</option>
                     <option>LUNCH ONLY</option>
                     <option>DINNER ONLY</option>
@@ -403,7 +498,7 @@ export default function CustomerDetail() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Payment Status</label>
-                  <select value={packageForm.payment_status} onChange={e => setPackageForm({...packageForm, payment_status: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
+                  <select value={packageForm.payment_status} onChange={e => setPackageForm({ ...packageForm, payment_status: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
                     <option>Unpaid</option>
                     <option>Partial</option>
                     <option>Paid</option>
@@ -433,24 +528,24 @@ export default function CustomerDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Current Weight (lbs/kg)</label>
-                  <input type="text" value={metricsForm.current_weight} onChange={e => setMetricsForm({...metricsForm, current_weight: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 150 lbs" />
+                  <input type="text" value={metricsForm.current_weight} onChange={e => setMetricsForm({ ...metricsForm, current_weight: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 150 lbs" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-2">Target Weight (lbs/kg)</label>
-                  <input type="text" value={metricsForm.goal_weight} onChange={e => setMetricsForm({...metricsForm, goal_weight: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 130 lbs" />
+                  <input type="text" value={metricsForm.goal_weight} onChange={e => setMetricsForm({ ...metricsForm, goal_weight: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 130 lbs" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Height (cm)</label>
-                <input type="number" value={metricsForm.height} onChange={e => setMetricsForm({...metricsForm, height: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 165" />
+                <input type="number" value={metricsForm.height} onChange={e => setMetricsForm({ ...metricsForm, height: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. 165" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Medical Conditions</label>
-                <input type="text" value={metricsForm.medical_condition} onChange={e => setMetricsForm({...metricsForm, medical_condition: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. Diabetes, None" />
+                <input type="text" value={metricsForm.medical_condition} onChange={e => setMetricsForm({ ...metricsForm, medical_condition: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. Diabetes, None" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Food Allergies</label>
-                <input type="text" value={metricsForm.allergies} onChange={e => setMetricsForm({...metricsForm, allergies: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. Peanut, None" />
+                <input type="text" value={metricsForm.allergies} onChange={e => setMetricsForm({ ...metricsForm, allergies: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" placeholder="e.g. Peanut, None" />
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowMetricsModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
@@ -474,11 +569,11 @@ export default function CustomerDetail() {
                 <label className="block text-sm font-bold text-slate-400 mb-2">Photo Type</label>
                 <div className="flex gap-4">
                   <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${photoForm.type === 'Before' ? 'border-amber-500 bg-amber-500/10 text-amber-400' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>
-                    <input type="radio" name="photoType" value="Before" checked={photoForm.type === 'Before'} onChange={() => setPhotoForm({...photoForm, type: 'Before'})} className="hidden" />
+                    <input type="radio" name="photoType" value="Before" checked={photoForm.type === 'Before'} onChange={() => setPhotoForm({ ...photoForm, type: 'Before' })} className="hidden" />
                     <span>📅</span> Before
                   </label>
                   <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${photoForm.type === 'After' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>
-                    <input type="radio" name="photoType" value="After" checked={photoForm.type === 'After'} onChange={() => setPhotoForm({...photoForm, type: 'After'})} className="hidden" />
+                    <input type="radio" name="photoType" value="After" checked={photoForm.type === 'After'} onChange={() => setPhotoForm({ ...photoForm, type: 'After' })} className="hidden" />
                     <span>🌟</span> After
                   </label>
                 </div>
@@ -497,7 +592,7 @@ export default function CustomerDetail() {
                       ) : (
                         <>
                           <svg className="w-8 h-8 mb-3 text-slate-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
                           </svg>
                           <p className="mb-2 text-sm text-slate-400"><span className="font-bold text-brand-green">Click to upload</span> or drag and drop</p>
                           <p className="text-xs text-slate-500">PNG, JPG or GIF (MAX. 5MB)</p>
@@ -515,12 +610,12 @@ export default function CustomerDetail() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Image URL</label>
-                <input required={!photoForm.url && !selectedFile} disabled={!!selectedFile} type="url" value={photoForm.url} onChange={e => setPhotoForm({...photoForm, url: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green disabled:opacity-40" placeholder="https://example.com/photo.jpg" />
+                <input required={!photoForm.url && !selectedFile} disabled={!!selectedFile} type="url" value={photoForm.url} onChange={e => setPhotoForm({ ...photoForm, url: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green disabled:opacity-40" placeholder="https://example.com/photo.jpg" />
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => { setShowGalleryModal(false); setSelectedFile(null); }} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
                 <button type="submit" disabled={isUploading} className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-60 flex items-center gap-2">
-                  {isUploading ? <><span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin"/> Uploading...</> : 'Add Photo'}
+                  {isUploading ? <><span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" /> Uploading...</> : 'Add Photo'}
                 </button>
               </div>
             </form>
@@ -538,7 +633,7 @@ export default function CustomerDetail() {
               </div>
               <h3 className="font-black text-white text-xl mb-2">Delete Photo?</h3>
               <p className="text-slate-400 text-sm mb-8">Are you sure you want to delete this photo? This action cannot be undone.</p>
-              
+
               <div className="flex gap-3 w-full">
                 <button onClick={() => setPhotoToDelete(null)} className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white hover:bg-white/5 transition-colors">
                   Cancel
@@ -562,7 +657,7 @@ export default function CustomerDetail() {
               </div>
               <h3 className="font-black text-white text-xl mb-2">Delete Package?</h3>
               <p className="text-slate-400 text-sm mb-8">Are you sure you want to remove this assigned package? This action cannot be undone.</p>
-              
+
               <div className="flex gap-3 w-full">
                 <button onClick={() => setDeletePackageId(null)} className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white hover:bg-white/5 transition-colors">
                   Cancel
@@ -582,7 +677,7 @@ export default function CustomerDetail() {
         </button>
         {user?.role !== 'marketing_junior' && (
           <div className="flex gap-3">
-            <button className="bg-surface-800 hover:bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+            <button onClick={openEditCustomer} className="bg-surface-800 hover:bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
               Edit Customer
             </button>
             <button className="bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 px-4 py-2 rounded-xl text-sm font-bold transition-colors">
@@ -605,15 +700,14 @@ export default function CustomerDetail() {
                 <h1 className="text-3xl font-black text-white">{customer.full_name}</h1>
                 <span className="bg-brand-green/10 border border-brand-green/20 text-brand-green px-3 py-1 rounded-full text-xs font-bold">{customer.customer_code}</span>
                 {customer.level ? (
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                    customer.level.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]' :
-                    customer.level.color === 'green' ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]' :
-                    customer.level.color === 'purple' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
-                    customer.level.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
-                    customer.level.color === 'rose' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.2)]' :
-                    'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                  }`}>
-                    {customer.level.level_name} 
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${customer.level.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]' :
+                      customer.level.color === 'green' ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]' :
+                        customer.level.color === 'purple' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
+                          customer.level.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
+                            customer.level.color === 'rose' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.2)]' :
+                              'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                    }`}>
+                    {customer.level.level_name}
                     <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.packages_list?.length || 0} packages)</span>
                   </span>
                 ) : (
@@ -632,19 +726,29 @@ export default function CustomerDetail() {
                 </div>
               </div>
             </div>
-            
+
             {/* Quick Chat Button */}
-            <div className="mt-6 md:mt-0">
-              <a 
-                href={`https://m.me/${customer.facebook_name ? encodeURIComponent(customer.facebook_name) : ''}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 bg-[#0084ff] hover:bg-[#006bd6] text-white px-6 py-3 rounded-2xl font-black shadow-[0_0_20px_rgba(0,132,255,0.3)] hover:scale-105 transition-all"
-              >
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.9 1.48 5.485 3.79 7.152v3.315c0 .413.433.682.8.5.877-.433 2.502-1.282 3.86-2.072 1.135.313 2.327.485 3.55.485 5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.18 11.16l-2.45-2.618-4.78 2.618 5.25-5.568 2.45 2.618 4.78-2.618-5.25 5.568z"/></svg>
-                Messenger Chat
-              </a>
-            </div>
+            {/* <div className="mt-6 md:mt-0">
+              {linkedInquiries.length > 0 ? (
+                <button 
+                  onClick={() => navigate(`/crm/inquiries?id=${linkedInquiries[0].id}`)}
+                  className="inline-flex items-center gap-2 bg-[#0084ff] hover:bg-[#006bd6] text-white px-6 py-3 rounded-2xl font-black shadow-[0_0_20px_rgba(0,132,255,0.3)] hover:scale-105 transition-all"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.9 1.48 5.485 3.79 7.152v3.315c0 .413.433.682.8.5.877-.433 2.502-1.282 3.86-2.072 1.135.313 2.327.485 3.55.485 5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.18 11.16l-2.45-2.618-4.78 2.618 5.25-5.568 2.45 2.618 4.78-2.618-5.25 5.568z"/></svg>
+                  Messenger Chat
+                </button>
+              ) : (
+                <a 
+                  href={`https://m.me/${customer.facebook_name ? encodeURIComponent(customer.facebook_name) : ''}`} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#0084ff] hover:bg-[#006bd6] text-white px-6 py-3 rounded-2xl font-black shadow-[0_0_20px_rgba(0,132,255,0.3)] hover:scale-105 transition-all"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.9 1.48 5.485 3.79 7.152v3.315c0 .413.433.682.8.5.877-.433 2.502-1.282 3.86-2.072 1.135.313 2.327.485 3.55.485 5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.18 11.16l-2.45-2.618-4.78 2.618 5.25-5.568 2.45 2.618 4.78-2.618-5.25 5.568z"/></svg>
+                  Messenger Chat
+                </a>
+              )}
+            </div> */}
           </div>
         </div>
       </div>
@@ -655,11 +759,10 @@ export default function CustomerDetail() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-2.5 text-sm font-bold whitespace-nowrap rounded-xl transition-all ${
-              activeTab === tab.id
+            className={`px-6 py-2.5 text-sm font-bold whitespace-nowrap rounded-xl transition-all ${activeTab === tab.id
                 ? 'bg-white/10 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-            }`}
+              }`}
           >
             {tab.label}
           </button>
@@ -758,7 +861,7 @@ export default function CustomerDetail() {
                 </button>
               )}
             </div>
-            
+
             {(!customer.gallery || customer.gallery.length === 0) ? (
               <div className="p-10 text-center border-2 border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
                 <div className="text-4xl mb-4 text-slate-600">📸</div>
@@ -805,7 +908,7 @@ export default function CustomerDetail() {
                 )}
               </div>
             )}
-            
+
             {customer.packages_list && customer.packages_list.map(pkg => (
               <div key={pkg.id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-brand-green/30 transition-colors">
                 <div>
@@ -831,23 +934,23 @@ export default function CustomerDetail() {
                     <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-black border ${pkg.payment_status === 'Paid' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : pkg.payment_status === 'Partial' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
                       {pkg.payment_status || 'Unpaid'}
                     </span>
-                    
+
                     {user?.role !== 'marketing_junior' && (
                       <div className="flex gap-2">
                         {pkg.status === 'Paused' ? (
                           <button onClick={() => handleResumePackage(pkg.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors border border-emerald-500/20" title="Resume Package">
-                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </button>
                         ) : (
                           <button onClick={() => handlePausePackage(pkg.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors border border-amber-500/20" title="Pause Package">
-                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </button>
                         )}
                         <button onClick={() => openEditPackage(pkg)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-slate-300 hover:text-white transition-colors border border-white/10" title="Edit Package">
-                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
                         <button onClick={() => setDeletePackageId(pkg.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors border border-rose-500/20" title="Delete Package">
-                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
                     )}
@@ -858,11 +961,61 @@ export default function CustomerDetail() {
                 </div>
               </div>
             ))}
-            
+
             {(customer.packages_list && customer.packages_list.length > 0 && user?.role !== 'marketing_junior') && (
               <button onClick={openAddPackage} className="w-full py-4 mt-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-400 hover:text-white hover:border-white/30 transition-colors font-bold text-sm bg-white/[0.01]">
                 + Assign Another Package
               </button>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'communications' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-white">Linked Inquiries & Chats</h3>
+              {user?.role !== 'marketing_junior' && (
+                <button onClick={openLinkModal} className="bg-brand-green/20 text-brand-green hover:bg-brand-green/30 border border-brand-green/30 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2">
+                  <span>🔗</span> Link Existing Inquiry
+                </button>
+              )}
+            </div>
+
+            {(!linkedInquiries || linkedInquiries.length === 0) ? (
+              <div className="p-10 text-center border-2 border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
+                <div className="text-4xl mb-4">💬</div>
+                <h4 className="text-white font-bold mb-2">No Linked Inquiries</h4>
+                <p className="text-slate-400 text-sm mb-6">This customer doesn't have any chat threads linked to their profile.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {linkedInquiries.map(inquiry => (
+                  <div key={inquiry.id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/10 hover:border-brand-green/30 transition-colors flex flex-col justify-between h-full">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-xs font-black uppercase tracking-wider bg-white/5 text-slate-400 px-3 py-1 rounded-lg">
+                          {inquiry.source}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-slate-500">{new Date(inquiry.created_at).toLocaleDateString()}</span>
+                          <button onClick={() => setInquiryToUnlink(inquiry.id)} title="Unlink Inquiry" className="text-rose-500 hover:text-rose-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"></path><path d="m5.17 11.67-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71"></path><line x1="8" x2="8" y1="2" y2="5"></line><line x1="2" x2="5" y1="8" y2="8"></line><line x1="16" x2="16" y1="19" y2="22"></line><line x1="19" x2="22" y1="16" y2="16"></line></svg>
+                          </button>
+                        </div>
+                      </div>
+                      <h4 className="text-lg font-black text-white mb-2">{inquiry.prospect_name}</h4>
+                      <p className="text-slate-400 text-sm mb-4 line-clamp-2">
+                        {inquiry.inquiries_messages && inquiry.inquiries_messages.length > 0
+                          ? inquiry.inquiries_messages[inquiry.inquiries_messages.length - 1].message_text
+                          : 'No messages yet.'}
+                      </p>
+                    </div>
+                    <button onClick={() => navigate(`/crm/inquiries?id=${inquiry.id}`)} className="w-full py-3 mt-auto bg-surface-900 border border-white/10 hover:bg-brand-green/10 hover:border-brand-green/30 hover:text-brand-green text-slate-300 rounded-xl font-bold transition-colors text-sm">
+                      Open Chat Thread
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -890,6 +1043,180 @@ export default function CustomerDetail() {
         )}
 
       </div>
+
+      {/* Link Inquiry Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-brand-green/10 to-transparent flex-shrink-0">
+              <h3 className="font-black text-white text-lg">Link Unlinked Inquiry</h3>
+              <button onClick={() => setShowLinkModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-slate-400 text-sm mb-4">Select an inquiry below to link it to {customer.full_name}'s profile.</p>
+
+              {unlinkedInquiries.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">No unlinked inquiries found.</div>
+              ) : (
+                <div className="space-y-3">
+                  {unlinkedInquiries.map(inq => (
+                    <div key={inq.id} className="p-4 rounded-2xl bg-surface-900 border border-white/5 flex items-center justify-between gap-4 hover:border-white/20 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-black text-white truncate">{inq.prospect_name}</h4>
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-white/5 text-slate-400 px-2 py-0.5 rounded">
+                            {inq.source}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate">{inq.prospect_contact || 'No contact info'}</p>
+                      </div>
+
+                      <button
+                        onClick={() => handleLinkInquiry(inq.id)}
+                        disabled={isLinking}
+                        className="px-4 py-2 bg-brand-green/10 text-brand-green hover:bg-brand-green hover:text-black rounded-lg text-sm font-bold transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {isLinking ? 'Linking...' : 'Link to Customer'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Customer Modal */}
+      {showEditCustomerModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditCustomerModal(false)}></div>
+          <div className="relative w-full max-w-2xl bg-surface-900 border border-white/10 rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-black text-white mb-6">Edit Customer</h3>
+            <form onSubmit={handleUpdateCustomer} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                    value={customerForm.full_name}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Facebook Name</label>
+                  <input
+                    type="text"
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                    value={customerForm.facebook_name}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, facebook_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Phone Number</label>
+                  <input
+                    type="text"
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                    value={customerForm.phone}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+                  <input
+                    type="email"
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                    value={customerForm.email}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, email: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Age</label>
+                  <input
+                    type="number"
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                    value={customerForm.age}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, age: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gender</label>
+                  <select
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                    value={customerForm.gender}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, gender: e.target.value }))}
+                  >
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Address</label>
+                <textarea
+                  rows="2"
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                  value={customerForm.address}
+                  onChange={(e) => setCustomerForm(prev => ({ ...prev, address: e.target.value }))}
+                ></textarea>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Delivery Address</label>
+                <textarea
+                  rows="2"
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                  value={customerForm.delivery_address}
+                  onChange={(e) => setCustomerForm(prev => ({ ...prev, delivery_address: e.target.value }))}
+                ></textarea>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditCustomerModal(false)}
+                  className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-800 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-5 py-3 rounded-xl font-black text-brand-black bg-brand-green hover:bg-[#b0f048] shadow-[0_0_15px_rgba(195,253,60,0.3)] transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Unlink Confirm Modal */}
+      {inquiryToUnlink && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setInquiryToUnlink(null)}></div>
+          <div className="relative w-full max-w-md bg-surface-900 border border-white/10 rounded-3xl shadow-2xl p-8">
+            <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center mb-6 mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-rose-500"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"></path><path d="m5.17 11.67-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71"></path><line x1="8" x2="8" y1="2" y2="5"></line><line x1="2" x2="5" y1="8" y2="8"></line><line x1="16" x2="16" y1="19" y2="22"></line><line x1="19" x2="22" y1="16" y2="16"></line></svg>
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2 text-center">Unlink Inquiry</h3>
+            <p className="text-slate-400 text-center mb-8">Are you sure you want to unlink this inquiry from the customer profile? The inquiry will be moved back to the New Inquiries list.</p>
+            <div className="flex gap-4">
+              <button onClick={() => setInquiryToUnlink(null)} className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-800 hover:text-white hover:bg-white/5 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleUnlinkInquiry} className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-colors border border-rose-500/50">
+                Unlink
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </Layout>
   );
 }

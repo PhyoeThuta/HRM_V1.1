@@ -17,6 +17,9 @@ export const crmApi = {
   // Create new customer
   createCustomer: (data) => api.post('/crm/customers', data).then(r => r.data),
 
+  // Update customer
+  updateCustomer: (id, data) => api.put(`/crm/customers/${id}`, data).then(r => r.data),
+
   // Delete customer
   deleteCustomer: (id) => api.delete(`/crm/customers/${id}`).then(r => r.data),
 
@@ -70,7 +73,11 @@ export const crmApi = {
   // INQUIRIES / LEADS
   // ──────────────────────────────────────────────────────────────
 
-  getInquiries: () => api.get('/crm/inquiries').then(r => r.data),
+  getInquiries: (unlinkedOnly = false) => api.get(`/crm/inquiries${unlinkedOnly ? '?unlinked=true' : ''}`).then(r => r.data),
+
+  getCustomerInquiries: (customerId) => api.get(`/crm/customers/${customerId}/inquiries`).then(r => r.data),
+
+  linkInquiryToCustomer: (inquiryId, customerId) => api.put(`/crm/inquiries/${inquiryId}/link-customer`, { customer_id: customerId }).then(r => r.data),
 
   getInquiryMessages: (id) => api.get(`/crm/inquiries/${id}/messages`).then(r => r.data),
 
@@ -81,6 +88,8 @@ export const crmApi = {
   updateInquiry: (id, data) => api.put(`/crm/inquiries/${id}`, data).then(r => r.data),
 
   deleteInquiry: (id) => api.delete(`/crm/inquiries/${id}`).then(r => r.data),
+
+  generateOnboardingLink: (id) => api.post(`/crm/inquiries/${id}/generate-link`).then(r => r.data),
 
   // ──────────────────────────────────────────────────────────────
   // PACKAGES (available plans)

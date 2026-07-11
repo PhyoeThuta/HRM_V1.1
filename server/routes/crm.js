@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import multer from 'multer';
 import { supabaseAdmin, isSupabaseServiceRoleConfigured } from '../lib/supabase.js';
 import { verifyToken } from '../middleware/auth.js';
@@ -268,6 +269,30 @@ router.get('/customers/:id', verifyToken, async (req, res) => {
     });
   } catch (e) {
     console.error('[CRM GET CUSTOMER]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/crm/customers/:id
+router.put('/customers/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      full_name, facebook_name, age, gender, email, phone, address, delivery_address, delivery_notes
+    } = req.body;
+
+    const { data, error } = await supabaseAdmin
+      .schema('crm')
+      .from('customers')
+      .update({ full_name, facebook_name, age: age || null, gender, email, phone, address, delivery_address, delivery_notes })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM UPDATE CUSTOMER]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
@@ -590,7 +615,7 @@ router.get('/inquiries', verifyToken, async (req, res) => {
         error: 'CRM requires SUPABASE_SERVICE_KEY in server/.env (Supabase → Project Settings → API → service_role). Anon key cannot read crm.inquiries.',
       });
     }
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .schema('crm')
       .from('inquiries')
       .select(`
@@ -598,6 +623,12 @@ router.get('/inquiries', verifyToken, async (req, res) => {
         inquiries_messages ( id, message_text, sender_type, created_at )
       `)
       .order('created_at', { ascending: false });
+
+    if (req.query.unlinked === 'true') {
+      query = query.is('customer_id', null);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return res.json(data);
@@ -625,6 +656,66 @@ router.get('/inquiries/:id/messages', verifyToken, async (req, res) => {
     return res.json(data);
   } catch (e) {
     console.error('[CRM GET INQUIRY MESSAGES]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/crm/customers/:id/inquiries
+router.get('/customers/:id/inquiries', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .schema('crm')
+      .from('inquiries')
+      .select(`
+        *,
+        inquiries_messages ( id, message_text, sender_type, created_at )
+      `)
+      .eq('customer_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM GET CUSTOMER INQUIRIES]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/crm/inquiries/:id/link-customer
+router.put('/inquiries/:id/link-customer', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { customer_id } = req.body;
+    
+    if (customer_id === undefined) return res.status(400).json({ error: 'customer_id is required' });
+
+    let updateData = {};
+    if (customer_id === null) {
+      updateData = {
+        customer_id: null,
+        status: 'in_progress',
+        updated_at: new Date()
+      };
+    } else {
+      updateData = {
+        customer_id,
+        status: 'converted',
+        onboarding_token: null, // Revoke the onboarding token link
+        updated_at: new Date()
+      };
+    }
+
+    const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM LINK INQUIRY TO CUSTOMER]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
@@ -1081,6 +1172,145 @@ router.delete('/inquiries/:id', verifyToken, async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (e) {
     console.error('[CRM DELETE INQUIRY]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/crm/inquiries/:id/generate-link
+router.post('/inquiries/:id/generate-link', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const onboarding_token = crypto.randomUUID();
+    
+    const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
+      .update({ onboarding_token })
+      .eq('id', id)
+      .select('onboarding_token')
+      .single();
+      
+    if (error) throw error;
+    
+    const baseUrl = process.env.FRONTEND_ONBOARDING_URL || 'http://localhost:3000';
+    const link = `${baseUrl}/onboarding?token=${data.onboarding_token}`;
+    
+    return res.json({ link });
+  } catch (e) {
+    console.error('[CRM GENERATE LINK]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/crm/onboarding/verify
+router.get('/onboarding/verify', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    const { data: inquiry, error: inquiryErr } = await supabaseAdmin.schema('crm').from('inquiries')
+      .select('id, status, prospect_name')
+      .eq('onboarding_token', token)
+      .single();
+
+    if (inquiryErr || !inquiry) {
+      return res.status(404).json({ error: 'Invalid or expired token' });
+    }
+
+    if (inquiry.status === 'converted') {
+      return res.status(400).json({ error: 'Profile already submitted for this link' });
+    }
+
+    return res.status(200).json({
+      prospect_name: inquiry.prospect_name
+    });
+  } catch (e) {
+    console.error('[ONBOARDING VERIFY]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/crm/onboarding/submit (Public route)
+router.post('/onboarding/submit', async (req, res) => {
+  try {
+    const { token, ...customerData } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    // 1. Find inquiry by token
+    const { data: inquiry, error: inquiryErr } = await supabaseAdmin.schema('crm').from('inquiries')
+      .select('id, status, prospect_name')
+      .eq('onboarding_token', token)
+      .single();
+
+    if (inquiryErr || !inquiry) {
+      return res.status(404).json({ error: 'Invalid or expired token' });
+    }
+    
+    if (inquiry.status === 'converted') {
+      return res.status(400).json({ error: 'This inquiry is already converted' });
+    }
+
+    // 2. Extract customer data (handles both old and ProfileCard payloads)
+    const {
+      full_name, facebook_name, age, gender, email, phone, address,
+      current_weight, goal_weight, height, medical_condition, allergies, medicine_taking,
+      food_restriction, activity_level, fasting_willingness
+    } = customerData;
+
+    const safeArrayJoin = (val) => Array.isArray(val) ? val.join(', ') : val;
+
+    // Generate customer code
+    const { count } = await supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true });
+    const num = String((count || 0) + 1).padStart(3, '0');
+    const customer_code = `BBD-${num}`;
+
+    // Insert customer
+    const { data: customer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
+      .insert({ 
+        full_name: full_name || inquiry.prospect_name, 
+        facebook_name, age: age || null, gender, email, phone, address, 
+        customer_code 
+      })
+      .select()
+      .single();
+
+    if (custErr) throw custErr;
+
+    // Insert health record
+    await supabaseAdmin.schema('crm').from('customer_health').insert({
+      customer_id: customer.id,
+      current_weight: current_weight || null,
+      goal_weight: goal_weight || null,
+      height: height || null,
+      medical_condition: safeArrayJoin(medical_condition) || 'None',
+      allergies: allergies || 'None'
+    });
+
+    // Insert lifestyle record
+    const mapActivityLevelToString = (levelNum) => {
+      if (typeof levelNum === 'string') return levelNum;
+      const labels = ["Sedentary", "Light", "Moderate", "Highly Active"];
+      return labels[levelNum] || "Light";
+    };
+
+    await supabaseAdmin.schema('crm').from('customer_lifestyle').insert({
+      customer_id: customer.id,
+      food_restriction: safeArrayJoin(food_restriction) || 'None',
+      activity_level: mapActivityLevelToString(activity_level),
+      fasting_willingness: fasting_willingness || 'No'
+    });
+
+    // Update inquiry to link customer, set converted, and clear token
+    await supabaseAdmin.schema('crm').from('inquiries')
+      .update({ 
+        customer_id: customer.id, 
+        status: 'converted', 
+        onboarding_token: null,
+        updated_at: new Date()
+      })
+      .eq('id', inquiry.id);
+
+    return res.status(200).json({ success: true, customer_id: customer.id });
+  } catch (e) {
+    console.error('[ONBOARDING SUBMIT]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });

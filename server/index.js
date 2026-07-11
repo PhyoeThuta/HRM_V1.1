@@ -37,7 +37,26 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173', 'http://127.0.0.1:5173'],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173', 
+      'http://localhost:4173', 
+      'http://127.0.0.1:5173', 
+      'http://localhost:3000', 
+      'http://localhost:3001'
+    ];
+    if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+    if (process.env.DIET_BUDDY_URL) allowedOrigins.push(process.env.DIET_BUDDY_URL);
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow localhost/env origins
+    // Allow any Vercel deployment dynamically
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
