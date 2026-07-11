@@ -27,58 +27,60 @@ function parseCosting() {
   const sheet = workbook.Sheets['One Portion'];
   const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
 
-  const numCols = data[0].length;
   const inventoryItems = new Map();
   const menus = [];
   let itemCodeCounter = 1;
 
-  for (let c = 0; c < numCols; c += 7) {
-    if (!data[0][c]) continue;
-    const titleRaw = data[0][c].toString();
-    const salesPriceRaw = data[1] && data[1][c] ? data[1][c].toString() : '';
-    
-    const match = titleRaw.match(/^([A-Z0-9\s]+)\s*-\s*([^\(]+)(?:\((.+)\))?/);
-    if (!match) continue;
-    
-    const code = match[1].trim();
-    const name_en = esc(match[2]);
-    const name_mm = match[3] ? esc(match[3]) : '';
-    
-    const spMatch = salesPriceRaw.match(/([\d\.]+)/);
-    const salesPrice = spMatch ? parseFloat(spMatch[1]) : 0;
-    
-    const menuId = generateUUID();
-    const menu = { id: menuId, code, name_en, name_mm, sales_prices: salesPrice, ingredients: [], total_bom: 0 };
-    
-    for (let r = 3; r < data.length; r++) {
-      const row = data[r];
-      if (!row || !row[c]) continue;
-      if (row[c].toString().includes('Total Bill of Materials')) break;
+  for (let r = 0; r < data.length; r++) {
+    if (!data[r]) continue;
+    for (let c = 0; c < data[r].length; c++) {
+      if (!data[r][c]) continue;
       
-      const ingredientName = row[c].toString().trim();
-      if (!ingredientName) continue;
+      const titleRaw = data[r][c].toString();
+      const match = titleRaw.match(/^([A-Z]{2,3}\s*\d{4})\s*-\s*([^\(]+)(?:\((.+)\))?/);
+      if (!match) continue;
       
-      const escapedName = esc(ingredientName);
-      const cost = parseFloat(row[c+1]) || 0;
-      const qty = parseFloat(row[c+2]) || 0;
-      const uom = row[c+3] ? row[c+3].toString().trim() : 'PCS';
+      const salesPriceRaw = data[r+1] && data[r+1][c] ? data[r+1][c].toString() : '';
+      const code = match[1].trim();
+      const name_en = esc(match[2]);
+      const name_mm = match[3] ? esc(match[3]) : '';
       
-      let itemInfo;
-      if (!inventoryItems.has(ingredientName)) {
-        const itemId = generateUUID();
-        const itemCode = `ITM-${String(itemCodeCounter++).padStart(4,'0')}`;
-        itemInfo = { id: itemId, name: escapedName, uom, cost, itemCode };
-        inventoryItems.set(ingredientName, itemInfo);
-      } else {
-        itemInfo = inventoryItems.get(ingredientName);
+      const spMatch = salesPriceRaw.match(/([\d\.]+)/);
+      const salesPrice = spMatch ? parseFloat(spMatch[1]) : 0;
+      
+      const menuId = generateUUID();
+      const menu = { id: menuId, code, name_en, name_mm, sales_prices: salesPrice, ingredients: [], total_bom: 0 };
+      
+      for (let i = r + 3; i < data.length; i++) {
+        const row = data[i];
+        if (!row || !row[c]) continue;
+        if (row[c].toString().includes('Total Bill of Materials')) break;
+        
+        const ingredientName = row[c].toString().trim();
+        if (!ingredientName) continue;
+        
+        const escapedName = esc(ingredientName);
+        const cost = parseFloat(row[c+1]) || 0;
+        const qty = parseFloat(row[c+2]) || 0;
+        const uom = row[c+3] ? row[c+3].toString().trim() : 'PCS';
+        
+        let itemInfo;
+        if (!inventoryItems.has(ingredientName)) {
+          const itemId = generateUUID();
+          const itemCode = `ITM-${String(itemCodeCounter++).padStart(4,'0')}`;
+          itemInfo = { id: itemId, name: escapedName, uom, cost, itemCode };
+          inventoryItems.set(ingredientName, itemInfo);
+        } else {
+          itemInfo = inventoryItems.get(ingredientName);
+        }
+        
+        const lineTotal = cost * qty;
+        menu.ingredients.push({ item_id: itemInfo.id, qty, total: lineTotal });
+        menu.total_bom += lineTotal;
       }
       
-      const lineTotal = cost * qty;
-      menu.ingredients.push({ item_id: itemInfo.id, qty, total: lineTotal });
-      menu.total_bom += lineTotal;
+      menus.push(menu);
     }
-    
-    menus.push(menu);
   }
   
   console.log(`  Found ${menus.length} menus, ${inventoryItems.size} ingredients.`);
