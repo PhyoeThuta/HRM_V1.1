@@ -518,10 +518,68 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
       };
     });
 
+    // Get date filter (default to today)
+    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
+
+    // Fetch Daily Menus for the target date
+    const { data: dailyMenus } = await supabaseAdmin
+      .from('operations_daily_menus')
+      .select('*')
+      .eq('date', targetDate);
+
+    // Fetch associated menu_types and menus
+    const { data: menuTypes } = await supabaseAdmin.from('operations_menu_types').select('*');
+    const { data: menus } = await supabaseAdmin.from('operations_menus').select('*');
+    const { data: recipes } = await supabaseAdmin.from('operations_recipes').select('*');
+    const { data: inventoryItems } = await supabaseAdmin.from('inventory_items').select('*');
+
+    const enrichedDailyMenus = (dailyMenus || []).map(dm => {
+      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
+      const enrichedTypes = types.map(mt => ({
+        ...mt,
+        menu: menus?.find(m => m.id === mt.menu_id) || { name_en: 'Uncosted Item', name_mm: '' }
+      }));
+      return { ...dm, menu_types: enrichedTypes };
+    });
+
+    // Aggregate BOM
+    const bomMap = new Map();
+    
+    enrichedDailyMenus.forEach(dm => {
+      const multiplier = dm.meal_type === 'LUNCH' ? totalLunch : totalDinner;
+      if (multiplier === 0) return;
+      
+      dm.menu_types.forEach(mt => {
+        if (!mt.menu_id) return;
+        const menuRecipes = recipes?.filter(r => r.menu_id === mt.menu_id) || [];
+        
+        menuRecipes.forEach(recipe => {
+          const item = inventoryItems?.find(i => i.id === recipe.inventory_item_id);
+          if (!item) return;
+          
+          if (!bomMap.has(item.id)) {
+            bomMap.set(item.id, {
+              id: item.id,
+              name: item.name_eng,
+              uom: item.unit_of_measure,
+              qty: 0
+            });
+          }
+          const current = bomMap.get(item.id);
+          current.qty += (recipe.qty * multiplier);
+        });
+      });
+    });
+
+    const aggregatedBOM = Array.from(bomMap.values()).sort((a, b) => b.qty - a.qty);
+
     return res.json({
       headcount: { totalLunch, totalDinner },
       specialRequests,
-      deliveryList
+      deliveryList,
+      dailyMenus: enrichedDailyMenus,
+      aggregatedBOM,
+      targetDate
     });
   } catch (e) {
     console.error('[CRM KITCHEN DASHBOARD]', e);

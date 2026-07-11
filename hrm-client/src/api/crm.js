@@ -43,7 +43,10 @@ export const crmApi = {
   resumePackage: (id, days_paused) => api.put(`/crm/customer-packages/${id}/resume`, { days_paused }).then(r => r.data),
 
   // Get Kitchen Dashboard data
-  getKitchenDashboard: () => api.get('/crm/kitchen-dashboard').then(r => r.data),
+  getKitchenDashboard: (date) => {
+    const query = date ? `?date=${date}` : '';
+    return api.get(`/crm/kitchen-dashboard${query}`).then(r => r.data);
+  },
 
   // Deduct daily meals
   deductDailyMeals: () => api.post('/crm/kitchen-dashboard/deduct-meals').then(r => r.data),

@@ -7,11 +7,12 @@ const KitchenDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeducting, setIsDeducting] = useState(false);
+  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
 
   const fetchDashboard = async () => {
     setIsLoading(true);
     try {
-      const data = await crmApi.getKitchenDashboard();
+      const data = await crmApi.getKitchenDashboard(targetDate);
       setDashboardData(data);
     } catch (err) {
       toast.error('Failed to load kitchen dashboard');
@@ -23,7 +24,7 @@ const KitchenDashboard = () => {
 
   useEffect(() => {
     fetchDashboard();
-  }, []);
+  }, [targetDate]);
 
   const handleDeductMeals = async () => {
     if (!window.confirm('Are you sure you want to deduct 1 meal from ALL active packages for today? This action cannot be undone.')) return;
@@ -47,19 +48,29 @@ const KitchenDashboard = () => {
     <Layout title="Kitchen & Delivery" subtitle="Daily Operations Dashboard">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* Headcount summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/5 border border-amber-500/20 p-8 rounded-3xl relative overflow-hidden">
-            <h3 className="text-amber-400 font-bold mb-2">Total Lunches Today</h3>
-            <p className="text-5xl font-black text-white">{dashboardData?.headcount?.totalLunch || 0}</p>
-            <div className="absolute right-[-20px] bottom-[-20px] text-8xl opacity-10">🍱</div>
+        {/* Date Filter & Headcount summary */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface-800 p-6 rounded-3xl border border-white/5 shadow-xl">
+          <div className="flex items-center gap-4">
+            <span className="text-2xl">📅</span>
+            <input 
+              type="date" 
+              value={targetDate} 
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="bg-surface-900 border border-white/10 text-white rounded-xl px-4 py-2 focus:outline-none focus:border-brand-primary"
+            />
           </div>
-          <div className="bg-gradient-to-br from-indigo-500/20 to-indigo-600/5 border border-indigo-500/20 p-8 rounded-3xl relative overflow-hidden">
-            <h3 className="text-indigo-400 font-bold mb-2">Total Dinners Today</h3>
-            <p className="text-5xl font-black text-white">{dashboardData?.headcount?.totalDinner || 0}</p>
-            <div className="absolute right-[-20px] bottom-[-20px] text-8xl opacity-10">🍽️</div>
+          <div className="flex gap-4">
+            <div className="bg-amber-500/10 border border-amber-500/20 px-6 py-2 rounded-xl text-center">
+              <p className="text-amber-400 text-xs font-bold">LUNCH</p>
+              <p className="text-white text-2xl font-black">{dashboardData?.headcount?.totalLunch || 0}</p>
+            </div>
+            <div className="bg-indigo-500/10 border border-indigo-500/20 px-6 py-2 rounded-xl text-center">
+              <p className="text-indigo-400 text-xs font-bold">DINNER</p>
+              <p className="text-white text-2xl font-black">{dashboardData?.headcount?.totalDinner || 0}</p>
+            </div>
           </div>
         </div>
+
 
         {/* Action Button */}
         <div className="flex justify-end">
@@ -68,8 +79,77 @@ const KitchenDashboard = () => {
             disabled={isDeducting || dashboardData?.deliveryList?.length === 0}
             className="bg-brand-green text-black font-black px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
           >
-            <span>✅</span> {isDeducting ? 'Processing...' : 'Mark All Delivered for Today'}
+            <span>✅</span> {isDeducting ? 'Processing...' : 'Mark All Delivered for Selected Date'}
           </button>
+        </div>
+
+        {/* Daily Menus & Aggregated BOM */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-surface-800 border border-white/5 rounded-3xl p-6 shadow-xl space-y-6">
+            <h3 className="text-xl font-black text-white flex items-center gap-2">
+              <span>👨‍🍳</span> Chef Alerts: Menu for {targetDate}
+            </h3>
+            
+            {!dashboardData?.dailyMenus?.length ? (
+              <div className="text-center p-6 text-slate-500 bg-white/[0.02] rounded-2xl border border-dashed border-white/10">
+                No menus scheduled for this date.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {dashboardData.dailyMenus.map(dm => (
+                  <div key={dm.id} className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`px-3 py-1 rounded-lg text-xs font-bold ${dm.meal_type === 'LUNCH' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                        {dm.meal_type}
+                      </span>
+                      {dm.with_rice && <span className="bg-slate-700 text-white px-2 py-1 rounded-lg text-xs font-bold">🍚 with rice</span>}
+                    </div>
+                    <ul className="space-y-2">
+                      {dm.menu_types.map(mt => (
+                        <li key={mt.id} className="text-white font-bold flex items-center gap-2">
+                          <span className="text-brand-primary">•</span> 
+                          {mt.menu.name_en} {mt.menu.name_mm && <span className="text-slate-400 text-sm font-normal">({mt.menu.name_mm})</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-surface-800 border border-white/5 rounded-3xl p-6 shadow-xl space-y-6">
+            <h3 className="text-xl font-black text-white flex items-center gap-2">
+              <span>🛒</span> Required Ingredients (BOM)
+            </h3>
+            
+            {!dashboardData?.aggregatedBOM?.length ? (
+              <div className="text-center p-6 text-slate-500 bg-white/[0.02] rounded-2xl border border-dashed border-white/10">
+                No ingredients needed or no orders today.
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto pr-2">
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 bg-surface-800">
+                    <tr className="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                      <th className="pb-3 font-bold">Ingredient</th>
+                      <th className="pb-3 font-bold text-right">Required Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {dashboardData.aggregatedBOM.map(bom => (
+                      <tr key={bom.id} className="hover:bg-white/[0.02]">
+                        <td className="py-3 font-bold text-slate-200">{bom.name}</td>
+                        <td className="py-3 text-right font-black text-brand-primary">
+                          {bom.qty.toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-slate-400 text-sm">{bom.uom}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
