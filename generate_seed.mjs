@@ -37,7 +37,7 @@ function parseCosting() {
       if (!data[r][c]) continue;
       
       const titleRaw = data[r][c].toString();
-      const match = titleRaw.match(/^([A-Z]{2,3}\s*\d{4})\s*-\s*([^\(]+)(?:\((.+)\))?/);
+      const match = titleRaw.match(/^([A-Z\s]+[0-9]{3,4})\s*-\s*([^\(]+)(?:\((.+)\))?/);
       if (!match) continue;
       
       const salesPriceRaw = data[r+1] && data[r+1][c] ? data[r+1][c].toString() : '';
