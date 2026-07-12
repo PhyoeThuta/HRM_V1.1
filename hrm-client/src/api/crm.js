@@ -48,8 +48,11 @@ export const crmApi = {
     return api.get(`/crm/kitchen-dashboard${query}`).then(r => r.data);
   },
 
-  // Deduct daily meals
+  // Deduct daily meals (manual fallback if needed)
   deductDailyMeals: () => api.post('/crm/kitchen-dashboard/deduct-meals').then(r => r.data),
+
+  // Send Alert to Chef via Telegram
+  sendToChef: (data) => api.post('/telegram/send-to-chef', data).then(r => r.data),
 
   // ──────────────────────────────────────────────────────────────
   // GALLERY PHOTOS

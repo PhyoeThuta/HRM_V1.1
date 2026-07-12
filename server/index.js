@@ -30,6 +30,7 @@ import financeRouter from './routes/finance.js';
 import crmRouter from './routes/crm.js';
 import inventoryRoutes from './routes/inventory.js';
 import operationsRoutes from './routes/operations.js';
+import telegramRouter from './routes/telegram.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -104,6 +105,7 @@ app.use('/api/finance', financeRouter);
 app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/sops, etc.
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
+app.use('/api/telegram', telegramRouter);
 
 // ── Test Endpoints ─────────────────────────────────────────────
 app.post('/api/test/trigger-birthdays', async (req, res) => {

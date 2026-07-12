@@ -26,16 +26,20 @@ const KitchenDashboard = () => {
     fetchDashboard();
   }, [targetDate]);
 
-  const handleDeductMeals = async () => {
-    if (!window.confirm('Are you sure you want to deduct 1 meal from ALL active packages for today? This action cannot be undone.')) return;
+  const handleSendToChef = async () => {
+    if (!window.confirm('Are you sure you want to send this menu and BOM to the Chef Telegram group?')) return;
     
     setIsDeducting(true);
     try {
-      const res = await crmApi.deductDailyMeals();
-      toast.success(res.message || 'Meals deducted successfully!');
-      fetchDashboard();
+      const payload = {
+        targetDate: dashboardData.targetDate || targetDate,
+        dailyMenus: dashboardData.dailyMenus,
+        aggregatedBOM: dashboardData.aggregatedBOM
+      };
+      const res = await crmApi.sendToChef(payload);
+      toast.success(res.message || 'Alert sent to Chef successfully!');
     } catch (err) {
-      toast.error('Failed to deduct meals');
+      toast.error('Failed to send alert to Chef');
       console.error(err);
     } finally {
       setIsDeducting(false);
@@ -75,11 +79,11 @@ const KitchenDashboard = () => {
         {/* Action Button */}
         <div className="flex justify-end">
           <button 
-            onClick={handleDeductMeals} 
-            disabled={isDeducting || dashboardData?.deliveryList?.length === 0}
+            onClick={handleSendToChef} 
+            disabled={isDeducting || !dashboardData?.dailyMenus?.length}
             className="bg-brand-green text-black font-black px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
           >
-            <span>✅</span> {isDeducting ? 'Processing...' : 'Mark All Delivered for Selected Date'}
+            <span>✈️</span> {isDeducting ? 'Sending Alert...' : 'Send Alert to Chef (Telegram)'}
           </button>
         </div>
 
