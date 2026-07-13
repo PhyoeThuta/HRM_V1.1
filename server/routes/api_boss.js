@@ -156,13 +156,20 @@ router.post('/chat', async (req, res) => {
     - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script). 
     - If the user asks in English, reply in English.
     
-    You have access to real-time system metrics via tools, and semantic context for company documents.
+    You have access to real-time system metrics and ANY database records via your tools.
+    AVAILABLE SCHEMAS & TABLES:
+    - crm.customers (id, full_name, phone, delivery_address, created_at)
+    - crm.inquiries (id, prospect_name, phone, status, service_interest)
+    - crm.customer_packages (customer_id, package_id, start_date, expires_at)
+    - public.Employees (Full_name, employee_id, Department, Position, phone, status)
+    - public.attendance_records (employee_id, check_in, check_out, status)
+    
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
     ${historyStr}
     
     The boss asks: ${message}
-    If the boss asks for numbers, statistics, customers, or live data, USE YOUR TOOLS to fetch it! Otherwise, use the context provided. Answer concisely and professionally.`;
+    If the boss asks for specific details (like "who are they", "what is the phone number"), USE the fetch_table_records tool to query the specific table. You can make multiple tool calls if needed. Answer concisely and professionally.`;
 
     const tools = [{
       functionDeclarations: [
@@ -171,9 +178,23 @@ router.post('/chat', async (req, res) => {
           description: "Fetches live counts and statistics from the database: total customers, active leads, employees, active diet packages, today's kitchen orders, and delivery tasks. Call this when asked about live statistics or counts.",
           parameters: {
             type: "OBJECT",
+            properties: { dummy: { type: "STRING", description: "Not used" } }
+          }
+        },
+        {
+          name: "fetch_table_records",
+          description: "Fetch specific detailed records from a database table (e.g. to get names, phone numbers, or details). Available schemas: 'crm', 'public'. Use columns parameter to limit payload size.",
+          parameters: {
+            type: "OBJECT",
             properties: {
-              dummy: { type: "STRING", description: "Not used" }
-            }
+              schema: { type: "STRING", description: "Schema name: 'crm' or 'public'" },
+              table: { type: "STRING", description: "Table name (e.g. 'customers', 'Employees')" },
+              columns: { type: "STRING", description: "Comma separated columns (e.g. 'id, full_name, phone')" },
+              filter_column: { type: "STRING", description: "Optional column to search (e.g. 'full_name')" },
+              filter_value: { type: "STRING", description: "Optional search term" },
+              limit: { type: "NUMBER", description: "Max records (default 10, max 30)" }
+            },
+            required: ["schema", "table", "columns"]
           }
         }
       ]
@@ -181,68 +202,89 @@ router.post('/chat', async (req, res) => {
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", tools });
     
-    let result;
-    let retries = 3;
-    let finalResponseText = "";
-
-    while (retries > 0) {
-      try {
-        const req = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
-        result = await model.generateContent(req);
-        
-        const response = result.response;
-        const functionCalls = response.functionCalls();
-        
-        if (functionCalls && functionCalls.length > 0) {
-          const call = functionCalls[0];
-          if (call.name === "get_system_metrics") {
-            const today = new Date().toISOString().split('T')[0];
-            const [
-              { count: customers },
-              { count: leads },
-              { count: employees },
-              { count: packages },
-              { count: kitchen_orders }
-            ] = await Promise.all([
-              supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
-              supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
-              supabaseAdmin.from('Employees').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-              supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).gte('expires_at', today),
-              supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).lte('start_date', today).gte('expires_at', today)
-            ]);
-            
-            const metrics = {
-              total_customers: customers || 0,
-              active_leads: leads || 0,
-              active_employees: employees || 0,
-              active_diet_packages: packages || 0,
-              kitchen_orders_today: kitchen_orders || 0,
-              deliveries_today: kitchen_orders || 0,
-              date: today
-            };
-
-            const secondReq = {
-              contents: [
-                { role: 'user', parts: [{ text: prompt }] },
-                { role: 'model', parts: response.parts },
-                { role: 'user', parts: [{ functionResponse: { name: call.name, response: metrics } }] }
-              ]
-            };
-            
-            result = await model.generateContent(secondReq);
+    const generateWithRetry = async (req) => {
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          return await model.generateContent(req);
+        } catch (err) {
+          if (err.status === 503 && retries > 1) {
+            retries--;
+            await new Promise(r => setTimeout(r, 2000));
+          } else {
+            throw err;
           }
         }
-        
-        finalResponseText = result.response.text();
-        break; // Success
-      } catch (err) {
-        if (err.status === 503 && retries > 1) {
-          retries--;
-          await new Promise(r => setTimeout(r, 2000));
-        } else {
-          throw err;
-        }
       }
+    };
+
+    let history = [{ role: 'user', parts: [{ text: prompt }] }];
+    let finalResponseText = "";
+    let toolCallCount = 0;
+
+    while (toolCallCount < 5) {
+      const result = await generateWithRetry({ contents: history });
+      const response = result.response;
+      
+      history.push({ role: 'model', parts: response.parts });
+      
+      const functionCalls = response.functionCalls();
+      if (!functionCalls || functionCalls.length === 0) {
+        finalResponseText = response.text();
+        break; // No more tool calls, AI has answered
+      }
+      
+      const call = functionCalls[0];
+      let apiRes = {};
+      
+      try {
+        if (call.name === "get_system_metrics") {
+          const today = new Date().toISOString().split('T')[0];
+          const [
+            { count: customers },
+            { count: leads },
+            { count: employees },
+            { count: packages },
+            { count: kitchen_orders }
+          ] = await Promise.all([
+            supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
+            supabaseAdmin.from('Employees').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+            supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).gte('expires_at', today),
+            supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).lte('start_date', today).gte('expires_at', today)
+          ]);
+          apiRes = {
+            total_customers: customers || 0,
+            active_leads: leads || 0,
+            active_employees: employees || 0,
+            active_diet_packages: packages || 0,
+            kitchen_orders_today: kitchen_orders || 0,
+            deliveries_today: kitchen_orders || 0,
+            date: today
+          };
+        } else if (call.name === "fetch_table_records") {
+          const { schema, table, columns, filter_column, filter_value, limit } = call.args;
+          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 10, 30));
+          if (filter_column && filter_value) {
+            q = q.ilike(filter_column, `%${filter_value}%`);
+          }
+          const { data, error } = await q;
+          if (error) throw error;
+          apiRes = { records: data };
+        }
+      } catch (err) {
+        apiRes = { error: err.message };
+      }
+      
+      history.push({ role: 'user', parts: [{ functionResponse: { name: call.name, response: apiRes } }] });
+      toolCallCount++;
+    }
+    
+    // If we maxed out tool calls and didn't get text, force a final summary
+    if (toolCallCount >= 5 && !finalResponseText) {
+       history.push({ role: 'user', parts: [{ text: "You have used maximum tool calls. Summarize the data you have found so far." }] });
+       const result = await generateWithRetry({ contents: history });
+       finalResponseText = result.response.text();
     }
     
     const responseText = finalResponseText;
