@@ -1,5 +1,4 @@
 import express from 'express';
-import axios from 'axios';
 import { supabaseAdmin } from '../lib/supabase.js';
 
 const router = express.Router();
@@ -20,24 +19,41 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
     if (replyMarkup) {
       payload.reply_markup = replyMarkup;
     }
-    await axios.post(`${TELEGRAM_API}/sendMessage`, payload);
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[TELEGRAM ERROR]', errorData);
+    }
   } catch (error) {
-    console.error('[TELEGRAM ERROR]', error.response?.data || error.message);
+    console.error('[TELEGRAM ERROR]', error.message);
   }
 }
 
 // Utility to update an existing message (e.g. to remove the inline button)
 async function editTelegramMessageText(chatId, messageId, text) {
   try {
-    await axios.post(`${TELEGRAM_API}/editMessageText`, {
+    const payload = {
       chat_id: chatId,
       message_id: messageId,
       text,
       parse_mode: 'HTML',
       reply_markup: { inline_keyboard: [] } // Remove buttons
+    };
+    const response = await fetch(`${TELEGRAM_API}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[TELEGRAM ERROR]', errorData);
+    }
   } catch (error) {
-    console.error('[TELEGRAM ERROR]', error.response?.data || error.message);
+    console.error('[TELEGRAM ERROR]', error.message);
   }
 }
 
@@ -122,9 +138,13 @@ router.post('/webhook', async (req, res) => {
         const targetDate = data.replace('finish_cooking_', '');
 
         // 1. Acknowledge callback to Telegram immediately
-        axios.post(`${TELEGRAM_API}/answerCallbackQuery`, {
-          callback_query_id: callbackQuery.id,
-          text: '✅ Processing...'
+        fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callback_query_id: callbackQuery.id,
+            text: '✅ Processing...'
+          })
         }).catch(() => {});
 
         // 2. Edit original Chef message to hide button and show completed text immediately
