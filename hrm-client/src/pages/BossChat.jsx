@@ -138,19 +138,20 @@ export default function BossChat() {
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] rounded-2xl px-6 py-4 shadow-sm ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-surface-800 text-slate-300 border border-white/5'}`}>
                   {m.role === 'ai' && <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Boss AI</div>}
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text || <span className="italic text-slate-500">...</span>}</p>
                 </div>
               </div>
             ))}
             {chatMutation.isPending && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-2xl px-6 py-4 bg-surface-800 text-slate-400 border border-white/5">
-                  <span className="flex items-center gap-2">
+                  <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Boss AI</div>
+                  <span className="flex items-center gap-2 text-sm">
                     <svg className="animate-spin h-4 w-4 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Thinking...
+                    Searching database & thinking...
                   </span>
                 </div>
               </div>

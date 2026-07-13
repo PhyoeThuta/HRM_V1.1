@@ -430,7 +430,7 @@ router.post('/chat', async (req, res) => {
        }
     }
     
-    const responseText = finalResponseText;
+    const responseText = finalResponseText || "I'm sorry Boss, I was unable to generate a response. Please try again.";
 
     // Insert AI response
     await supabaseAdmin.from('boss_chat_messages').insert({
