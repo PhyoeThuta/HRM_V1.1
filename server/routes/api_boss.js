@@ -156,33 +156,96 @@ router.post('/chat', async (req, res) => {
     - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script). 
     - If the user asks in English, reply in English.
     
-    You have access to a semantic search engine that pulls relevant records from HR, CRM, Operations, and Inventory based on the user's question. 
+    You have access to real-time system metrics via tools, and semantic context for company documents.
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
     ${historyStr}
     
     The boss asks: ${message}
-    Please answer concisely, professionally, and directly using ONLY the provided data. If the data is not in the context, say you don't know or don't have the data.`;
+    If the boss asks for numbers, statistics, customers, or live data, USE YOUR TOOLS to fetch it! Otherwise, use the context provided. Answer concisely and professionally.`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+    const tools = [{
+      functionDeclarations: [
+        {
+          name: "get_system_metrics",
+          description: "Fetches live counts and statistics from the database: total customers, active leads, employees, active diet packages, today's kitchen orders, and delivery tasks. Call this when asked about live statistics or counts.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              dummy: { type: "STRING", description: "Not used" }
+            }
+          }
+        }
+      ]
+    }];
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", tools });
     
     let result;
     let retries = 3;
+    let finalResponseText = "";
+
     while (retries > 0) {
       try {
-        result = await model.generateContent(prompt);
+        const req = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
+        result = await model.generateContent(req);
+        
+        const response = result.response;
+        const functionCalls = response.functionCalls();
+        
+        if (functionCalls && functionCalls.length > 0) {
+          const call = functionCalls[0];
+          if (call.name === "get_system_metrics") {
+            const today = new Date().toISOString().split('T')[0];
+            const [
+              { count: customers },
+              { count: leads },
+              { count: employees },
+              { count: packages },
+              { count: kitchen_orders }
+            ] = await Promise.all([
+              supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
+              supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
+              supabaseAdmin.from('Employees').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+              supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).gte('expires_at', today),
+              supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).lte('start_date', today).gte('expires_at', today)
+            ]);
+            
+            const metrics = {
+              total_customers: customers || 0,
+              active_leads: leads || 0,
+              active_employees: employees || 0,
+              active_diet_packages: packages || 0,
+              kitchen_orders_today: kitchen_orders || 0,
+              deliveries_today: kitchen_orders || 0,
+              date: today
+            };
+
+            const secondReq = {
+              contents: [
+                { role: 'user', parts: [{ text: prompt }] },
+                { role: 'model', parts: response.parts },
+                { role: 'user', parts: [{ functionResponse: { name: call.name, response: metrics } }] }
+              ]
+            };
+            
+            result = await model.generateContent(secondReq);
+          }
+        }
+        
+        finalResponseText = result.response.text();
         break; // Success
       } catch (err) {
         if (err.status === 503 && retries > 1) {
           retries--;
-          await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
+          await new Promise(r => setTimeout(r, 2000));
         } else {
           throw err;
         }
       }
     }
     
-    const responseText = result.response.text();
+    const responseText = finalResponseText;
 
     // Insert AI response
     await supabaseAdmin.from('boss_chat_messages').insert({
