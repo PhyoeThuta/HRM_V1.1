@@ -230,7 +230,11 @@ router.post('/chat', async (req, res) => {
       
       const functionCalls = response.functionCalls();
       if (!functionCalls || functionCalls.length === 0) {
-        finalResponseText = response.text();
+        try {
+          finalResponseText = response.text();
+        } catch (e) {
+          finalResponseText = "I'm sorry Boss, but I encountered an internal error trying to respond. My response might have been blocked by safety filters or an empty generation issue.";
+        }
         break; // No more tool calls, AI has answered
       }
       
@@ -280,11 +284,15 @@ router.post('/chat', async (req, res) => {
       toolCallCount++;
     }
     
-    // If we maxed out tool calls and didn't get text, force a final summary
+    // If we maxed out tool calls and didn't get text, force a final summary by appending to the last user turn
     if (toolCallCount >= 5 && !finalResponseText) {
-       history.push({ role: 'user', parts: [{ text: "You have used maximum tool calls. Summarize the data you have found so far." }] });
-       const result = await generateWithRetry({ contents: history });
-       finalResponseText = result.response.text();
+       history[history.length - 1].parts.push({ text: "You have used the maximum allowed tool calls. Stop calling tools and please summarize the data you have found so far." });
+       try {
+         const result = await generateWithRetry({ contents: history });
+         finalResponseText = result.response.text();
+       } catch (e) {
+         finalResponseText = "I'm sorry Boss, I had to stop searching because the task was too complex. Please try breaking your question down.";
+       }
     }
     
     const responseText = finalResponseText;
