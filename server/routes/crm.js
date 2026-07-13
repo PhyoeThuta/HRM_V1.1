@@ -522,16 +522,16 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
     const targetDate = req.query.date || new Date().toISOString().split('T')[0];
 
     // Fetch Daily Menus for the target date
-    const { data: dailyMenus } = await supabaseAdmin.schema('operations')
-      .from('daily_menus')
+    const { data: dailyMenus } = await supabaseAdmin
+      .from('operations_daily_menus')
       .select('*')
       .eq('date', targetDate);
 
     // Fetch associated menu_types and menus
-    const { data: menuTypes } = await supabaseAdmin.schema('operations').from('menu_types').select('*');
-    const { data: menus } = await supabaseAdmin.schema('operations').from('menus').select('*');
-    const { data: recipes } = await supabaseAdmin.schema('operations').from('recipes').select('*');
-    const { data: inventoryItems } = await supabaseAdmin.schema('inventory').from('items').select('*');
+    const { data: menuTypes } = await supabaseAdmin.from('operations_menu_types').select('*');
+    const { data: menus } = await supabaseAdmin.from('operations_menus').select('*');
+    const { data: recipes } = await supabaseAdmin.from('operations_recipes').select('*');
+    const { data: inventoryItems } = await supabaseAdmin.from('inventory_items').select('*');
 
     const enrichedDailyMenus = (dailyMenus || []).map(dm => {
       const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
