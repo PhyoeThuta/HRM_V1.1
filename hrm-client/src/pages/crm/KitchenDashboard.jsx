@@ -143,7 +143,9 @@ const KitchenDashboard = () => {
                   <tbody className="divide-y divide-white/5">
                     {dashboardData.aggregatedBOM.map(bom => (
                       <tr key={bom.id} className="hover:bg-white/[0.02]">
-                        <td className="py-3 font-bold text-slate-200">{bom.name}</td>
+                        <td className="py-3 font-bold text-slate-200">
+                          {bom.name} {bom.name_mm && <span className="text-slate-400 font-normal">({bom.name_mm})</span>}
+                        </td>
                         <td className="py-3 text-right font-black text-brand-primary">
                           {bom.qty.toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-slate-400 text-sm">{bom.uom}</span>
                         </td>

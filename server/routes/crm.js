@@ -563,6 +563,7 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
             bomMap.set(item.id, {
               id: item.id,
               name: item.name_eng,
+              name_mm: item.name_mm,
               uom: item.unit_of_measure,
               qty: 0
             });

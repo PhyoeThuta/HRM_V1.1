@@ -87,7 +87,8 @@ router.post('/send-to-chef', async (req, res) => {
     message += `🛒 <b>REQUIRED INGREDIENTS (BOM)</b>\n`;
     if (aggregatedBOM && aggregatedBOM.length > 0) {
       aggregatedBOM.forEach(bom => {
-        message += `• ${bom.name}: <b>${bom.qty.toLocaleString(undefined, {maximumFractionDigits: 2})} ${bom.uom}</b>\n`;
+        const bomName = bom.name_mm ? `${bom.name} (${bom.name_mm})` : bom.name;
+        message += `• ${bomName}: <b>${bom.qty.toLocaleString(undefined, {maximumFractionDigits: 2})} ${bom.uom}</b>\n`;
       });
     } else {
       message += `<i>No ingredients needed today.</i>\n`;
