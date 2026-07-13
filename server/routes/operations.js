@@ -404,7 +404,7 @@ router.get('/orders', async (req, res) => {
     
     const enrichedOrders = orders.map(o => ({
       ...o,
-      daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menus_id) || null,
+      daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
       customer: customersMap[o.customer_id] || { full_name: 'Unknown' }
     }));
     
@@ -457,12 +457,12 @@ router.post('/orders/auto-generate', async (req, res) => {
     // 3. Fetch existing orders to prevent duplicates
     const { data: existingOrders, error: orderErr } = await supabase
       .from('operations_orders')
-      .select('customer_id, daily_menus_id')
+      .select('customer_id, daily_menu_id')
       .eq('date', targetDate);
       
     if (orderErr) throw orderErr;
     
-    const existingSet = new Set(existingOrders?.map(o => `${o.customer_id}-${o.daily_menus_id}`) || []);
+    const existingSet = new Set(existingOrders?.map(o => `${o.customer_id}-${o.daily_menu_id}`) || []);
 
     const newOrders = [];
 
@@ -478,7 +478,7 @@ router.post('/orders/auto-generate', async (req, res) => {
           if (!existingSet.has(comboKey)) {
             newOrders.push({
               customer_id: pkg.customer_id,
-              daily_menus_id: menu.id,
+              daily_menu_id: menu.id,
               date: targetDate,
               count: 1,
               delivery_status: 'PENDING',
