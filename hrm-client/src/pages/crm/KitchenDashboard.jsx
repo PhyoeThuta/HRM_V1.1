@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { crmApi } from '../../api/crm';
 import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
 
 const KitchenDashboard = () => {
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeducting, setIsDeducting] = useState(false);
@@ -27,7 +29,6 @@ const KitchenDashboard = () => {
   }, [targetDate]);
 
   const handleSendToChef = async () => {
-    if (!window.confirm('Are you sure you want to send this menu and BOM to the Chef Telegram group?')) return;
     
     setIsDeducting(true);
     try {
@@ -46,11 +47,49 @@ const KitchenDashboard = () => {
     }
   };
 
+  const confirmSend = () => {
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-4">
+          <p className="font-bold text-slate-800">Send this alert to the Chef via Telegram?</p>
+          <div className="flex justify-end gap-2">
+            <button 
+              className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors"
+              onClick={() => toast.dismiss(t.id)}
+            >
+              Cancel
+            </button>
+            <button 
+              className="px-4 py-2 bg-brand-green text-black font-bold rounded-lg hover:brightness-110 transition-colors flex items-center gap-2"
+              onClick={() => {
+                toast.dismiss(t.id);
+                handleSendToChef();
+              }}
+            >
+              <span>✈️</span> Send Alert
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity, position: 'top-center' }
+    );
+  };
+
   if (isLoading) return <Layout title="Kitchen & Delivery"><div className="p-8 text-center text-slate-400">Loading daily tasks...</div></Layout>;
 
   return (
     <Layout title="Kitchen & Delivery" subtitle="Daily Operations Dashboard">
       <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Back Button */}
+        <div>
+          <button 
+            onClick={() => navigate('/crm')}
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-surface-800 px-4 py-2 rounded-xl border border-white/5 hover:border-white/20 w-fit"
+          >
+            <span>←</span> Back to CRM Overview
+          </button>
+        </div>
         
         {/* Date Filter & Headcount summary */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface-800 p-6 rounded-3xl border border-white/5 shadow-xl">
@@ -79,7 +118,7 @@ const KitchenDashboard = () => {
         {/* Action Button */}
         <div className="flex justify-end">
           <button 
-            onClick={handleSendToChef} 
+            onClick={confirmSend} 
             disabled={isDeducting || (!dashboardData?.dailyMenus?.length && !dashboardData?.deliveryList?.length)}
             className="bg-brand-green text-black font-black px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
           >
