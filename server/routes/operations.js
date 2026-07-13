@@ -396,7 +396,10 @@ router.get('/orders', async (req, res) => {
     const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
     let customersMap = {};
     if (customerIds.length > 0) {
-      const { data: customers } = await supabase.schema('crm').from('customers').select('id, full_name, phone, delivery_address').in('id', customerIds);
+      const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers').select('id, full_name, phone, delivery_address').in('id', customerIds);
+      if (cErr) {
+        console.error("[GET /orders] Error fetching customers:", cErr);
+      }
       if (customers) {
         customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
       }
@@ -405,7 +408,7 @@ router.get('/orders', async (req, res) => {
     const enrichedOrders = orders.map(o => ({
       ...o,
       daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
-      customer: customersMap[o.customer_id] || { full_name: 'Unknown' }
+      customer: customersMap[o.customer_id] || { full_name: 'Unknown (Please restart backend server)' }
     }));
     
     return res.json(enrichedOrders);
