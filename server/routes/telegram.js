@@ -160,9 +160,11 @@ router.post('/webhook', async (req, res) => {
             .from('customer_packages')
             .select(`
               *,
-              customers:customer_id ( full_name, phone, address, delivery_address, delivery_notes ),
-              customer_health!inner ( allergies, medical_condition, special_requests ),
-              customer_lifestyle!inner ( food_restriction )
+              customers:customer_id ( 
+                full_name, phone, address, delivery_address, delivery_notes,
+                customer_health ( allergies, medical_condition, special_requests ),
+                customer_lifestyle ( food_restriction )
+              )
             `)
             .eq('status', 'Active')
             .gt('meal_count', 0);
@@ -175,8 +177,8 @@ router.post('/webhook', async (req, res) => {
               const address = cust.delivery_address || cust.address || 'No Address';
               
               const restrictions = [];
-              const health = pkg.customer_health || {};
-              const lifestyle = pkg.customer_lifestyle || {};
+              const health = cust.customer_health?.[0] || cust.customer_health || {};
+              const lifestyle = cust.customer_lifestyle?.[0] || cust.customer_lifestyle || {};
               if (health.allergies && health.allergies !== 'None') restrictions.push(health.allergies);
               if (health.special_requests && health.special_requests !== 'None') restrictions.push(health.special_requests);
               if (lifestyle.food_restriction && lifestyle.food_restriction !== 'None') restrictions.push(lifestyle.food_restriction);

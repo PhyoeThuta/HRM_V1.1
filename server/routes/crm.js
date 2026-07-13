@@ -472,9 +472,11 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
       .from('customer_packages')
       .select(`
         *,
-        customers:customer_id ( full_name, phone, address, delivery_address, delivery_notes ),
-        customer_health!inner ( allergies, medical_condition, special_requests ),
-        customer_lifestyle!inner ( food_restriction )
+        customers:customer_id ( 
+          full_name, phone, address, delivery_address, delivery_notes,
+          customer_health ( allergies, medical_condition, special_requests ),
+          customer_lifestyle ( food_restriction )
+        )
       `)
       .eq('status', 'Active')
       .gt('meal_count', 0);
@@ -494,8 +496,8 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
       if (isDinner) totalDinner++;
       
       const restrictions = [];
-      const health = pkg.customer_health || {};
-      const lifestyle = pkg.customer_lifestyle || {};
+      const health = pkg.customers?.customer_health?.[0] || pkg.customers?.customer_health || {};
+      const lifestyle = pkg.customers?.customer_lifestyle?.[0] || pkg.customers?.customer_lifestyle || {};
       
       if (health.allergies && health.allergies !== 'None') restrictions.push(health.allergies);
       if (health.special_requests && health.special_requests !== 'None') restrictions.push(health.special_requests);
