@@ -1,5 +1,5 @@
 import express from 'express';
-import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
+import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete, supabaseAdmin } from '../lib/supabase.js';
 import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { validate } from '../middleware/validate.js';
@@ -33,16 +33,61 @@ router.get('/overview', async (req, res) => {
   }
 });
 
+// GET /api/boss/chat/sessions
+router.get('/chat/sessions', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from('boss_chat_sessions')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    return res.json(data || []);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/boss/chat/sessions/:id/messages
+router.get('/chat/sessions/:id/messages', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from('boss_chat_messages')
+      .select('*')
+      .eq('session_id', req.params.id)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return res.json(data || []);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/boss/chat
 router.post('/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, session_id } = req.body;
     if (!message) return res.status(400).json({ error: 'Message required' });
     if (!process.env.GEMINI_API_KEY) {
       return res.json({ response: 'GEMINI_API_KEY is not configured in .env. AI Chat is disabled.' });
     }
 
-    // Fetch comprehensive omniscient context to feed the AI
+    let sessionId = session_id;
+    if (!sessionId) {
+      const title = message.length > 30 ? message.substring(0, 30) + '...' : message;
+      const { data: newSession, error: sErr } = await supabaseAdmin.from('boss_chat_sessions')
+        .insert({ user_id: req.user.id, title })
+        .select('id').single();
+      if (sErr) throw sErr;
+      sessionId = newSession.id;
+    } else {
+      await supabaseAdmin.from('boss_chat_sessions').update({ updated_at: new Date().toISOString() }).eq('id', sessionId);
+    }
+
+    // Insert user message
+    await supabaseAdmin.from('boss_chat_messages').insert({
+      session_id: sessionId,
+      role: 'user',
+      content: message
+    });
     const [
       employees, kpiAssigns, payrolls, attendance,
       departments, positions, leaves, leaveTypes,
@@ -108,10 +153,22 @@ EMPLOYEE MASTER DATA & PERFORMANCE:
       contextStr += `\nRECENT ANNOUNCEMENTS:\n${announcements.slice(0,5).map(a => `- [${a.created_at}] ${a.title}: ${a.content}`).join('\n')}\n`;
     }
 
+    const { data: pastMessages } = await supabaseAdmin.from('boss_chat_messages')
+      .select('role, content')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true })
+      .limit(10); // Provide some history
+
+    let historyStr = "";
+    if (pastMessages && pastMessages.length > 0) {
+      historyStr = "\n\nPAST CONVERSATION HISTORY:\n" + pastMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
+    }
+
     const prompt = `You are Busy Boss Diet AI, an omniscient AI executive assistant for the Boss.
     You have complete access to the HR database. Do NOT say you will check the system later, you ALREADY have the data below.
     Context Data:
     ${contextStr}
+    ${historyStr}
     
     The boss asks: ${message}
     Please answer concisely, professionally, and directly using the provided data. If asked about general HR facts, departments, salaries, or leaves, use the context provided.`;
@@ -136,7 +193,14 @@ EMPLOYEE MASTER DATA & PERFORMANCE:
     
     const responseText = result.response.text();
 
-    return res.json({ response: responseText });
+    // Insert AI response
+    await supabaseAdmin.from('boss_chat_messages').insert({
+      session_id: sessionId,
+      role: 'ai',
+      content: responseText
+    });
+
+    return res.json({ session_id: sessionId, response: responseText });
   } catch (e) {
     console.error('[BOSS CHAT ERROR]', e);
     const errorMsg = e.message || (typeof e === 'object' ? JSON.stringify(e) : String(e));
