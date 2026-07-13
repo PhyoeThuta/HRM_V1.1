@@ -12,6 +12,21 @@ router.use(requireAdmin);
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// --- Telegram helper for AI-initiated notifications ---
+const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const BOSS_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+async function sendTelegramMessage(chatId, text) {
+  if (!TELEGRAM_TOKEN || !chatId) return;
+  try {
+    await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+    });
+  } catch (e) { console.error('[AI TELEGRAM]', e.message); }
+}
+
 // GET /api/boss/overview
 router.get('/overview', async (req, res) => {
   try {
@@ -151,50 +166,116 @@ router.post('/chat', async (req, res) => {
       historyStr = "\n\nPAST CONVERSATION HISTORY:\n" + pastMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
     }
 
-    const prompt = `You are Busy Boss Diet AI, an omniscient AI executive assistant for the Boss.
-    BILINGUAL INSTRUCTION: You are fully bilingual in English and Myanmar (Burmese). 
-    - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script). 
+    const prompt = `You are Busy Boss Diet AI, an omniscient and ACTION-TAKING AI executive assistant for the Boss.
+    BILINGUAL INSTRUCTION: You are fully bilingual in English and Myanmar (Burmese).
+    - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script).
     - If the user asks in English, reply in English.
     
-    You have access to real-time system metrics and ANY database records via your tools.
-    AVAILABLE SCHEMAS & TABLES:
+    You have access to real-time system metrics, detailed database records, AND the power to take actions on behalf of the Boss.
+    
+    AVAILABLE SCHEMAS & TABLES (for reading):
     - crm.customers (id, full_name, phone, delivery_address, created_at)
     - crm.inquiries (id, prospect_name, phone, status, service_interest)
-    - crm.customer_packages (customer_id, package_id, start_date, expires_at)
-    - public.Employees (Full_name, employee_id, Department, Position, phone, status)
-    - public.attendance_records (employee_id, check_in, check_out, status)
+    - crm.customer_packages (id, customer_id, start_date, expires_at, meal_count, status)
+    - public.Employees (id, Full_name, Dept_id, phone, status)
+    - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
+    - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
+    
+    AVAILABLE ACTIONS (you can take these when the Boss commands you):
+    - approve_leave_requests: Approve all pending leave requests or a specific one
+    - send_employee_warning: Send a Telegram notification/warning to the Boss about an employee
+    - send_customer_message: Send a Telegram message to notify the Boss about a customer situation
+    - extend_customer_package: Extend a customer's diet package expiry by N days
+    - create_kpi_task: Create and assign a KPI task to an employee
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
     ${historyStr}
     
     The boss asks: ${message}
-    If the boss asks for specific details (like "who are they", "what is the phone number"), USE the fetch_table_records tool to query the specific table. You can make multiple tool calls if needed. Answer concisely and professionally.`;
+    Be proactive. If asked to take action, USE THE ACTION TOOLS. If asked for data, use fetch_table_records. Answer concisely in the Boss's language.`;
 
     const tools = [{
       functionDeclarations: [
         {
           name: "get_system_metrics",
-          description: "Fetches live counts and statistics from the database: total customers, active leads, employees, active diet packages, today's kitchen orders, and delivery tasks. Call this when asked about live statistics or counts.",
-          parameters: {
-            type: "OBJECT",
-            properties: { dummy: { type: "STRING", description: "Not used" } }
-          }
+          description: "Fetches live counts and statistics: total customers, active leads, employees, diet packages, kitchen orders, deliveries.",
+          parameters: { type: "OBJECT", properties: { dummy: { type: "STRING", description: "Not used" } } }
         },
         {
           name: "fetch_table_records",
-          description: "Fetch specific detailed records from a database table (e.g. to get names, phone numbers, or details). Available schemas: 'crm', 'public'. Use columns parameter to limit payload size.",
+          description: "Fetch specific records from a database table (names, phone numbers, details, IDs). Schemas: 'crm', 'public'.",
           parameters: {
             type: "OBJECT",
             properties: {
-              schema: { type: "STRING", description: "Schema name: 'crm' or 'public'" },
-              table: { type: "STRING", description: "Table name (e.g. 'customers', 'Employees')" },
+              schema: { type: "STRING", description: "Schema: 'crm' or 'public'" },
+              table: { type: "STRING", description: "Table name (e.g. 'customers', 'Employees', 'Leave_Request')" },
               columns: { type: "STRING", description: "Comma separated columns (e.g. 'id, full_name, phone')" },
-              filter_column: { type: "STRING", description: "Optional column to search (e.g. 'full_name')" },
-              filter_value: { type: "STRING", description: "Optional search term" },
-              limit: { type: "NUMBER", description: "Max records (default 10, max 30)" }
+              filter_column: { type: "STRING", description: "Optional filter column" },
+              filter_value: { type: "STRING", description: "Optional filter value" },
+              limit: { type: "NUMBER", description: "Max records (default 10, max 50)" }
             },
             required: ["schema", "table", "columns"]
+          }
+        },
+        {
+          name: "approve_leave_requests",
+          description: "Approve pending leave requests. If employee_id is provided, approve only that employee's request. Otherwise approve ALL pending requests.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              employee_id: { type: "STRING", description: "Optional: specific employee ID to approve" }
+            }
+          }
+        },
+        {
+          name: "send_employee_warning",
+          description: "Send a Telegram notification to the Boss regarding an employee (e.g. late, absent, performance warning). This alerts the Boss, not the employee directly.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              employee_name: { type: "STRING", description: "Full name of the employee" },
+              reason: { type: "STRING", description: "Reason for the warning or notification" }
+            },
+            required: ["employee_name", "reason"]
+          }
+        },
+        {
+          name: "send_customer_message",
+          description: "Send a Telegram notification to the Boss about a customer situation (e.g. missing delivery address, package expiring).",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              customer_name: { type: "STRING", description: "Customer's full name" },
+              message_content: { type: "STRING", description: "The message content to send" }
+            },
+            required: ["customer_name", "message_content"]
+          }
+        },
+        {
+          name: "extend_customer_package",
+          description: "Extend a customer's diet package expiry by N days.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              customer_name: { type: "STRING", description: "Customer's full name (will search by name)" },
+              days: { type: "NUMBER", description: "Number of days to extend the package" }
+            },
+            required: ["customer_name", "days"]
+          }
+        },
+        {
+          name: "create_kpi_task",
+          description: "Create and assign a KPI task to an employee in the system.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING", description: "Task title" },
+              description: { type: "STRING", description: "Task description" },
+              employee_id: { type: "STRING", description: "The employee ID to assign to" },
+              due_date: { type: "STRING", description: "Due date in YYYY-MM-DD format" }
+            },
+            required: ["title", "employee_id"]
           }
         }
       ]
@@ -268,13 +349,67 @@ router.post('/chat', async (req, res) => {
           };
         } else if (call.name === "fetch_table_records") {
           const { schema, table, columns, filter_column, filter_value, limit } = call.args;
-          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 10, 30));
+          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 10, 50));
           if (filter_column && filter_value) {
             q = q.ilike(filter_column, `%${filter_value}%`);
           }
           const { data, error } = await q;
           if (error) throw error;
           apiRes = { records: data };
+
+        } else if (call.name === "approve_leave_requests") {
+          const { employee_id } = call.args;
+          let q = supabaseAdmin.from('Leave_Request').update({ status: 'Approved' }).eq('status', 'Pending');
+          if (employee_id) q = q.eq('employee_id', employee_id);
+          const { count, error } = await q.select('*', { count: 'exact' });
+          if (error) throw error;
+          await sendTelegramMessage(BOSS_CHAT_ID, `✅ <b>Boss AI Action:</b> ${count || 'All'} pending leave request(s) have been approved.`);
+          apiRes = { success: true, approved_count: count, message: `Successfully approved leave requests.` };
+
+        } else if (call.name === "send_employee_warning") {
+          const { employee_name, reason } = call.args;
+          const msg = `⚠️ <b>Employee Alert from Boss AI</b>\n\n👤 Employee: <b>${employee_name}</b>\n📋 Reason: ${reason}\n\nPlease take appropriate action, Boss.`;
+          await sendTelegramMessage(BOSS_CHAT_ID, msg);
+          apiRes = { success: true, message: `Alert sent to Boss about ${employee_name}` };
+
+        } else if (call.name === "send_customer_message") {
+          const { customer_name, message_content } = call.args;
+          const msg = `📢 <b>Customer Notification (Boss AI)</b>\n\n👤 Customer: <b>${customer_name}</b>\n💬 ${message_content}`;
+          await sendTelegramMessage(BOSS_CHAT_ID, msg);
+          apiRes = { success: true, message: `Notification sent to Boss about ${customer_name}` };
+
+        } else if (call.name === "extend_customer_package") {
+          const { customer_name, days } = call.args;
+          // Find the customer
+          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
+            .select('id, full_name').ilike('full_name', `%${customer_name}%`).limit(1);
+          if (!customers || customers.length === 0) throw new Error(`Customer '${customer_name}' not found`);
+          const cust = customers[0];
+          // Find their active package
+          const { data: pkgs } = await supabaseAdmin.schema('crm').from('customer_packages')
+            .select('id, expires_at').eq('customer_id', cust.id).eq('status', 'Active').limit(1);
+          if (!pkgs || pkgs.length === 0) throw new Error(`No active package found for ${cust.full_name}`);
+          const pkg = pkgs[0];
+          const newExpiry = new Date(pkg.expires_at);
+          newExpiry.setDate(newExpiry.getDate() + parseInt(days));
+          const { error } = await supabaseAdmin.schema('crm').from('customer_packages')
+            .update({ expires_at: newExpiry.toISOString().split('T')[0] }).eq('id', pkg.id);
+          if (error) throw error;
+          await sendTelegramMessage(BOSS_CHAT_ID, `🎁 <b>Boss AI Action:</b> Extended <b>${cust.full_name}</b>'s package by ${days} days. New expiry: ${newExpiry.toISOString().split('T')[0]}`);
+          apiRes = { success: true, customer: cust.full_name, new_expiry: newExpiry.toISOString().split('T')[0] };
+
+        } else if (call.name === "create_kpi_task") {
+          const { title, description, employee_id, due_date } = call.args;
+          const { data: task, error } = await supabaseAdmin.from('boss_kpi_assignments').insert({
+            title, description: description || null,
+            assigned_to_emp: employee_id,
+            due_date: due_date || null,
+            status: 'Assigned',
+            created_at: new Date().toISOString()
+          }).select().single();
+          if (error) throw error;
+          await sendTelegramMessage(BOSS_CHAT_ID, `📌 <b>Boss AI Action:</b> New KPI task created!\n\n📋 Task: <b>${title}</b>\n👤 Assigned to Employee ID: ${employee_id}\n📅 Due: ${due_date || 'No deadline'}`);
+          apiRes = { success: true, task_id: task?.id, message: `KPI task '${title}' created and assigned.` };
         }
       } catch (err) {
         apiRes = { error: err.message };
