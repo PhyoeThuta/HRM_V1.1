@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
+import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 
 export default function BossChat() {
   const queryClient = useQueryClient();
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([{ role: 'ai', text: 'Hello! I am Busy Boss Diet Assistant. How can I help you manage your organization today?' }]);
   const [input, setInput] = useState('');
+  const [deleteSessionId, setDeleteSessionId] = useState(null);
   const chatEndRef = useRef(null);
 
   // Fetch all chat sessions
@@ -59,8 +61,13 @@ export default function BossChat() {
 
   const handleDelete = (e, id) => {
     e.stopPropagation(); // Prevent row click from activating the session
-    if (window.confirm("Are you sure you want to delete this chat?")) {
-      deleteMutation.mutate(id);
+    setDeleteSessionId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteSessionId) {
+      deleteMutation.mutate(deleteSessionId);
+      setDeleteSessionId(null);
     }
   };
 
@@ -75,6 +82,8 @@ export default function BossChat() {
 
   const handleNewChat = () => {
     setActiveSessionId(null);
+    setMessages([{ role: 'ai', text: 'Hello! I am Busy Boss Diet Assistant. How can I help you manage your organization today?' }]);
+    setInput('');
   };
 
   return (
@@ -171,6 +180,15 @@ export default function BossChat() {
         </div>
 
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!deleteSessionId}
+        onClose={() => setDeleteSessionId(null)}
+        onConfirm={confirmDelete}
+        itemName="this chat session"
+        warning="This will permanently delete all messages in this chat."
+      />
     </Layout>
   );
 }
