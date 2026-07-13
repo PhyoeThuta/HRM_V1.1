@@ -80,7 +80,7 @@ const KitchenDashboard = () => {
         <div className="flex justify-end">
           <button 
             onClick={handleSendToChef} 
-            disabled={isDeducting || !dashboardData?.dailyMenus?.length}
+            disabled={isDeducting || (!dashboardData?.dailyMenus?.length && !dashboardData?.deliveryList?.length)}
             className="bg-brand-green text-black font-black px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
           >
             <span>✈️</span> {isDeducting ? 'Sending Alert...' : 'Send Alert to Chef (Telegram)'}
