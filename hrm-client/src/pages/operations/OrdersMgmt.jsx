@@ -67,15 +67,29 @@ export default function OrdersMgmt() {
 
   const groupedOrders = useMemo(() => {
     if (!orders) return {};
-    const groups = {};
+    const groups = {}; // Date -> { date, totalQty, deliveredQty, customers: { customerName -> { name, address, orders: [] } } }
+    
     orders.forEach(order => {
-      const mealType = order.daily_menus?.meal_type || 'Unknown';
-      const key = `${order.date} - ${mealType}`;
-      if (!groups[key]) groups[key] = { date: order.date, mealType, orders: [], totalQty: 0, deliveredQty: 0 };
-      groups[key].orders.push(order);
-      groups[key].totalQty += order.count;
-      if (order.delivery_status === 'DELIVERED') groups[key].deliveredQty += order.count;
+      const date = order.date;
+      const customerName = order.customer?.full_name || 'Unknown';
+      
+      if (!groups[date]) {
+        groups[date] = { date, totalQty: 0, deliveredQty: 0, customers: {} };
+      }
+      
+      if (!groups[date].customers[customerName]) {
+        groups[date].customers[customerName] = {
+           name: customerName,
+           address: order.customer?.delivery_address,
+           orders: []
+        };
+      }
+      
+      groups[date].customers[customerName].orders.push(order);
+      groups[date].totalQty += order.count;
+      if (order.delivery_status === 'DELIVERED') groups[date].deliveredQty += order.count;
     });
+    
     return groups;
   }, [orders]);
 
@@ -102,15 +116,14 @@ export default function OrdersMgmt() {
         ) : !orders || orders.length === 0 ? (
           <div className="bg-surface-800 rounded-2xl border border-white/5 p-8 text-center text-slate-500">No orders found.</div>
         ) : (
-          Object.entries(groupedOrders).map(([key, group]) => {
-            // Default to open if not specifically toggled off
-            const isOpen = expandedGroups[key] !== false; 
+          Object.entries(groupedOrders).map(([date, group]) => {
+            const isOpen = expandedGroups[date] !== false; 
             
             return (
-              <div key={key} className="bg-surface-800 rounded-2xl border border-white/5 overflow-hidden transition-all">
+              <div key={date} className="bg-surface-800 rounded-2xl border border-white/5 overflow-hidden transition-all">
                 {/* Accordion Header */}
                 <button 
-                  onClick={() => toggleGroup(key)}
+                  onClick={() => toggleGroup(date)}
                   className="w-full px-6 py-4 flex items-center justify-between bg-surface-900/30 hover:bg-surface-900/50 transition-colors border-b border-white/5"
                 >
                   <div className="flex items-center gap-4">
@@ -118,7 +131,7 @@ export default function OrdersMgmt() {
                       🔽
                     </span>
                     <h3 className="text-lg font-bold text-white">
-                      {group.date} - <span className="text-fuchsia-400">{group.mealType}</span>
+                      {date} <span className="text-slate-400 font-normal">({Object.keys(group.customers).length} Customers)</span>
                     </h3>
                   </div>
                   <div className="flex items-center gap-6">
@@ -135,35 +148,24 @@ export default function OrdersMgmt() {
 
                 {/* Accordion Body */}
                 {isOpen && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-surface-900/20 border-b border-white/5 text-[10px] uppercase tracking-widest text-slate-500">
-                          <th className="px-6 py-3 font-bold">Customer</th>
-                          <th className="px-6 py-3 font-bold">Delivery Address</th>
-                          <th className="px-6 py-3 font-bold">Qty</th>
-                          <th className="px-6 py-3 font-bold">Status</th>
-                          <th className="px-6 py-3 font-bold text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {group.orders.map(order => (
-                          <tr key={order.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="px-6 py-4">
-                              <p className="font-bold text-white text-sm">{order.customer?.full_name}</p>
-                            </td>
-                            <td className="px-6 py-4">
-                              <p className="text-xs text-slate-400 truncate max-w-[250px]" title={order.customer?.delivery_address}>
-                                {order.customer?.delivery_address || '-'}
-                              </p>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-bold text-white">{order.count}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${getStatusColor(order.delivery_status)}`}>
-                                {order.delivery_status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
+                  <div className="divide-y divide-white/5">
+                    {Object.values(group.customers).map(customer => (
+                      <div key={customer.name} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="mb-3">
+                          <p className="font-bold text-white text-md">👤 {customer.name}</p>
+                          <p className="text-xs text-slate-400 mt-1">{customer.address || 'No delivery address provided'}</p>
+                        </div>
+                        
+                        <div className="ml-6 space-y-2">
+                          {customer.orders.map(order => (
+                            <div key={order.id} className="flex items-center justify-between bg-surface-900/50 rounded-lg p-3 border border-white/5">
+                              <div className="flex items-center gap-4">
+                                <span className="text-sm font-bold text-fuchsia-400 w-16">{order.daily_menus?.meal_type}</span>
+                                <span className="text-sm font-bold text-white">x{order.count}</span>
+                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border ${getStatusColor(order.delivery_status)}`}>
+                                  {order.delivery_status}
+                                </span>
+                              </div>
                               {order.delivery_status !== 'DELIVERED' && (
                                 <button 
                                   onClick={() => { if(window.confirm('Mark as DELIVERED? This will auto-deduct inventory for this order.')) statusMutation.mutate({ id: order.id, delivery_status: 'DELIVERED' }) }} 
@@ -172,11 +174,11 @@ export default function OrdersMgmt() {
                                   Mark Delivered
                                 </button>
                               )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
