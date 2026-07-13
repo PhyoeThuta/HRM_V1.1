@@ -4,8 +4,8 @@ import { supabaseAdmin } from '../lib/supabase.js';
 const router = express.Router();
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHEF_CHAT_ID = process.env.CHEF_CHAT_ID;
-const DELIVERY_CHAT_ID = process.env.DELIVERY_CHAT_ID;
+const CHEF_CHAT_ID = process.env.CHEF_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
+const DELIVERY_CHAT_ID = process.env.DELIVERY_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
 // Utility to send a message via Telegram
