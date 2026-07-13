@@ -307,7 +307,10 @@ router.post('/chat', async (req, res) => {
       const result = await generateWithRetry({ contents: history });
       const response = result.response;
       
-      history.push({ role: 'model', parts: response.parts });
+      // CRITICAL: response.parts may be undefined when function calling is used.
+      // Always use candidates[0].content.parts directly to build accurate history.
+      const modelParts = response.candidates?.[0]?.content?.parts || [];
+      history.push({ role: 'model', parts: modelParts });
       
       const functionCalls = response.functionCalls();
       if (!functionCalls || functionCalls.length === 0) {
