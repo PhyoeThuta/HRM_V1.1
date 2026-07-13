@@ -149,36 +149,54 @@ export default function OrdersMgmt() {
                 {/* Accordion Body */}
                 {isOpen && (
                   <div className="divide-y divide-white/5">
-                    {Object.values(group.customers).map(customer => (
-                      <div key={customer.name} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
-                        <div className="mb-3">
-                          <p className="font-bold text-white text-md">👤 {customer.name}</p>
-                          <p className="text-xs text-slate-400 mt-1">{customer.address || 'No delivery address provided'}</p>
-                        </div>
-                        
-                        <div className="ml-6 space-y-2">
-                          {customer.orders.map(order => (
-                            <div key={order.id} className="flex items-center justify-between bg-surface-900/50 rounded-lg p-3 border border-white/5">
-                              <div className="flex items-center gap-4">
-                                <span className="text-sm font-bold text-fuchsia-400 w-16">{order.daily_menus?.meal_type}</span>
-                                <span className="text-sm font-bold text-white">x{order.count}</span>
-                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border ${getStatusColor(order.delivery_status)}`}>
-                                  {order.delivery_status}
-                                </span>
-                              </div>
-                              {order.delivery_status !== 'DELIVERED' && (
-                                <button 
-                                  onClick={() => { if(window.confirm('Mark as DELIVERED? This will auto-deduct inventory for this order.')) statusMutation.mutate({ id: order.id, delivery_status: 'DELIVERED' }) }} 
-                                  className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-emerald-500/20"
-                                >
-                                  Mark Delivered
-                                </button>
-                              )}
+                    {Object.values(group.customers).map(customer => {
+                      const customerKey = `${date}-${customer.name}`;
+                      const isCustomerOpen = expandedGroups[customerKey] !== false; // Default open
+                      return (
+                      <div key={customer.name} className="hover:bg-white/[0.02] transition-colors">
+                        <button 
+                          onClick={() => toggleGroup(customerKey)}
+                          className="w-full px-6 py-4 flex items-center justify-between text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`text-sm text-slate-400 transition-transform duration-200 ${isCustomerOpen ? 'rotate-90' : ''}`}>
+                              ▶
+                            </span>
+                            <div>
+                              <p className="font-bold text-white text-md">👤 {customer.name}</p>
+                              <p className="text-xs text-slate-400 mt-1">{customer.address || 'No delivery address provided'}</p>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                          <div className="text-xs font-bold text-slate-500 bg-surface-900 px-3 py-1 rounded-full border border-white/5">
+                            {customer.orders.length} orders
+                          </div>
+                        </button>
+                        
+                        {isCustomerOpen && (
+                          <div className="px-6 pb-4 ml-8 space-y-2">
+                            {customer.orders.map(order => (
+                              <div key={order.id} className="flex items-center justify-between bg-surface-900/50 rounded-lg p-3 border border-white/5">
+                                <div className="flex items-center gap-4">
+                                  <span className="text-sm font-bold text-fuchsia-400 w-16">{order.daily_menus?.meal_type}</span>
+                                  <span className="text-sm font-bold text-white">x{order.count}</span>
+                                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border ${getStatusColor(order.delivery_status)}`}>
+                                    {order.delivery_status}
+                                  </span>
+                                </div>
+                                {order.delivery_status !== 'DELIVERED' && (
+                                  <button 
+                                    onClick={() => { if(window.confirm('Mark as DELIVERED? This will auto-deduct inventory for this order.')) statusMutation.mutate({ id: order.id, delivery_status: 'DELIVERED' }) }} 
+                                    className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-emerald-500/20"
+                                  >
+                                    Mark Delivered
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>
