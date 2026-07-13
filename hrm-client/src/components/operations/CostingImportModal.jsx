@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import api from '../../../api/client';
+import api from '../../api/client';
 
 export default function CostingImportModal({ isOpen, onClose, onSuccess }) {
   const [isUploading, setIsUploading] = useState(false);
