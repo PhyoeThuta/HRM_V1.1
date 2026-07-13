@@ -1,6 +1,10 @@
 import express from 'express';
-import { supabase } from '../lib/supabase.js';
+import { supabase, supabaseAdmin } from '../lib/supabase.js';
 import { verifyToken, requireOperations } from '../middleware/auth.js';
+import multer from 'multer';
+import xlsx from 'xlsx';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 router.use(verifyToken);
@@ -136,8 +140,127 @@ router.delete('/menus/:id', async (req, res) => {
 });
 
 // ==========================================
-// DYNAMIC COSTING
+// DYNAMIC COSTING & IMPORT
 // ==========================================
+
+router.post('/import-costing', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+    const parsedMenus = [];
+    let currentMenu = null;
+
+    for (let r = 0; r < data.length; r++) {
+      const row = data[r];
+      if (!row || !row[0]) continue;
+
+      const titleRaw = row[0].toString().trim();
+      const match = titleRaw.match(/^([A-Z\s]+[0-9]{3,4})\s*-\s*([^\(]+)(?:\((.+)\))?/);
+      
+      if (match) {
+        if (currentMenu) parsedMenus.push(currentMenu);
+        currentMenu = {
+          code: match[1].trim(),
+          name_en: match[2].trim(),
+          name_mm: match[3] ? match[3].trim() : '',
+          sales_prices: 0,
+          ingredients: []
+        };
+        continue;
+      }
+
+      if (currentMenu && titleRaw.toLowerCase().includes('sales prices')) {
+        const priceMatch = titleRaw.match(/[\d.]+/);
+        if (priceMatch) currentMenu.sales_prices = parseFloat(priceMatch[0]);
+        continue;
+      }
+
+      if (currentMenu && titleRaw.toLowerCase() === 'description') {
+        continue;
+      }
+      
+      if (currentMenu && titleRaw.toLowerCase().includes('total bill of materials')) {
+        continue;
+      }
+
+      if (currentMenu && row[2] !== undefined && row[3] !== undefined) {
+        currentMenu.ingredients.push({
+          name: titleRaw,
+          qty: parseFloat(row[2]) || 0,
+          uom: row[3].toString().trim().toLowerCase()
+        });
+      }
+    }
+    
+    if (currentMenu) parsedMenus.push(currentMenu);
+
+    let menusCreated = 0;
+    let itemsCreated = 0;
+    let recipesCreated = 0;
+
+    for (const menu of parsedMenus) {
+      // 1. Insert/Update Menu
+      const { data: existingMenu } = await supabaseAdmin.from('operations_menus').select('id').eq('name_en', menu.name_en).limit(1);
+      let menuId;
+      if (existingMenu && existingMenu.length > 0) {
+        menuId = existingMenu[0].id;
+        await supabaseAdmin.from('operations_menus').update({
+          code: menu.code,
+          name_mm: menu.name_mm,
+          sales_prices: menu.sales_prices,
+          updated_at: new Date().toISOString()
+        }).eq('id', menuId);
+      } else {
+        const { data: newMenu } = await supabaseAdmin.from('operations_menus').insert({
+          code: menu.code,
+          name_en: menu.name_en,
+          name_mm: menu.name_mm,
+          sales_prices: menu.sales_prices
+        }).select('id');
+        menuId = newMenu[0].id;
+        menusCreated++;
+      }
+
+      // Clear existing recipes for this menu so we don't duplicate
+      await supabaseAdmin.from('operations_recipes').delete().eq('menu_id', menuId);
+
+      // 2. Insert/Update Ingredients & Recipes
+      for (const ing of menu.ingredients) {
+        const { data: existingItem } = await supabaseAdmin.from('inventory_items').select('id').eq('name_eng', ing.name).limit(1);
+        let itemId;
+        if (existingItem && existingItem.length > 0) {
+          itemId = existingItem[0].id;
+        } else {
+          const { data: newItem } = await supabaseAdmin.from('inventory_items').insert({
+            name_eng: ing.name,
+            category: 'RECIPE_INGREDIENT',
+            unit_of_measure: ing.uom
+          }).select('id');
+          itemId = newItem[0].id;
+          itemsCreated++;
+        }
+
+        // Add Recipe
+        await supabaseAdmin.from('operations_recipes').insert({
+          menu_id: menuId,
+          inventory_item_id: itemId,
+          quantity: ing.qty,
+          unit_of_measure: ing.uom
+        });
+        recipesCreated++;
+      }
+    }
+
+    return res.json({ success: true, menusCreated, itemsCreated, recipesCreated, parsedMenusCount: parsedMenus.length });
+  } catch (err) {
+    console.error('[IMPORT COSTING]', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 router.post('/recalculate-bom', async (req, res) => {
   try {

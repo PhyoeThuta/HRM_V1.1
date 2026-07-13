@@ -4,10 +4,12 @@ import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import OpsNavBar from './OpsNavBar';
+import CostingImportModal from '../../components/operations/CostingImportModal';
 
 export default function MenusMgmt() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState(null);
   
@@ -88,8 +90,11 @@ export default function MenusMgmt() {
         >
           {recalculateMutation.isLoading ? 'Recalculating...' : 'Recalculate BOM Costs'}
         </button>
-        <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 transition-all">
-          + Add New Menu
+        <button onClick={() => setIsImportModalOpen(true)} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
+          <span>📥</span> Import Costing Excel
+        </button>
+        <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-500/20 transition-all flex items-center gap-2">
+          <span>+</span> Add New Menu
         </button>
       </div>
 
@@ -254,6 +259,11 @@ export default function MenusMgmt() {
         </div>
       )}
 
+      <CostingImportModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries(['menus'])}
+      />
     </Layout>
   );
 }
