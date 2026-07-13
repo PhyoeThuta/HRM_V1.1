@@ -303,23 +303,23 @@ router.post('/chat', async (req, res) => {
     let finalResponseText = "";
     let toolCallCount = 0;
 
-    while (toolCallCount < 5) {
+    while (toolCallCount < 8) {
       const result = await generateWithRetry({ contents: history });
       const response = result.response;
       
-      // CRITICAL: response.parts may be undefined when function calling is used.
-      // Always use candidates[0].content.parts directly to build accurate history.
+      // CRITICAL: Use candidates[0].content.parts — response.parts is undefined during function calling
       const modelParts = response.candidates?.[0]?.content?.parts || [];
       history.push({ role: 'model', parts: modelParts });
       
       const functionCalls = response.functionCalls();
       if (!functionCalls || functionCalls.length === 0) {
+        // AI finished — no more tool calls
         try {
-          finalResponseText = response.text();
+          finalResponseText = response.text() || "";
         } catch (e) {
-          finalResponseText = "I'm sorry Boss, but I encountered an internal error trying to respond. My response might have been blocked by safety filters or an empty generation issue.";
+          finalResponseText = "";
         }
-        break; // No more tool calls, AI has answered
+        break;
       }
       
       const call = functionCalls[0];
@@ -358,7 +358,7 @@ router.post('/chat', async (req, res) => {
           }
           const { data, error } = await q;
           if (error) throw error;
-          apiRes = { records: data };
+          apiRes = { records: data || [] };
 
         } else if (call.name === "approve_leave_requests") {
           const { employee_id } = call.args;
@@ -383,12 +383,10 @@ router.post('/chat', async (req, res) => {
 
         } else if (call.name === "extend_customer_package") {
           const { customer_name, days } = call.args;
-          // Find the customer
           const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
             .select('id, full_name').ilike('full_name', `%${customer_name}%`).limit(1);
           if (!customers || customers.length === 0) throw new Error(`Customer '${customer_name}' not found`);
           const cust = customers[0];
-          // Find their active package
           const { data: pkgs } = await supabaseAdmin.schema('crm').from('customer_packages')
             .select('id, expires_at').eq('customer_id', cust.id).eq('status', 'Active').limit(1);
           if (!pkgs || pkgs.length === 0) throw new Error(`No active package found for ${cust.full_name}`);
@@ -418,22 +416,24 @@ router.post('/chat', async (req, res) => {
         apiRes = { error: err.message };
       }
       
+      // Push function response as a proper user turn (never mix with text parts)
       history.push({ role: 'user', parts: [{ functionResponse: { name: call.name, response: apiRes } }] });
       toolCallCount++;
     }
     
-    // If we maxed out tool calls and didn't get text, force a final summary by appending to the last user turn
-    if (toolCallCount >= 5 && !finalResponseText) {
-       history[history.length - 1].parts.push({ text: "You have used the maximum allowed tool calls. Stop calling tools and please summarize the data you have found so far." });
-       try {
-         const result = await generateWithRetry({ contents: history });
-         finalResponseText = result.response.text();
-       } catch (e) {
-         finalResponseText = "I'm sorry Boss, I had to stop searching because the task was too complex. Please try breaking your question down.";
-       }
+    // If AI never gave text (maxed out tool calls), add a proper NEW user turn to force a final answer
+    if (!finalResponseText) {
+      history.push({ role: 'user', parts: [{ text: "Please stop calling tools now. Based on all the data you have gathered, write your final answer to the Boss's question. Reply in Myanmar if the question was in Myanmar." }] });
+      try {
+        const forcedResult = await generateWithRetry({ contents: history });
+        finalResponseText = forcedResult.response.text() || "";
+      } catch (e) {
+        finalResponseText = "";
+      }
     }
-    
-    const responseText = finalResponseText || "I'm sorry Boss, I was unable to generate a response. Please try again.";
+
+    const responseText = finalResponseText || "ဆာဗာ ပြဿနာ တစ်ခု ဖြစ်နေပါတယ် Boss ရှင့်။ နောက်တစ်ကြိမ် ထပ်မေးကြည့်ပေးပါ။";
+
 
     // Insert AI response
     await supabaseAdmin.from('boss_chat_messages').insert({
