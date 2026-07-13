@@ -8,7 +8,15 @@ import OpsNavBar from './OpsNavBar';
 export default function OpsDashboard() {
   const queryClient = useQueryClient();
   const [isPlannerOpen, setIsPlannerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [planForm, setPlanForm] = useState({ date: new Date().toISOString().split('T')[0], meal_type: 'LUNCH', with_rice: true, selectedMenus: [] });
+
+  // Generate 7 days for the calendar
+  const weekDays = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
 
   const { data: dailyMenus, isLoading } = useQuery({ queryKey: ['daily-menus'], queryFn: () => api.get('/operations/daily-menus').then(res => res.data) });
   const { data: orders } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
@@ -76,33 +84,67 @@ export default function OpsDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Scheduled Menus List */}
-        <div className="bg-surface-800 p-6 rounded-2xl border border-white/5">
-          <h3 className="text-lg font-bold text-white mb-6">Upcoming Scheduled Menus</h3>
+        <div className="bg-surface-800 p-6 rounded-2xl border border-white/5 flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-white">Upcoming Menus</h3>
+            <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">Next 7 Days</span>
+          </div>
+
+          {/* Horizontal Calendar Selector */}
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
+            {weekDays.map(dateStr => {
+              const d = new Date(dateStr);
+              const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+              const dayNum = d.getDate();
+              const isSelected = dateStr === selectedDate;
+              return (
+                <button 
+                  key={dateStr}
+                  onClick={() => setSelectedDate(dateStr)}
+                  className={`flex flex-col items-center justify-center min-w-[64px] h-[72px] rounded-2xl border transition-all ${
+                    isSelected 
+                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)]' 
+                      : 'bg-surface-900 border-white/5 text-slate-400 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-wider mb-1">{dayName}</span>
+                  <span className="text-xl font-black">{dayNum}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {isLoading ? (
-            <div className="text-slate-500">Loading schedule...</div>
-          ) : dailyMenus?.length > 0 ? (
-            <div className="space-y-4">
-              {dailyMenus.map(dm => (
-                <div key={dm.id} className="p-4 bg-surface-900 rounded-xl border border-white/5">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <span className={`px-2 py-1 text-[10px] font-bold rounded ${dm.meal_type === 'LUNCH' ? 'bg-amber-500/10 text-amber-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
-                        {dm.meal_type}
-                      </span>
-                      <p className="font-bold text-white mt-2">{dm.date}</p>
-                    </div>
-                    {dm.with_rice && <span className="text-xs bg-white/10 px-2 py-1 rounded text-slate-300 font-bold">W/ Rice</span>}
-                  </div>
-                  <div className="space-y-1">
-                    {dm.menu_types?.map(mt => (
-                      <p key={mt.id} className="text-sm text-slate-300">• {mt.menus?.name_en}</p>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="text-slate-500 text-center py-8">Loading schedule...</div>
           ) : (
-             <div className="flex items-center justify-center h-[150px] text-slate-500 bg-surface-900/50 rounded-xl">No menus scheduled yet</div>
+            <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {(() => {
+                const menusForDate = dailyMenus?.filter(dm => dm.date === selectedDate) || [];
+                if (menusForDate.length === 0) {
+                  return <div className="flex items-center justify-center h-[120px] text-slate-500 bg-surface-900/50 rounded-xl border border-white/5">No menus scheduled for this date</div>;
+                }
+                return menusForDate.map(dm => (
+                  <div key={dm.id} className="p-4 bg-surface-900 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 text-[10px] font-black rounded-lg ${dm.meal_type === 'LUNCH' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                          {dm.meal_type}
+                        </span>
+                        {dm.with_rice && <span className="text-[10px] bg-white/10 px-2 py-1 rounded-md text-slate-300 font-bold">W/ Rice</span>}
+                      </div>
+                    </div>
+                    <div className="space-y-2 mt-4">
+                      {dm.menu_types?.map(mt => (
+                        <div key={mt.id} className="flex items-center gap-3 text-sm text-slate-300">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-500"></div>
+                          <p>{mt.menus?.name_en} {mt.menus?.name_mm ? <span className="text-slate-500 ml-1">({mt.menus.name_mm})</span> : ''}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
           )}
         </div>
 
