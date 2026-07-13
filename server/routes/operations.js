@@ -425,6 +425,86 @@ router.post('/orders', async (req, res) => {
   }
 });
 
+router.post('/orders/auto-generate', async (req, res) => {
+  try {
+    const targetDate = req.body.date || new Date().toISOString().split('T')[0];
+
+    // 1. Fetch planned menus for target date
+    const { data: dailyMenus, error: menuErr } = await supabase
+      .from('operations_daily_menus')
+      .select('*')
+      .eq('date', targetDate);
+    
+    if (menuErr) throw menuErr;
+    if (!dailyMenus || dailyMenus.length === 0) {
+      return res.status(400).json({ error: 'No daily menus planned for this date.' });
+    }
+
+    // 2. Fetch active customer packages overlapping target date
+    const { data: packages, error: pkgErr } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_packages')
+      .select('*')
+      .eq('status', 'Active')
+      .lte('start_date', targetDate)
+      .gte('expires_at', targetDate);
+      
+    if (pkgErr) throw pkgErr;
+    if (!packages || packages.length === 0) {
+      return res.json({ success: true, generatedCount: 0, message: 'No active packages found for this date.' });
+    }
+
+    // 3. Fetch existing orders to prevent duplicates
+    const { data: existingOrders, error: orderErr } = await supabase
+      .from('operations_orders')
+      .select('customer_id, daily_menus_id')
+      .eq('date', targetDate);
+      
+    if (orderErr) throw orderErr;
+    
+    const existingSet = new Set(existingOrders?.map(o => `${o.customer_id}-${o.daily_menus_id}`) || []);
+
+    const newOrders = [];
+
+    // 4. Match packages to daily menus
+    for (const pkg of packages) {
+      const pkgMeals = (pkg.meal_type || '').toUpperCase(); // e.g. "LUNCH, DINNER"
+      
+      for (const menu of dailyMenus) {
+        const menuType = (menu.meal_type || '').toUpperCase(); // e.g. "LUNCH"
+        
+        if (pkgMeals.includes(menuType)) {
+          const comboKey = `${pkg.customer_id}-${menu.id}`;
+          if (!existingSet.has(comboKey)) {
+            newOrders.push({
+              customer_id: pkg.customer_id,
+              daily_menus_id: menu.id,
+              date: targetDate,
+              count: 1,
+              delivery_status: 'PENDING',
+              created_by: req.user.id
+            });
+            existingSet.add(comboKey); // Prevent duplicates in the same loop if any
+          }
+        }
+      }
+    }
+
+    // 5. Bulk Insert
+    if (newOrders.length > 0) {
+      const { error: insertErr } = await supabase
+        .from('operations_orders')
+        .insert(newOrders);
+        
+      if (insertErr) throw insertErr;
+    }
+
+    return res.json({ success: true, generatedCount: newOrders.length });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 router.put('/orders/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
