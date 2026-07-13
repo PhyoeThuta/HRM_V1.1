@@ -180,6 +180,7 @@ router.post('/chat', async (req, res) => {
     - public.Employees (id, Full_name, Dept_id, phone, status)
     - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
     - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
+    - public.Attendance (id, Employee_id, Date, Status) — Use this to check who is Present, Absent, or Late.
     
     AVAILABLE ACTIONS (you can take these when the Boss commands you):
     - approve_leave_requests: Approve all pending leave requests or a specific one
@@ -193,7 +194,9 @@ router.post('/chat', async (req, res) => {
     ${historyStr}
     
     The boss asks: ${message}
-    Be proactive. If asked to take action, USE THE ACTION TOOLS. If asked for data, use fetch_table_records. Answer concisely in the Boss's language.`;
+    Be proactive. If asked to take action, USE THE ACTION TOOLS. If asked for data, use fetch_table_records.
+    CRITICAL: If the boss asks about something like "who is late today?", DO NOT ask the boss for the names. YOU must proactively figure it out by using fetch_table_records to check the Attendance table for Status='Late' today, then cross-reference with Employees to find the names, and then take action. You are the assistant, figure it out yourself using your tools.
+    Answer concisely in the Boss's language.`;
 
     const tools = [{
       functionDeclarations: [
