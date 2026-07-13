@@ -61,6 +61,17 @@ router.get('/chat/sessions/:id/messages', async (req, res) => {
   }
 });
 
+// DELETE /api/boss/chat/sessions/:id
+router.delete('/chat/sessions/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseAdmin.from('boss_chat_sessions').delete().eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/boss/chat
 router.post('/chat', async (req, res) => {
   try {
@@ -88,70 +99,46 @@ router.post('/chat', async (req, res) => {
       role: 'user',
       content: message
     });
+    // --- FETCH BASE HR CONTEXT ---
     const [
-      employees, kpiAssigns, payrolls, attendance,
-      departments, positions, leaves, leaveTypes,
-      announcements, sops, peerVotes
+      employees, kpiAssigns, leaves
     ] = await Promise.all([
-      dbFetch('Employees', '*', { status: 'Active' }),
-      dbFetch('boss_kpi_assignments', '*'),
-      dbFetch('payrolls', '*', {}, { order: 'month', ascending: false }),
-      dbFetch('attendance_records', '*', {}, { order: 'check_in', ascending: false }),
-      dbFetch('Departments', '*'),
-      dbFetch('positions', '*'),
-      dbFetch('Leave_Request', '*', {}, { order: 'created_at', ascending: false }),
-      dbFetch('Leave_type', '*'),
-      dbFetch('announcements', '*', {}, { order: 'created_at', ascending: false }),
-      dbFetch('daily_sops', '*'),
-      dbFetch('peer_voting_records', '*')
+      dbFetch('Employees', 'id, Full_name, status, Dept_id', { status: 'Active' }),
+      dbFetch('boss_kpi_assignments', 'id, title, status, employee_id'),
+      dbFetch('Leave_Request', 'id, employee_id, status, total_days', {}, { order: 'created_at', ascending: false })
     ]);
 
-    const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
-    const deptMap = Object.fromEntries(departments.map(d => [d.id, d.Department_name]));
+    let contextStr = `BASIC HR OVERVIEW:\nActive Employees: ${employees.length}\n`;
 
-    let contextStr = `SYSTEM OVERVIEW:
-Total Employees: ${employees.length}
-Total Departments: ${departments.length}
-Total Positions: ${positions.length}
-Total Active Announcements: ${announcements.length}
-
-EMPLOYEE MASTER DATA & PERFORMANCE:
-`;
-    employees.forEach(emp => {
-      const empKpis = kpiAssigns.filter(k => k.employee_id === emp.id);
-      const empPayslips = payrolls.filter(p => p.employee_id === emp.id).slice(0, 3);
-      const empAtt = attendance.filter(a => a.employee_id === emp.id);
-      const empLeaves = leaves.filter(l => l.employee_id === emp.id);
-      const empSops = sops.filter(s => s.employee_id === emp.id);
-      const empVotes = peerVotes.filter(v => v.nominee_id === emp.id);
-      
-      contextStr += `- ${emp.Full_name} (ID: ${emp.id}):
-  Status: ${emp.status}, Position: ${posMap[emp.position_id] || 'Unknown'}, Dept: ${deptMap[emp.Dept_id] || 'Unknown'}, Hire Date: ${emp.hire_date || 'N/A'}, Base Salary: $${emp.base_salary || 0}
-`;
-      if (empKpis.length > 0) {
-        contextStr += `  KPIs: ${empKpis.map(k => `${k.title} (Status: ${k.status}, Target: ${k.target_value}, Actual: ${k.current_value})`).join(' | ')}\n`;
-      }
-      if (empPayslips.length > 0) {
-        contextStr += `  Payslips: ${empPayslips.map(p => `Month: ${p.month}, Base: $${p.base_salary}, Net: $${p.net_salary || p.net_pay}, KPI Score: ${p.final_kpi_score}%`).join(' | ')}\n`;
-      }
-      if (empAtt.length > 0) {
-        const lateDays = empAtt.filter(a => a.is_late).length;
-        contextStr += `  Attendance: Total Logs: ${empAtt.length}, Late: ${lateDays}, On Time: ${empAtt.length - lateDays}\n`;
-      }
-      if (empLeaves.length > 0) {
-        contextStr += `  Leaves (Last 3): ${empLeaves.slice(0,3).map(l => `Type: ${l.leave_type_id}, Status: ${l.status}, Days: ${l.total_days}`).join(' | ')}\n`;
-      }
-      if (empSops.length > 0) {
-        contextStr += `  SOP Executions: ${empSops.length} tasks completed.\n`;
-      }
-      if (empVotes.length > 0) {
-        contextStr += `  Peer Votes Received: ${empVotes.length} votes.\n`;
-      }
-    });
-
-    if (announcements.length > 0) {
-      contextStr += `\nRECENT ANNOUNCEMENTS:\n${announcements.slice(0,5).map(a => `- [${a.created_at}] ${a.title}: ${a.content}`).join('\n')}\n`;
+    // --- RAG (Retrieval-Augmented Generation) SEMANTIC SEARCH ---
+    // Generate embedding for the user's message
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    let queryEmbedding = null;
+    try {
+      const embedResult = await embeddingModel.embedContent(message);
+      queryEmbedding = embedResult.embedding.values;
+    } catch (embErr) {
+      console.error('[BOSS CHAT] Embedding failed:', embErr);
     }
+
+    let extraKnowledge = "";
+    if (queryEmbedding) {
+      // Call Supabase RPC to find relevant chunks from ai_knowledge_base
+      const { data: matchedDocs, error: matchErr } = await supabaseAdmin.rpc('match_knowledge', {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.5,
+        match_count: 10
+      });
+
+      if (!matchErr && matchedDocs && matchedDocs.length > 0) {
+        extraKnowledge = "\n\nRELEVANT BUSINESS DATA FOUND (CRM, INVENTORY, OPS):\n";
+        matchedDocs.forEach(doc => {
+          extraKnowledge += `- ${doc.content}\n`;
+        });
+      }
+    }
+
+    contextStr += extraKnowledge;
 
     const { data: pastMessages } = await supabaseAdmin.from('boss_chat_messages')
       .select('role, content')
@@ -165,13 +152,17 @@ EMPLOYEE MASTER DATA & PERFORMANCE:
     }
 
     const prompt = `You are Busy Boss Diet AI, an omniscient AI executive assistant for the Boss.
-    You have complete access to the HR database. Do NOT say you will check the system later, you ALREADY have the data below.
-    Context Data:
+    BILINGUAL INSTRUCTION: You are fully bilingual in English and Myanmar (Burmese). 
+    - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script). 
+    - If the user asks in English, reply in English.
+    
+    You have access to a semantic search engine that pulls relevant records from HR, CRM, Operations, and Inventory based on the user's question. 
+    Context Data (Includes retrieved facts from RAG):
     ${contextStr}
     ${historyStr}
     
     The boss asks: ${message}
-    Please answer concisely, professionally, and directly using the provided data. If asked about general HR facts, departments, salaries, or leaves, use the context provided.`;
+    Please answer concisely, professionally, and directly using ONLY the provided data. If the data is not in the context, say you don't know or don't have the data.`;
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
     

@@ -47,6 +47,23 @@ export default function BossChat() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/boss/chat/sessions/${id}`),
+    onSuccess: (_, deletedId) => {
+      queryClient.invalidateQueries(['boss-chat-sessions']);
+      if (activeSessionId === deletedId) {
+        setActiveSessionId(null);
+      }
+    }
+  });
+
+  const handleDelete = (e, id) => {
+    e.stopPropagation(); // Prevent row click from activating the session
+    if (window.confirm("Are you sure you want to delete this chat?")) {
+      deleteMutation.mutate(id);
+    }
+  };
+
   const send = (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -82,17 +99,24 @@ export default function BossChat() {
               <div className="text-center text-slate-500 py-4 text-sm">No recent chats</div>
             ) : (
               sessions.map(session => (
-                <button
+                <div 
                   key={session.id}
-                  onClick={() => setActiveSessionId(session.id)}
-                  className={`w-full text-left px-4 py-3 rounded-xl transition-all truncate text-sm font-bold ${
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all cursor-pointer ${
                     activeSessionId === session.id 
                       ? 'bg-white/10 text-white' 
                       : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
                   }`}
+                  onClick={() => setActiveSessionId(session.id)}
                 >
-                  {session.title}
-                </button>
+                  <span className="truncate text-sm font-bold flex-1">{session.title}</span>
+                  <button 
+                    onClick={(e) => handleDelete(e, session.id)}
+                    className="ml-2 p-1 text-slate-500 hover:text-red-400 transition-colors"
+                    title="Delete Chat"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </div>
               ))
             )}
           </div>

@@ -9,6 +9,7 @@ dotenv.config();
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { initCrmRealtime } from './lib/crmRealtime.js';
+import { startVectorSyncCron } from './services/vectorSync.js';
 
 // Routes
 import authRouter from './routes/auth.js';
@@ -133,4 +134,5 @@ server.listen(PORT, () => {
 
   // Start background jobs
   startBirthdayCron();
+  startVectorSyncCron();
 });
