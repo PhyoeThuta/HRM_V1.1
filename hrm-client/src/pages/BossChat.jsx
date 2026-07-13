@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function BossChat() {
   const queryClient = useQueryClient();
@@ -86,6 +88,23 @@ export default function BossChat() {
     setInput('');
   };
 
+  const exportToPDF = (text) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Busy Boss Diet - AI Report", 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(80, 80, 80);
+    
+    // Split text into lines to fit page width
+    const splitText = doc.splitTextToSize(text, 180);
+    doc.text(splitText, 14, 30);
+    
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`Boss_AI_Report_${dateStr}.pdf`);
+  };
+
   return (
     <Layout title="AI Assistant" subtitle="Gemini-powered HR intelligence">
       <div className="flex h-[calc(100vh-180px)] rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -136,8 +155,20 @@ export default function BossChat() {
           <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-6 py-4 shadow-sm ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-surface-800 text-slate-300 border border-white/5'}`}>
-                  {m.role === 'ai' && <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Boss AI</div>}
+                <div className={`max-w-[85%] rounded-2xl px-6 py-4 shadow-sm relative group ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-surface-800 text-slate-300 border border-white/5'}`}>
+                  {m.role === 'ai' && (
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Boss AI</div>
+                      <button 
+                        onClick={() => exportToPDF(m.text)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white text-[10px] font-bold flex items-center gap-1.5"
+                        title="Export to PDF"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Export PDF
+                      </button>
+                    </div>
+                  )}
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text || <span className="italic text-slate-500">...</span>}</p>
                 </div>
               </div>
