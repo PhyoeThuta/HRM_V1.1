@@ -198,7 +198,6 @@ router.post('/chat', async (req, res) => {
     - generate_pdf_report: Generate a PDF report and get a downloadable URL. 
     CRITICAL: When providing the PDF link to the user, you MUST use EXACTLY the relative path returned by the tool (e.g. [Download Report](/api/uploads/report_xxx.pdf)). DO NOT add https:// or any fake domain names like web.app! 
     IMPORTANT: When asked to generate a report on feedback, attendance, etc., you MUST thoroughly ANALYZE the data first. The content of the PDF should NOT just be raw data dumps. It must include your Executive Analysis, Insights, and Actionable Recommendations.
-    VERY IMPORTANT: The text content inside the PDF MUST BE IN ENGLISH ONLY. Our PDF generator cannot render Myanmar/Burmese fonts correctly. If you write Burmese in the PDF, it will appear as broken square boxes. Always translate the report to English for the PDF, but you can continue chatting in Myanmar in the chatbox.
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
@@ -506,7 +505,7 @@ router.post('/chat', async (req, res) => {
 
           const doc = new PDFDocument();
           
-          const fontPath = path.join(process.cwd(), 'fonts', 'NotoSansMyanmar-Regular.ttf');
+          const fontPath = path.join(process.cwd(), 'fonts', 'Padauk-Regular.ttf');
           if (fs.existsSync(fontPath)) {
             doc.registerFont('Myanmar', fontPath);
             doc.font('Myanmar');
