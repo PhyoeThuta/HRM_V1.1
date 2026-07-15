@@ -4,6 +4,9 @@ import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { validate } from '../middleware/validate.js';
 import { createUserSchema } from '../schemas/index.js';
+import fs from 'fs';
+import path from 'path';
+import PDFDocument from 'pdfkit';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -178,6 +181,7 @@ router.post('/chat', async (req, res) => {
     - crm.customers (id, full_name, phone, delivery_address, created_at)
     - crm.inquiries (id, prospect_name, phone, status, service_interest)
     - crm.customer_packages (id, customer_id, start_date, expires_at, meal_count, status)
+    - crm.feedbacks (id, customer_id, rating, comment, created_at) — Use this to read customer feedbacks.
     - public.Employees (id, Full_name, Dept_id, phone, status)
     - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
     - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
@@ -191,6 +195,7 @@ router.post('/chat', async (req, res) => {
     - extend_customer_package: Extend a customer's diet package expiry by N days
     - create_kpi_task: Create and assign a KPI task to an employee
     - send_team_announcement: Send an official company-wide announcement to the system and Telegram
+    - generate_pdf_report: Generate a PDF report and get a downloadable URL.
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
@@ -295,6 +300,18 @@ router.post('/chat', async (req, res) => {
               title: { type: "STRING", description: "Title of the announcement" },
               content: { type: "STRING", description: "The full message content" },
               priority: { type: "STRING", description: "Priority level: 'Normal', 'High', or 'Urgent'" }
+            },
+            required: ["title", "content"]
+          }
+        },
+        {
+          name: "generate_pdf_report",
+          description: "Generate a formatted PDF report with provided text content and return a downloadable URL.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING", description: "Title of the report" },
+              content: { type: "STRING", description: "The content of the report to be written into the PDF." }
             },
             required: ["title", "content"]
           }
@@ -475,6 +492,29 @@ router.post('/chat', async (req, res) => {
             }).catch(() => {});
           }
           apiRes = { success: true, message: `Announcement '${title}' broadcasted to the team successfully.` };
+        } else if (call.name === "generate_pdf_report") {
+          const { title, content } = call.args;
+          const fileName = `report_${Date.now()}.pdf`;
+          const filePath = path.join(process.cwd(), 'uploads', fileName);
+          
+          if (!fs.existsSync(path.join(process.cwd(), 'uploads'))) {
+            fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
+          }
+
+          const doc = new PDFDocument();
+          const writeStream = fs.createWriteStream(filePath);
+          doc.pipe(writeStream);
+          
+          doc.fontSize(20).text(title, { align: 'center' }).moveDown(2);
+          doc.fontSize(12).text(content);
+          doc.end();
+          
+          await new Promise(resolve => writeStream.on('finish', resolve));
+          
+          // Since it's a relative API route, the frontend handles the domain. 
+          // We can return the relative path to uploads/
+          const url = `/uploads/${fileName}`;
+          apiRes = { success: true, url, message: "PDF Generated successfully" };
         }
       } catch (err) {
         apiRes = { error: err.message };
