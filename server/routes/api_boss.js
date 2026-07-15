@@ -505,6 +505,7 @@ router.post('/chat', async (req, res) => {
           }
 
           const { default: puppeteer } = await import('puppeteer');
+          const { marked } = await import('marked');
           const browser = await puppeteer.launch({
             headless: "new",
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
@@ -518,22 +519,25 @@ router.post('/chat', async (req, res) => {
               <meta charset="UTF-8">
               <style>
                 body { 
-                  font-family: 'Padauk', 'Pyidaungsu', 'Myanmar Text', sans-serif; 
+                  font-family: 'Padauk', 'Pyidaungsu', 'Myanmar Text', 'Noto Sans Myanmar', sans-serif; 
                   padding: 40px; 
                   line-height: 1.6; 
                   color: #333;
                 }
-                h1 { text-align: center; color: #1a365d; margin-bottom: 30px; }
-                pre { 
-                  white-space: pre-wrap; 
-                  font-family: inherit;
-                  font-size: 12px;
-                }
+                h1 { text-align: center; color: #1a365d; margin-bottom: 30px; font-size: 28px; }
+                h2, h3 { color: #2d3748; margin-top: 20px; }
+                p { margin-bottom: 12px; font-size: 14px; }
+                ul, ol { margin-bottom: 16px; padding-left: 20px; font-size: 14px; }
+                li { margin-bottom: 8px; }
+                strong { color: #1a202c; }
+                .content { max-width: 800px; margin: 0 auto; }
               </style>
             </head>
             <body>
               <h1>${title}</h1>
-              <pre>${content}</pre>
+              <div class="content">
+                ${marked.parse(content)}
+              </div>
             </body>
             </html>
           `;
