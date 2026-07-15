@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
@@ -148,27 +149,38 @@ export default function OpsDashboard() {
           )}
         </div>
 
-        {/* Recent Orders */}
+        {/* Pending Orders */}
         <div className="bg-surface-800 p-6 rounded-2xl border border-white/5">
-          <h3 className="text-lg font-bold text-white mb-6">Recent Orders Summary</h3>
-          {orders && orders.length > 0 ? (
-            <div className="space-y-4">
-              {orders.slice(0, 5).map(o => (
-                <div key={o.id} className="flex justify-between items-center p-4 bg-surface-900 rounded-xl border border-white/5">
-                  <div>
-                    <p className="font-bold text-white">{o.customer?.full_name}</p>
-                    <p className="text-xs text-slate-400">{o.daily_menus?.meal_type} - {o.date}</p>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-white">Pending Orders</h3>
+            <Link to="/operations/orders" className="text-sm font-bold text-fuchsia-400 hover:text-fuchsia-300 transition-colors">
+              View All Orders ↗
+            </Link>
+          </div>
+          {(() => {
+            const pendingOrders = orders ? orders.filter(o => o.delivery_status === 'PENDING') : [];
+            return pendingOrders.length > 0 ? (
+              <div className="space-y-4">
+                {pendingOrders.slice(0, 5).map(o => (
+                  <div key={o.id} className="flex justify-between items-center p-4 bg-surface-900 rounded-xl border border-white/5">
+                    <div>
+                      <p className="font-bold text-white">{o.customer?.full_name}</p>
+                      <p className="text-xs text-slate-400">{o.daily_menus?.meal_type} - {o.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-fuchsia-400">{o.count} Meals</p>
+                      <p className="text-[10px] uppercase font-bold tracking-widest text-amber-400">{o.delivery_status}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-fuchsia-400">{o.count} Meals</p>
-                    <p className={`text-[10px] uppercase font-bold tracking-widest ${o.delivery_status==='DELIVERED'?'text-emerald-400':o.delivery_status==='PENDING'?'text-amber-400':'text-rose-400'}`}>{o.delivery_status}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-[150px] text-slate-500 bg-surface-900/50 rounded-xl">No orders data available</div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[150px] text-emerald-500 bg-surface-900/50 rounded-xl border border-white/5">
+                <span className="text-2xl mb-2">✅</span>
+                <span className="font-bold">No pending orders.</span>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
