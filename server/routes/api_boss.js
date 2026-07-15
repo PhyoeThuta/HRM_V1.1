@@ -503,22 +503,43 @@ router.post('/chat', async (req, res) => {
             fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
           }
 
-          const doc = new PDFDocument();
+          const puppeteer = require('puppeteer');
+          const browser = await puppeteer.launch({
+            headless: "new",
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+          });
+          const page = await browser.newPage();
           
-          const fontPath = path.join(process.cwd(), 'fonts', 'Padauk-Regular.ttf');
-          if (fs.existsSync(fontPath)) {
-            doc.registerFont('Myanmar', fontPath);
-            doc.font('Myanmar');
-          }
-
-          const writeStream = fs.createWriteStream(filePath);
-          doc.pipe(writeStream);
+          const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <style>
+                body { 
+                  font-family: 'Padauk', 'Pyidaungsu', 'Myanmar Text', sans-serif; 
+                  padding: 40px; 
+                  line-height: 1.6; 
+                  color: #333;
+                }
+                h1 { text-align: center; color: #1a365d; margin-bottom: 30px; }
+                pre { 
+                  white-space: pre-wrap; 
+                  font-family: inherit;
+                  font-size: 12px;
+                }
+              </style>
+            </head>
+            <body>
+              <h1>${title}</h1>
+              <pre>${content}</pre>
+            </body>
+            </html>
+          `;
           
-          doc.fontSize(20).text(title, { align: 'center' }).moveDown(2);
-          doc.fontSize(12).text(content);
-          doc.end();
-          
-          await new Promise(resolve => writeStream.on('finish', resolve));
+          await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+          await page.pdf({ path: filePath, format: 'A4', printBackground: true });
+          await browser.close();
           
           // Use /api/uploads to guarantee the proxy forwards it properly
           const url = `/api/uploads/${fileName}`;
