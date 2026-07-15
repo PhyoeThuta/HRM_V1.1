@@ -10,7 +10,8 @@ export default function CustomerFeedback() {
     progress: 0,
     packaging: 0,
     portion: 0,
-    service: 0
+    service: 0,
+    variety: 0
   });
   const [hoverRatings, setHoverRatings] = useState({ 
     taste: 0, 
@@ -18,7 +19,8 @@ export default function CustomerFeedback() {
     progress: 0,
     packaging: 0,
     portion: 0,
-    service: 0
+    service: 0,
+    variety: 0
   });
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,6 +49,7 @@ export default function CustomerFeedback() {
 အရသာ (Taste): ${ratings.taste}/5
 အစားအသောက် ပမာဏ (Portion Size): ${ratings.portion}/5
 ထုပ်ပိုးမှု နှင့် သန့်ရှင်းရေး (Packaging & Hygiene): ${ratings.packaging}/5
+ဟင်းလျာ အမျိုးအစား စုံလင်မှု (Menu Variety): ${ratings.variety}/5
 Delivery အချိန်မှန် မမှန် (Delivery Timing): ${ratings.delivery}/5
 ဝန်ဆောင်မှု (Customer Service): ${ratings.service}/5
 တိုးတက်မှု (Progress): ${ratings.progress}/5
@@ -134,6 +137,7 @@ ${comment ? `မှတ်ချက် (Comment):\n${comment}` : ''}
             <StarRow myanTitle="အရသာ" title="Taste" category="taste" />
             <StarRow myanTitle="အစားအသောက် ပမာဏ" title="Portion Size" category="portion" />
             <StarRow myanTitle="ထုပ်ပိုးမှု နှင့် သန့်ရှင်းရေး" title="Packaging & Hygiene" category="packaging" />
+            <StarRow myanTitle="ဟင်းလျာ အမျိုးအစား စုံလင်မှု" title="Menu Variety" category="variety" />
             <StarRow myanTitle="Delivery အချိန်မှန် မမှန်" title="Delivery Timing" category="delivery" />
             <StarRow myanTitle="ဝန်ဆောင်မှု နှင့် ဆက်ဆံရေး" title="Customer Service" category="service" />
             <StarRow myanTitle="တိုးတက်မှု" title="Progress" category="progress" />
