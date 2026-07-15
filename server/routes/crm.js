@@ -2,7 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import multer from 'multer';
 import { supabaseAdmin, isSupabaseServiceRoleConfigured } from '../lib/supabase.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, requireBoss } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   emitInquiryMessage,
@@ -1372,6 +1372,17 @@ router.post('/onboarding/submit', async (req, res) => {
     return res.status(200).json({ success: true, customer_id: customer.id });
   } catch (e) {
     console.error('[ONBOARDING SUBMIT]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+// DELETE Feedback (Boss only)
+router.delete('/feedbacks/:id', requireBoss, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabaseAdmin.schema('crm').from('feedbacks').delete().eq('id', id);
+    if (error) throw error;
+    return res.json({ success: true, message: 'Feedback deleted successfully' });
+  } catch (e) {
+    console.error('[CRM DELETE FEEDBACK]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });

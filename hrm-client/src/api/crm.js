@@ -124,4 +124,6 @@ export const crmApi = {
   saveLevelSetting: (data) => api.post('/crm/level-settings', data).then(r => r.data),
 
   deleteLevelSetting: (id) => api.delete(`/crm/level-settings/${id}`).then(r => r.data),
+
+  deleteFeedback: (id) => api.delete(`/crm/feedbacks/${id}`).then(r => r.data),
 };

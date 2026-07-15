@@ -504,7 +504,7 @@ router.post('/chat', async (req, res) => {
             fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true });
           }
 
-          const puppeteer = require('puppeteer');
+          const { default: puppeteer } = await import('puppeteer');
           const browser = await puppeteer.launch({
             headless: "new",
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']

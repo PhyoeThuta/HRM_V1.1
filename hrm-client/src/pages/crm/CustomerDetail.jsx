@@ -308,6 +308,20 @@ export default function CustomerDetail() {
       console.error(err);
     }
   };
+  const handleDeleteFeedback = async (feedbackId) => {
+    if (!window.confirm("Are you sure you want to delete this feedback?")) return;
+    try {
+      await crmApi.deleteFeedback(feedbackId);
+      setCustomer(prev => ({
+        ...prev,
+        feedbacks: (prev.feedbacks || []).filter(f => f.id !== feedbackId)
+      }));
+      toast.success('Feedback deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete feedback');
+      console.error(err);
+    }
+  };
 
   const handleUpdateMetrics = async (e) => {
     e.preventDefault();
@@ -1043,7 +1057,14 @@ export default function CustomerDetail() {
                     <span className="text-brand-orange font-black">{fb.rating}/5</span>
                     <svg className="w-4 h-4 text-brand-orange fill-brand-orange drop-shadow-[0_0_5px_rgba(255,119,0,0.5)]" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   </div>
-                  <span className="text-xs font-bold text-slate-500 bg-black/50 px-3 py-1.5 rounded-xl border border-white/5">{new Date(fb.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-500 bg-black/50 px-3 py-1.5 rounded-xl border border-white/5">{new Date(fb.created_at).toLocaleDateString()}</span>
+                    {user?.role === 'boss' && (
+                      <button onClick={() => handleDeleteFeedback(fb.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors border border-rose-500/20" title="Delete Feedback">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap pl-2 font-medium">
                   {fb.comment || <span className="text-slate-600 italic">No comments provided.</span>}
