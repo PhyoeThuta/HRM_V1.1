@@ -42,13 +42,17 @@ jobs:
           npm install
           npm run build
           
+          # Start Frontend via PM2 (in case Nginx proxies to it)
+          pm2 delete hrm_react_client || true
+          pm2 start npm --name "hrm_react_client" -- run preview -- --port 4173
+          
           # 4. Setup and Restart Node.js Backend
           echo "Restarting Backend API..."
           cd ../server
-          npm install
+          npm install --no-audit --no-fund
           
-          # Completely delete old ghost processes and start fresh from the correct directory
-          pm2 delete all || true
+          # Delete only the specific backend process instead of 'all' to prevent killing other services
+          pm2 delete hrm_react_api || true
           pm2 start index.js --name "hrm_react_api"
           pm2 save
           
