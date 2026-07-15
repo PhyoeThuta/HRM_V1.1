@@ -189,6 +189,7 @@ router.post('/chat', async (req, res) => {
     - send_customer_message: Send a Telegram message to notify the Boss about a customer situation
     - extend_customer_package: Extend a customer's diet package expiry by N days
     - create_kpi_task: Create and assign a KPI task to an employee
+    - send_team_announcement: Send an official company-wide announcement to the system and Telegram
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
@@ -280,6 +281,19 @@ router.post('/chat', async (req, res) => {
               due_date: { type: "STRING", description: "Due date in YYYY-MM-DD format" }
             },
             required: ["title", "employee_id"]
+          }
+        },
+        {
+          name: "send_team_announcement",
+          description: "Send an official company-wide announcement. This broadcasts to the team via the HR Portal and Telegram.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING", description: "Title of the announcement" },
+              content: { type: "STRING", description: "The full message content" },
+              priority: { type: "STRING", description: "Priority level: 'Normal', 'High', or 'Urgent'" }
+            },
+            required: ["title", "content"]
           }
         }
       ]
@@ -424,6 +438,40 @@ router.post('/chat', async (req, res) => {
           if (error) throw error;
           await sendTelegramMessage(BOSS_CHAT_ID, `📌 <b>Boss AI Action:</b> New KPI task created!\n\n📋 Task: <b>${title}</b>\n👤 Assigned to Employee ID: ${employee_id}\n📅 Due: ${due_date || 'No deadline'}`);
           apiRes = { success: true, task_id: task?.id, message: `KPI task '${title}' created and assigned.` };
+        } else if (call.name === "send_team_announcement") {
+          const { title, content, priority } = call.args;
+          const dt = new Date();
+          dt.setDate(dt.getDate() + 7);
+          const finalContent = `${content || ''}___EXPIRY:${dt.toISOString().split('T')[0]}`;
+          
+          const { error: insErr } = await supabaseAdmin.from('announcements').insert({
+            title, content: finalContent,
+            priority: priority || 'Urgent',
+            target_role: 'All',
+            is_pinned: true,
+            created_at: new Date().toISOString()
+          });
+          if (insErr) throw insErr;
+          
+          await supabaseAdmin.from('system_notifications').insert({
+            recipient_role: 'All',
+            title: `📢 AI Announcement: ${title}`,
+            message: content,
+            link_url: '/portal',
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+          
+          if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+            const prioEmoji = priority === 'Urgent' ? '🚨' : (priority === 'High' ? '🔴' : '🟡');
+            const text = `🏢 *BUSY BOSS DIET ANNOUNCEMENT* 🏢\n➖➖➖➖➖➖➖➖➖➖➖➖\n📌 *Subject:* ${title}\n${prioEmoji} *Priority:* ${priority || 'Urgent'}\n\n💬 *Message:*\n${content}\n➖➖➖➖➖➖➖➖➖➖➖➖\n_Sent via Boss AI_`;
+            fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' })
+            }).catch(() => {});
+          }
+          apiRes = { success: true, message: `Announcement '${title}' broadcasted to the team successfully.` };
         }
       } catch (err) {
         apiRes = { error: err.message };
