@@ -182,6 +182,7 @@ router.post('/chat', async (req, res) => {
     - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
     - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
     - public.attendance_records (id, employee_id, check_in, is_late, created_at) — Use this to check who is late (is_late=true).
+    - public.operations_orders (id, date, customer_id, daily_menu_id, count, delivery_status, created_at) — Use this to check delivery statuses for orders on a specific date.
     
     AVAILABLE ACTIONS (you can take these when the Boss commands you):
     - approve_leave_requests: Approve all pending leave requests or a specific one
@@ -196,8 +197,10 @@ router.post('/chat', async (req, res) => {
     ${historyStr}
     
     The boss asks: ${message}
-    Be proactive. If asked to take action, USE THE ACTION TOOLS. If asked for data, use fetch_table_records.
-    CRITICAL: If the boss asks about something like "who is late today?", DO NOT ask the boss for the names. YOU must proactively figure it out by using fetch_table_records to check the attendance_records table for is_late='true' today, then cross-reference with Employees to find the names, and then take action. You are the assistant, figure it out yourself using your tools.
+    Be proactive to look up data. If asked for data, use fetch_table_records. 
+    CRITICAL RULES FOR ACTIONS: 
+    1. If the boss asks about something like "who is late today?", use fetch_table_records to check the attendance_records, cross-reference with Employees to find the names, and then ONLY REPORT the names back. 
+    2. DO NOT use action tools (like send_employee_warning, send_team_announcement, etc.) UNLESS the Boss EXPLICITLY and CLEARLY instructs you to do so. Acknowledgements like "okay" or "good" are NOT instructions to take action.
     Answer concisely in the Boss's language.`;
 
     const tools = [{
