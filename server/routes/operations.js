@@ -507,6 +507,92 @@ router.post('/orders/auto-generate', async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 });
+router.put('/orders/batch-status', async (req, res) => {
+  try {
+    const { order_ids, delivery_status } = req.body;
+    if (!Array.isArray(order_ids) || order_ids.length === 0) {
+      return res.status(400).json({ error: 'order_ids array is required' });
+    }
+    
+    const now = new Date().toISOString();
+    const updateData = {
+      delivery_status,
+      updated_by: req.user.id,
+      updated_at: now
+    };
+    if (delivery_status === 'DELIVERED') {
+      updateData.delivered_at = now;
+    }
+    
+    // Update all orders
+    const { data: updatedOrders, error: updateErr } = await supabase
+      .from('operations_orders')
+      .update(updateData)
+      .in('id', order_ids)
+      .select();
+      
+    if (updateErr) throw updateErr;
+
+    // Process inventory deduction if DELIVERED
+    if (delivery_status === 'DELIVERED' && updatedOrders && updatedOrders.length > 0) {
+      for (const order of updatedOrders) {
+        // Just duplicate the single order deduction logic here for safety
+        const { data: orderDetails } = await supabase.schema('operations')
+          .from('orders')
+          .select(`
+            count,
+            daily_menus (
+              menu_types (
+                menus (
+                  recipes (inventory_item_id, qty)
+                )
+              )
+            )
+          `)
+          .eq('id', order.id)
+          .single();
+          
+        if (orderDetails && orderDetails.daily_menus) {
+          const orderCount = orderDetails.count || 1;
+          const deductions = {}; 
+          
+          orderDetails.daily_menus.menu_types.forEach(mt => {
+            if (mt.menus && mt.menus.recipes) {
+              mt.menus.recipes.forEach(r => {
+                if (r.inventory_item_id && r.qty) {
+                  deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.qty * orderCount);
+                }
+              });
+            }
+          });
+          
+          for (const [itemId, deductQty] of Object.entries(deductions)) {
+            const { data: balData } = await supabase.schema('inventory').from('balances').select('*').eq('item_id', itemId).single();
+            if (balData) {
+              await supabase.schema('inventory').from('transactions').insert({
+                item_id: itemId,
+                transaction_type: 'USAGE_OUT',
+                quantity_change: deductQty,
+                reference_type: 'ORDER_BATCH',
+                reference_id: order.id,
+                created_by: req.user.id
+              });
+              await supabase.schema('inventory').from('balances').update({
+                current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
+                updated_by: req.user.id,
+                updated_at: now
+              }).eq('id', balData.id);
+            }
+          }
+        }
+      }
+    }
+    
+    return res.json({ success: true, updatedCount: updatedOrders?.length || 0 });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
 router.put('/orders/:id/status', async (req, res) => {
   try {

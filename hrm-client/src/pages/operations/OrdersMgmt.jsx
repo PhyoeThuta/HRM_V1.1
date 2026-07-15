@@ -51,6 +51,15 @@ export default function OrdersMgmt() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to update order status')
   });
 
+  const batchStatusMutation = useMutation({
+    mutationFn: ({ order_ids, delivery_status }) => api.put(`/operations/orders/batch-status`, { order_ids, delivery_status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['orders']);
+      toast.success('Orders status updated');
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update order status')
+  });
+
   const getStatusColor = (status) => {
     switch(status) {
       case 'DELIVERED': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -154,23 +163,42 @@ export default function OrdersMgmt() {
                       const isCustomerOpen = expandedGroups[customerKey] !== false; // Default open
                       return (
                       <div key={customer.name} className="hover:bg-white/[0.02] transition-colors">
-                        <button 
-                          onClick={() => toggleGroup(customerKey)}
-                          className="w-full px-6 py-4 flex items-center justify-between text-left"
-                        >
-                          <div className="flex items-center gap-3">
+                        <div className="w-full px-6 py-4 flex items-center justify-between group">
+                          <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => toggleGroup(customerKey)}>
                             <span className={`text-sm text-slate-400 transition-transform duration-200 ${isCustomerOpen ? 'rotate-90' : ''}`}>
                               ▶
                             </span>
                             <div>
-                              <p className="font-bold text-white text-md">👤 {customer.name}</p>
+                              <p className="font-bold text-white text-md group-hover:text-fuchsia-300 transition-colors">👤 {customer.name}</p>
                               <p className="text-xs text-slate-400 mt-1">{customer.address || 'No delivery address provided'}</p>
                             </div>
                           </div>
-                          <div className="text-xs font-bold text-slate-500 bg-surface-900 px-3 py-1 rounded-full border border-white/5">
-                            {customer.orders.length} orders
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="text-xs font-bold text-slate-500 bg-surface-900 px-3 py-1 rounded-full border border-white/5">
+                              {customer.orders.length} orders
+                            </div>
+                            
+                            {customer.orders.some(o => o.delivery_status !== 'DELIVERED') ? (
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation();
+                                  if(window.confirm('Mark ALL orders for this customer as DELIVERED?')) {
+                                    const pendingIds = customer.orders.filter(o => o.delivery_status !== 'DELIVERED').map(o => o.id);
+                                    batchStatusMutation.mutate({ order_ids: pendingIds, delivery_status: 'DELIVERED' });
+                                  }
+                                }} 
+                                className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-emerald-500/20 shadow-lg whitespace-nowrap"
+                              >
+                                Mark All Delivered
+                              </button>
+                            ) : (
+                              <span className="px-4 py-2 bg-white/5 text-emerald-500 text-xs font-bold rounded-lg border border-white/5 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                ✅ Delivered
+                              </span>
+                            )}
                           </div>
-                        </button>
+                        </div>
                         
                         {isCustomerOpen && (
                           <div className="px-6 pb-4 ml-8 space-y-2">
@@ -183,14 +211,6 @@ export default function OrdersMgmt() {
                                     {order.delivery_status}
                                   </span>
                                 </div>
-                                {order.delivery_status !== 'DELIVERED' && (
-                                  <button 
-                                    onClick={() => { if(window.confirm('Mark as DELIVERED? This will auto-deduct inventory for this order.')) statusMutation.mutate({ id: order.id, delivery_status: 'DELIVERED' }) }} 
-                                    className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-emerald-500/20"
-                                  >
-                                    Mark Delivered
-                                  </button>
-                                )}
                               </div>
                             ))}
                           </div>
