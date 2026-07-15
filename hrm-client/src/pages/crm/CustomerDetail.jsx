@@ -1036,17 +1036,18 @@ export default function CustomerDetail() {
               <div className="p-10 text-center text-slate-400">No feedback recorded for this customer yet.</div>
             )}
             {customer.feedbacks && customer.feedbacks.map(fb => (
-              <div key={fb.id} className={`p-6 rounded-3xl border ${fb.ai_flagged ? 'bg-rose-500/10 border-rose-500/30' : 'bg-white/[0.02] border-white/10'}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs text-slate-400 uppercase font-black tracking-wider bg-white/5 px-3 py-1 rounded-lg">{fb.type.replace('_', ' ')}</span>
-                  <span className="text-xs font-bold text-slate-500">{fb.date}</span>
-                </div>
-                <p className="text-white text-base leading-relaxed">{fb.text}</p>
-                {fb.ai_flagged && (
-                  <div className="mt-4 flex items-center gap-2 text-xs font-black text-rose-400 bg-rose-500/10 w-max px-3 py-1.5 rounded-lg border border-rose-500/20">
-                    <span className="animate-pulse">⚠️</span> AI Flagged for Review
+              <div key={fb.id} className="p-6 rounded-3xl border bg-surface-800 border-white/10 shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-brand-orange"></div>
+                <div className="flex justify-between items-start mb-4 pl-2">
+                  <div className="flex items-center gap-2 bg-brand-orange/20 px-3 py-1.5 rounded-xl border border-brand-orange/30">
+                    <span className="text-brand-orange font-black">{fb.rating}/5</span>
+                    <svg className="w-4 h-4 text-brand-orange fill-brand-orange drop-shadow-[0_0_5px_rgba(255,119,0,0.5)]" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   </div>
-                )}
+                  <span className="text-xs font-bold text-slate-500 bg-black/50 px-3 py-1.5 rounded-xl border border-white/5">{new Date(fb.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap pl-2 font-medium">
+                  {fb.comment || <span className="text-slate-600 italic">No comments provided.</span>}
+                </div>
               </div>
             ))}
           </div>
