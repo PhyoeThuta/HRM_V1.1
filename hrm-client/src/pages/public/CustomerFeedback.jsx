@@ -4,8 +4,22 @@ import toast from 'react-hot-toast';
 
 export default function CustomerFeedback() {
   const { customer_id } = useParams();
-  const [ratings, setRatings] = useState({ taste: 0, delivery: 0, progress: 0 });
-  const [hoverRatings, setHoverRatings] = useState({ taste: 0, delivery: 0, progress: 0 });
+  const [ratings, setRatings] = useState({ 
+    taste: 0, 
+    delivery: 0, 
+    progress: 0,
+    packaging: 0,
+    portion: 0,
+    service: 0
+  });
+  const [hoverRatings, setHoverRatings] = useState({ 
+    taste: 0, 
+    delivery: 0, 
+    progress: 0,
+    packaging: 0,
+    portion: 0,
+    service: 0
+  });
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -20,18 +34,21 @@ export default function CustomerFeedback() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (ratings.taste === 0 || ratings.delivery === 0 || ratings.progress === 0) {
+    if (Object.values(ratings).some(val => val === 0)) {
       toast.error('Please complete all star ratings / အမှတ်အပြည့်ပေးပါ');
       return;
     }
     
     setIsSubmitting(true);
     try {
-      const averageRating = Math.round((ratings.taste + ratings.delivery + ratings.progress) / 3);
+      const averageRating = Math.round(Object.values(ratings).reduce((a, b) => a + b, 0) / Object.values(ratings).length);
       
       const formattedComment = `
 အရသာ (Taste): ${ratings.taste}/5
+အစားအသောက် ပမာဏ (Portion Size): ${ratings.portion}/5
+ထုပ်ပိုးမှု နှင့် သန့်ရှင်းရေး (Packaging & Hygiene): ${ratings.packaging}/5
 Delivery အချိန်မှန် မမှန် (Delivery Timing): ${ratings.delivery}/5
+ဝန်ဆောင်မှု (Customer Service): ${ratings.service}/5
 တိုးတက်မှု (Progress): ${ratings.progress}/5
 
 ${comment ? `မှတ်ချက် (Comment):\n${comment}` : ''}
@@ -115,7 +132,10 @@ ${comment ? `မှတ်ချက် (Comment):\n${comment}` : ''}
           <form onSubmit={handleSubmit} className="space-y-6">
             
             <StarRow myanTitle="အရသာ" title="Taste" category="taste" />
+            <StarRow myanTitle="အစားအသောက် ပမာဏ" title="Portion Size" category="portion" />
+            <StarRow myanTitle="ထုပ်ပိုးမှု နှင့် သန့်ရှင်းရေး" title="Packaging & Hygiene" category="packaging" />
             <StarRow myanTitle="Delivery အချိန်မှန် မမှန်" title="Delivery Timing" category="delivery" />
+            <StarRow myanTitle="ဝန်ဆောင်မှု နှင့် ဆက်ဆံရေး" title="Customer Service" category="service" />
             <StarRow myanTitle="တိုးတက်မှု" title="Progress" category="progress" />
 
             <div>
