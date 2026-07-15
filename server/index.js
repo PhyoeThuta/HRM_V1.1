@@ -75,6 +75,26 @@ app.use(cookieParser());
 app.use('/api/uploads', express.static('uploads')); // Serve safely under /api path
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
+// --- DEBUG ROUTE FOR PUPPETEER ---
+app.get('/api/debug-pdf', async (req, res) => {
+  try {
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    });
+    const page = await browser.newPage();
+    await page.setContent('<h1>Test</h1>');
+    const pdfBuffer = await page.pdf();
+    await browser.close();
+    res.set('Content-Type', 'application/pdf');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).send(`<h2>Puppeteer Error:</h2><pre>${err.message}\n\n${err.stack}</pre>`);
+  }
+});
+// ---------------------------------
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 500,
