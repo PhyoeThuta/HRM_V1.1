@@ -198,6 +198,7 @@ router.post('/chat', async (req, res) => {
     - generate_pdf_report: Generate a PDF report and get a downloadable URL. 
     CRITICAL: When providing the PDF link to the user, you MUST use EXACTLY the relative path returned by the tool (e.g. [Download Report](/api/uploads/report_xxx.pdf)). DO NOT add https:// or any fake domain names like web.app! 
     IMPORTANT: When asked to generate a report on feedback, attendance, etc., you MUST thoroughly ANALYZE the data first. The content of the PDF should NOT just be raw data dumps. It must include your Executive Analysis, Insights, and Actionable Recommendations.
+    CRITICAL: When generating a PDF report, you MUST also output the FULL markdown content of the report directly into your chat response, so the Boss can read it immediately without downloading the PDF! Include the PDF download link at the very top or very bottom of the report.
     CRITICAL: If the generate_pdf_report tool returns an error object, you MUST print the EXACT English error string in your chat response so the developers can debug it. For example: "PDF Generation Failed. Technical Error: <insert exact error text here>".
     
     Context Data (Includes retrieved facts from RAG):
