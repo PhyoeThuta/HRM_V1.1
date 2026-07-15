@@ -84,10 +84,10 @@ const KitchenDashboard = () => {
         {/* Back Button */}
         <div>
           <button 
-            onClick={() => navigate('/crm')}
+            onClick={() => navigate('/operations')}
             className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-surface-800 px-4 py-2 rounded-xl border border-white/5 hover:border-white/20 w-fit"
           >
-            <span>←</span> Back to CRM Overview
+            <span>←</span> Back to Ops Hub
           </button>
         </div>
         
