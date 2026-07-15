@@ -169,7 +169,36 @@ export default function BossChat() {
                       </button>
                     </div>
                   )}
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text || <span className="italic text-slate-500">...</span>}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                    {(() => {
+                      if (!m.text) return <span className="italic text-slate-500">...</span>;
+                      const regex = /(\[.*?\]\(.*?\)|\*\*.*?\*\*)/g;
+                      const parts = m.text.split(regex);
+                      return parts.map((part, index) => {
+                        if (part.startsWith('[') && part.includes('](') && part.endsWith(')')) {
+                          const titleMatch = part.match(/\[(.*?)\]/);
+                          const urlMatch = part.match(/\((.*?)\)/);
+                          if (titleMatch && urlMatch) {
+                            return (
+                              <a 
+                                key={index} 
+                                href={urlMatch[1]} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors font-bold"
+                              >
+                                {titleMatch[1]}
+                              </a>
+                            );
+                          }
+                        }
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                          return <strong key={index} className="font-black text-white">{part.slice(2, -2)}</strong>;
+                        }
+                        return <span key={index}>{part}</span>;
+                      });
+                    })()}
+                  </p>
                 </div>
               </div>
             ))}
