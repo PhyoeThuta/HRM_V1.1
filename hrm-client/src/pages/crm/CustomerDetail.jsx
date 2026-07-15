@@ -676,7 +676,17 @@ export default function CustomerDetail() {
           ← Back to Customers
         </button>
         {user?.role !== 'marketing_junior' && (
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
+            <button 
+              onClick={() => {
+                const link = `${window.location.origin}/feedback/${id}`;
+                navigator.clipboard.writeText(link);
+                toast.success('Feedback link copied!');
+              }} 
+              className="bg-brand-green/20 hover:bg-brand-green/30 border border-brand-green/30 text-brand-green px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+            >
+              <span>📋</span> Copy Feedback Link
+            </button>
             <button onClick={openEditCustomer} className="bg-surface-800 hover:bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
               Edit Customer
             </button>

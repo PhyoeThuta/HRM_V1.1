@@ -66,6 +66,10 @@ import LevelSettings from './pages/crm/LevelSettings';
 import Packages from './pages/crm/Packages';
 import KitchenDashboard from './pages/crm/KitchenDashboard';
 
+// Public Forms
+import CustomerEnrollment from './pages/public/CustomerEnrollment';
+import CustomerFeedback from './pages/public/CustomerFeedback';
+
 // Protected route wrapper
 function Protected({ children, allowedRoles }) {
   const { user } = useAuth();
@@ -115,6 +119,10 @@ function AppRoutes() {
       <Route path="/careers" element={<Careers />} />
       <Route path="/login" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Login />} />
       <Route path="/force-change-password" element={user?.must_change_password ? <ForceChangePassword /> : <Navigate to="/" replace />} />
+
+      {/* Public Routes */}
+      <Route path="/enroll" element={<CustomerEnrollment />} />
+      <Route path="/feedback/:customer_id" element={<CustomerFeedback />} />
 
       {/* Operations & Inventory Routes */}
       <Route path="/operations/dashboard" element={<OperationsRoute><OpsDashboard /></OperationsRoute>} />

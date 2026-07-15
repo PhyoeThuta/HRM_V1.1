@@ -129,4 +129,106 @@ router.post('/apply', upload.single('resume'), async (req, res) => {
   }
 });
 
+// Helper for generating code
+async function generateCustomerCode() {
+  const { count } = await supabase.schema('crm').from('customers').select('*', { count: 'exact', head: true });
+  const num = String((count || 0) + 1).padStart(3, '0');
+  return `BBD-${num}`;
+}
+
+// POST /api/public/crm/enroll
+router.post('/crm/enroll', async (req, res) => {
+  try {
+    const {
+      full_name, facebook_name, age, gender, email, phone, address, delivery_address, delivery_notes,
+      food_restriction, activity_level, fasting_willingness,
+      current_weight, goal_weight, height, time_frame,
+      medical_condition, other_condition, medicine_taking, special_requests
+    } = req.body;
+
+    if (!full_name || !phone) return res.status(400).json({ error: 'Name and phone are required' });
+
+    const customer_code = await generateCustomerCode();
+
+    const { data: customer, error: custErr } = await supabase.schema('crm').from('customers')
+      .insert({ full_name, facebook_name, age: age ? parseInt(age) : null, gender, email, phone, address, delivery_address, delivery_notes, customer_code })
+      .select().single();
+
+    if (custErr) throw custErr;
+
+    await supabase.schema('crm').from('customer_health').insert({
+      customer_id: customer.id,
+      current_weight: current_weight ? `${current_weight} kg` : null,
+      goal_weight: goal_weight ? `${goal_weight} kg` : null,
+      height: height ? `${height} cm` : null,
+      time_frame,
+      medical_condition: medical_condition || 'None',
+      other_condition: other_condition || 'None',
+      medicine_taking: medicine_taking || 'None',
+      special_requests: special_requests || 'None',
+    });
+
+    await supabase.schema('crm').from('customer_lifestyle').insert({
+      customer_id: customer.id,
+      food_restriction: food_restriction || 'None',
+      activity_level: activity_level || 'Sedentary',
+      fasting_willingness: fasting_willingness || 'No',
+    });
+
+    const notiMsg = `New customer enrollment via Messenger: ${full_name} (${phone})`;
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: 'New Public Customer Enrollment',
+      message: notiMsg,
+      link_url: `/crm/customers/${customer.id}`,
+      created_at: new Date().toISOString()
+    });
+    await dbInsert('system_notifications', {
+      recipient_role: 'admin',
+      title: 'New Public Customer Enrollment',
+      message: notiMsg,
+      link_url: `/crm/customers/${customer.id}`,
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({ success: true, customerId: customer.id });
+  } catch (e) {
+    console.error('[PUBLIC ENROLLMENT ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/public/crm/feedback
+router.post('/crm/feedback', async (req, res) => {
+  try {
+    const { customer_id, rating, comment } = req.body;
+    
+    if (!customer_id || !rating) return res.status(400).json({ error: 'Missing required fields' });
+
+    const { data, error } = await supabase.schema('crm').from('feedbacks')
+      .insert({ customer_id: parseInt(customer_id), rating: parseInt(rating), comment: comment || '' })
+      .select().single();
+      
+    if (error) throw error;
+    
+    // Notify boss
+    const { data: cust } = await supabase.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
+    const custName = cust ? cust.full_name : 'Customer';
+    
+    const notiMsg = `${custName} submitted a ${rating}-star feedback.`;
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: 'New Customer Feedback',
+      message: notiMsg,
+      link_url: `/crm/customers/${customer_id}`,
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({ success: true, feedback: data });
+  } catch (e) {
+    console.error('[PUBLIC FEEDBACK ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
