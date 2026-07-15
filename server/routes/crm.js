@@ -1377,7 +1377,7 @@ router.post('/onboarding/submit', async (req, res) => {
 });
 
 // DELETE Feedback (Boss only)
-router.delete('/feedbacks/:id', requireBoss, async (req, res) => {
+router.delete('/feedbacks/:id', verifyToken, requireBoss, async (req, res) => {
   try {
     const { id } = req.params;
     const { error } = await supabaseAdmin.schema('crm').from('feedbacks').delete().eq('id', id);
