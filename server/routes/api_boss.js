@@ -173,7 +173,7 @@ router.post('/chat', async (req, res) => {
     BILINGUAL INSTRUCTION: You are fully bilingual in English and Myanmar (Burmese).
     - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script).
     - If the user asks in English, reply in English.
-    - STRICT PROHIBITION: Do NOT use Arabic (e.g. "الجديد") or any other languages under any circumstances. Use ONLY English or Myanmar.
+    - STRICT PROHIBITION: You are FORBIDDEN from using any language other than English or Myanmar. Do NOT use Arabic, Hindi, or any other foreign languages.
     
     You have access to real-time system metrics, detailed database records, AND the power to take actions on behalf of the Boss.
     

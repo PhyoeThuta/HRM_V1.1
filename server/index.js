@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 dotenv.config();
-// Trigger restart for AI PDF and Feedback capabilities
+// Trigger restart for AI Arabic bug fix
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { initCrmRealtime } from './lib/crmRealtime.js';
