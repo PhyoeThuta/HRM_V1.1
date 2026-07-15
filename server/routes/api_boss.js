@@ -195,7 +195,8 @@ router.post('/chat', async (req, res) => {
     - extend_customer_package: Extend a customer's diet package expiry by N days
     - create_kpi_task: Create and assign a KPI task to an employee
     - send_team_announcement: Send an official company-wide announcement to the system and Telegram
-    - generate_pdf_report: Generate a PDF report and get a downloadable URL.
+    - generate_pdf_report: Generate a PDF report and get a downloadable URL. 
+    CRITICAL: When providing the PDF link to the user, you MUST use EXACTLY the relative path returned by the tool (e.g. [Download Report](/api/uploads/report_xxx.pdf)). DO NOT add https:// or any fake domain names like web.app!
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
@@ -511,9 +512,8 @@ router.post('/chat', async (req, res) => {
           
           await new Promise(resolve => writeStream.on('finish', resolve));
           
-          // Since it's a relative API route, the frontend handles the domain. 
-          // We can return the relative path to uploads/
-          const url = `/uploads/${fileName}`;
+          // Use /api/uploads to guarantee the proxy forwards it properly
+          const url = `/api/uploads/${fileName}`;
           apiRes = { success: true, url, message: "PDF Generated successfully" };
         }
       } catch (err) {
