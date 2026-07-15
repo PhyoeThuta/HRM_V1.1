@@ -1374,6 +1374,8 @@ router.post('/onboarding/submit', async (req, res) => {
     console.error('[ONBOARDING SUBMIT]', e.message);
     return res.status(500).json({ error: e.message });
   }
+});
+
 // DELETE Feedback (Boss only)
 router.delete('/feedbacks/:id', requireBoss, async (req, res) => {
   try {
