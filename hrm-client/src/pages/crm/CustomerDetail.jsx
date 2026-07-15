@@ -21,6 +21,7 @@ export default function CustomerDetail() {
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [editingPackageId, setEditingPackageId] = useState(null);
   const [deletePackageId, setDeletePackageId] = useState(null);
+  const [deleteFeedbackId, setDeleteFeedbackId] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
@@ -308,14 +309,15 @@ export default function CustomerDetail() {
       console.error(err);
     }
   };
-  const handleDeleteFeedback = async (feedbackId) => {
-    if (!window.confirm("Are you sure you want to delete this feedback?")) return;
+  const confirmDeleteFeedback = async () => {
+    if (!deleteFeedbackId) return;
     try {
-      await crmApi.deleteFeedback(feedbackId);
+      await crmApi.deleteFeedback(deleteFeedbackId);
       setCustomer(prev => ({
         ...prev,
-        feedbacks: (prev.feedbacks || []).filter(f => f.id !== feedbackId)
+        feedbacks: (prev.feedbacks || []).filter(f => f.id !== deleteFeedbackId)
       }));
+      setDeleteFeedbackId(null);
       toast.success('Feedback deleted successfully');
     } catch (err) {
       toast.error('Failed to delete feedback');
@@ -677,6 +679,30 @@ export default function CustomerDetail() {
                   Cancel
                 </button>
                 <button onClick={confirmDeletePackage} className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-colors border border-rose-500/50">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Feedback Confirmation Modal */}
+      {deleteFeedbackId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              </div>
+              <h3 className="font-black text-white text-xl mb-2">Delete Feedback?</h3>
+              <p className="text-slate-400 text-sm mb-8">Are you sure you want to remove this feedback? This action cannot be undone.</p>
+
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setDeleteFeedbackId(null)} className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white hover:bg-white/5 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={confirmDeleteFeedback} className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-colors border border-rose-500/50">
                   Delete
                 </button>
               </div>
