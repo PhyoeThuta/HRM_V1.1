@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { dbFetch, dbInsert, supabase } from '../lib/supabase.js';
+import { dbFetch, dbInsert, supabase, supabaseAdmin } from '../lib/supabase.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
@@ -131,7 +131,7 @@ router.post('/apply', upload.single('resume'), async (req, res) => {
 
 // Helper for generating code
 async function generateCustomerCode() {
-  const { count } = await supabase.schema('crm').from('customers').select('*', { count: 'exact', head: true });
+  const { count } = await supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true });
   const num = String((count || 0) + 1).padStart(3, '0');
   return `BBD-${num}`;
 }
@@ -150,13 +150,13 @@ router.post('/crm/enroll', async (req, res) => {
 
     const customer_code = await generateCustomerCode();
 
-    const { data: customer, error: custErr } = await supabase.schema('crm').from('customers')
+    const { data: customer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
       .insert({ full_name, facebook_name, age: age ? parseInt(age) : null, gender, email, phone, address, delivery_address, delivery_notes, customer_code })
       .select().single();
 
     if (custErr) throw custErr;
 
-    await supabase.schema('crm').from('customer_health').insert({
+    await supabaseAdmin.schema('crm').from('customer_health').insert({
       customer_id: customer.id,
       current_weight: current_weight ? `${current_weight} kg` : null,
       goal_weight: goal_weight ? `${goal_weight} kg` : null,
@@ -168,7 +168,7 @@ router.post('/crm/enroll', async (req, res) => {
       special_requests: special_requests || 'None',
     });
 
-    await supabase.schema('crm').from('customer_lifestyle').insert({
+    await supabaseAdmin.schema('crm').from('customer_lifestyle').insert({
       customer_id: customer.id,
       food_restriction: food_restriction || 'None',
       activity_level: activity_level || 'Sedentary',
@@ -205,14 +205,14 @@ router.post('/crm/feedback', async (req, res) => {
     
     if (!customer_id || !rating) return res.status(400).json({ error: 'Missing required fields' });
 
-    const { data, error } = await supabase.schema('crm').from('feedbacks')
+    const { data, error } = await supabaseAdmin.schema('crm').from('feedbacks')
       .insert({ customer_id: parseInt(customer_id), rating: parseInt(rating), comment: comment || '' })
       .select().single();
       
     if (error) throw error;
     
     // Notify boss
-    const { data: cust } = await supabase.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
+    const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
     const custName = cust ? cust.full_name : 'Customer';
     
     const notiMsg = `${custName} submitted a ${rating}-star feedback.`;
