@@ -61,5 +61,11 @@ jobs:
           pm2 delete hrm_react_api || true
           pm2 start index.js --name "hrm_react_api"
           pm2 save
+          # Increase Nginx payload limit to allow large photo check-ins
+          sudo sed -i 's/client_max_body_size .*/client_max_body_size 50M;/' /etc/nginx/nginx.conf || true
+          if ! grep -q "client_max_body_size 50M;" /etc/nginx/nginx.conf; then
+            sudo sed -i '/http {/a \    client_max_body_size 50M;' /etc/nginx/nginx.conf || true
+          fi
+          sudo systemctl reload nginx || true
           
           echo "Deployment Successful!"
