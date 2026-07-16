@@ -2,8 +2,6 @@ import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete, supabase } from '../lib/supabase.js';
 import crypto from 'crypto';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
-import fs from 'fs';
-import path from 'path';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -318,19 +316,6 @@ router.post('/photo-checkin', async (req, res) => {
     const { employee_id, photo_base64 } = req.body;
     if (!employee_id || !photo_base64) return res.status(400).json({ error: 'employee_id and photo required' });
     
-    // Decode base64 and save to file
-    const uploadDir = path.join(process.cwd(), 'uploads', 'attendance');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    const base64Data = photo_base64.replace(/^data:image\/\w+;base64,/, "");
-    const fileName = `checkin_${employee_id}_${Date.now()}.jpg`;
-    const filePath = path.join(uploadDir, fileName);
-    fs.writeFileSync(filePath, base64Data, 'base64');
-    
-    const photoUrl = `/api/uploads/attendance/${fileName}`;
-    
     const now = new Date().toISOString();
     const today = now.split('T')[0];
     
@@ -348,14 +333,13 @@ router.post('/photo-checkin', async (req, res) => {
 
     if (todayOpen) {
       const overtime_hours = await calcOvertime(employee_id, now);
-      await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours, check_out_photo_url: photoUrl });
+      await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
       return res.json({ success: true, message: 'Photo Check-out successful' });
     } else {
       await dbInsert('attendance_records', {
         employee_id,
         check_in: now,
         attendance_method: 'Photo',
-        check_in_photo_url: photoUrl,
         is_late: await checkIsLate(employee_id, now)
       });
       return res.json({ success: true, message: 'Photo Check-in successful' });
