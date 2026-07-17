@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 
 export default function Birthdays() {
-  const { data, isLoading } = useQuery({ queryKey: ['birthdays'], queryFn: () => api.get('/portal/birthdays').then(r => r.data) });
+  const { data, isLoading } = useQuery({ queryKey: ['birthdays'], queryFn: () => api.get('/birthdays').then(r => r.data) });
 
   const birthdays = data?.birthdays || [];
 
