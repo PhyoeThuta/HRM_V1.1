@@ -11,27 +11,30 @@ export function startBirthdayCron() {
 
 export async function checkAndNotifyBirthdays() {
   try {
-    // Target date: exactly 3 days from now
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 3);
-    
-    // We only care about Month and Day
-    const targetMonth = targetDate.getMonth() + 1; // 1-12
-    const targetDay = targetDate.getDate(); // 1-31
+    const today = new Date();
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     // Fetch active employees
     const employees = await dbFetch('Employees', 'id, Full_name, date_of_birth', { status: 'Active' });
     if (!employees || employees.length === 0) return;
 
-    // Find birthday people
+    // Find birthday people (today up to 3 days from now)
     const birthdayPeople = employees.filter(emp => {
       if (!emp.date_of_birth) return false;
       const dob = new Date(emp.date_of_birth);
-      return (dob.getMonth() + 1 === targetMonth) && (dob.getDate() === targetDay);
+      
+      // Calculate their birthday this year
+      const nextBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+      
+      const diffTime = nextBirthday - todayDateOnly;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      // Include if birthday is within 0 to 3 days
+      return diffDays >= 0 && diffDays <= 3;
     });
 
     if (birthdayPeople.length === 0) {
-      console.log('[CRON] No upcoming birthdays in 3 days.');
+      console.log('[CRON] No upcoming birthdays within 3 days.');
       return { success: true, count: 0 };
     }
 
@@ -42,9 +45,11 @@ export async function checkAndNotifyBirthdays() {
     for (const birthdayBoy of birthdayPeople) {
       console.log(`[CRON] Generating notifications for ${birthdayBoy.Full_name}'s birthday...`);
       
-      const targetDateStr = targetDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const dob = new Date(birthdayBoy.date_of_birth);
+      const bdayDay = dob.getDate();
+      
       const title = 'Upcoming Birthday! 🎂';
-      const message = `On ${targetDateStr}, it will be ${birthdayBoy.Full_name}'s birthday! Don't forget to send them a wish!`;
+      const message = `${bdayDay} ရက်နေ့က ${birthdayBoy.Full_name} ရဲ့မွေးနေ့ပါ Birthday wish လုပ်ဖို့ မမေ့ပါနဲ့`;
 
       // Notify everyone EXCEPT the birthday boy
       const recipients = allUsers.filter(u => u.employee_id !== birthdayBoy.id);
