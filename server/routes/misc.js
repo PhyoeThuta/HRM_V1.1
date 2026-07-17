@@ -532,18 +532,18 @@ router.post('/sops/:id/complete', upload.single('video'), async (req, res) => {
 router.get('/birthdays', async (req, res) => {
   try {
     const employees = await dbFetch('Employees', 'id,Full_name,employee_id,date_of_birth,Dept_id', { status: 'Active' });
-    const today = new Date();
+    
     const upcoming = employees
       .filter(e => e.date_of_birth)
       .map(e => {
         const dob = new Date(e.date_of_birth);
-        const thisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-        if (thisYear < today) thisYear.setFullYear(today.getFullYear() + 1);
-        const daysUntil = Math.ceil((thisYear - today) / 86400000);
-        return { ...e, days_until: daysUntil, birth_month: dob.getMonth() + 1, birth_day: dob.getDate() };
+        return { ...e, birth_month: dob.getMonth() + 1, birth_day: dob.getDate() };
       })
-      .sort((a, b) => a.days_until - b.days_until)
-      .slice(0, 30);
+      .sort((a, b) => {
+        if (a.birth_month !== b.birth_month) return a.birth_month - b.birth_month;
+        return a.birth_day - b.birth_day;
+      });
+      
     return res.json({ birthdays: upcoming });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
