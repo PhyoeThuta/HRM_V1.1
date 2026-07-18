@@ -465,13 +465,15 @@ router.post('/sops/bulk-delete', requireAdmin, async (req, res) => {
 });
 
 // POST /api/sops/:id/complete
-router.post('/sops/:id/complete', upload.single('video'), async (req, res) => {
+// POST /api/sops/:id/complete
+router.post('/sops/:id/complete', upload.single('file'), async (req, res) => {
   try {
     const { id } = req.params;
+    const { manualReport } = req.body;
     
     let videoUrl = null;
     if (req.file) {
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage (supports both images and videos)
       const ext = path.extname(req.file.originalname);
       const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
       
@@ -484,7 +486,7 @@ router.post('/sops/:id/complete', upload.single('video'), async (req, res) => {
         
       if (error) {
         console.error("Supabase upload error:", error);
-        throw new Error("Failed to upload video to storage");
+        throw new Error("Failed to upload file to storage");
       }
       
       // Get public URL
@@ -498,7 +500,8 @@ router.post('/sops/:id/complete', upload.single('video'), async (req, res) => {
     await dbUpdate('daily_sops', id, { 
       is_completed: true, 
       completed_at: new Date().toISOString(),
-      ...(videoUrl && { proof_video_url: videoUrl })
+      ...(videoUrl && { proof_video_url: videoUrl }),
+      ...(manualReport && { manual_report: manualReport })
     });
     
     // Notify Boss and HR

@@ -12,6 +12,7 @@ export default function SOPExecution() {
   
   const [checkedItems, setCheckedItems] = useState({});
   const [activeVideoFile, setActiveVideoFile] = useState({}); // { sopId: fileOrBlob }
+  const [manualReports, setManualReports] = useState({}); // { sopId: string }
   
   // Recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -40,16 +41,16 @@ export default function SOPExecution() {
       setUploadingSopId(sopId);
       
       const file = activeVideoFile[sopId];
-      if (file) {
+      if (file || manualReports[sopId]) {
         const formData = new FormData();
-        formData.append('video', file);
+        if (file) formData.append('file', file);
+        if (manualReports[sopId]) formData.append('manualReport', manualReports[sopId]);
         const token = localStorage.getItem('hrm_token');
         
         return fetch(`/api/sops/${sopId}/complete`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
-            // Browser sets Content-Type to multipart/form-data with the correct boundary automatically
           },
           body: formData
         }).then(res => {
@@ -95,7 +96,7 @@ export default function SOPExecution() {
       isAbsent: isPast && !isAttended && !s.is_completed, // if it's not completed, past, and no attendance
       taskList: tasks
     };
-  }).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  }).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 1); // Day by Day: show only most recent
 
   const handleCheckbox = (sopId, taskIndex) => {
     setCheckedItems(prev => ({
@@ -174,7 +175,7 @@ export default function SOPExecution() {
       
       <input 
         type="file" 
-        accept="video/*" 
+        accept="image/*,video/*" 
         className="hidden" 
         ref={fileInputRef} 
         onChange={handleFileChange} 
@@ -233,6 +234,11 @@ export default function SOPExecution() {
             const isAbsent = sop.isAbsent;
             const tasks = sop.taskList;
             const allChecked = isDone || areAllChecked(sop.id, tasks.length);
+            
+            const reportText = manualReports[sop.id] || '';
+            const hasMedia = !!activeVideoFile[sop.id];
+            const manualSuccess = reportText.trim().length > 0 && hasMedia;
+            const canComplete = allChecked || manualSuccess;
 
             return (
               <div key={sop.id} className="rounded-[1.5rem] p-6 flex flex-col shadow-lg" style={{ background: '#12141d', border: '1px solid rgba(255,255,255,0.03)' }}>
@@ -256,7 +262,7 @@ export default function SOPExecution() {
                 </div>
 
                 {/* Checkboxes */}
-                <div className="space-y-4 mb-8 flex-1">
+                <div className="space-y-4 mb-6">
                   {tasks.map((task, idx) => {
                     const isChecked = isDone || checkedItems[`${sop.id}-${idx}`];
                     return (
@@ -278,6 +284,22 @@ export default function SOPExecution() {
                     );
                   })}
                 </div>
+
+                {/* Manual Report */}
+                {!isDone && !isAbsent && (
+                  <div className="mb-8 flex-1">
+                    <label className="block text-xs font-bold text-slate-400 mb-2">Manual Report (Optional)</label>
+                    <textarea
+                      value={manualReports[sop.id] || ''}
+                      onChange={(e) => setManualReports(prev => ({ ...prev, [sop.id]: e.target.value }))}
+                      placeholder="Type your manual report here if you couldn't check all tasks..."
+                      className="w-full h-24 p-3 bg-[#1a1c26] border border-white/5 rounded-xl text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-colors"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-2">
+                      * You can submit this SOP by writing a manual report and attaching proof (image or video), even if you didn't check all boxes.
+                    </p>
+                  </div>
+                )}
 
                 {/* Actions */}
                 {!isDone && !isAbsent ? (
@@ -302,16 +324,16 @@ export default function SOPExecution() {
                     <div className="text-center py-2 bg-[#1a1c26] rounded-lg text-xs font-medium text-slate-500">
                       {activeVideoFile[sop.id] ? (
                         <span className="text-emerald-400 flex items-center justify-center gap-2">
-                          <span>✓</span> Video attached: {activeVideoFile[sop.id].name}
+                          <span>✓</span> File attached: {activeVideoFile[sop.id].name}
                         </span>
                       ) : (
-                        'No video attached'
+                        'No image/video attached'
                       )}
                     </div>
 
                     <button 
                       onClick={() => completeMutation.mutate(sop.id)}
-                      disabled={completeMutation.isPending || !allChecked}
+                      disabled={completeMutation.isPending || !canComplete}
                       className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }}
                     >
