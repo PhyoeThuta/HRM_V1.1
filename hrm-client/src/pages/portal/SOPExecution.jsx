@@ -345,10 +345,31 @@ export default function SOPExecution() {
                     </button>
                   </div>
                 ) : isDone ? (
-                  <div className="text-center mt-auto pt-4 border-t border-white/5">
-                    <span className="text-sm font-bold text-emerald-500">
+                  <div className="text-center mt-auto pt-4 border-t border-white/5 space-y-3">
+                    <span className="text-sm font-bold text-emerald-500 block">
                       Completed on {sop.completed_at ? new Date(sop.completed_at).toLocaleDateString() : 'Unknown'}
                     </span>
+                    
+                    {/* Re-upload Media Section */}
+                    {activeVideoFile[sop.id] ? (
+                      <div className="space-y-2 bg-[#1a1c26] p-3 rounded-xl border border-white/5">
+                        <span className="text-xs text-amber-400 block break-words">File: {activeVideoFile[sop.id].name}</span>
+                        <button 
+                          onClick={() => completeMutation.mutate(sop.id)}
+                          disabled={completeMutation.isPending}
+                          className="w-full py-2 rounded-lg font-bold text-xs text-white bg-indigo-500 hover:bg-indigo-600 transition-colors"
+                        >
+                          {uploadingSopId === sop.id ? 'Uploading...' : 'Confirm Upload'}
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => handleFileSelectClick(sop.id)}
+                        className="text-xs font-medium text-slate-400 hover:text-indigo-400 underline transition-colors"
+                      >
+                        Add / Update Proof Media
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center mt-auto pt-4 border-t border-white/5">
