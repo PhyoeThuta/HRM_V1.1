@@ -185,7 +185,7 @@ router.post('/chat', async (req, res) => {
     - public.Employees (id, Full_name, Dept_id, phone, status)
     - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
     - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
-    - public.attendance_records (id, employee_id, check_in, is_late, created_at) — Use this to check who is late (is_late=true).
+    - public.attendance_records (id, employee_id, check_in, check_out, is_late, created_at) — Use this to check who is late (is_late=true) or who forgot to check out (check_out=null).
     - public.operations_orders (id, date, customer_id, daily_menu_id, count, delivery_status, created_at) — Use this to check delivery statuses for orders on a specific date.
     
     AVAILABLE ACTIONS (you can take these when the Boss commands you):
@@ -412,6 +412,8 @@ router.post('/chat', async (req, res) => {
               q = q.eq(filter_column, true);
             } else if (valLower === 'false') {
               q = q.eq(filter_column, false);
+            } else if (valLower === 'null') {
+              q = q.is(filter_column, null);
             } else {
               q = q.ilike(filter_column, `%${filter_value}%`);
             }
