@@ -319,6 +319,17 @@ router.post('/chat', async (req, res) => {
             },
             required: ["title", "content"]
           }
+        },
+        {
+          name: "get_absent_employees",
+          description: "Get the count and list of employees who have ZERO attendance records for a specific month (e.g. '07' for July, '2026-07'). Use this when the boss asks who did not do attendance.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              month_prefix: { type: "STRING", description: "The YYYY-MM prefix to check (e.g. '2026-07')." }
+            },
+            required: ["month_prefix"]
+          }
         }
       ]
     }];
@@ -557,6 +568,22 @@ router.post('/chat', async (req, res) => {
           // Use /api/uploads to guarantee the proxy forwards it properly
           const url = `/api/uploads/${fileName}`;
           apiRes = { success: true, url, message: "PDF Generated successfully" };
+        } else if (call.name === "get_absent_employees") {
+          const { month_prefix } = call.args;
+          const { data: employees } = await supabaseAdmin.from('Employees').select('id, Full_name').eq('status', 'Active');
+          const { data: records } = await supabaseAdmin.from('attendance_records').select('employee_id, check_in').like('check_in', `${month_prefix}%`);
+          
+          const activeEmpIds = new Set();
+          if (records) {
+            records.forEach(r => activeEmpIds.add(r.employee_id));
+          }
+          const absentees = [];
+          if (employees) {
+            employees.forEach(emp => {
+              if (!activeEmpIds.has(emp.id)) absentees.push(emp.Full_name);
+            });
+          }
+          apiRes = { absent_count: absentees.length, absentees: absentees, message: `Found ${absentees.length} employees with no attendance in ${month_prefix}` };
         }
       } catch (err) {
         apiRes = { error: err.message };
