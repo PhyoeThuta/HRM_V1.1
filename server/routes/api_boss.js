@@ -396,7 +396,14 @@ router.post('/chat', async (req, res) => {
           const { schema, table, columns, filter_column, filter_value, limit } = call.args;
           let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 10, 50));
           if (filter_column && filter_value) {
-            q = q.ilike(filter_column, `%${filter_value}%`);
+            const valLower = String(filter_value).toLowerCase();
+            if (valLower === 'true') {
+              q = q.eq(filter_column, true);
+            } else if (valLower === 'false') {
+              q = q.eq(filter_column, false);
+            } else {
+              q = q.ilike(filter_column, `%${filter_value}%`);
+            }
           }
           const { data, error } = await q;
           if (error) throw error;
