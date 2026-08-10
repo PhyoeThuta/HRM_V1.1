@@ -228,8 +228,10 @@ router.post('/chat', async (req, res) => {
               schema: { type: "STRING", description: "Schema: 'crm' or 'public'" },
               table: { type: "STRING", description: "Table name (e.g. 'customers', 'Employees', 'Leave_Request')" },
               columns: { type: "STRING", description: "Comma separated columns (e.g. 'id, full_name, phone')" },
-              filter_column: { type: "STRING", description: "Optional filter column" },
-              filter_value: { type: "STRING", description: "Optional filter value" },
+              filter_column: { type: "STRING", description: "Optional primary filter column (e.g. 'is_late', 'check_out')" },
+              filter_value: { type: "STRING", description: "Optional primary filter value (e.g. 'true', 'null')" },
+              date_filter_column: { type: "STRING", description: "Optional secondary column for date prefix matching (e.g. 'check_in')" },
+              date_filter_value: { type: "STRING", description: "Optional date prefix to match (e.g. '2026-07' for July)" },
               limit: { type: "NUMBER", description: "Max records (default 10, max 50)" }
             },
             required: ["schema", "table", "columns"]
@@ -404,9 +406,9 @@ router.post('/chat', async (req, res) => {
             date: today
           };
         } else if (call.name === "fetch_table_records") {
-          const { schema, table, columns, filter_column, filter_value, limit } = call.args;
-          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 10, 50));
-          if (filter_column && filter_value) {
+          const { schema, table, columns, filter_column, filter_value, limit, date_filter_column, date_filter_value } = call.args;
+          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 50, 200));
+          if (filter_column && filter_value !== undefined) {
             const valLower = String(filter_value).toLowerCase();
             if (valLower === 'true') {
               q = q.eq(filter_column, true);
@@ -417,6 +419,9 @@ router.post('/chat', async (req, res) => {
             } else {
               q = q.ilike(filter_column, `%${filter_value}%`);
             }
+          }
+          if (date_filter_column && date_filter_value) {
+            q = q.ilike(date_filter_column, `${date_filter_value}%`);
           }
           const { data, error } = await q;
           if (error) throw error;
