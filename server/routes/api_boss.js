@@ -208,8 +208,9 @@ router.post('/chat', async (req, res) => {
     The boss asks: ${message}
     Be proactive to look up data. If asked for data, use fetch_table_records. 
     CRITICAL RULES FOR ACTIONS: 
-    1. If the boss asks about something like "who is late today?", use fetch_table_records to check the attendance_records, cross-reference with Employees to find the names, and then ONLY REPORT the names back. 
-    2. DO NOT use action tools (like send_employee_warning, send_team_announcement, etc.) UNLESS the Boss EXPLICITLY and CLEARLY instructs you to do so. Acknowledgements like "okay" or "good" are NOT instructions to take action.
+    1. If the boss asks about something like "who is late today?" or "how many people didn't check out in a month", use fetch_table_records to check the attendance_records. 
+    2. IMPORTANT: attendance_records contains multiple daily records per employee. If you find 41 records with check_out=null in a month, that means there are 41 missing check-out INCIDENTS, NOT 41 employees. You MUST count the unique 'employee_id's from those records to tell the Boss the exact number of unique people.
+    3. DO NOT use action tools (like send_employee_warning, send_team_announcement, etc.) UNLESS the Boss EXPLICITLY and CLEARLY instructs you to do so. Acknowledgements like "okay" or "good" are NOT instructions to take action.
     Answer concisely in the Boss's language.`;
 
     const tools = [{
