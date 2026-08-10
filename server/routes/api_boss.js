@@ -421,7 +421,21 @@ router.post('/chat', async (req, res) => {
             }
           }
           if (date_filter_column && date_filter_value) {
-            q = q.ilike(date_filter_column, `${date_filter_value}%`);
+            // Handle timestamp filtering properly for PostgreSQL
+            if (date_filter_value.length === 7) {
+              const year = parseInt(date_filter_value.split('-')[0]);
+              const month = parseInt(date_filter_value.split('-')[1]);
+              const startDate = new Date(year, month - 1, 1).toISOString();
+              const endDate = new Date(year, month, 1).toISOString();
+              q = q.gte(date_filter_column, startDate).lt(date_filter_column, endDate);
+            } else if (date_filter_value.length === 10) {
+              const startDate = new Date(date_filter_value).toISOString();
+              const endDate = new Date(new Date(date_filter_value).getTime() + 86400000).toISOString();
+              q = q.gte(date_filter_column, startDate).lt(date_filter_column, endDate);
+            } else {
+              // Fallback for non-timestamp columns
+              q = q.ilike(date_filter_column, `${date_filter_value}%`);
+            }
           }
           const { data, error } = await q;
           if (error) throw error;
@@ -576,9 +590,17 @@ router.post('/chat', async (req, res) => {
           const url = `/api/uploads/${fileName}`;
           apiRes = { success: true, url, message: "PDF Generated successfully" };
         } else if (call.name === "get_absent_employees") {
-          const { month_prefix } = call.args;
+          const { month_prefix } = call.args; // e.g. "2026-07"
+          const year = parseInt(month_prefix.split('-')[0]);
+          const month = parseInt(month_prefix.split('-')[1]);
+          const startDate = new Date(year, month - 1, 1).toISOString();
+          const endDate = new Date(year, month, 1).toISOString();
+          
           const { data: employees } = await supabaseAdmin.from('Employees').select('id, Full_name').eq('status', 'Active');
-          const { data: records } = await supabaseAdmin.from('attendance_records').select('employee_id, check_in').like('check_in', `${month_prefix}%`);
+          const { data: records } = await supabaseAdmin.from('attendance_records')
+            .select('employee_id, check_in')
+            .gte('check_in', startDate)
+            .lt('check_in', endDate);
           
           const activeEmpIds = new Set();
           if (records) {
