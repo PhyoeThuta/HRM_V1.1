@@ -134,12 +134,15 @@ async function calcOvertime(employee_id, check_out_time) {
 router.get('/', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const [employees, records, bioDevices, bioRegs, tokens] = await Promise.all([
+    const [employees, records, bioDevices, bioRegs, tokens, shifts, schedules, rosters] = await Promise.all([
       dbFetch('Employees', 'id,Full_name,employee_id,default_shift_id', { status: 'Active' }),
       dbFetch('attendance_records', '*', {}, { order: 'check_in', ascending: false }),
       dbFetch('biometric_device', '*'),
       dbFetch('biometric_employees', '*'),
       dbFetch('qr_attendance_tokens', '*', {}, { order: 'created_at', ascending: false }),
+      dbFetch('shifts', '*'),
+      dbFetch('employee_daily_schedules', '*'),
+      dbFetch('employee_rosters', '*')
     ]);
 
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
@@ -148,12 +151,41 @@ router.get('/', async (req, res) => {
     const enriched = records.map(r => {
       const emp = empMap[r.employee_id] || {};
       let workHours = null;
+      let isEarlyLeave = false;
       if (r.check_in && r.check_out) {
         try {
           workHours = Math.max(0, Math.round(((new Date(r.check_out) - new Date(r.check_in)) / 3600000) * 100) / 100);
+          
+          let activeShiftId = r.claimed_shift_id;
+          const dt = new Date(r.check_in);
+          const todayStr = dt.toISOString().split('T')[0];
+          
+          if (!activeShiftId) {
+            const dailySchedule = schedules.find(s => s.employee_id === r.employee_id && s.schedule_date === todayStr && !s.is_off_day);
+            if (dailySchedule) activeShiftId = dailySchedule.shift_id;
+          }
+          if (!activeShiftId) {
+            const matchingRoster = rosters.find(ro => ro.employee_id === r.employee_id && ro.start_date <= todayStr && (!ro.end_date || ro.end_date >= todayStr));
+            if (matchingRoster) activeShiftId = matchingRoster.shift_id;
+          }
+          if (!activeShiftId) {
+            activeShiftId = emp.default_shift_id;
+          }
+
+          if (activeShiftId) {
+            const shift = shifts.find(s => s.id === activeShiftId);
+            if (shift && shift.end_time) {
+              const [hours, minutes, seconds] = shift.end_time.split(':');
+              const endDt = new Date(dt);
+              endDt.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds || 0), 0);
+              if (new Date(r.check_out) < endDt) {
+                isEarlyLeave = true;
+              }
+            }
+          }
         } catch { }
       }
-      return { ...r, Full_name: emp.Full_name || '—', employee_code: emp.employee_id || '—', work_hours_calc: workHours };
+      return { ...r, Full_name: emp.Full_name || '—', employee_code: emp.employee_id || '—', work_hours_calc: workHours, is_early_leave: isEarlyLeave };
     });
 
     bioRegs.forEach(reg => { reg.Full_name = (empMap[reg.employee_id] || {}).Full_name || '—'; });
@@ -339,7 +371,9 @@ router.post('/photo-checkin', async (req, res) => {
     const today = now.split('T')[0];
 
     const openRecords = await dbFetch('attendance_records', '*', { employee_id }, { order: 'check_in', ascending: false, limit: 10 });
-    const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
+    const todayRecords = openRecords.filter(r => r.check_in && r.check_in.startsWith(today));
+    const todayOpen = todayRecords.find(r => !r.check_out);
+    const todayCompleted = todayRecords.find(r => r.check_out);
 
     // Prevent double-clicking/network queue duplicates within 2 minutes
     const latestRecord = openRecords[0];
@@ -354,6 +388,8 @@ router.post('/photo-checkin', async (req, res) => {
       const overtime_hours = await calcOvertime(employee_id, now);
       await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
       return res.json({ success: true, message: 'Photo Check-out successful' });
+    } else if (todayCompleted) {
+      return res.status(400).json({ error: 'Attendance already completed for today.' });
     } else {
       let isLate = false;
       let shiftAppStatus = 'Approved';
@@ -627,6 +663,41 @@ router.get('/shifts', async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 });
+
+router.post('/shifts', requireAdmin, async (req, res) => {
+  try {
+    const { shift_name, start_time, end_time, grace_period_minutes } = req.body;
+    if (!shift_name || !start_time || !end_time) return res.status(400).json({ error: 'Missing required fields' });
+    const shift = await dbInsert('shifts', { shift_name, start_time, end_time, grace_period_minutes: grace_period_minutes || 15 });
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Created new shift: ${shift_name}`, ip_address: req.ip || '0.0.0.0' });
+    return res.json({ success: true, shift });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/shifts/:id', requireAdmin, async (req, res) => {
+  try {
+    const { shift_name, start_time, end_time, grace_period_minutes } = req.body;
+    const shift = await dbUpdate('shifts', req.params.id, { shift_name, start_time, end_time, grace_period_minutes });
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Updated shift ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
+    return res.json({ success: true, shift });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/shifts/:id', requireAdmin, async (req, res) => {
+  try {
+    const { error } = await supabase.from('shifts').delete().eq('id', req.params.id);
+    if (error) throw error;
+    await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted shift ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 
 router.get('/rosters', async (req, res) => {
   try {

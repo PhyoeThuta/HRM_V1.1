@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 import RostersTab from '../components/attendance/RostersTab';
 import ShiftApprovalsTab from '../components/attendance/ShiftApprovalsTab';
+import WeeklyRosterPlanner from '../components/attendance/WeeklyRosterPlanner';
 import OvertimeTab from './OvertimeTab';
 
 function StatCard({ label, value, color }) {
@@ -88,6 +89,7 @@ export default function Attendance() {
     { id: 'qr', icon: '📱', label: 'QR Code' },
     { id: 'biometric', icon: '👆', label: 'Biometric' },
     { id: 'rosters', icon: '📅', label: 'Rosters & Shifts' },
+    { id: 'planner', icon: '🗓️', label: 'Weekly Planner' },
     { id: 'approvals', icon: '✅', label: 'Shift Approvals' },
     { id: 'overtime', icon: '⏱️', label: 'Overtime Requests' },
   ];
@@ -415,7 +417,9 @@ export default function Attendance() {
                       <td className="py-3 px-4 whitespace-nowrap"><span className="font-mono text-white text-xs">{r.work_hours_calc != null ? `${r.work_hours_calc}h` : '—'}</span></td>
                       <td className="py-3 px-4 whitespace-nowrap"><span className="font-mono text-white text-xs">{r.overtime_hours != null ? `${r.overtime_hours}h` : '—'}</span></td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {r.is_late
+                        {r.is_early_leave
+                          ? <span className="text-xs font-semibold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">Early Leave</span>
+                          : r.is_late
                           ? <span className="text-xs font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Late</span>
                           : <span className="text-xs text-emerald-400">On time</span>}
                       </td>
@@ -615,6 +619,11 @@ export default function Attendance() {
         {/* Overtime Tab */}
         {activeTab === 'overtime' && (
           <OvertimeTab />
+        )}
+
+        {/* Weekly Planner Tab */}
+        {activeTab === 'planner' && (
+          <WeeklyRosterPlanner />
         )}
       </div>
 

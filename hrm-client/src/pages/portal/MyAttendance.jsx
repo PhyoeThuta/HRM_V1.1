@@ -132,7 +132,9 @@ export default function MyAttendance() {
                                 <td className="py-3 px-5 text-white font-mono text-xs">{r.work_hours_calc != null ? `${r.work_hours_calc}h` : '—'}</td>
                                 <td className="py-3 px-5">{methodBadge(r.attendance_method)}</td>
                                 <td className="py-3 px-5">
-                                  {r.is_late
+                                  {r.is_early_leave
+                                    ? <span className="text-xs font-semibold text-rose-400">Early Leave</span>
+                                    : r.is_late
                                     ? <span className="text-xs font-semibold text-amber-400">Late</span>
                                     : <span className="text-xs text-emerald-400">On time</span>}
                                 </td>

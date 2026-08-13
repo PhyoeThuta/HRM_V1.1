@@ -86,7 +86,7 @@ router.get('/portal', async (req, res) => {
     const empId = req.user.employee_id;
     if (!empId) return res.json({ emp: null });
 
-    const [emp, attRecs, leaveReqs, payslips, votes, leaveBals, announcements, leaveTypes, qr_token_records] = await Promise.all([
+    const [emp, attRecs, leaveReqs, payslips, votes, leaveBals, announcements, leaveTypes, qr_token_records, shifts, schedules, rosters] = await Promise.all([
       dbFetchOne('Employees', '*', { id: empId }),
       dbFetch('attendance_records', '*', { employee_id: empId }, { order: 'check_in', ascending: false }),
       dbFetch('Leave_Request', '*', { employee_id: empId }, { order: 'created_at', ascending: false }),
@@ -96,7 +96,40 @@ router.get('/portal', async (req, res) => {
       dbFetch('announcements', '*'),
       dbFetch('Leave_type', '*'),
       dbFetch('qr_attendance_tokens', '*', { employee_id: empId, used: false }, { order: 'created_at', ascending: false, limit: 1 }),
+      dbFetch('shifts', '*'),
+      dbFetch('employee_daily_schedules', '*', { employee_id: empId }),
+      dbFetch('employee_rosters', '*', { employee_id: empId })
     ]);
+
+    // Enrich attendance_records with is_early_leave
+    attRecs.forEach(r => {
+      r.is_early_leave = false;
+      if (r.check_in && r.check_out && emp) {
+        let activeShiftId = r.claimed_shift_id;
+        const dt = new Date(r.check_in);
+        const todayStr = dt.toISOString().split('T')[0];
+        if (!activeShiftId) {
+          const dailySchedule = schedules.find(s => s.schedule_date === todayStr && !s.is_off_day);
+          if (dailySchedule) activeShiftId = dailySchedule.shift_id;
+        }
+        if (!activeShiftId) {
+          const matchingRoster = rosters.find(ro => ro.start_date <= todayStr && (!ro.end_date || ro.end_date >= todayStr));
+          if (matchingRoster) activeShiftId = matchingRoster.shift_id;
+        }
+        if (!activeShiftId) {
+          activeShiftId = emp.default_shift_id;
+        }
+        if (activeShiftId) {
+          const shift = shifts.find(s => s.id === activeShiftId);
+          if (shift && shift.end_time) {
+            const [hours, minutes, seconds] = shift.end_time.split(':');
+            const endDt = new Date(dt);
+            endDt.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds || 0), 0);
+            if (new Date(r.check_out) < endDt) r.is_early_leave = true;
+          }
+        }
+      }
+    });
 
     if (emp) {
       const [depts, positions] = await Promise.all([
