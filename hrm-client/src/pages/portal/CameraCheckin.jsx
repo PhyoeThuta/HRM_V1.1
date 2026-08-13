@@ -108,8 +108,22 @@ export default function CameraCheckin() {
   const formatTime = (date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
   const formatDate = (date) => date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   
-  // Late logic: after 9:00:00 AM
-  const isLate = currentTime.getHours() >= 9 && (currentTime.getHours() > 9 || currentTime.getMinutes() > 0 || currentTime.getSeconds() > 0);
+  // Late logic: after 9:00:00 AM (for checkin)
+  // Check if checkout is early based on shift end time (only for checkout)
+  const isLateCheckin = !isCheckingOut && (currentTime.getHours() > 9 || (currentTime.getHours() === 9 && (currentTime.getMinutes() > 0 || currentTime.getSeconds() > 0)));
+  
+  let isEarlyCheckout = false;
+  let isLateCheckout = false;
+  if (isCheckingOut && todayOpenRecord) {
+    const shift = shiftData?.allowed_shifts?.find(s => s.id === todayOpenRecord.claimed_shift_id);
+    if (shift && shift.end_time) {
+      const [h, m] = shift.end_time.split(':');
+      const endTime = new Date(currentTime);
+      endTime.setHours(parseInt(h), parseInt(m), 0, 0);
+      isEarlyCheckout = currentTime < endTime;
+      isLateCheckout = currentTime >= endTime;
+    }
+  }
 
   return (
     <Layout title={isCheckingOut ? "Photo Check-Out 📸" : "Photo Check-In 📸"} subtitle="Take a selfie to record your attendance">
@@ -170,19 +184,31 @@ export default function CameraCheckin() {
         <div className="p-6 bg-surface-800">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Check-in Time</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{isCheckingOut ? 'Check-out Time' : 'Check-in Time'}</p>
               <h2 className="text-3xl font-black text-white tracking-tight mb-1">{formatTime(currentTime)}</h2>
               <p className="text-xs text-slate-400">{formatDate(currentTime)}</p>
             </div>
             <div>
-              {isLate ? (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/10">
-                  <span className="text-xs font-bold text-amber-400">Late ⚠️</span>
-                </div>
+              {!isCheckingOut ? (
+                isLateCheckin ? (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/10">
+                    <span className="text-xs font-bold text-amber-400">Late ⚠️</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10">
+                    <span className="text-xs font-bold text-emerald-400">On Time ✅</span>
+                  </div>
+                )
               ) : (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10">
-                  <span className="text-xs font-bold text-emerald-400">On Time ✅</span>
-                </div>
+                isEarlyCheckout ? (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-rose-500/20 bg-rose-500/10">
+                    <span className="text-xs font-bold text-rose-400">Early Leave ⚠️</span>
+                  </div>
+                ) : isLateCheckout ? (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10">
+                    <span className="text-xs font-bold text-emerald-400">On Time / OT ✅</span>
+                  </div>
+                ) : null
               )}
             </div>
           </div>
