@@ -5,6 +5,7 @@ import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 
 export default function CameraCheckin() {
   const webcamRef = useRef(null);
@@ -18,11 +19,27 @@ export default function CameraCheckin() {
     return () => clearInterval(timer);
   }, []);
 
+  const [selectedShift, setSelectedShift] = useState('');
+  const [specialReason, setSpecialReason] = useState('');
+
+  const { data: shiftData } = useQuery({
+    queryKey: ['available_shifts'],
+    queryFn: () => api.get('/attendance/available-shifts').then(res => res.data),
+    onSuccess: (data) => {
+      if (data.default_shift_id && !selectedShift) {
+        setSelectedShift(data.default_shift_id);
+      } else if (data.allowed_shifts?.length > 0 && !selectedShift) {
+        setSelectedShift(data.allowed_shifts[0].id);
+      }
+    }
+  });
+
   const checkinMutation = useMutation({
     mutationFn: (base64) => api.post('/attendance/photo-checkin', { 
       employee_id: user.employee_id, 
       photo_base64: base64,
-      is_late: isLate
+      claimed_shift_id: selectedShift,
+      special_shift_reason: selectedShift === 'special' ? specialReason : null
     }),
     onSuccess: () => {
       toast.success('Photo Check-in successful!');
@@ -64,6 +81,10 @@ export default function CameraCheckin() {
   }, [webcamRef]);
 
   const submit = () => {
+    if (selectedShift === 'special' && !specialReason.trim()) {
+      toast.error('Please provide a reason for the special shift request.');
+      return;
+    }
     if (imgSrc) checkinMutation.mutate(imgSrc);
   };
 
@@ -141,6 +162,37 @@ export default function CameraCheckin() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Shift Selection Area */}
+          <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+            <label className="block text-xs font-bold text-slate-400 mb-2">Selected Shift</label>
+            <select 
+              value={selectedShift}
+              onChange={e => setSelectedShift(e.target.value)}
+              className="w-full bg-[#0f111a] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="" disabled>Select your shift...</option>
+              {shiftData?.allowed_shifts?.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.shift_name} ({s.start_time.slice(0,5)} - {s.end_time.slice(0,5)})
+                </option>
+              ))}
+              <option value="special">Other / Request Special Shift</option>
+            </select>
+            
+            {selectedShift === 'special' && (
+              <div className="mt-3">
+                <input 
+                  type="text" 
+                  placeholder="Reason (e.g. Boss asked me to come early)" 
+                  value={specialReason}
+                  onChange={e => setSpecialReason(e.target.value)}
+                  className="w-full bg-[#0f111a] border border-amber-500/50 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+                />
+                <p className="text-[10px] text-amber-400/80 mt-1 pl-1">HR must approve special shift requests manually.</p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-4 mb-6">

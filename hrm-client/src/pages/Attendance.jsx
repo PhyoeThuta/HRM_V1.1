@@ -5,8 +5,7 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
-import RostersTab from '../components/attendance/RostersTab';
-import WeeklyRosterPlanner from '../components/attendance/WeeklyRosterPlanner';
+import ShiftApprovalsTab from '../components/attendance/ShiftApprovalsTab';
 import OvertimeTab from './OvertimeTab';
 
 function StatCard({ label, value, color }) {
@@ -87,7 +86,7 @@ export default function Attendance() {
     { id: 'photo', icon: '📸', label: 'Photo Check-In' },
     { id: 'qr', icon: '📱', label: 'QR Code' },
     { id: 'biometric', icon: '👆', label: 'Biometric' },
-    { id: 'rosters', icon: '📅', label: 'Rosters & Shifts' },
+    { id: 'approvals', icon: '✅', label: 'Shift Approvals' },
     { id: 'overtime', icon: '⏱️', label: 'Overtime Requests' },
   ];
 
@@ -601,9 +600,9 @@ export default function Attendance() {
           </div>
         )}
 
-        {/* Rosters Tab */}
-        {activeTab === 'rosters' && (
-          <WeeklyRosterPlanner />
+        {/* Approvals Tab */}
+        {activeTab === 'approvals' && (
+          <ShiftApprovalsTab />
         )}
 
         {/* Overtime Tab */}

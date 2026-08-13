@@ -6,41 +6,41 @@ import { verifyToken, requireAdmin } from '../middleware/auth.js';
 const router = express.Router();
 router.use(verifyToken);
 
-async function checkIsLate(employee_id, check_in_time) {
+async function checkIsLate(employee_id, check_in_time, claimed_shift_id = null) {
   try {
     const dt = new Date(check_in_time);
     const todayStr = dt.toISOString().split('T')[0];
-    
-    // 1. Check Daily Schedule (New System)
-    let activeShiftId = null;
-    const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
-      employee_id: employee_id,
-      schedule_date: todayStr,
-      is_off_day: false
-    });
-    if (dailySchedule && dailySchedule.shift_id) {
-      activeShiftId = dailySchedule.shift_id;
-    }
-    
-    // 2. Check Legacy Roster if no daily schedule
+
+    let activeShiftId = claimed_shift_id;
+
     if (!activeShiftId) {
-      const rosters = await dbFetch('employee_rosters', '*', { employee_id });
-      for (const r of rosters) {
-        if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
-          activeShiftId = r.shift_id;
-          break;
+      const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
+        employee_id: employee_id,
+        schedule_date: todayStr,
+        is_off_day: false
+      });
+      if (dailySchedule && dailySchedule.shift_id) {
+        activeShiftId = dailySchedule.shift_id;
+      }
+
+      if (!activeShiftId) {
+        const rosters = await dbFetch('employee_rosters', '*', { employee_id });
+        for (const r of rosters) {
+          if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
+            activeShiftId = r.shift_id;
+            break;
+          }
+        }
+      }
+
+      if (!activeShiftId) {
+        const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
+        if (emp && emp.default_shift_id) {
+          activeShiftId = emp.default_shift_id;
         }
       }
     }
-    
-    // 2. Check Default Shift
-    if (!activeShiftId) {
-      const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
-      if (emp && emp.default_shift_id) {
-        activeShiftId = emp.default_shift_id;
-      }
-    }
-    
+
     // 3. Calculate Cutoff
     if (activeShiftId) {
       const shift = await dbFetchOne('shifts', '*', { id: activeShiftId });
@@ -52,7 +52,7 @@ async function checkIsLate(employee_id, check_in_time) {
         return dt > cutoffDt;
       }
     }
-    
+
     // Fallback: 9:15 AM
     const fallbackDt = new Date(dt);
     fallbackDt.setHours(9, 15, 0, 0);
@@ -67,19 +67,19 @@ async function calcOvertime(employee_id, check_out_time) {
   try {
     const dt = new Date(check_out_time);
     const todayStr = dt.toISOString().split('T')[0];
-    
+
     // 0. Check if there is an APPROVED overtime request for this date
     const otRequest = await dbFetchOne('overtime_requests', 'id', {
       employee_id: employee_id,
       ot_date: todayStr,
       status: 'Approved'
     });
-    
+
     // If no approved OT request exists, return 0
     if (!otRequest) {
       return 0;
     }
-    
+
     // 1. Check Daily Schedule (New System)
     let activeShiftId = null;
     const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
@@ -90,7 +90,7 @@ async function calcOvertime(employee_id, check_out_time) {
     if (dailySchedule && dailySchedule.shift_id) {
       activeShiftId = dailySchedule.shift_id;
     }
-    
+
     // 2. Check Legacy Roster if no daily schedule
     if (!activeShiftId) {
       const rosters = await dbFetch('employee_rosters', '*', { employee_id });
@@ -101,24 +101,24 @@ async function calcOvertime(employee_id, check_out_time) {
         }
       }
     }
-    
+
     if (!activeShiftId) {
       const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
       if (emp && emp.default_shift_id) activeShiftId = emp.default_shift_id;
     }
-    
+
     if (activeShiftId) {
       const shift = await dbFetchOne('shifts', '*', { id: activeShiftId });
       if (shift && shift.end_time) {
         const [hours, minutes, seconds] = shift.end_time.split(':');
         const endDt = new Date(dt);
         endDt.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds || 0), 0);
-        
+
         const diffMs = dt - endDt;
         if (diffMs > 0) {
           const diffHours = diffMs / 3600000;
           if (diffHours >= 1) { // Only count if >= 1 hour
-             return Math.round(diffHours * 10) / 10;
+            return Math.round(diffHours * 10) / 10;
           }
         }
       }
@@ -151,7 +151,7 @@ router.get('/', async (req, res) => {
       if (r.check_in && r.check_out) {
         try {
           workHours = Math.max(0, Math.round(((new Date(r.check_out) - new Date(r.check_in)) / 3600000) * 100) / 100);
-        } catch {}
+        } catch { }
       }
       return { ...r, Full_name: emp.Full_name || '—', employee_code: emp.employee_id || '—', work_hours_calc: workHours };
     });
@@ -197,14 +197,33 @@ router.post('/', async (req, res) => {
       is_off_day: false
     });
     const shiftId = schedule?.shift_id || null; // may be null if off day or no schedule
+    let isLate = false;
+    let shiftAppStatus = 'Approved';
+    let claimedId = null;
+    let specialReason = null;
+
+    if (d.claimed_shift_id === 'special') {
+      isLate = false; // Cannot determine late for special shifts until HR reviews
+      shiftAppStatus = 'Pending';
+      specialReason = d.special_shift_reason || 'No reason provided';
+    } else if (d.claimed_shift_id) {
+      claimedId = d.claimed_shift_id; // Keep as string (UUID)
+      isLate = await checkIsLate(d.employee_id, ci, claimedId);
+      shiftAppStatus = 'Pending';
+    } else {
+      isLate = d.is_late !== undefined ? (d.is_late === true || d.is_late === 'true') : await checkIsLate(d.employee_id, ci);
+    }
+
     const result = await dbInsert('attendance_records', {
       employee_id: d.employee_id,
       check_in: ci,
       check_out: d.check_out || null,
       overtime_hours: d.overtime_hours ? parseFloat(d.overtime_hours) : (d.check_out ? await calcOvertime(d.employee_id, d.check_out) : 0),
       attendance_method: d.attendance_method || 'Manual',
-      is_late: d.is_late === true || d.is_late === 'true',
-      shift_id: shiftId,
+      is_late: isLate,
+      claimed_shift_id: claimedId,
+      shift_approval_status: shiftAppStatus,
+      special_shift_reason: specialReason,
       created_at: now,
     });
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Manual attendance check-in for employee ID: ${d.employee_id}`, ip_address: req.ip || '0.0.0.0' });
@@ -220,7 +239,7 @@ router.post('/:id/checkout', async (req, res) => {
     const now = new Date().toISOString();
     const record = await dbFetchOne('attendance_records', '*', { id: req.params.id });
     const overtime_hours = record ? await calcOvertime(record.employee_id, now) : 0;
-    
+
     await dbUpdate('attendance_records', req.params.id, { check_out: now, overtime_hours });
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Manual check-out for attendance record ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
@@ -245,17 +264,17 @@ router.post('/generate-qr', requireAdmin, async (req, res) => {
   try {
     const { employee_id, expires_in_minutes = 60 } = req.body;
     if (!employee_id) return res.status(400).json({ error: 'employee_id required' });
-    
+
     const token = crypto.randomBytes(32).toString('hex');
     const expires_at = new Date(Date.now() + expires_in_minutes * 60000).toISOString();
-    
+
     await dbInsert('qr_attendance_tokens', {
       employee_id,
       token,
       expires_at,
       used: false
     });
-    
+
     return res.json({ success: true, token });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -267,20 +286,20 @@ router.post('/scan', async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required' });
-    
+
     const qrData = await dbFetchOne('qr_attendance_tokens', '*', { token });
     if (!qrData) return res.status(400).json({ error: 'Invalid token' });
     if (qrData.used) return res.status(400).json({ error: 'Token already used' });
     if (new Date(qrData.expires_at) < new Date()) return res.status(400).json({ error: 'Token expired' });
-    
+
     await dbUpdate('qr_attendance_tokens', qrData.id, { used: true });
-    
+
     const now = new Date().toISOString();
     const today = now.split('T')[0];
-    
+
     const openRecords = await dbFetch('attendance_records', '*', { employee_id: qrData.employee_id }, { order: 'check_in', ascending: false, limit: 10 });
     const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
-    
+
     // Prevent double-scanning duplicates within 2 minutes
     const latestRecord = openRecords[0];
     if (latestRecord) {
@@ -313,15 +332,15 @@ router.post('/scan', async (req, res) => {
 // POST /api/attendance/photo-checkin
 router.post('/photo-checkin', async (req, res) => {
   try {
-    const { employee_id, photo_base64 } = req.body;
+    const { employee_id, photo_base64, claimed_shift_id, special_shift_reason } = req.body;
     if (!employee_id || !photo_base64) return res.status(400).json({ error: 'employee_id and photo required' });
-    
+
     const now = new Date().toISOString();
     const today = now.split('T')[0];
-    
+
     const openRecords = await dbFetch('attendance_records', '*', { employee_id }, { order: 'check_in', ascending: false, limit: 10 });
     const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
-    
+
     // Prevent double-clicking/network queue duplicates within 2 minutes
     const latestRecord = openRecords[0];
     if (latestRecord) {
@@ -336,11 +355,31 @@ router.post('/photo-checkin', async (req, res) => {
       await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
       return res.json({ success: true, message: 'Photo Check-out successful' });
     } else {
+      let isLate = false;
+      let shiftAppStatus = 'Approved';
+      let claimedId = null;
+      let specialReason = null;
+      
+      if (claimed_shift_id === 'special') {
+        isLate = false;
+        shiftAppStatus = 'Pending';
+        specialReason = special_shift_reason || 'No reason provided';
+      } else if (claimed_shift_id) {
+        claimedId = claimed_shift_id;
+        isLate = await checkIsLate(employee_id, now, claimedId);
+        shiftAppStatus = 'Pending';
+      } else {
+        isLate = await checkIsLate(employee_id, now);
+      }
+
       await dbInsert('attendance_records', {
         employee_id,
         check_in: now,
         attendance_method: 'Photo',
-        is_late: await checkIsLate(employee_id, now)
+        is_late: isLate,
+        claimed_shift_id: claimedId,
+        shift_approval_status: shiftAppStatus,
+        special_shift_reason: specialReason,
       });
       return res.json({ success: true, message: 'Photo Check-in successful' });
     }
@@ -355,30 +394,30 @@ router.post('/biometric/sync', async (req, res) => {
   try {
     const { api_key, records } = req.body; // records: [{ fingerprint_id, timestamp, device_id }]
     const expectedKey = process.env.BIOMETRIC_API_KEY || 'zkteco-secret-key-123';
-    
+
     if (api_key !== expectedKey) return res.status(401).json({ error: 'Unauthorized API Key' });
     if (!records || !Array.isArray(records)) return res.status(400).json({ error: 'Invalid records format' });
-    
+
     let synced = 0;
     for (const r of records) {
       // Find employee by fingerprint_id
       const bioEmp = await dbFetchOne('biometric_employees', '*', { biometric_id: r.fingerprint_id });
       if (!bioEmp) continue; // Unknown fingerprint
-      
+
       const empId = bioEmp.employee_id;
       const logTime = r.timestamp;
-      
+
       // Check for exact duplicate raw time to prevent multiple inserts
       const existingLog = await dbFetchOne('biometric_logs', 'id', { employee_id: empId, raw_time: logTime });
       if (existingLog) continue;
-      
+
       // Insert to biometric_logs
       await dbInsert('biometric_logs', {
         device_id: r.device_id || bioEmp.device_id,
         employee_id: empId,
         raw_time: logTime
       });
-      
+
       // Insert to attendance_records
       await dbInsert('attendance_records', {
         employee_id: empId,
@@ -387,10 +426,10 @@ router.post('/biometric/sync', async (req, res) => {
         is_late: await checkIsLate(empId, logTime),
         created_at: new Date().toISOString()
       });
-      
+
       synced++;
     }
-    
+
     return res.json({ success: true, synced_count: synced });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -456,7 +495,82 @@ router.delete('/biometric/mapping/:id', async (req, res) => {
   }
 });
 
+// GET /api/attendance/available-shifts
+router.get('/available-shifts', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const emp = await dbFetchOne('Employees', 'id, Dept_id', { id: req.user.employee_id });
+
+    // Get default assigned shift for today
+    const schedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
+      employee_id: req.user.employee_id,
+      schedule_date: today,
+      is_off_day: false
+    });
+    let defaultShiftId = schedule?.shift_id || null;
+
+    if (!defaultShiftId) {
+      const rosters = await dbFetch('employee_rosters', '*', { employee_id: req.user.employee_id });
+      for (const r of rosters) {
+        if (r.start_date <= today && (!r.end_date || r.end_date >= today)) {
+          defaultShiftId = r.shift_id;
+          break;
+        }
+      }
+    }
+    if (!defaultShiftId) {
+      const empFull = await dbFetchOne('Employees', 'default_shift_id', { id: req.user.employee_id });
+      defaultShiftId = empFull?.default_shift_id || null;
+    }
+
+    // Get all shifts and filter by department (if applicable)
+    const allShifts = await dbFetch('shifts', '*', {}, { order: 'shift_name' });
+    const myShifts = allShifts.filter(s => {
+      // If no department restriction, allow it
+      if (!s.allowed_departments || s.allowed_departments.length === 0) return true;
+      return s.allowed_departments.includes(emp?.Dept_id);
+    });
+
+    return res.json({ success: true, default_shift_id: defaultShiftId, allowed_shifts: myShifts });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/attendance/approvals/:id
+router.put('/approvals/:id', requireAdmin, async (req, res) => {
+  try {
+    const { shift_approval_status, override_shift_id, special_shift_reason } = req.body;
+    const updates = { shift_approval_status };
+
+    if (override_shift_id) {
+      updates.claimed_shift_id = override_shift_id;
+      updates.special_shift_reason = null; 
+    } else if (special_shift_reason) {
+      updates.claimed_shift_id = 'special';
+      updates.special_shift_reason = special_shift_reason;
+    }
+
+    // Fetch record to recalculate late status
+    const record = await dbFetchOne('attendance_records', '*', { id: req.params.id });
+    if (record) {
+      const finalShiftId = override_shift_id || record.claimed_shift_id;
+      if (finalShiftId && finalShiftId !== 'special') {
+        updates.is_late = await checkIsLate(record.employee_id, record.check_in, finalShiftId);
+      } else {
+        updates.is_late = false;
+      }
+    }
+
+    await dbUpdate('attendance_records', req.params.id, updates);
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // --- Rosters & Shifts API ---
+
 
 // GET schedules for a date range
 router.get('/schedules', async (req, res) => {
@@ -469,7 +583,7 @@ router.get('/schedules', async (req, res) => {
       .gte('schedule_date', start)
       .lte('schedule_date', end)
       .order('schedule_date', { ascending: true });
-    
+
     if (error) throw error;
     return res.json({ success: true, schedules: schedules || [] });
   } catch (e) {
@@ -553,7 +667,7 @@ router.post('/default-shift', async (req, res) => {
   try {
     const { employee_id, shift_id } = req.body;
     if (!employee_id) return res.status(400).json({ error: 'employee_id is required' });
-    
+
     await dbUpdate('Employees', employee_id, { default_shift_id: shift_id || null });
     return res.json({ success: true });
   } catch (e) {
