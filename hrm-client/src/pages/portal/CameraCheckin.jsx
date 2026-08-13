@@ -5,9 +5,10 @@ import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function CameraCheckin() {
+  const qc = useQueryClient();
   const webcamRef = useRef(null);
   const [isCameraStarted, setIsCameraStarted] = useState(false);
   const [imgSrc, setImgSrc] = useState(null);
@@ -40,7 +41,13 @@ export default function CameraCheckin() {
   });
 
   const today = new Date().toISOString().split('T')[0];
-  const todayOpenRecord = portalData?.attendance_records?.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Find today's records
+  const todayRecords = portalData?.attendance_records?.filter(r => r.check_in && r.check_in.startsWith(today)) || [];
+  const todayOpenRecord = todayRecords.find(r => !r.check_out);
+  const hasCompletedAttendance = todayRecords.length > 0 && todayRecords.every(r => r.check_out);
+  
   const isCheckingOut = !!todayOpenRecord;
 
   const checkinMutation = useMutation({
@@ -54,6 +61,7 @@ export default function CameraCheckin() {
       toast.success(isCheckingOut ? 'Photo Check-Out successful!' : 'Photo Check-In successful!');
       setImgSrc(null);
       setIsCameraStarted(false);
+      qc.invalidateQueries(['portal_data']);
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to check-in')
   });
@@ -109,7 +117,13 @@ export default function CameraCheckin() {
         
         {/* Camera Area */}
         <div className="w-full h-[400px] flex items-center justify-center bg-[#0f111a] relative">
-          {!isCameraStarted ? (
+          {hasCompletedAttendance ? (
+            <div className="text-center text-slate-500">
+              <span className="text-4xl block mb-2">🎉</span>
+              <p className="font-semibold text-white">Attendance Completed</p>
+              <p className="text-xs mt-1">You have already checked out for today.</p>
+            </div>
+          ) : !isCameraStarted ? (
             <div className="text-center text-slate-500">
               <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -176,7 +190,13 @@ export default function CameraCheckin() {
 
 
           {/* Shift Selection Area (Only for Check-In) */}
-          {!isCheckingOut ? (
+          {hasCompletedAttendance ? (
+            <div className="mb-6 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-center">
+              <span className="text-2xl block mb-2">🙌</span>
+              <p className="text-indigo-400 font-bold text-sm">Great job today!</p>
+              <p className="text-slate-400 text-xs mt-1">See you tomorrow.</p>
+            </div>
+          ) : !isCheckingOut ? (
             <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
               <label className="block text-xs font-bold text-slate-400 mb-2">Selected Shift</label>
               <select 
@@ -219,9 +239,9 @@ export default function CameraCheckin() {
           <div className="flex gap-4 mb-6">
             <button 
               onClick={() => setIsCameraStarted(true)} 
-              disabled={isCameraStarted}
+              disabled={isCameraStarted || hasCompletedAttendance}
               className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                isCameraStarted 
+                (isCameraStarted || hasCompletedAttendance)
                   ? 'bg-[#334155] text-slate-400 cursor-not-allowed opacity-50' 
                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
               }`}
@@ -230,9 +250,9 @@ export default function CameraCheckin() {
             </button>
             <button 
               onClick={capture} 
-              disabled={!isCameraStarted || imgSrc}
+              disabled={!isCameraStarted || imgSrc || hasCompletedAttendance}
               className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                (!isCameraStarted || imgSrc)
+                (!isCameraStarted || imgSrc || hasCompletedAttendance)
                   ? 'bg-[#121421] border border-white/5 text-slate-500 cursor-not-allowed' 
                   : (isCheckingOut ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20')
               }`}
