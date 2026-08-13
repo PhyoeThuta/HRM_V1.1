@@ -41,7 +41,6 @@ export default function CameraCheckin() {
   });
 
   const today = new Date().toISOString().split('T')[0];
-  const today = new Date().toISOString().split('T')[0];
   
   // Find today's records
   const todayRecords = portalData?.attendance_records?.filter(r => r.check_in && r.check_in.startsWith(today)) || [];
