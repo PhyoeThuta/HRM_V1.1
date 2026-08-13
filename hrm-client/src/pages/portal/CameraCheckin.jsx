@@ -34,6 +34,15 @@ export default function CameraCheckin() {
     }
   });
 
+  const { data: portalData } = useQuery({
+    queryKey: ['portal_data'],
+    queryFn: () => api.get('/portal').then(res => res.data)
+  });
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayOpenRecord = portalData?.attendance_records?.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
+  const isCheckingOut = !!todayOpenRecord;
+
   const checkinMutation = useMutation({
     mutationFn: (base64) => api.post('/attendance/photo-checkin', { 
       employee_id: user.employee_id, 
@@ -42,7 +51,7 @@ export default function CameraCheckin() {
       special_shift_reason: selectedShift === 'special' ? specialReason : null
     }),
     onSuccess: () => {
-      toast.success('Photo Check-in successful!');
+      toast.success(isCheckingOut ? 'Photo Check-Out successful!' : 'Photo Check-In successful!');
       setImgSrc(null);
       setIsCameraStarted(false);
     },
@@ -81,7 +90,7 @@ export default function CameraCheckin() {
   }, [webcamRef]);
 
   const submit = () => {
-    if (selectedShift === 'special' && !specialReason.trim()) {
+    if (!isCheckingOut && selectedShift === 'special' && !specialReason.trim()) {
       toast.error('Please provide a reason for the special shift request.');
       return;
     }
@@ -95,7 +104,7 @@ export default function CameraCheckin() {
   const isLate = currentTime.getHours() >= 9 && (currentTime.getHours() > 9 || currentTime.getMinutes() > 0 || currentTime.getSeconds() > 0);
 
   return (
-    <Layout title="Photo Check-In 📸" subtitle="Take a selfie to record your attendance">
+    <Layout title={isCheckingOut ? "Photo Check-Out 📸" : "Photo Check-In 📸"} subtitle="Take a selfie to record your attendance">
       <div className="max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
         
         {/* Camera Area */}
@@ -164,36 +173,48 @@ export default function CameraCheckin() {
             </div>
           </div>
 
-          {/* Shift Selection Area */}
-          <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-            <label className="block text-xs font-bold text-slate-400 mb-2">Selected Shift</label>
-            <select 
-              value={selectedShift}
-              onChange={e => setSelectedShift(e.target.value)}
-              className="w-full bg-[#0f111a] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="" disabled>Select your shift...</option>
-              {shiftData?.allowed_shifts?.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.shift_name} ({s.start_time.slice(0,5)} - {s.end_time.slice(0,5)})
-                </option>
-              ))}
-              <option value="special">Other / Request Special Shift</option>
-            </select>
-            
-            {selectedShift === 'special' && (
-              <div className="mt-3">
-                <input 
-                  type="text" 
-                  placeholder="Reason (e.g. Boss asked me to come early)" 
-                  value={specialReason}
-                  onChange={e => setSpecialReason(e.target.value)}
-                  className="w-full bg-[#0f111a] border border-amber-500/50 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
-                />
-                <p className="text-[10px] text-amber-400/80 mt-1 pl-1">HR must approve special shift requests manually.</p>
-              </div>
-            )}
-          </div>
+
+
+          {/* Shift Selection Area (Only for Check-In) */}
+          {!isCheckingOut ? (
+            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+              <label className="block text-xs font-bold text-slate-400 mb-2">Selected Shift</label>
+              <select 
+                value={selectedShift}
+                onChange={e => setSelectedShift(e.target.value)}
+                className="w-full bg-[#0f111a] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="" disabled>Select your shift...</option>
+                {shiftData?.allowed_shifts?.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.shift_name} ({s.start_time.slice(0,5)} - {s.end_time.slice(0,5)})
+                  </option>
+                ))}
+                <option value="special">Other / Request Special Shift</option>
+              </select>
+              
+              {selectedShift === 'special' && (
+                <div className="mt-3">
+                  <input 
+                    type="text" 
+                    placeholder="Reason (e.g. Boss asked me to come early)" 
+                    value={specialReason}
+                    onChange={e => setSpecialReason(e.target.value)}
+                    className="w-full bg-[#0f111a] border border-amber-500/50 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+                  />
+                  <p className="text-[10px] text-amber-400/80 mt-1 pl-1">HR must approve special shift requests manually.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+              <span className="text-2xl block mb-2">👋</span>
+              <p className="text-emerald-400 font-bold text-sm">You are currently checked in.</p>
+              <p className="text-slate-400 text-xs mt-1">Take a photo to check out for the day.</p>
+            </div>
+          )}
+
+
 
           <div className="flex gap-4 mb-6">
             <button 
@@ -213,10 +234,10 @@ export default function CameraCheckin() {
               className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                 (!isCameraStarted || imgSrc)
                   ? 'bg-[#121421] border border-white/5 text-slate-500 cursor-not-allowed' 
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                  : (isCheckingOut ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20')
               }`}
             >
-              <span>📸</span> Take Photo
+              <span>📸</span> {isCheckingOut ? 'Check Out' : 'Check In'}
             </button>
           </div>
 
