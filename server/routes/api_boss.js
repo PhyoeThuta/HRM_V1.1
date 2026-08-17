@@ -206,11 +206,14 @@ router.post('/chat', async (req, res) => {
     ${historyStr}
     
     The boss asks: ${message}
-    Be proactive to look up data. If asked for data, use fetch_table_records. 
-    CRITICAL RULES FOR ACTIONS: 
-    1. If the boss asks about something like "who is late today?" or "how many people didn't check out in a month", use fetch_table_records to check the attendance_records. 
-    2. IMPORTANT: attendance_records contains multiple daily records per employee. If you find 41 records with check_out=null in a month, that means there are 41 missing check-out INCIDENTS, NOT 41 employees. You MUST count the unique 'employee_id's from those records to tell the Boss the exact number of unique people.
-    3. DO NOT use action tools (like send_employee_warning, send_team_announcement, etc.) UNLESS the Boss EXPLICITLY and CLEARLY instructs you to do so. Acknowledgements like "okay" or "good" are NOT instructions to take action.
+    Be proactive to look up data. 
+    CRITICAL RULES FOR ANALYTICS AND DATA QUERIES:
+    1. If the boss asks an analytical question (e.g., "How many people missed checkout in July?", "Which department has the most late arrivals?", "Total sales this month?"), YOU MUST use the 'execute_analytics_query' tool to run a SQL query and get the exact answer. DO NOT guess or rely on 'fetch_table_records' for aggregations.
+    2. When writing SQL for 'execute_analytics_query', ensure it is purely READ-ONLY (SELECT).
+    3. If 'execute_analytics_query' returns a SQL error, analyze the error and try again with a corrected SQL query.
+    4. For simple record lookups (e.g., "What is John's phone number?"), you may use 'fetch_table_records'.
+    5. DO NOT use action tools (like send_employee_warning, send_team_announcement, etc.) UNLESS the Boss EXPLICITLY and CLEARLY instructs you to do so. Acknowledgements like "okay" or "good" are NOT instructions to take action.
+    
     Answer concisely in the Boss's language.`;
 
     const tools = [{
@@ -236,6 +239,17 @@ router.post('/chat', async (req, res) => {
               limit: { type: "NUMBER", description: "Max records (default 10, max 50)" }
             },
             required: ["schema", "table", "columns"]
+          }
+        },
+        {
+          name: "execute_analytics_query",
+          description: "Execute a dynamic Read-Only SQL (PostgreSQL) query to get EXACT analytical data, aggregations, counts, sums, or complex joins.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              sql_query: { type: "STRING", description: "The raw PostgreSQL SELECT query to execute. MUST be read-only." }
+            },
+            required: ["sql_query"]
           }
         },
         {
@@ -441,6 +455,15 @@ router.post('/chat', async (req, res) => {
           const { data, error } = await q;
           if (error) throw error;
           apiRes = { records: data || [] };
+
+        } else if (call.name === "execute_analytics_query") {
+          const { sql_query } = call.args;
+          const { data, error } = await supabaseAdmin.rpc('execute_read_only_sql', { query_text: sql_query });
+          if (error) {
+            apiRes = { error: "SQL Execution Failed", details: error.message || error, suggestion: "Check your SQL syntax and try again." };
+          } else {
+            apiRes = { data: data || [] };
+          }
 
         } else if (call.name === "approve_leave_requests") {
           const { employee_id } = call.args;
