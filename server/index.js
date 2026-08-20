@@ -39,6 +39,7 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // ── Security & Middleware ──────────────────────────────────────
+app.set('trust proxy', 1); // Trust the first proxy to get real client IPs
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({
