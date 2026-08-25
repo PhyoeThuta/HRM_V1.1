@@ -112,10 +112,10 @@ export default function Recruitment() {
   };
 
   const columns = [
-    { id: 'Applied', title: 'APPLIED', items: inPipeline.filter(c => c.status === 'Applied' || !c.status) },
-    { id: 'Screening', title: 'SCREENING', items: inPipeline.filter(c => c.status === 'Screening') },
-    { id: 'Interview', title: 'INTERVIEW', items: inPipeline.filter(c => c.status === 'Interview') },
-    { id: 'Offer', title: 'OFFER', items: inPipeline.filter(c => c.status === 'Offer') },
+    { id: 'Applied', title: 'APPLIED', items: inPipeline.filter(c => c.status === 'Applied' || !c.status).sort((a, b) => parseFloat(b.ai_score || 0) - parseFloat(a.ai_score || 0)) },
+    { id: 'Screening', title: 'SCREENING', items: inPipeline.filter(c => c.status === 'Screening').sort((a, b) => parseFloat(b.ai_score || 0) - parseFloat(a.ai_score || 0)) },
+    { id: 'Interview', title: 'INTERVIEW', items: inPipeline.filter(c => c.status === 'Interview').sort((a, b) => parseFloat(b.ai_score || 0) - parseFloat(a.ai_score || 0)) },
+    { id: 'Offer', title: 'OFFER', items: inPipeline.filter(c => c.status === 'Offer').sort((a, b) => parseFloat(b.ai_score || 0) - parseFloat(a.ai_score || 0)) },
   ];
 
   return (
