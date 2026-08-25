@@ -13,6 +13,7 @@ export default function Recruitment() {
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('recruitmentTab', tab); };
   const [searchQuery, setSearchQuery] = useState('');
   const [guideModalCandidate, setGuideModalCandidate] = useState(null);
+  const [detailModalCandidate, setDetailModalCandidate] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const qc = useQueryClient();
 
@@ -164,6 +165,7 @@ export default function Recruitment() {
                   <CandidateCard 
                     key={c.id} 
                     candidate={c} 
+                    onClick={() => setDetailModalCandidate(c)}
                     onUpdate={(status) => updateMutation.mutate({ id: c.id, status })} 
                     onOpenGuide={() => setGuideModalCandidate(c)} 
                     onConvert={() => setConfirmDialog({
@@ -229,6 +231,7 @@ export default function Recruitment() {
                   <CandidateCard 
                     key={c.id} 
                     candidate={c} 
+                    onClick={() => setDetailModalCandidate(c)}
                     onUpdate={(status) => updateMutation.mutate({ id: c.id, status })} 
                     onOpenGuide={() => setGuideModalCandidate(c)} 
                     onConvert={() => setConfirmDialog({
@@ -414,6 +417,11 @@ export default function Recruitment() {
         </div>
       )}
 
+      {/* CANDIDATE DETAIL MODAL */}
+      {detailModalCandidate && (
+        <CandidateDetailModal candidate={detailModalCandidate} onClose={() => setDetailModalCandidate(null)} />
+      )}
+
     </Layout>
   );
 }
@@ -438,20 +446,19 @@ function TabButton({ active, onClick, icon, label, activeClass, inactiveClass })
   );
 }
 
-function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert }) {
+function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert, onClick }) {
   const initial = (c.full_name || 'U')[0].toUpperCase();
   const [newStatus, setNewStatus] = useState(c.status || 'Applied');
 
   return (
-    <div className="bg-surface-850 border border-white/5 p-4 rounded-xl shadow-lg">
-      <div className="flex gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg flex-shrink-0">
+    <div className="bg-surface-850 border border-white/5 p-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1 hover:border-indigo-500/30">
+      <div className="flex gap-3 mb-3 cursor-pointer group" onClick={onClick}>
+        <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg flex-shrink-0 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
           {initial}
         </div>
-        <div className="overflow-hidden">
-          <h4 className="font-bold text-white text-sm truncate">{c.full_name}</h4>
-          <p className="text-indigo-400 text-xs truncate">{c.position_title || 'General Application'}</p>
-          <p className="text-slate-500 text-xs truncate mt-0.5">{c.email || c.phone || 'No contact info'}</p>
+        <div className="overflow-hidden flex-1">
+          <h4 className="font-bold text-white text-sm truncate group-hover:text-indigo-400 transition-colors">{c.full_name}</h4>
+          <p className="text-slate-400 text-xs truncate mt-0.5">{c.email || c.phone || 'No contact info'}</p>
         </div>
       </div>
 
@@ -579,6 +586,140 @@ function TalentPoolCard({ candidate: c, onReconsider, onDelete, positions }) {
         <button onClick={onDelete} className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors mt-2">
           🗑 Delete Candidate
         </button>
+      </div>
+    </div>
+  );
+}
+
+function CandidateDetailModal({ candidate, onClose }) {
+  const [activeTab, setActiveTab] = useState('ai');
+  const initial = (candidate.full_name || 'U')[0].toUpperCase();
+  const formData = candidate.form_data || {};
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#1a1d2e] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        
+        {/* Header */}
+        <div className="p-6 border-b border-white/10 flex justify-between items-start bg-gradient-to-r from-indigo-900/40 to-transparent">
+          <div className="flex gap-4 items-center">
+            <div className="w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-3xl">
+              {initial}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-1">{candidate.full_name}</h2>
+              <div className="flex flex-wrap gap-2 text-sm">
+                {candidate.email && <span className="text-slate-400">✉ {candidate.email}</span>}
+                {candidate.phone && <span className="text-slate-400">📞 {candidate.phone}</span>}
+                {candidate.position_title && <span className="text-indigo-400 px-2 py-0.5 bg-indigo-500/10 rounded-md">Brief: {candidate.position_title}</span>}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-2xl p-2">✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex px-6 pt-4 border-b border-white/10 gap-6 bg-surface-900">
+          <button 
+            onClick={() => setActiveTab('ai')}
+            className={`pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'ai' ? 'border-amber-400 text-amber-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          >
+            ⭐ AI Evaluation
+          </button>
+          <button 
+            onClick={() => setActiveTab('form')}
+            className={`pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'form' ? 'border-indigo-400 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          >
+            📝 Form Data
+          </button>
+          <button 
+            onClick={() => setActiveTab('resume')}
+            className={`pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'resume' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          >
+            📄 Original Resume
+          </button>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface-850">
+          
+          {activeTab === 'ai' && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 p-6 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div className="text-5xl">🎯</div>
+                <div>
+                  <h3 className="text-sm font-bold text-amber-400 mb-1">AI Match Score</h3>
+                  <div className="text-4xl font-bold text-white">{candidate.ai_score || 0}<span className="text-2xl text-slate-500">/10</span></div>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="p-5 rounded-xl bg-surface-800 border border-white/5">
+                  <h3 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">🇬🇧 English Reasoning</h3>
+                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                    {candidate.ai_reasoning ? candidate.ai_reasoning.split('မြန်မာလို အကျဉ်းချုပ်:')[0].trim() : 'No AI reasoning available yet.'}
+                  </p>
+                </div>
+                <div className="p-5 rounded-xl bg-surface-800 border border-white/5">
+                  <h3 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">🇲🇲 မြန်မာလို အကျဉ်းချုပ်</h3>
+                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">
+                    {candidate.ai_reasoning && candidate.ai_reasoning.includes('မြန်မာလို အကျဉ်းချုပ်:') 
+                      ? candidate.ai_reasoning.split('မြန်မာလို အကျဉ်းချုပ်:')[1].trim() 
+                      : 'မြန်မာလို အကျဉ်းချုပ် မရရှိနိုင်သေးပါ။'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'form' && (
+            <div className="space-y-4">
+              {Object.keys(formData).length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  Form data not available for this candidate.
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {Object.entries(formData).map(([key, value]) => {
+                    if (!value || key === 'Timestamp' || key === 'Email Address' || key === 'Full Name' || key === 'Phone / Telegram / WhatsApp Number' || key.includes('drive link')) return null;
+                    return (
+                      <div key={key} className="p-4 rounded-lg bg-surface-800 border border-white/5">
+                        <h4 className="text-xs font-bold text-indigo-400 mb-1">{key}</h4>
+                        <p className="text-white text-sm whitespace-pre-wrap">{String(value)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'resume' && (
+            <div>
+              {candidate.resume_content ? (
+                <div className="p-6 rounded-xl bg-white/5 border border-white/10 font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                  {candidate.resume_content}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-4 opacity-50">📄</div>
+                  <h3 className="text-lg font-bold text-white mb-2">No Resume Text Available</h3>
+                  <p className="text-slate-400 text-sm max-w-sm mx-auto">
+                    The AI could not extract text from the provided link, or the file was private/restricted.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+        
+        {/* Footer */}
+        <div className="p-4 border-t border-white/10 bg-surface-900 flex justify-end">
+          <button onClick={onClose} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors">
+            Close Details
+          </button>
+        </div>
       </div>
     </div>
   );
