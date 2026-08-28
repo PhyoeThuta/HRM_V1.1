@@ -164,7 +164,7 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       console.log(`[EMAIL] Sent interview offer to ${cand.email}`);
     } catch (emailError) {
       console.error('[EMAIL ERROR]', emailError);
-      // We still return success but maybe we should log it
+      return res.status(500).json({ error: `Email failed to send: ${emailError.message}` });
     }
 
     // Add a notification so HR knows it was sent
