@@ -157,7 +157,7 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
         from: `"UYF Recruiting" <${process.env.EMAIL_USER}>`,
         to: cand.email,
         subject: `Interview Invitation for ${posTitle} Role at UYF`,
-        text: `Dear ${cand.full_name},\n\nWe are pleased to invite you to an interview for the ${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to discuss your application further.${meetingDetails}\n\nBest regards,\nUYF Recruiting Team`
+        text: `Dear ${cand.full_name},\n\nCongratulations! You have been chosen in the shortlist for the ${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to invite you for an interview to discuss your application further.${meetingDetails}\n\nBest regards,\nUYF Recruiting Team`
       };
 
       await transporter.sendMail(mailOptions);
