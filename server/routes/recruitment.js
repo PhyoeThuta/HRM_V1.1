@@ -148,16 +148,29 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
           pass: process.env.EMAIL_PASS
         }
       });
-      
-      const meetingDetails = date && time && link 
-        ? `\n\nInterview Schedule:\nDate: ${date}\nTime: ${time} (Thailand Time)\nMeeting Link / Location: ${link}` 
+      let formattedTime = time;
+      if (time && /^\d{2}:\d{2}$/.test(time)) {
+        const [hours, minutes] = time.split(':');
+        const h = parseInt(hours, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        formattedTime = `${h12}:${minutes} ${ampm}`;
+      }
+
+      const meetingDetailsText = date && time && link 
+        ? `\n\nInterview Schedule:\nDate: ${date}\nTime: ${formattedTime} (Thailand Time)\nMeeting Link / Location: ${link}` 
         : '\n\nWe will contact you shortly with the exact schedule and meeting link.';
+
+      const meetingDetailsHtml = date && time && link
+        ? `<br><br><strong>Interview Schedule:</strong><br><strong>Date:</strong> ${date}<br><strong>Time:</strong> ${formattedTime} (Thailand Time)<br><strong>Meeting Link / Location:</strong> ${link}`
+        : '<br><br>We will contact you shortly with the exact schedule and meeting link.';
 
       const mailOptions = {
         from: `"LM Group of Business Recruiting" <${process.env.EMAIL_USER}>`,
         to: cand.email,
         subject: `Interview Invitation for ${posTitle} at LM Group of Business`,
-        text: `Dear ${cand.full_name},\n\nCongratulations! We are pleased to inform you that you have been shortlisted for the ${posTitle} position at LM Group of Business.\n\nOur hiring team was highly impressed with your background and experiences. We believe that your skills align well with our company's goals, and we would love to invite you for an interview to discuss your application and the role in more detail.\n\nPlease find the details of your scheduled interview below:${meetingDetails}\n\nIf you have any questions or need to reschedule, please do not hesitate to reply directly to this email.\n\nWe look forward to speaking with you and learning more about how you can contribute to our team.\n\nBest regards,\n\nHuman Resources Department\nLM Group of Business`
+        text: `Dear ${cand.full_name},\n\nCongratulations! We are pleased to inform you that you have been shortlisted for the ${posTitle} position at LM Group of Business.\n\nOur hiring team was highly impressed with your background and experiences. We believe that your skills align well with our company's goals, and we would love to invite you for an interview to discuss your application and the role in more detail.\n\nPlease find the details of your scheduled interview below:${meetingDetailsText}\n\nIf you have any questions or need to reschedule, please do not hesitate to reply directly to this email.\n\nWe look forward to speaking with you and learning more about how you can contribute to our team.\n\nBest regards,\n\nHuman Resources Department\nLM Group of Business`,
+        html: `<p>Dear ${cand.full_name},</p><p>Congratulations! We are pleased to inform you that you have been shortlisted for the <strong>${posTitle}</strong> position at LM Group of Business.</p><p>Our hiring team was highly impressed with your background and experiences. We believe that your skills align well with our company's goals, and we would love to invite you for an interview to discuss your application and the role in more detail.</p><p>Please find the details of your scheduled interview below:${meetingDetailsHtml}</p><p>If you have any questions or need to reschedule, please do not hesitate to reply directly to this email.</p><p>We look forward to speaking with you and learning more about how you can contribute to our team.</p><p>Best regards,<br><br><strong>Human Resources Department</strong><br>LM Group of Business</p>`
       };
 
       await transporter.sendMail(mailOptions);
