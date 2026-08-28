@@ -150,7 +150,7 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       });
       
       const meetingDetails = date && time && link 
-        ? `\n\nInterview Schedule:\nDate: ${date}\nTime: ${time}\nMeeting Link / Location: ${link}` 
+        ? `\n\nInterview Schedule:\nDate: ${date}\nTime: ${time} (Thailand Time)\nMeeting Link / Location: ${link}` 
         : '\n\nWe will contact you shortly with the exact schedule and meeting link.';
 
       const mailOptions = {
