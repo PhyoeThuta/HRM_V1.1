@@ -157,12 +157,22 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
         formattedTime = `${h12}:${minutes} ${ampm}`;
       }
 
+      let formattedDate = date;
+      if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const dObj = new Date(date);
+        if (!isNaN(dObj)) {
+          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const dayName = days[dObj.getDay()];
+          formattedDate = `${date} (${dayName})`;
+        }
+      }
+
       const meetingDetailsText = date && time && link 
-        ? `\n\nInterview Schedule:\nDate: ${date}\nTime: ${formattedTime} (Thailand Time)\nMeeting Link / Location: ${link}` 
+        ? `\n\nInterview Schedule:\nDate: ${formattedDate}\nTime: ${formattedTime} (Thailand Time)\nMeeting Link / Location: ${link}` 
         : '\n\nWe will contact you shortly with the exact schedule and meeting link.';
 
       const meetingDetailsHtml = date && time && link
-        ? `<br><br><strong>Interview Schedule:</strong><br><strong>Date:</strong> ${date}<br><strong>Time:</strong> ${formattedTime} (Thailand Time)<br><strong>Meeting Link / Location:</strong> ${link}`
+        ? `<br><br><strong>Interview Schedule:</strong><br><strong>Date:</strong> ${formattedDate}<br><strong>Time:</strong> ${formattedTime} (Thailand Time)<br><strong>Meeting Link / Location:</strong> ${link}`
         : '<br><br>We will contact you shortly with the exact schedule and meeting link.';
 
       const mailOptions = {
