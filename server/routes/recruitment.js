@@ -130,6 +130,13 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     });
 
+    // Fetch position title for email
+    let posTitle = 'Unknown Role';
+    if (cand.position_id) {
+      const pos = await dbFetchOne('positions', 'title', { id: cand.position_id });
+      if (pos) posTitle = pos.title;
+    }
+
     // Send real email using nodemailer
     try {
       const transporter = nodemailer.createTransport({
@@ -141,14 +148,14 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       });
 
       const mailOptions = {
-        from: \`"UYF Recruiting" <\${process.env.EMAIL_USER}>\`,
+        from: `"UYF Recruiting" <${process.env.EMAIL_USER}>`,
         to: cand.email,
-        subject: \`Interview Invitation for \${posTitle} Role at UYF\`,
-        text: \`Dear \${cand.full_name},\n\nWe are pleased to invite you to an interview for the \${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to discuss your application further.\n\nWe will contact you shortly with the exact schedule and meeting link.\n\nBest regards,\nUYF Recruiting Team\`
+        subject: `Interview Invitation for ${posTitle} Role at UYF`,
+        text: `Dear ${cand.full_name},\n\nWe are pleased to invite you to an interview for the ${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to discuss your application further.\n\nWe will contact you shortly with the exact schedule and meeting link.\n\nBest regards,\nUYF Recruiting Team`
       };
 
       await transporter.sendMail(mailOptions);
-      console.log(\`[EMAIL] Sent interview offer to \${cand.email}\`);
+      console.log(`[EMAIL] Sent interview offer to ${cand.email}`);
     } catch (emailError) {
       console.error('[EMAIL ERROR]', emailError);
       // We still return success but maybe we should log it
