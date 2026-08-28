@@ -333,64 +333,7 @@ export default function Recruitment() {
         </div>
       )}
 
-      {/* INTERVIEW GUIDE MODAL */}
-      {guideModalCandidate && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-850 border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#1a1d2e]">
-              <div>
-                <h2 className="text-xl font-bold text-white">Interview Guide</h2>
-                <p className="text-sm text-slate-400">{guideModalCandidate.full_name} - {guideModalCandidate.position_title}</p>
-              </div>
-              <button onClick={() => setGuideModalCandidate(null)} className="text-slate-400 hover:text-white transition-colors text-xl">×</button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-              {guideModalCandidate.interview_guide ? (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-slate-300">
-                    {guideModalCandidate.interview_guide}
-                  </pre>
-                </div>
-              ) : (
-                <div className="text-center py-10">
-                  <div className="text-4xl mb-4">🤖</div>
-                  <h3 className="text-lg font-bold text-white mb-2">No Interview Guide Yet</h3>
-                  <p className="text-slate-400 mb-6 max-w-sm mx-auto">
-                    Generate a custom AI interview guide tailored specifically for this candidate's background and the role they applied for.
-                  </p>
-                  <button 
-                    onClick={() => generateGuideMutation.mutate(guideModalCandidate.id)}
-                    disabled={generateGuideMutation.isPending}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors inline-flex items-center gap-2"
-                  >
-                    {generateGuideMutation.isPending ? 'Generating...' : '✨ Generate AI Guide'}
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-6 border-t border-white/10 bg-[#1a1d2e] flex justify-between items-center">
-              <div>
-                {guideModalCandidate.interview_guide && (
-                  <button 
-                    onClick={() => setScheduleModalCandidate(guideModalCandidate)}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors inline-flex items-center gap-2"
-                  >
-                    ✉ Send Interview Offer
-                  </button>
-                )}
-              </div>
-              <button 
-                onClick={() => setGuideModalCandidate(null)}
-                className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* NO INTERVIEW GUIDE MODAL ANYMORE */}
 
       {/* INTERVIEW SCHEDULING MODAL */}
       {scheduleModalCandidate && (
@@ -520,10 +463,10 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert, onClick
           {c.ai_reasoning || 'No AI reasoning available.'}
         </p>
         <button 
-          onClick={onOpenGuide}
-          className="w-full py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px] font-bold rounded-md border border-amber-500/20 transition-colors"
+          onClick={() => onOpenGuide()}
+          className="w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-md border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
         >
-          📄 Interview Guide
+          ✉ Schedule & Send Offer
         </button>
       </div>
 
