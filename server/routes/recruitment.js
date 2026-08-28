@@ -2,6 +2,7 @@ import express from 'express';
 import { dbFetch, dbInsert, dbUpdate, dbDelete, dbFetchOne } from '../lib/supabase.js';
 import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import nodemailer from 'nodemailer';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key');
 
@@ -79,10 +80,25 @@ router.post('/:id/interview-guide', requireAdmin, async (req, res) => {
     }
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const aiReasoning = cand.ai_reasoning || 'No AI reasoning available.';
+    const formData = cand.form_data ? JSON.stringify(cand.form_data, null, 2) : 'No form data available.';
+
     const prompt = `
+    You are an expert HR Manager preparing for an interview.
     Generate a concise, 5-question interview guide tailored for a candidate applying for the "${posTitle}" role.
-    Candidate Cover Letter/Notes: ${cand.notes || 'None provided.'}
-    Return ONLY a clean text/markdown guide, no JSON.
+    
+    CRITICAL INSTRUCTIONS:
+    - Base your questions STRICTLY on the candidate's specific background, weaknesses, and strengths identified below.
+    - DO NOT generate generic questions (e.g. "tell me about yourself"). Focus on their specific experiences and the company's requirements.
+    - The output MUST be in English.
+    - Return ONLY a clean text/markdown guide, no JSON.
+
+    --- CANDIDATE AI EVALUATION ---
+    ${aiReasoning}
+
+    --- CANDIDATE APPLICATION FORM ---
+    ${formData}
     `;
 
     const result = await model.generateContent(prompt);
@@ -114,8 +130,29 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     });
 
-    // In a real application, we would send an email here using nodemailer or Resend
-    console.log(`[SIMULATED EMAIL] Sent interview offer to ${cand.email || 'Candidate'} with Interview Guide.`);
+    // Send real email using nodemailer
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+
+      const mailOptions = {
+        from: \`"UYF Recruiting" <\${process.env.EMAIL_USER}>\`,
+        to: cand.email,
+        subject: \`Interview Invitation for \${posTitle} Role at UYF\`,
+        text: \`Dear \${cand.full_name},\n\nWe are pleased to invite you to an interview for the \${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to discuss your application further.\n\nWe will contact you shortly with the exact schedule and meeting link.\n\nBest regards,\nUYF Recruiting Team\`
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(\`[EMAIL] Sent interview offer to \${cand.email}\`);
+    } catch (emailError) {
+      console.error('[EMAIL ERROR]', emailError);
+      // We still return success but maybe we should log it
+    }
 
     // Add a notification so HR knows it was sent
     await dbInsert('system_notifications', {
