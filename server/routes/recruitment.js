@@ -156,7 +156,7 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       const mailOptions = {
         from: `"LM Group of Business Recruiting" <${process.env.EMAIL_USER}>`,
         to: cand.email,
-        subject: `Interview Invitation for ${posTitle} Role at LM Group of Business`,
+        subject: `Interview Invitation for ${posTitle} at LM Group of Business`,
         text: `Dear ${cand.full_name},\n\nCongratulations! We are pleased to inform you that you have been shortlisted for the ${posTitle} position at LM Group of Business.\n\nOur hiring team was highly impressed with your background and experiences. We believe that your skills align well with our company's goals, and we would love to invite you for an interview to discuss your application and the role in more detail.\n\nPlease find the details of your scheduled interview below:${meetingDetails}\n\nIf you have any questions or need to reschedule, please do not hesitate to reply directly to this email.\n\nWe look forward to speaking with you and learning more about how you can contribute to our team.\n\nBest regards,\n\nHuman Resources Department\nLM Group of Business`
       };
 
