@@ -13,6 +13,7 @@ export default function Recruitment() {
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('recruitmentTab', tab); };
   const [searchQuery, setSearchQuery] = useState('');
   const [guideModalCandidate, setGuideModalCandidate] = useState(null);
+  const [scheduleModalCandidate, setScheduleModalCandidate] = useState(null);
   const [detailModalCandidate, setDetailModalCandidate] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const qc = useQueryClient();
@@ -55,9 +56,10 @@ export default function Recruitment() {
   });
 
   const sendInterviewMutation = useMutation({
-    mutationFn: (id) => api.post(`/recruitment/${id}/send-interview`),
+    mutationFn: ({ id, data }) => api.post(`/recruitment/${id}/send-interview`, data),
     onSuccess: (res) => {
       qc.invalidateQueries(['recruitment']);
+      setScheduleModalCandidate(null);
       setGuideModalCandidate(null);
       toast.success(res.data.message || 'Interview offer sent!');
     },
@@ -85,6 +87,15 @@ export default function Recruitment() {
     const data = Object.fromEntries(fd);
     data.is_hiring = true;
     addPositionMutation.mutate(data);
+  };
+
+  const handleScheduleSubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    sendInterviewMutation.mutate({ 
+      id: scheduleModalCandidate.id, 
+      data: Object.fromEntries(fd) 
+    });
   };
 
   const candidates = data?.candidates || [];
@@ -363,17 +374,10 @@ export default function Recruitment() {
               <div>
                 {guideModalCandidate.interview_guide && (
                   <button 
-                    onClick={() => setConfirmDialog({
-                      title: 'Send Interview Offer',
-                      message: `Send an interview offer and guide to ${guideModalCandidate.email || guideModalCandidate.full_name}?`,
-                      actionText: 'Send Offer',
-                      actionColor: 'bg-indigo-600 hover:bg-indigo-700',
-                      onConfirm: () => sendInterviewMutation.mutate(guideModalCandidate.id)
-                    })}
-                    disabled={sendInterviewMutation.isPending}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-colors inline-flex items-center gap-2"
+                    onClick={() => setScheduleModalCandidate(guideModalCandidate)}
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors inline-flex items-center gap-2"
                   >
-                    {sendInterviewMutation.isPending ? 'Sending...' : '✉ Send Interview Offer & Guide'}
+                    ✉ Send Interview Offer
                   </button>
                 )}
               </div>
@@ -384,6 +388,48 @@ export default function Recruitment() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERVIEW SCHEDULING MODAL */}
+      {scheduleModalCandidate && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+            <div className="p-6 border-b border-white/10 bg-[#1a1d2e]">
+              <h2 className="text-xl font-bold text-white mb-1">Schedule Interview</h2>
+              <p className="text-sm text-slate-400">Send offer to {scheduleModalCandidate.full_name}</p>
+            </div>
+            <form onSubmit={handleScheduleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">DATE</label>
+                <input type="date" name="date" required className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">TIME</label>
+                <input type="time" name="time" required className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">MEETING LINK / LOCATION</label>
+                <input type="text" name="link" required placeholder="e.g. Zoom link or Office Address" className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setScheduleModalCandidate(null)}
+                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={sendInterviewMutation.isPending}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-colors flex justify-center items-center gap-2"
+                >
+                  {sendInterviewMutation.isPending ? 'Sending...' : '✉ Send Offer'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -130,6 +130,8 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     });
 
+    const { date, time, link } = req.body;
+
     // Fetch position title for email
     let posTitle = 'Unknown Role';
     if (cand.position_id) {
@@ -146,12 +148,16 @@ router.post('/:id/send-interview', requireAdmin, async (req, res) => {
           pass: process.env.EMAIL_PASS
         }
       });
+      
+      const meetingDetails = date && time && link 
+        ? `\n\nInterview Schedule:\nDate: ${date}\nTime: ${time}\nMeeting Link / Location: ${link}` 
+        : '\n\nWe will contact you shortly with the exact schedule and meeting link.';
 
       const mailOptions = {
         from: `"UYF Recruiting" <${process.env.EMAIL_USER}>`,
         to: cand.email,
         subject: `Interview Invitation for ${posTitle} Role at UYF`,
-        text: `Dear ${cand.full_name},\n\nWe are pleased to invite you to an interview for the ${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to discuss your application further.\n\nWe will contact you shortly with the exact schedule and meeting link.\n\nBest regards,\nUYF Recruiting Team`
+        text: `Dear ${cand.full_name},\n\nWe are pleased to invite you to an interview for the ${posTitle} position at UYF.\n\nOur team was very impressed by your background and we would love to discuss your application further.${meetingDetails}\n\nBest regards,\nUYF Recruiting Team`
       };
 
       await transporter.sendMail(mailOptions);
