@@ -17,11 +17,13 @@ jobs:
       uses: appleboy/ssh-action@v1.0.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
       with:
         host: ${{ secrets.GCP_VM_IP }}
         username: ${{ secrets.GCP_USERNAME }}
         key: ${{ secrets.GCP_SSH_KEY }}
-        envs: GITHUB_TOKEN
+        envs: GITHUB_TOKEN,EMAIL_USER,EMAIL_PASS
         script: |
           # 1. Navigate to project folder
           cd /var/www/hrm_react
@@ -51,6 +53,11 @@ jobs:
           echo "Restarting Backend API..."
           cd ../server
           
+          # Inject Email Secrets into .env file
+          touch .env
+          grep -q "^EMAIL_USER=" .env && sed -i "s/^EMAIL_USER=.*/EMAIL_USER=$EMAIL_USER/" .env || echo "EMAIL_USER=$EMAIL_USER" >> .env
+          grep -q "^EMAIL_PASS=" .env && sed -i "s/^EMAIL_PASS=.*/EMAIL_PASS=$EMAIL_PASS/" .env || echo "EMAIL_PASS=$EMAIL_PASS" >> .env
+
           # Install Puppeteer Chromium dependencies (Ubuntu/Debian)
           sudo apt-get update || true
           sudo apt-get install -yq fonts-sil-padauk fonts-noto-core fonts-noto-cjk libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libcairo2 libpango-1.0-0 || true
