@@ -178,7 +178,7 @@ export default function Recruitment() {
                     candidate={c} 
                     onClick={() => setDetailModalCandidate(c)}
                     onUpdate={(status) => updateMutation.mutate({ id: c.id, status })} 
-                    onOpenGuide={() => setGuideModalCandidate(c)} 
+                    onOpenGuide={() => setScheduleModalCandidate(c)} 
                     onConvert={() => setConfirmDialog({
                       title: 'Convert to Employee',
                       message: 'Are you sure you want to officially convert this candidate into an employee?',
@@ -244,7 +244,7 @@ export default function Recruitment() {
                     candidate={c} 
                     onClick={() => setDetailModalCandidate(c)}
                     onUpdate={(status) => updateMutation.mutate({ id: c.id, status })} 
-                    onOpenGuide={() => setGuideModalCandidate(c)} 
+                    onOpenGuide={() => setScheduleModalCandidate(c)} 
                     onConvert={() => setConfirmDialog({
                       title: 'Convert to Employee',
                       message: 'Are you sure you want to officially convert this candidate into an employee?',
