@@ -369,7 +369,7 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
         'Authorization': `Bearer ${zernioApiKey}`
       },
       body: JSON.stringify({
-        message: messageText
+        content: messageText
       })
     });
 
@@ -1083,7 +1083,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
                 'Content-Type': 'application/json' 
               },
               body: JSON.stringify({
-                message: message_text
+                content: message_text
               })
             });
             const zernioResult = await zernioResponse.json();
