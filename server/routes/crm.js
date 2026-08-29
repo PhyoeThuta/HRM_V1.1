@@ -369,7 +369,8 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
         'Authorization': `Bearer ${zernioApiKey}`
       },
       body: JSON.stringify({
-        text: messageText
+        accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+        message: messageText
       })
     });
 
@@ -1083,7 +1084,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
                 'Content-Type': 'application/json' 
               },
               body: JSON.stringify({
-                text: message_text
+                accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+                message: message_text
               })
             });
             const zernioResult = await zernioResponse.json();
