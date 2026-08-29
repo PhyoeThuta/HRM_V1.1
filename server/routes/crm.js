@@ -375,8 +375,9 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
 
     const zernioResult = await zernioResponse.json();
     if (!zernioResponse.ok || zernioResult.error) {
-      console.error('[ZERNIO SEND ERROR]', zernioResult.error || zernioResult);
-      return res.status(500).json({ error: zernioResult.error || 'Failed to send message via Zernio.' });
+      const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
+      console.error('[ZERNIO SEND ERROR]', errorDetail);
+      return res.status(500).json({ error: `Zernio API Error: ${errorDetail}` });
     }
 
     return res.json({ success: true, message: 'Reminder sent via Zernio Chat!' });
@@ -1086,8 +1087,9 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
               })
             });
             const zernioResult = await zernioResponse.json();
-            if (zernioResult.error) {
-              console.error('[ZERNIO SEND ERROR]', zernioResult.error);
+            if (!zernioResponse.ok || zernioResult.error) {
+              const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
+              console.error('[ZERNIO SEND ERROR]', errorDetail);
             }
           } else {
             // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
