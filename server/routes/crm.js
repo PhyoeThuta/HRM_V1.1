@@ -950,8 +950,8 @@ The JSON must have the following exact keys:
   "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100),
-  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed'). Use 'new' if just starting, 'in_progress' if negotiating/asking details, 'converted' if they agree to buy/transfer money, 'closed' if they decline/not interested.",
-  "auto_reply_text": "string or null. If the prospect explicitly says they want to buy or subscribe (e.g. 'ဝယ်မယ်', 'ယူမယ်'), generate a polite Burmese reply thanking them and providing the Payment Details. If they sent a transfer slip/image, generate a polite thank you message. Otherwise, if it's just a question, return null."
+  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed').",
+  "auto_reply_text": "string or null. CRITICAL RULE: If the LAST message in the Chat History is already an AI/Admin providing payment info or thanking them, you MUST return null to prevent loops. Only return a polite Burmese reply with Payment Details if the prospect JUST asked to buy and we haven't replied yet."
 }
 
 Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
@@ -1103,6 +1103,24 @@ router.post('/webhooks/zernio', async (req, res) => {
         id: payload.sender?.id || payload.message?.sender?.id || payload.entry?.[0]?.messaging?.[0]?.sender?.id
       }
     };
+
+    // Deduplication & Echo Prevention
+    // Zernio sends webhooks for outgoing messages too. Since we already save 'ai_bot' and 'admin' 
+    // messages to the DB when we send them via API, we MUST ignore the webhook echo to prevent infinite loops.
+    const { data: recentMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+      .select('id, created_at')
+      .eq('inquiry_id', inquiryId)
+      .eq('message_text', text)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (recentMsgs && recentMsgs.length > 0) {
+      const timeDiff = new Date() - new Date(recentMsgs[0].created_at);
+      if (timeDiff < 60000) { // If exact same text within 60 seconds, it's definitely an echo
+        console.log('[WEBHOOK ECHO IGNORED]', text.substring(0, 50));
+        return res.status(200).json({ ok: true, ignored_echo: true });
+      }
+    }
 
     const { data: newMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
       .insert({ inquiry_id: inquiryId, message_text: text, sender_type: 'prospect', metadata: cleanMetadata })
