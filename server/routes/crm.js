@@ -279,26 +279,49 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { packageName, duration, daysLeft } = req.body;
 
-    // 1. Fetch customer details and linked inquiry
+    // 1. Fetch customer details
     const { data: customer, error: custErr } = await supabaseAdmin
       .schema('crm')
       .from('customers')
-      .select(`
-        full_name,
-        inquiries ( conversation_id )
-      `)
+      .select('full_name')
       .eq('id', id)
       .single();
 
     if (custErr || !customer) return res.status(404).json({ error: 'Customer not found' });
 
-    // Find the first inquiry with a conversation_id
-    const inquiryWithChat = (customer.inquiries || []).find(inq => inq.conversation_id);
-    if (!inquiryWithChat) {
+    // Find linked inquiry
+    const { data: inquiries } = await supabaseAdmin
+      .schema('crm')
+      .from('inquiries')
+      .select('id')
+      .eq('customer_id', id);
+
+    if (!inquiries || inquiries.length === 0) {
       return res.status(400).json({ error: 'No linked Facebook/Zernio chat found for this customer.' });
     }
 
-    const conversationId = inquiryWithChat.conversation_id;
+    // Find latest prospect message with metadata to get conversationId
+    const inquiryIds = inquiries.map(i => i.id);
+    const { data: prospectMsgs } = await supabaseAdmin
+      .schema('crm')
+      .from('inquiries_messages')
+      .select('metadata')
+      .in('inquiry_id', inquiryIds)
+      .eq('sender_type', 'prospect')
+      .not('metadata', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (!prospectMsgs || prospectMsgs.length === 0) {
+      return res.status(400).json({ error: 'No recent Messenger conversation found to reply to.' });
+    }
+
+    const meta = prospectMsgs[0].metadata;
+    const conversationId = meta?.message?.conversationId || meta?.conversationId;
+
+    if (!conversationId) {
+      return res.status(400).json({ error: 'Invalid or missing conversation ID in the chat history.' });
+    }
 
     // 2. Build the message based on duration and daysLeft
     let messageText = '';
