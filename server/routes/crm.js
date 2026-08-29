@@ -283,21 +283,34 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     const { data: customer, error: custErr } = await supabaseAdmin
       .schema('crm')
       .from('customers')
-      .select('full_name')
+      .select('full_name, facebook_name')
       .eq('id', id)
       .single();
 
     if (custErr || !customer) return res.status(404).json({ error: 'Customer not found' });
 
     // Find linked inquiry
-    const { data: inquiries } = await supabaseAdmin
+    let { data: inquiries } = await supabaseAdmin
       .schema('crm')
       .from('inquiries')
       .select('id')
       .eq('customer_id', id);
 
+    // Fallback: If no direct link, try to match by facebook_name
+    if ((!inquiries || inquiries.length === 0) && customer.facebook_name) {
+      const { data: fbInquiries } = await supabaseAdmin
+        .schema('crm')
+        .from('inquiries')
+        .select('id')
+        .ilike('prospect_name', customer.facebook_name);
+      
+      if (fbInquiries && fbInquiries.length > 0) {
+        inquiries = fbInquiries;
+      }
+    }
+
     if (!inquiries || inquiries.length === 0) {
-      return res.status(400).json({ error: 'No linked Facebook/Zernio chat found for this customer.' });
+      return res.status(400).json({ error: 'No linked Facebook/Zernio chat found. Please ensure the customer has a matching Facebook Name in their profile.' });
     }
 
     // Find latest prospect message with metadata to get conversationId
