@@ -146,8 +146,7 @@ export default function Sidebar({ isOpen, close }) {
             <NavItem to="/handovers" label="Handovers" icon={ICONS.handover} />
 
             <NavSection title="CRM" color="text-brand-green" />
-            <NavItem to="/crm" label="CRM Dashboard" icon={ICONS.portal} end />
-            <NavItem to="/crm/inquiries" label="Omni-channel Inbox" icon={ICONS.chat} />
+            <NavItem to="/crm" label="CRM Dashboard" icon={ICONS.portal} />
 
             {(user?.username === 'cnx-0028' || isAdmin()) && (
               <>
