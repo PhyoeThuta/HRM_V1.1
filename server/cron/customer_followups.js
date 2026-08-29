@@ -85,11 +85,6 @@ export async function checkAndNotifyFollowups() {
       }
 
       if (shouldNotify) {
-        // Append payment info if exists
-        if (paymentInfoText) {
-          messageText += `\n\n${paymentInfoText}`;
-        }
-
         let sentViaZernio = false;
         let zernioError = null;
 

@@ -351,13 +351,7 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
     }
 
-    // 3. Append payment info if exists
-    const paymentInfoText = process.env.PAYMENT_INFO_TEXT || '';
-    if (paymentInfoText) {
-      messageText += `\n\n${paymentInfoText}`;
-    }
-
-    // 4. Send message via Zernio API 
+    // 3. Send message via Zernio API 
     const zernioApiKey = process.env.ZERNIO_API_KEY;
 
     if (!zernioApiKey) {
@@ -917,7 +911,7 @@ router.put('/inquiries/:id/link-customer', verifyToken, async (req, res) => {
 });
 
 // AI Analysis Helper
-async function triggerAIAnalysis(inquiryId) {
+async function triggerAIAnalysis(inquiryId, conversationId = null) {
   if (!process.env.GEMINI_API_KEY) {
     await supabaseAdmin.schema('crm').from('inquiries').update({ updated_at: new Date() }).eq('id', inquiryId);
     return;
@@ -933,6 +927,7 @@ async function triggerAIAnalysis(inquiryId) {
     if (!history || history.length === 0) return;
       
     const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
+    const paymentInfo = process.env.PAYMENT_INFO_TEXT || 'KBZ Pay: 09XXXXXXX';
     
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -940,6 +935,9 @@ async function triggerAIAnalysis(inquiryId) {
     const prompt = `
 You are an expert CRM AI Assistant for a Diet & Meal Delivery service. 
 Analyze the following conversation history between a PROSPECT and our ADMIN.
+
+Our Payment Details for customers to transfer:
+${paymentInfo}
 
 Chat History:
 ${chatHistory}
@@ -952,7 +950,8 @@ The JSON must have the following exact keys:
   "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100),
-  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed'). Use 'new' if just starting, 'in_progress' if negotiating/asking details, 'converted' if they agree to buy/transfer money, 'closed' if they decline/not interested."
+  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed'). Use 'new' if just starting, 'in_progress' if negotiating/asking details, 'converted' if they agree to buy/transfer money, 'closed' if they decline/not interested.",
+  "auto_reply_text": "string or null. If the prospect explicitly says they want to buy or subscribe (e.g. 'ဝယ်မယ်', 'ယူမယ်'), generate a polite Burmese reply thanking them and providing the Payment Details. If they sent a transfer slip/image, generate a polite thank you message. Otherwise, if it's just a question, return null."
 }
 
 Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
@@ -983,6 +982,38 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
       .single();
 
     if (updated) emitInquiryUpdated(updated);
+
+    // Auto-Reply Logic
+    if (aiJson.auto_reply_text && conversationId && process.env.ZERNIO_API_KEY) {
+      try {
+        const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+        await fetch(zernioUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
+          },
+          body: JSON.stringify({
+            accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+            message: aiJson.auto_reply_text
+          })
+        });
+        
+        const { data: newMsg } = await supabaseAdmin.schema('crm')
+          .from('inquiries_messages')
+          .insert({
+            inquiry_id: inquiryId,
+            message_text: aiJson.auto_reply_text,
+            sender_type: 'ai_bot',
+            metadata: { auto_reply: true, conversationId }
+          })
+          .select().single();
+          
+        if (newMsg) emitInquiryMessage(inquiryId, newMsg);
+      } catch (err) {
+        console.error('[CRM AI AUTO REPLY ERROR]', err);
+      }
+    }
   } catch (aiErr) {
     console.error('[CRM AI ANALYSIS ERROR]', aiErr);
   }
@@ -1080,7 +1111,7 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     if (newMsg) emitInquiryMessage(inquiryId, newMsg);
 
-    setTimeout(() => triggerAIAnalysis(inquiryId), 100);
+    setTimeout(() => triggerAIAnalysis(inquiryId, conversationId), 100);
 
     return res.status(200).json({ ok: true, inquiry_id: inquiryId, message_id: newMsg?.id, created: !!createdInquiry });
   } catch (err) {
