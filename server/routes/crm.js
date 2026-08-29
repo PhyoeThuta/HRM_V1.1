@@ -1101,7 +1101,8 @@ router.post('/webhooks/zernio', async (req, res) => {
       conversationId: conversationId,
       sender: {
         id: payload.sender?.id || payload.message?.sender?.id || payload.entry?.[0]?.messaging?.[0]?.sender?.id
-      }
+      },
+      raw_webhook_payload: payload
     };
 
     // Deduplication & Echo Prevention
