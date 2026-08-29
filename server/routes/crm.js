@@ -342,13 +342,13 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     
     if (daysLeft < 0) {
       // Past expiry
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ${Math.abs(daysLeft)} ရက်က ${packageName} လေး စားရတာ အဆင်ပြေရဲ့လားရှင်၊ နောက်ရက်တွေအတွက် လစဉ် Plan လေးများ ပြောင်းယူဖို့ ရှိမလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေး ကုန်သွားတာ ${Math.abs(daysLeft)} ရက် ရှိသွားပါပြီရှင်။\\n\\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လားရှင်။\\n\\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါရှင် 🥗✨`;
     } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
       // Monthly plan renewal reminder
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ်။ BBD က အစားအသောက်တွေ အဆင်ပြေရဲ့လား၊ Plan လေး ဆက်ယူဖြစ်မလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ်။\\n\\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\\n\\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
     } else {
       // Default / Weekly plan renewal reminder
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။ Plan လေး ဆက်ယူဖြစ်မလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\\n\\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\\n\\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
     }
 
     // 3. Send message via Zernio API 
