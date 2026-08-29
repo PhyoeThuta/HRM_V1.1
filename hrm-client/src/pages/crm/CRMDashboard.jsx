@@ -46,6 +46,7 @@ export default function CRMDashboard() {
     revenue: '$0',
   });
   const [isTesting, setIsTesting] = useState(false);
+  const [sendingZernio, setSendingZernio] = useState({});
   
   const [upcomingRenewals, setUpcomingRenewals] = useState([]);
   const [recentLeads, setRecentLeads] = useState([]);
@@ -193,6 +194,32 @@ export default function CRMDashboard() {
       console.error(err);
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleZernioRemind = async (renewal) => {
+    setSendingZernio(prev => ({ ...prev, [renewal.customerId]: true }));
+    try {
+      const payload = {
+        packageName: renewal.packageName,
+        duration: renewal.duration,
+        daysLeft: renewal.daysLeft
+      };
+      const res = await crmApi.sendZernioRemind(renewal.customerId, payload);
+      import('react-hot-toast').then(({ default: toast }) => {
+        if (res.success) {
+          toast.success(`Message sent successfully to ${renewal.customerName}! 💬`);
+        } else {
+          toast.error(res.error || 'Failed to send Zernio message');
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      import('react-hot-toast').then(({ default: toast }) => {
+        toast.error(err.response?.data?.error || 'Failed to send message via Zernio.');
+      });
+    } finally {
+      setSendingZernio(prev => ({ ...prev, [renewal.customerId]: false }));
     }
   };
 
@@ -423,7 +450,15 @@ export default function CRMDashboard() {
                     </div>
                     <p className="text-sm text-slate-400">{renewal.packageName}</p>
                     <div className="mt-3 flex gap-2">
-                      <button className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-white hover:bg-white/10 transition-colors">Remind via Chat</button>
+                      <button 
+                        onClick={() => handleZernioRemind(renewal)}
+                        disabled={sendingZernio[renewal.customerId]}
+                        className="flex-1 py-1.5 flex items-center justify-center gap-2 rounded-lg text-xs font-bold bg-white/5 text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+                      >
+                        {sendingZernio[renewal.customerId] ? (
+                          <><span className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"></span> Sending...</>
+                        ) : 'Remind via Chat'}
+                      </button>
                     </div>
                   </div>
                 ))}

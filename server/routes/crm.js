@@ -273,6 +273,82 @@ router.get('/customers/:id', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/crm/customers/:id/zernio-remind
+router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { packageName, duration, daysLeft } = req.body;
+
+    // 1. Fetch customer details and linked inquiry
+    const { data: customer, error: custErr } = await supabaseAdmin
+      .schema('crm')
+      .from('customers')
+      .select(`
+        full_name,
+        inquiries ( conversation_id )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (custErr || !customer) return res.status(404).json({ error: 'Customer not found' });
+
+    // Find the first inquiry with a conversation_id
+    const inquiryWithChat = (customer.inquiries || []).find(inq => inq.conversation_id);
+    if (!inquiryWithChat) {
+      return res.status(400).json({ error: 'No linked Facebook/Zernio chat found for this customer.' });
+    }
+
+    const conversationId = inquiryWithChat.conversation_id;
+
+    // 2. Build the message based on duration and daysLeft
+    let messageText = '';
+    const durationLower = (duration || '').toLowerCase();
+    
+    if (daysLeft < 0) {
+      // Past expiry
+      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ${Math.abs(daysLeft)} ရက်က ${packageName} လေး စားရတာ အဆင်ပြေရဲ့လားရှင်၊ နောက်ရက်တွေအတွက် လစဉ် Plan လေးများ ပြောင်းယူဖို့ ရှိမလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
+    } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
+      // Monthly plan renewal reminder
+      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ်။ BBD က အစားအသောက်တွေ အဆင်ပြေရဲ့လား၊ Plan လေး ဆက်ယူဖြစ်မလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
+    } else {
+      // Default / Weekly plan renewal reminder
+      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။ Plan လေး ဆက်ယူဖြစ်မလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
+    }
+
+    // 3. Send message via Zernio API
+    const zernioAccountId = process.env.ZERNIO_FACEBOOK_ACCOUNT_ID;
+    const zernioApiKey = process.env.ZERNIO_API_KEY;
+
+    if (!zernioAccountId || !zernioApiKey) {
+      return res.status(500).json({ error: 'Zernio API Key or Account ID is not configured on the server.' });
+    }
+
+    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+    const zernioResponse = await fetch(zernioUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${zernioApiKey}`
+      },
+      body: JSON.stringify({
+        accountId: zernioAccountId,
+        message: messageText
+      })
+    });
+
+    const zernioResult = await zernioResponse.json();
+    if (!zernioResponse.ok || zernioResult.error) {
+      console.error('[ZERNIO SEND ERROR]', zernioResult.error || zernioResult);
+      return res.status(500).json({ error: 'Failed to send message via Zernio.' });
+    }
+
+    return res.json({ success: true, message: 'Reminder sent via Zernio chat!' });
+  } catch (e) {
+    console.error('[CRM POST ZERNIO REMIND]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // PUT /api/crm/customers/:id
 router.put('/customers/:id', verifyToken, async (req, res) => {
   try {

@@ -42,6 +42,9 @@ export const crmApi = {
   // Resume package
   resumePackage: (id, days_paused) => api.put(`/crm/customer-packages/${id}/resume`, { days_paused }).then(r => r.data),
 
+  // Zernio Follow-up Reminder
+  sendZernioRemind: (customerId, data) => api.post(`/crm/customers/${customerId}/zernio-remind`, data).then(r => r.data),
+
   // Get Kitchen Dashboard data
   getKitchenDashboard: (date) => {
     const query = date ? `?date=${date}` : '';
