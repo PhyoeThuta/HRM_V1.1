@@ -19,11 +19,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         EMAIL_USER: ${{ secrets.EMAIL_USER }}
         EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+        PAYMENT_INFO_TEXT: ${{ secrets.PAYMENT_INFO_TEXT }}
       with:
         host: ${{ secrets.GCP_VM_IP }}
         username: ${{ secrets.GCP_USERNAME }}
         key: ${{ secrets.GCP_SSH_KEY }}
-        envs: GITHUB_TOKEN,EMAIL_USER,EMAIL_PASS
+        envs: GITHUB_TOKEN,EMAIL_USER,EMAIL_PASS,PAYMENT_INFO_TEXT
         script: |
           # 1. Navigate to project folder
           cd /var/www/hrm_react
@@ -53,10 +54,11 @@ jobs:
           echo "Restarting Backend API..."
           cd ../server
           
-          # Inject Email Secrets into .env file
+          # Inject Secrets into .env file
           touch .env
           grep -q "^EMAIL_USER=" .env && sed -i "s/^EMAIL_USER=.*/EMAIL_USER=$EMAIL_USER/" .env || echo "EMAIL_USER=$EMAIL_USER" >> .env
           grep -q "^EMAIL_PASS=" .env && sed -i "s/^EMAIL_PASS=.*/EMAIL_PASS=$EMAIL_PASS/" .env || echo "EMAIL_PASS=$EMAIL_PASS" >> .env
+          grep -q "^PAYMENT_INFO_TEXT=" .env && sed -i "s|^PAYMENT_INFO_TEXT=.*|PAYMENT_INFO_TEXT=\"$PAYMENT_INFO_TEXT\"|" .env || echo "PAYMENT_INFO_TEXT=\"$PAYMENT_INFO_TEXT\"" >> .env
 
           # Install Puppeteer Chromium dependencies (Ubuntu/Debian)
           sudo apt-get update || true
