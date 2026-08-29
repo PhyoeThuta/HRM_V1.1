@@ -352,14 +352,10 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     }
 
     // 3. Send message via Zernio API 
-    const zernioAccountId = process.env.ZERNIO_FACEBOOK_ACCOUNT_ID;
     const zernioApiKey = process.env.ZERNIO_API_KEY;
 
     if (!zernioApiKey) {
       return res.status(500).json({ error: 'ZERNIO_API_KEY is missing on the live server environment variables.' });
-    }
-    if (!zernioAccountId) {
-      return res.status(500).json({ error: 'ZERNIO_FACEBOOK_ACCOUNT_ID is missing on the live server environment variables.' });
     }
     if (!conversationId) {
       return res.status(400).json({ error: 'Conversation ID not found for this customer.' });
@@ -373,7 +369,6 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
         'Authorization': `Bearer ${zernioApiKey}`
       },
       body: JSON.stringify({
-        accountId: zernioAccountId,
         message: messageText
       })
     });
@@ -1077,9 +1072,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
         if (prospectMsgs && prospectMsgs.length > 0) {
           const meta = prospectMsgs[0].metadata;
           const conversationId = meta?.message?.conversationId || meta?.conversationId;
-          const zernioAccountId = process.env.ZERNIO_FACEBOOK_ACCOUNT_ID;
           
-          if (conversationId && process.env.ZERNIO_API_KEY && zernioAccountId) {
+          if (conversationId && process.env.ZERNIO_API_KEY) {
             const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
             const zernioResponse = await fetch(zernioUrl, {
               method: 'POST',
@@ -1088,7 +1082,6 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
                 'Content-Type': 'application/json' 
               },
               body: JSON.stringify({
-                accountId: zernioAccountId,
                 message: message_text
               })
             });
