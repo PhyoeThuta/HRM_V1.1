@@ -9,6 +9,7 @@ dotenv.config();
 // Trigger restart for AI Arabic bug fix
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
+import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
 import { initCrmRealtime } from './lib/crmRealtime.js';
 import { startVectorSyncCron } from './services/vectorSync.js';
 
@@ -137,6 +138,11 @@ app.post('/api/test/trigger-birthdays', async (req, res) => {
   res.json(result);
 });
 
+app.post('/api/test/trigger-followups', async (req, res) => {
+  const result = await checkAndNotifyFollowups();
+  res.json(result);
+});
+
 // ── 404 ────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
@@ -158,4 +164,5 @@ server.listen(PORT, () => {
   // Start background jobs
   startBirthdayCron();
   startVectorSyncCron();
+  startFollowupCron();
 });
