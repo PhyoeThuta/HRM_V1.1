@@ -988,8 +988,10 @@ router.post('/webhooks/zernio', async (req, res) => {
     }
     if (!text) text = "[Zernio Msg] " + JSON.stringify(payload).substring(0, 100);
 
-    // Extract prospect name or ID
-    let prospectName = payload.sender?.name || payload.message?.sender?.name || payload.sender_name || payload.contact_name || payload.name || 'Zernio Contact';
+    // Extract prospect name or ID (Prioritize Zernio's 'contact' object to avoid grabbing the Page's name)
+    let prospectName = payload.contact?.name || payload.message?.contact?.name || payload.sender?.name || payload.message?.sender?.name || payload.sender_name || payload.contact_name || payload.name || 'Zernio Contact';
+    
+    // If the name is somehow the Facebook Page name ("DDB" or "Busy Boss Diet"), we should try to rely on the conversation ID matching
     if (payload.entry?.[0]?.messaging?.[0]?.sender?.id) {
       prospectName = 'FB User ' + payload.entry[0].messaging[0].sender.id;
     }
@@ -999,19 +1001,28 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     // 1. Try to find existing inquiry by conversationId (most accurate for active chats)
     if (conversationId) {
-      const { data: existingMsgs } = await supabaseAdmin.schema('crm')
+      // Query Supabase for any message that has this exact conversationId in metadata
+      // Supabase supports JSONB querying with ->> or @>
+      const { data: existingMsgs, error: msgErr } = await supabaseAdmin.schema('crm')
         .from('inquiries_messages')
-        .select('inquiry_id, metadata')
-        .order('created_at', { ascending: false })
-        .limit(50); // Get recent messages to check metadata
+        .select('inquiry_id')
+        .contains('metadata', { conversationId: conversationId })
+        .limit(1)
+        .maybeSingle();
 
       if (existingMsgs) {
-        const match = existingMsgs.find(m => 
-          m.metadata?.conversationId == conversationId || 
-          m.metadata?.message?.conversationId == conversationId
-        );
-        if (match) {
-          inquiryId = match.inquiry_id;
+        inquiryId = existingMsgs.inquiry_id;
+      } else {
+        // Try fallback JSON structure if message.conversationId was used
+        const { data: fallbackMsgs } = await supabaseAdmin.schema('crm')
+          .from('inquiries_messages')
+          .select('inquiry_id')
+          .contains('metadata', { message: { conversationId: conversationId } })
+          .limit(1)
+          .maybeSingle();
+          
+        if (fallbackMsgs) {
+          inquiryId = fallbackMsgs.inquiry_id;
         }
       }
     }
