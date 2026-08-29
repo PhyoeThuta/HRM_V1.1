@@ -994,11 +994,35 @@ router.post('/webhooks/zernio', async (req, res) => {
       prospectName = 'FB User ' + payload.entry[0].messaging[0].sender.id;
     }
 
-    // Check if inquiry exists
-    const { data: existing } = await supabaseAdmin.schema('crm').from('inquiries')
-      .select('id').eq('prospect_name', prospectName).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const conversationId = payload.message?.conversationId || payload.conversationId;
+    let inquiryId = null;
 
-    let inquiryId = existing?.id;
+    // 1. Try to find existing inquiry by conversationId (most accurate for active chats)
+    if (conversationId) {
+      const { data: existingMsgs } = await supabaseAdmin.schema('crm')
+        .from('inquiries_messages')
+        .select('inquiry_id, metadata')
+        .order('created_at', { ascending: false })
+        .limit(50); // Get recent messages to check metadata
+
+      if (existingMsgs) {
+        const match = existingMsgs.find(m => 
+          m.metadata?.conversationId == conversationId || 
+          m.metadata?.message?.conversationId == conversationId
+        );
+        if (match) {
+          inquiryId = match.inquiry_id;
+        }
+      }
+    }
+
+    // 2. Fallback to finding by prospect_name
+    if (!inquiryId) {
+      const { data: existing } = await supabaseAdmin.schema('crm').from('inquiries')
+        .select('id').eq('prospect_name', prospectName).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      inquiryId = existing?.id;
+    }
+
     let createdInquiry = null;
     
     if (!inquiryId) {
@@ -1012,7 +1036,7 @@ router.post('/webhooks/zernio', async (req, res) => {
     }
 
     const cleanMetadata = {
-      conversationId: payload.message?.conversationId || payload.conversationId,
+      conversationId: conversationId,
       sender: {
         id: payload.sender?.id || payload.message?.sender?.id || payload.entry?.[0]?.messaging?.[0]?.sender?.id
       }
