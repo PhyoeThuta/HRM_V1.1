@@ -351,58 +351,40 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။ Plan လေး ဆက်ယူဖြစ်မလား သတင်းလှမ်းမေးတာပါရှင် 🥗✨`;
     }
 
-    // 3. Send message via Zernio API or Facebook Fallback
+    // 3. Send message via Zernio API 
     const zernioAccountId = process.env.ZERNIO_FACEBOOK_ACCOUNT_ID;
     const zernioApiKey = process.env.ZERNIO_API_KEY;
 
-    if (conversationId && zernioApiKey && zernioAccountId) {
-      const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-      const zernioResponse = await fetch(zernioUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${zernioApiKey}`
-        },
-        body: JSON.stringify({
-          accountId: zernioAccountId,
-          message: messageText
-        })
-      });
-
-      const zernioResult = await zernioResponse.json();
-      if (!zernioResponse.ok || zernioResult.error) {
-        console.error('[ZERNIO SEND ERROR]', zernioResult.error || zernioResult);
-        return res.status(500).json({ error: 'Failed to send message via Zernio.' });
-      }
-    } else {
-      // Fallback to direct Facebook Graph API
-      const psid = meta?.sender?.id || meta?.message?.sender?.id || meta?.entry?.[0]?.messaging?.[0]?.sender?.id;
-      const fbToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-
-      if (!psid || !fbToken) {
-        return res.status(500).json({ error: 'Zernio API Key is missing, and direct Facebook fallback failed (missing PSID or FB Token).' });
-      }
-
-      const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${fbToken}`;
-      const fbResponse = await fetch(fbUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient: { id: psid },
-          message: { text: messageText },
-          messaging_type: 'MESSAGE_TAG',
-          tag: 'POST_PURCHASE_UPDATE'
-        })
-      });
-
-      const fbResult = await fbResponse.json();
-      if (fbResult.error) {
-        console.error('[FB SEND ERROR]', fbResult.error);
-        return res.status(500).json({ error: 'Failed to send message via direct Facebook fallback.' });
-      }
+    if (!zernioApiKey) {
+      return res.status(500).json({ error: 'ZERNIO_API_KEY is missing on the live server environment variables.' });
+    }
+    if (!zernioAccountId) {
+      return res.status(500).json({ error: 'ZERNIO_FACEBOOK_ACCOUNT_ID is missing on the live server environment variables.' });
+    }
+    if (!conversationId) {
+      return res.status(400).json({ error: 'Conversation ID not found for this customer.' });
     }
 
-    return res.json({ success: true, message: 'Reminder sent via chat!' });
+    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+    const zernioResponse = await fetch(zernioUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${zernioApiKey}`
+      },
+      body: JSON.stringify({
+        accountId: zernioAccountId,
+        message: messageText
+      })
+    });
+
+    const zernioResult = await zernioResponse.json();
+    if (!zernioResponse.ok || zernioResult.error) {
+      console.error('[ZERNIO SEND ERROR]', zernioResult.error || zernioResult);
+      return res.status(500).json({ error: zernioResult.error || 'Failed to send message via Zernio.' });
+    }
+
+    return res.json({ success: true, message: 'Reminder sent via Zernio Chat!' });
   } catch (e) {
     console.error('[CRM POST ZERNIO REMIND]', e.message);
     return res.status(500).json({ error: e.message });
