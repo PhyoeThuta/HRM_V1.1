@@ -42,8 +42,10 @@ export default function CRMDashboard() {
     activeLeads: '0',
     convertedThisMonth: '0',
     activePackages: '0',
+    activePackages: '0',
     revenue: '$0',
   });
+  const [isTesting, setIsTesting] = useState(false);
   
   const [upcomingRenewals, setUpcomingRenewals] = useState([]);
   const [recentLeads, setRecentLeads] = useState([]);
@@ -175,6 +177,25 @@ export default function CRMDashboard() {
     };
   }, []);
 
+  const handleTestFollowups = async () => {
+    setIsTesting(true);
+    try {
+      const res = await crmApi.triggerFollowups();
+      import('react-hot-toast').then(({ default: toast }) => {
+        if (res.success) {
+          toast.success(`Follow-up job ran! Checked: ${res.checked}, Sent: ${res.notified} alerts to Telegram.`);
+        } else {
+          toast.error(`Job failed: ${res.error || 'Unknown error'}`);
+        }
+      });
+    } catch (err) {
+      import('react-hot-toast').then(({ default: toast }) => toast.error('Failed to trigger follow-up script.'));
+      console.error(err);
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
     <Layout title="Analytics Dashboard" subtitle="Real-time sales, leads, and performance metrics">
       
@@ -239,6 +260,15 @@ export default function CRMDashboard() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
+          {/* Test Followup Button */}
+          <button 
+            onClick={handleTestFollowups} 
+            disabled={isTesting}
+            className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 text-sm font-bold transition-colors flex items-center gap-2 border border-amber-500/20 disabled:opacity-50"
+          >
+            {isTesting ? 'Running...' : 'Test Auto Follow-ups'}
+          </button>
+          
           {/* Search Icon */}
           <button className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-brand-green/10 flex items-center justify-center text-brand-green hover:bg-emerald-100 dark:hover:bg-brand-green/20 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>

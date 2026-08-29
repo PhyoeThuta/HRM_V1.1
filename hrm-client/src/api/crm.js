@@ -114,6 +114,9 @@ export const crmApi = {
   // ──────────────────────────────────────────────────────────────
 
   getDashboard: () => api.get('/crm/dashboard').then(r => r.data),
+  
+  // Test endpoint for cron job
+  triggerFollowups: () => api.post('/test/trigger-followups').then(r => r.data),
 
   // ──────────────────────────────────────────────────────────────
   // LEVEL SETTINGS
