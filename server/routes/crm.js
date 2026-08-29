@@ -361,6 +361,11 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Conversation ID not found for this customer.' });
     }
 
+    const zernioAccountId = process.env.ZERNIO_ACCOUNT_ID || process.env.FACEBOOK_PAGE_ID || process.env.ZERNIO_FACEBOOK_ACCOUNT_ID;
+    if (!zernioAccountId) {
+      return res.status(500).json({ error: 'ZERNIO_ACCOUNT_ID environment variable is missing on the live server. Zernio API requires this Account ID to send messages.' });
+    }
+
     const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
     const zernioResponse = await fetch(zernioUrl, {
       method: 'POST',
@@ -369,6 +374,7 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
         'Authorization': `Bearer ${zernioApiKey}`
       },
       body: JSON.stringify({
+        accountId: zernioAccountId,
         message: messageText
       })
     });
@@ -1083,6 +1089,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
                 'Content-Type': 'application/json' 
               },
               body: JSON.stringify({
+                accountId: process.env.ZERNIO_ACCOUNT_ID || process.env.FACEBOOK_PAGE_ID || process.env.ZERNIO_FACEBOOK_ACCOUNT_ID,
                 message: message_text
               })
             });
