@@ -351,7 +351,13 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
     }
 
-    // 3. Send message via Zernio API 
+    // 3. Append payment info if exists
+    const paymentInfoText = process.env.PAYMENT_INFO_TEXT || '';
+    if (paymentInfoText) {
+      messageText += `\n\n${paymentInfoText}`;
+    }
+
+    // 4. Send message via Zernio API 
     const zernioApiKey = process.env.ZERNIO_API_KEY;
 
     if (!zernioApiKey) {
@@ -379,6 +385,20 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
       console.error('[ZERNIO SEND ERROR]', errorDetail);
       return res.status(500).json({ error: `Zernio API Error: ${errorDetail}` });
+    }
+
+    // 5. Save the sent message to chat history so it shows up in CRM Inbox
+    try {
+      await supabaseAdmin.schema('crm')
+        .from('inquiries_messages')
+        .insert({
+          inquiry_id: inquiryIds[0],
+          message_text: messageText,
+          sender_type: 'admin', 
+          metadata: { manual_reminder: true, conversationId }
+        });
+    } catch (saveErr) {
+      console.error('[MANUAL REMIND] Failed to save sent message to inquiries_messages:', saveErr.message);
     }
 
     return res.json({ success: true, message: 'Reminder sent via Zernio Chat!' });
