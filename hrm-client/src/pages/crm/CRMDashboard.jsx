@@ -53,6 +53,13 @@ export default function CRMDashboard() {
   const [flaggedFeedback, setFlaggedFeedback] = useState([]);
   const [totalSources, setTotalSources] = useState(0);
 
+  // Link Chat Modal State
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [unlinkedInquiries, setUnlinkedInquiries] = useState([]);
+  const [linkTargetRenewal, setLinkTargetRenewal] = useState(null);
+  const [selectedInquiryId, setSelectedInquiryId] = useState('');
+  const [isLinking, setIsLinking] = useState(false);
+
   useEffect(() => {
     // Load real data from Supabase via API
     crmApi.getDashboard().then(data => {
@@ -214,18 +221,113 @@ export default function CRMDashboard() {
         }
       });
     } catch (err) {
-      console.error(err);
       import('react-hot-toast').then(({ default: toast }) => {
-        toast.error(err.response?.data?.error || 'Failed to send message via Zernio.');
+        if (err.response?.data?.code === 'NO_LINKED_CHAT') {
+          // Open the Link Chat modal instead of showing an error
+          setLinkTargetRenewal(renewal);
+          fetchUnlinkedInquiries();
+          setShowLinkModal(true);
+        } else {
+          toast.error(err.response?.data?.error || 'Failed to send message via Zernio.');
+        }
       });
     } finally {
       setSendingZernio(prev => ({ ...prev, [renewal.customerId]: false }));
     }
   };
 
+  const fetchUnlinkedInquiries = async () => {
+    try {
+      const data = await crmApi.getUnlinkedInquiries();
+      setUnlinkedInquiries(data);
+      if (data.length > 0) setSelectedInquiryId(data[0].id);
+    } catch (e) {
+      console.error('Failed to fetch unlinked inquiries:', e);
+    }
+  };
+
+  const handleLinkChat = async () => {
+    if (!selectedInquiryId || !linkTargetRenewal) return;
+    
+    setIsLinking(true);
+    try {
+      // Link the chat
+      await crmApi.linkChatToCustomer(linkTargetRenewal.customerId, selectedInquiryId);
+      
+      import('react-hot-toast').then(({ default: toast }) => {
+        toast.success('Chat linked successfully! Now sending reminder...');
+      });
+      
+      setShowLinkModal(false);
+      
+      // Now re-trigger the remind!
+      await handleZernioRemind(linkTargetRenewal);
+    } catch (e) {
+      import('react-hot-toast').then(({ default: toast }) => {
+        toast.error('Failed to link chat.');
+      });
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
   return (
     <Layout title="Analytics Dashboard" subtitle="Real-time sales, leads, and performance metrics">
       
+      {/* Link Chat Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl p-8 text-center">
+            <div className="w-16 h-16 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🔗</span>
+            </div>
+            <h3 className="text-xl font-black text-white mb-2">Link Facebook Chat</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              We couldn't auto-find a chat for <b>{linkTargetRenewal?.customerName}</b>. <br/>
+              Please select the correct active Facebook chat below to link them permanently.
+            </p>
+            
+            <div className="text-left mb-6">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Unlinked Chat</label>
+              {unlinkedInquiries.length === 0 ? (
+                <div className="text-sm text-rose-400 p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                  No active unlinked chats found. Please ask the customer to send a message to the page first.
+                </div>
+              ) : (
+                <select 
+                  value={selectedInquiryId}
+                  onChange={(e) => setSelectedInquiryId(e.target.value)}
+                  className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green"
+                >
+                  {unlinkedInquiries.map(inq => (
+                    <option key={inq.id} value={inq.id}>
+                      {inq.prospect_name} ({new Date(inq.created_at).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowLinkModal(false)} 
+                className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white transition-colors"
+                disabled={isLinking}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleLinkChat} 
+                disabled={isLinking || unlinkedInquiries.length === 0}
+                className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-brand-green hover:bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-colors disabled:opacity-50"
+              >
+                {isLinking ? 'Linking...' : 'Link & Remind'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tangerine-Style Navigation Bar (Applied to CRM) */}
       <div className="flex items-center justify-between mb-8 bg-white dark:bg-surface-800 p-4 rounded-full border border-slate-200 dark:border-white/5 shadow-lg w-full transition-colors">
         

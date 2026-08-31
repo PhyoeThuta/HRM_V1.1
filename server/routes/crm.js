@@ -310,7 +310,10 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     }
 
     if (!inquiries || inquiries.length === 0) {
-      return res.status(400).json({ error: 'No linked Facebook/Zernio chat found. Please ensure the customer has a matching Facebook Name in their profile.' });
+      return res.status(400).json({ 
+        error: 'No linked Facebook/Zernio chat found.', 
+        code: 'NO_LINKED_CHAT' 
+      });
     }
 
     // Find latest prospect message with metadata to get conversationId
@@ -398,6 +401,32 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     return res.json({ success: true, message: 'Reminder sent via Zernio Chat!' });
   } catch (e) {
     console.error('[CRM POST ZERNIO REMIND]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/crm/customers/:id/link-chat
+router.put('/customers/:id/link-chat', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { inquiry_id } = req.body;
+    
+    if (!inquiry_id) return res.status(400).json({ error: 'inquiry_id is required' });
+
+    // Link the inquiry to this customer
+    const { data, error } = await supabaseAdmin
+      .schema('crm')
+      .from('inquiries')
+      .update({ customer_id: id, updated_at: new Date().toISOString() })
+      .eq('id', inquiry_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    emitInquiryUpdated(data);
+    return res.json({ success: true, inquiry: data });
+  } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 });
@@ -796,6 +825,24 @@ router.delete('/gallery/:photoId', verifyToken, async (req, res) => {
 // ──────────────────────────────────────────────────────────────────
 // INQUIRIES / LEADS
 // ──────────────────────────────────────────────────────────────────
+
+// GET /api/crm/inquiries/unlinked
+router.get('/inquiries/unlinked', verifyToken, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .schema('crm')
+      .from('inquiries')
+      .select('id, prospect_name, created_at, updated_at, source')
+      .is('customer_id', null)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
 // GET /api/crm/inquiries
 router.get('/inquiries', verifyToken, async (req, res) => {

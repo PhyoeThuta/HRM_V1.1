@@ -21,7 +21,15 @@ export const crmApi = {
   updateCustomer: (id, data) => api.put(`/crm/customers/${id}`, data).then(r => r.data),
 
   // Delete customer
-  deleteCustomer: (id) => api.delete(`/crm/customers/${id}`).then(r => r.data),
+  deleteCustomer: async (id) => {
+    const res = await api.delete(`/api/crm/customers/${id}`);
+    return res.data;
+  },
+
+  linkChatToCustomer: async (id, inquiry_id) => {
+    const res = await api.put(`/api/crm/customers/${id}/link-chat`, { inquiry_id });
+    return res.data;
+  },
 
   // Update health/metrics
   updateHealth: (id, data) => api.put(`/crm/customers/${id}/health`, data).then(r => r.data),
@@ -81,6 +89,11 @@ export const crmApi = {
   // ──────────────────────────────────────────────────────────────
   // INQUIRIES / LEADS
   // ──────────────────────────────────────────────────────────────
+  // Inquiries
+  getUnlinkedInquiries: async () => {
+    const res = await api.get('/api/crm/inquiries/unlinked');
+    return res.data;
+  },
 
   getInquiries: (unlinkedOnly = false) => api.get(`/crm/inquiries${unlinkedOnly ? '?unlinked=true' : ''}`).then(r => r.data),
 
