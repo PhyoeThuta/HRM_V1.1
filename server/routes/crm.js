@@ -829,16 +829,20 @@ router.delete('/gallery/:photoId', verifyToken, async (req, res) => {
 // GET /api/crm/inquiries/unlinked
 router.get('/inquiries/unlinked', verifyToken, async (req, res) => {
   try {
+    // Fetch 20 most recent inquiries and filter in memory to bypass PostgREST null quirks
     const { data, error } = await supabaseAdmin
       .schema('crm')
       .from('inquiries')
-      .select('id, prospect_name, created_at, updated_at, source')
-      .is('customer_id', null)
+      .select('id, prospect_name, created_at, updated_at, source, customer_id')
       .order('updated_at', { ascending: false })
-      .limit(50);
+      .limit(20);
 
     if (error) throw error;
-    return res.json(data);
+    
+    // Filter where customer_id is truly null or undefined
+    const unlinked = (data || []).filter(inq => !inq.customer_id);
+    
+    return res.json(unlinked);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
