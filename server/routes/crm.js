@@ -1000,7 +1000,7 @@ The JSON must have the following exact keys:
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100),
   "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed').",
-  "auto_reply_text": "string or null. CRITICAL RULE: If the LAST message in the Chat History is already an AI/Admin providing payment info or thanking them, you MUST return null to prevent loops. Only return a polite Burmese reply with Payment Details if the prospect JUST asked to buy and we haven't replied yet."
+  "auto_reply_text": "string or null. CRITICAL RULE: If the PROSPECT'S last message indicates they want to buy or purchase, you MUST return a polite Burmese reply with the Payment Details. HOWEVER, if the prospect just said 'thank you' or 'ok', and we already replied or gave payment info, return null to prevent endless bot loops."
 }
 
 Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
