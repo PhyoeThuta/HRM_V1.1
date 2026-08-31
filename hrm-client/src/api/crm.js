@@ -22,12 +22,12 @@ export const crmApi = {
 
   // Delete customer
   deleteCustomer: async (id) => {
-    const res = await api.delete(`/api/crm/customers/${id}`);
+    const res = await api.delete(`/crm/customers/${id}`);
     return res.data;
   },
 
   linkChatToCustomer: async (id, inquiry_id) => {
-    const res = await api.put(`/api/crm/customers/${id}/link-chat`, { inquiry_id });
+    const res = await api.put(`/crm/customers/${id}/link-chat`, { inquiry_id });
     return res.data;
   },
 
@@ -91,7 +91,7 @@ export const crmApi = {
   // ──────────────────────────────────────────────────────────────
   // Inquiries
   getRecentInquiries: async () => {
-    const res = await api.get('/api/crm/inquiries/recent');
+    const res = await api.get('/crm/inquiries/recent');
     return res.data;
   },
 
