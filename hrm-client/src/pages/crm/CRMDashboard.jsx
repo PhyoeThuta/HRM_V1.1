@@ -238,11 +238,14 @@ export default function CRMDashboard() {
 
   const fetchUnlinkedInquiries = async () => {
     try {
-      const data = await crmApi.getRecentInquiries();
-      setUnlinkedInquiries(data);
-      if (data.length > 0) setSelectedInquiryId(data[0].id);
+      // Fetch all inquiries from the proven Inbox endpoint to avoid backend sync issues
+      const allInquiries = await crmApi.getInquiries(false);
+      // Take the top 30 most recent
+      const recent = allInquiries.slice(0, 30);
+      setUnlinkedInquiries(recent);
+      if (recent.length > 0) setSelectedInquiryId(recent[0].id);
     } catch (e) {
-      console.error('Failed to fetch recent inquiries:', e);
+      console.error('Failed to fetch inquiries:', e);
     }
   };
 
