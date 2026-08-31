@@ -827,7 +827,8 @@ router.delete('/gallery/:photoId', verifyToken, async (req, res) => {
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/inquiries/recent
-router.get('/inquiries/recent', verifyToken, async (req, res) => {
+// AND GET /api/crm/inquiries/unlinked (alias for cached frontends)
+router.get(['/inquiries/recent', '/inquiries/unlinked'], verifyToken, async (req, res) => {
   try {
     // Fetch 20 most recent inquiries regardless of link status, to allow force re-linking
     const { data, error } = await supabaseAdmin
