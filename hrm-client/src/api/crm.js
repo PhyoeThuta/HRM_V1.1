@@ -90,8 +90,8 @@ export const crmApi = {
   // INQUIRIES / LEADS
   // ──────────────────────────────────────────────────────────────
   // Inquiries
-  getUnlinkedInquiries: async () => {
-    const res = await api.get('/api/crm/inquiries/unlinked');
+  getRecentInquiries: async () => {
+    const res = await api.get('/api/crm/inquiries/recent');
     return res.data;
   },
 

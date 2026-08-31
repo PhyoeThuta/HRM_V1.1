@@ -238,11 +238,11 @@ export default function CRMDashboard() {
 
   const fetchUnlinkedInquiries = async () => {
     try {
-      const data = await crmApi.getUnlinkedInquiries();
+      const data = await crmApi.getRecentInquiries();
       setUnlinkedInquiries(data);
       if (data.length > 0) setSelectedInquiryId(data[0].id);
     } catch (e) {
-      console.error('Failed to fetch unlinked inquiries:', e);
+      console.error('Failed to fetch recent inquiries:', e);
     }
   };
 
@@ -288,10 +288,10 @@ export default function CRMDashboard() {
             </p>
             
             <div className="text-left mb-6">
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Unlinked Chat</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Chat to Link</label>
               {unlinkedInquiries.length === 0 ? (
                 <div className="text-sm text-rose-400 p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
-                  No active unlinked chats found. Please ask the customer to send a message to the page first.
+                  No active chats found. Please ask the customer to send a message to the page first.
                 </div>
               ) : (
                 <select 
@@ -301,7 +301,7 @@ export default function CRMDashboard() {
                 >
                   {unlinkedInquiries.map(inq => (
                     <option key={inq.id} value={inq.id}>
-                      {inq.prospect_name} ({new Date(inq.created_at).toLocaleDateString()})
+                      {inq.prospect_name} ({new Date(inq.created_at).toLocaleDateString()}) {inq.customer_id ? '[Already Linked]' : ''}
                     </option>
                   ))}
                 </select>
