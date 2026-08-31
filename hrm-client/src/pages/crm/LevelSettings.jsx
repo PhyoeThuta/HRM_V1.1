@@ -11,7 +11,7 @@ export default function LevelSettings() {
 
   const [formData, setFormData] = useState({
     level_name: '',
-    required_purchases: 1,
+    required_spend: 0,
     color: 'blue'
   });
 
@@ -48,12 +48,12 @@ export default function LevelSettings() {
       setEditingSetting(setting);
       setFormData({
         level_name: setting.level_name,
-        required_purchases: setting.required_purchases,
+        required_spend: setting.required_spend,
         color: setting.color || 'blue'
       });
     } else {
       setEditingSetting(null);
-      setFormData({ level_name: '', required_purchases: 1, color: 'blue' });
+      setFormData({ level_name: '', required_spend: 0, color: 'blue' });
     }
     setIsModalOpen(true);
   };
@@ -141,7 +141,7 @@ export default function LevelSettings() {
                 
                 <div>
                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Target to Unlock</p>
-                  <p className="text-2xl font-bold text-white">{setting.required_purchases} <span className="text-sm font-medium text-slate-400">packages</span></p>
+                  <p className="text-2xl font-bold text-white">{setting.required_spend?.toLocaleString() || 0} <span className="text-sm font-medium text-slate-400">THB</span></p>
                 </div>
               </div>
             );
@@ -182,16 +182,17 @@ export default function LevelSettings() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Required Purchases</label>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Target to Unlock (THB)</label>
                 <input
                   type="number"
-                  min="0"
                   required
-                  value={formData.required_purchases}
-                  onChange={(e) => setFormData({ ...formData, required_purchases: e.target.value })}
-                  className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-green/50"
+                  min="0"
+                  step="1000"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
+                  value={formData.required_spend}
+                  onChange={(e) => setFormData({ ...formData, required_spend: e.target.value })}
                 />
-                <p className="text-xs text-slate-500 mt-1">Number of total packages a customer must buy to reach this level.</p>
+                <p className="text-xs text-slate-500 mt-1">Total spend required to reach this level.</p>
               </div>
 
               <div>

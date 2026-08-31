@@ -43,7 +43,7 @@ router.get('/level-settings', verifyToken, async (req, res) => {
       .schema('crm')
       .from('level_settings')
       .select('*')
-      .order('required_purchases', { ascending: true });
+      .order('required_spend', { ascending: true });
 
     if (error) throw error;
     return res.json(data);
@@ -56,10 +56,10 @@ router.get('/level-settings', verifyToken, async (req, res) => {
 // POST /api/crm/level-settings
 router.post('/level-settings', verifyToken, async (req, res) => {
   try {
-    const { id, level_name, required_purchases, color } = req.body;
+    const { id, level_name, required_spend, color } = req.body;
     
-    if (!level_name || required_purchases === undefined) {
-      return res.status(400).json({ error: 'Level name and required purchases are required' });
+    if (!level_name || required_spend === undefined) {
+      return res.status(400).json({ error: 'level_name and required_spend are required' });
     }
 
     let result;
@@ -68,7 +68,7 @@ router.post('/level-settings', verifyToken, async (req, res) => {
       const { data, error } = await supabaseAdmin
         .schema('crm')
         .from('level_settings')
-        .update({ level_name, required_purchases: parseInt(required_purchases), color })
+        .update({ level_name, required_spend: parseInt(required_spend), color })
         .eq('id', id)
         .select()
         .single();
@@ -79,7 +79,7 @@ router.post('/level-settings', verifyToken, async (req, res) => {
       const { data, error } = await supabaseAdmin
         .schema('crm')
         .from('level_settings')
-        .insert({ level_name, required_purchases: parseInt(required_purchases), color })
+        .insert({ level_name, required_spend: parseInt(required_spend), color })
         .select()
         .single();
       if (error) throw error;
@@ -122,7 +122,7 @@ router.get('/customers', verifyToken, async (req, res) => {
       .from('customers')
       .select(`
         *,
-        customer_packages (count)
+        customer_packages (amount)
       `)
       .order('created_at', { ascending: false });
 
@@ -133,28 +133,26 @@ router.get('/customers', verifyToken, async (req, res) => {
       .schema('crm')
       .from('level_settings')
       .select('*')
-      .order('required_purchases', { ascending: false });
+      .order('required_spend', { ascending: false });
 
-    // Flatten package count and calculate level
+    // Flatten package amounts and calculate level
     const result = data.map(c => {
-      const packageCount = c.customer_packages?.[0]?.count || 0;
+      // Calculate total spend by summing up the amount of all packages
+      const totalSpend = c.customer_packages?.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
       
-      // Determine level based on packageCount
+      // Determine level based on totalSpend
       let calculatedLevel = null;
       if (levelSettings && levelSettings.length > 0) {
         for (const setting of levelSettings) {
-          if (packageCount >= setting.required_purchases) {
+          if (totalSpend >= setting.required_spend) {
             calculatedLevel = setting;
             break; // found the highest level since it's ordered descending
           }
         }
       }
-
-      return {
-        ...c,
-        packages: packageCount,
-        level: calculatedLevel,
-      };
+      
+      delete c.customer_packages;
+      return { ...c, level: calculatedLevel, total_spend: totalSpend };
     });
 
     return res.json(result);
@@ -238,20 +236,22 @@ router.get('/customers/:id', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('feedbacks').select('*').eq('customer_id', id).order('created_at', { ascending: false }),
     ]);
 
-    const packagesList = packagesRes.data || [];
-    const packageCount = packagesList.length;
+    const customerPackages = packagesRes.data || [];
 
     // Fetch level settings to calculate level
     const { data: levelSettings } = await supabaseAdmin
       .schema('crm')
       .from('level_settings')
       .select('*')
-      .order('required_purchases', { ascending: false });
+      .order('required_spend', { ascending: false });
+
+    // Calculate total spend
+    const totalSpend = customerPackages?.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
 
     let calculatedLevel = null;
     if (levelSettings && levelSettings.length > 0) {
       for (const setting of levelSettings) {
-        if (packageCount >= setting.required_purchases) {
+        if (totalSpend >= setting.required_spend) {
           calculatedLevel = setting;
           break;
         }
@@ -262,8 +262,9 @@ router.get('/customers/:id', verifyToken, async (req, res) => {
       ...customer,
       health: healthRes.data || {},
       lifestyle: lifestyleRes.data || {},
-      packages_list: packagesList,
+      packages_list: customerPackages,
       level: calculatedLevel,
+      total_spend: totalSpend,
       gallery: galleryRes.data || [],
       feedbacks: feedbackRes.data || [],
     });
@@ -501,10 +502,10 @@ router.delete('/customers/:id', verifyToken, async (req, res) => {
 router.post('/customers/:id/packages', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status } = req.body;
+    const { name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status, amount } = req.body;
 
     const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .insert({ customer_id: id, name, duration, meal_type, meal_count, start_date, expires_at, payment_status: payment_status || 'Unpaid', status: status || 'Active' })
+      .insert({ customer_id: id, name, duration, meal_type, meal_count, start_date, expires_at, payment_status: payment_status || 'Unpaid', status: status || 'Active', amount: amount || 0 })
       .select()
       .single();
 

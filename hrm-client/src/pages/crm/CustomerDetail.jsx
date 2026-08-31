@@ -54,7 +54,8 @@ export default function CustomerDetail() {
     meal_count: 60,
     meal_type: 'LUNCH, DINNER',
     payment_status: 'Unpaid',
-    status: 'Active'
+    status: 'Active',
+    amount: 5000
   });
   const [metricsForm, setMetricsForm] = useState({
     current_weight: '',
@@ -211,21 +212,22 @@ export default function CustomerDetail() {
     }
   };
 
-  const handlePackageNameChange = (e) => {
     const val = e.target.value;
     let duration = '30 Days';
     let meal_count = 60;
+    let amount = 5000;
 
-    if (val === 'Weekly Keto Plan') { duration = '7 Days'; meal_count = 14; }
-    else if (val === '14 Days Detox') { duration = '14 Days'; meal_count = 28; }
-    else if (val === '2 Days Daily Plan') { duration = '2 Days'; meal_count = 4; }
-    else if (val === '1 Day Trial Plan') { duration = '1 Day'; meal_count = 2; }
+    if (val === 'Weekly Keto Plan') { duration = '7 Days'; meal_count = 14; amount = 1600; }
+    else if (val === '14 Days Detox') { duration = '14 Days'; meal_count = 28; amount = 2800; }
+    else if (val === '2 Days Daily Plan') { duration = '2 Days'; meal_count = 4; amount = 600; }
+    else if (val === '1 Day Trial Plan') { duration = '1 Day'; meal_count = 2; amount = 300; }
 
     setPackageForm(prev => ({
       ...prev,
       name: val,
       duration,
-      meal_count
+      meal_count,
+      amount
     }));
   };
 
@@ -239,7 +241,8 @@ export default function CustomerDetail() {
       meal_count: 60,
       meal_type: 'LUNCH, DINNER',
       payment_status: 'Unpaid',
-      status: 'Active'
+      status: 'Active',
+      amount: 5000
     });
     setShowPackageModal(true);
   };
@@ -249,12 +252,13 @@ export default function CustomerDetail() {
     setPackageForm({
       name: pkg.name,
       duration: pkg.duration,
-      start_date: pkg.start_date || new Date().toISOString().split('T')[0],
-      expires_at: pkg.expires_at,
-      meal_count: pkg.meal_count,
-      meal_type: pkg.meal_type,
+      start_date: pkg.start_date || '',
+      expires_at: pkg.expires_at || '',
+      meal_count: pkg.meal_count || 60,
+      meal_type: pkg.meal_type || 'LUNCH, DINNER',
       payment_status: pkg.payment_status || 'Unpaid',
-      status: pkg.status || 'Active'
+      status: pkg.status || 'Active',
+      amount: pkg.amount || 0
     });
     setShowPackageModal(true);
   };
@@ -488,9 +492,15 @@ export default function CustomerDetail() {
                   <option>1 Day Trial Plan</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
-                <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({ ...packageForm, meal_count: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
+                  <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({ ...packageForm, meal_count: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Amount (THB)</label>
+                  <input type="number" required value={packageForm.amount} onChange={e => setPackageForm({ ...packageForm, amount: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -758,11 +768,11 @@ export default function CustomerDetail() {
                               'bg-slate-500/10 text-slate-400 border-slate-500/20'
                     }`}>
                     {customer.level.level_name}
-                    <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.packages_list?.length || 0} packages)</span>
+                    <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.total_spend?.toLocaleString() || 0} THB)</span>
                   </span>
                 ) : (
                   <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border bg-white/5 text-slate-400 border-white/10">
-                    No Level <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.packages_list?.length || 0} packages)</span>
+                    No Level <span className="ml-1.5 opacity-60 normal-case tracking-normal">({customer.total_spend?.toLocaleString() || 0} THB)</span>
                   </span>
                 )}
               </div>
@@ -774,6 +784,10 @@ export default function CustomerDetail() {
                 <div className="flex items-center gap-2 text-slate-300 font-medium">
                   <span className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-400">✉️</span> {customer.email || 'N/A'}
                 </div>
+                  <div>
+                    <p className="text-slate-500 font-bold mb-1">Total Spent</p>
+                    <p className="font-black text-white">{customer.total_spend?.toLocaleString() || 0} THB</p>
+                  </div>
               </div>
             </div>
 
