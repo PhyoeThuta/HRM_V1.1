@@ -187,7 +187,7 @@ export default function LevelSettings() {
                   type="number"
                   required
                   min="0"
-                  step="1000"
+                  step="1"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
                   value={formData.required_spend}
                   onChange={(e) => setFormData({ ...formData, required_spend: e.target.value })}

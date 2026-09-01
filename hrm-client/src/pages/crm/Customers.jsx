@@ -10,6 +10,8 @@ export default function Customers() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [customers, setCustomers] = useState([]);
+  const [levels, setLevels] = useState([]);
+  const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -20,8 +22,12 @@ export default function Customers() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const data = await crmApi.getCustomers();
-      setCustomers(data);
+      const [custData, levelData] = await Promise.all([
+        crmApi.getCustomers(),
+        crmApi.getLevelSettings()
+      ]);
+      setCustomers(custData);
+      setLevels(levelData || []);
     } catch (e) {
       toast.error('Failed to load customers');
     } finally {
@@ -40,11 +46,13 @@ export default function Customers() {
     }
   };
 
-  const filtered = customers.filter(c =>
-    (c.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.customer_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.phone || '').includes(searchTerm)
-  );
+  const filtered = customers.filter(c => {
+    const matchesSearch = (c.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (c.customer_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (c.phone || '').includes(searchTerm);
+    const matchesLevel = activeFilter === 'All' || (c.level?.level_name === activeFilter);
+    return matchesSearch && matchesLevel;
+  });
 
   return (
     <Layout title="Customers" subtitle="Manage all customer profiles and data">
@@ -70,6 +78,26 @@ export default function Customers() {
           ← Back to Dashboard
         </button>
       </div>
+      
+      {/* Level Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar">
+        <button
+          onClick={() => setActiveFilter('All')}
+          className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${activeFilter === 'All' ? 'bg-white text-black' : 'bg-surface-800 text-slate-400 hover:text-white border border-white/5'}`}
+        >
+          All Customers
+        </button>
+        {levels.map(lvl => (
+          <button
+            key={lvl.id}
+            onClick={() => setActiveFilter(lvl.level_name)}
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${activeFilter === lvl.level_name ? 'bg-brand-green text-black' : 'bg-surface-800 text-slate-400 hover:text-white border border-white/5'}`}
+          >
+            {lvl.level_name}
+          </button>
+        ))}
+      </div>
+
       <div className="flex justify-between items-center mb-6">
         <div className="relative w-full max-w-md">
           <input

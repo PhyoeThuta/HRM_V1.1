@@ -151,8 +151,9 @@ router.get('/customers', verifyToken, async (req, res) => {
         }
       }
       
+      const packageCount = c.customer_packages?.length || 0;
       delete c.customer_packages;
-      return { ...c, level: calculatedLevel, total_spend: totalSpend };
+      return { ...c, level: calculatedLevel, total_spend: totalSpend, packages: packageCount };
     });
 
     return res.json(result);
@@ -1001,7 +1002,7 @@ The JSON must have the following exact keys:
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100),
   "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed').",
-  "auto_reply_text": "string or null. CRITICAL RULE: If the PROSPECT'S last message indicates they want to buy or purchase, you MUST return a polite Burmese reply with the Payment Details. HOWEVER, if the prospect just said 'thank you' or 'ok', and we already replied or gave payment info, return null to prevent endless bot loops."
+  "auto_reply_text": "string or null. CRITICAL RULE: If the PROSPECT asks a question or asks for details/explanation, you MUST return a polite Burmese reply explaining the packages and do NOT send payment info yet. ONLY send Payment Details if the prospect explicitly asks 'How to pay?', 'Where to transfer?', or says they are ready to transfer money now. If they just say 'thank you' or 'ok', return null."
 }
 
 Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
@@ -1155,21 +1156,34 @@ router.post('/webhooks/zernio', async (req, res) => {
       raw_webhook_payload: payload
     };
 
+    // Ignore webhooks for outgoing messages (e.g. admin replying from Facebook Pages)
+    // or Zernio's echo of our own API sends.
+    const direction = payload.message?.direction || payload.direction;
+    if (direction === 'outgoing') {
+      console.log('[WEBHOOK OUTGOING IGNORED]', text.substring(0, 50));
+      return res.status(200).json({ ok: true, ignored_outgoing: true });
+    }
+
     // Deduplication & Echo Prevention
     // Zernio sends webhooks for outgoing messages too. Since we already save 'ai_bot' and 'admin' 
     // messages to the DB when we send them via API, we MUST ignore the webhook echo to prevent infinite loops.
     const { data: recentMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-      .select('id, created_at')
+      .select('id, created_at, message_text, sender_type')
       .eq('inquiry_id', inquiryId)
-      .eq('message_text', text)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(10);
 
     if (recentMsgs && recentMsgs.length > 0) {
-      const timeDiff = new Date() - new Date(recentMsgs[0].created_at);
-      if (timeDiff < 60000) { // If exact same text within 60 seconds, it's definitely an echo
-        console.log('[WEBHOOK ECHO IGNORED]', text.substring(0, 50));
-        return res.status(200).json({ ok: true, ignored_echo: true });
+      const match = recentMsgs.find(m => m.message_text?.trim() === text.trim());
+      if (match) {
+        const timeDiff = Math.abs(new Date() - new Date(match.created_at));
+        const isEcho = (match.sender_type === 'prospect' && timeDiff < 10000) || 
+                       (match.sender_type !== 'prospect' && timeDiff < 900000); // 15 mins for admin echoes
+                       
+        if (isEcho) {
+          console.log('[WEBHOOK ECHO IGNORED]', text.substring(0, 50));
+          return res.status(200).json({ ok: true, ignored_echo: true });
+        }
       }
     }
 

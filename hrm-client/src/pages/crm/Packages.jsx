@@ -101,7 +101,7 @@ export default function Packages() {
             </div>
             <h3 className="text-xl font-black text-white mb-2">{pkg.name}</h3>
             <div className="text-slate-400 font-medium">
-              {pkg.price ? `${Number(pkg.price).toLocaleString()} MMK` : 'Custom Pricing'}
+              {pkg.price ? `${Number(pkg.price).toLocaleString()} THB` : 'Custom Pricing'}
             </div>
           </div>
         ))}
@@ -159,7 +159,7 @@ export default function Packages() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Price (MMK) - Optional</label>
+                <label className="block text-sm font-bold text-slate-400 mb-2">Price (THB) - Optional</label>
                 <input type="number" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green transition-colors" placeholder="e.g. 150000" />
               </div>
               <div className="pt-4 flex justify-end gap-3">

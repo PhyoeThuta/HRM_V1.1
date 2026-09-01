@@ -211,7 +211,7 @@ export default function CustomerDetail() {
       console.error(e);
     }
   };
-
+  const handlePackageNameChange = (e) => {
     const val = e.target.value;
     let duration = '30 Days';
     let meal_count = 60;
