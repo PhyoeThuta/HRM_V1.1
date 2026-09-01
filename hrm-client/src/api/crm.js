@@ -112,6 +112,8 @@ export const crmApi = {
   deleteInquiry: (id) => api.delete(`/crm/inquiries/${id}`).then(r => r.data),
 
   generateOnboardingLink: (id) => api.post(`/crm/inquiries/${id}/generate-link`).then(r => r.data),
+  
+  markPaid: (id, packageData) => api.post(`/crm/inquiries/${id}/mark-paid`, { package: packageData }).then(r => r.data),
 
   // ──────────────────────────────────────────────────────────────
   // PACKAGES (available plans)

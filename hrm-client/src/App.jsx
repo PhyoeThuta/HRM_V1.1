@@ -65,6 +65,7 @@ import CustomerForm from './pages/crm/CustomerForm';
 import LevelSettings from './pages/crm/LevelSettings';
 import Packages from './pages/crm/Packages';
 import KitchenDashboard from './pages/crm/KitchenDashboard';
+import FormBuilder from './pages/crm/FormBuilder';
 
 // Public Forms
 import CustomerEnrollment from './pages/public/CustomerEnrollment';
@@ -168,6 +169,7 @@ function AppRoutes() {
       <Route path="/crm/level-settings" element={<Protected allowedRoles={['admin', 'manager', 'boss']}><LevelSettings /></Protected>} />
       <Route path="/crm/packages" element={<Protected allowedRoles={['admin', 'manager', 'boss', 'marketing']}><Packages /></Protected>} />
       <Route path="/crm/kitchen" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><KitchenDashboard /></Protected>} />
+      <Route path="/crm/form-builder" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><FormBuilder /></Protected>} />
 
       {/* Employee portal */}
       <Route path="/portal" element={<EmployeeRoute><Portal /></EmployeeRoute>} />
