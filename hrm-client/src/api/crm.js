@@ -79,6 +79,14 @@ export const crmApi = {
     }).then(r => r.data);
   },
 
+  uploadAvatar: (customerId, file) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    return api.post(`/crm/customers/${customerId}/avatar`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
+
   // Add photo by URL
   addPhotoByUrl: (customerId, url, type) =>
     api.post(`/crm/customers/${customerId}/gallery`, { url, type }).then(r => r.data),
@@ -131,7 +139,14 @@ export const crmApi = {
   // DASHBOARD STATS
   // ──────────────────────────────────────────────────────────────
 
+  getFeedbacks: () => api.get('/crm/feedbacks').then(r => r.data),
+
   getDashboard: () => api.get('/crm/dashboard').then(r => r.data),
+  
+  getSalesAnalytics: () => api.get('/crm/analytics/sales').then(r => r.data),
+  getLeadAnalytics: () => api.get('/crm/analytics/leads').then(r => r.data),
+  
+  resolveFeedback: (id) => api.post(`/crm/feedback/${id}/resolve`).then(r => r.data),
   
   // Test endpoint for cron job
   triggerFollowups: () => api.post('/test/trigger-followups').then(r => r.data),

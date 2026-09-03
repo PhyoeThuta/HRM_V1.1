@@ -23,6 +23,9 @@ export default function OpsDashboard() {
   const { data: orders } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
   const { data: menus } = useQuery({ queryKey: ['menus'], queryFn: () => api.get('/operations/menus').then(res => res.data) });
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaysOrders = orders?.filter(o => o.date === todayStr) || [];
+
   const createPlanMutation = useMutation({
     mutationFn: (data) => {
       const payload = {
@@ -75,11 +78,11 @@ export default function OpsDashboard() {
         </div>
         <div className="bg-surface-800 p-6 rounded-2xl border border-white/5">
           <p className="text-slate-400 text-sm mb-1 font-bold">Total Orders</p>
-          <h2 className="text-4xl font-black text-emerald-400">{orders?.length || 0}</h2>
+          <h2 className="text-4xl font-black text-emerald-400">{todaysOrders.length}</h2>
         </div>
         <div className="bg-surface-800 p-6 rounded-2xl border border-white/5">
           <p className="text-slate-400 text-sm mb-1 font-bold">Pending Deliveries</p>
-          <h2 className="text-4xl font-black text-amber-400">{orders?.filter(o => o.delivery_status === 'PENDING').length || 0}</h2>
+          <h2 className="text-4xl font-black text-amber-400">{todaysOrders.filter(o => o.delivery_status === 'PENDING').length}</h2>
         </div>
       </div>
 
@@ -158,7 +161,7 @@ export default function OpsDashboard() {
             </Link>
           </div>
           {(() => {
-            const pendingOrders = orders ? orders.filter(o => o.delivery_status === 'PENDING') : [];
+            const pendingOrders = todaysOrders.filter(o => o.delivery_status === 'PENDING');
             return pendingOrders.length > 0 ? (
               <div className="space-y-4">
                 {pendingOrders.slice(0, 5).map(o => (

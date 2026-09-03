@@ -104,7 +104,7 @@ export default function FormBuilder() {
             disabled={isSaving}
             className="px-6 py-3 bg-brand-green hover:bg-emerald-500 text-black font-black rounded-xl shadow-lg transition-all disabled:opacity-50"
           >
-            {isSaving ? 'Saving...' : 'Save Form Schema'}
+            {isSaving ? 'Saving...' : 'Save Form Design'}
           </button>
         </div>
 
@@ -160,7 +160,7 @@ export default function FormBuilder() {
                     value={newField.id} 
                     onChange={e => setNewField({...newField, id: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
                     placeholder="e.g. first_name"
-                    className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-brand-green focus:outline-none transition-colors"
+                    className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:border-brand-green focus:outline-none transition-colors"
                   />
                   <p className="text-xs text-slate-400 mt-1">Unique identifier (no spaces)</p>
                 </div>
@@ -172,7 +172,7 @@ export default function FormBuilder() {
                     value={newField.label} 
                     onChange={e => setNewField({...newField, label: e.target.value})}
                     placeholder="e.g. First Name"
-                    className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-brand-green focus:outline-none transition-colors"
+                    className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:border-brand-green focus:outline-none transition-colors"
                   />
                 </div>
 
@@ -181,7 +181,7 @@ export default function FormBuilder() {
                   <select 
                     value={newField.type} 
                     onChange={e => setNewField({...newField, type: e.target.value})}
-                    className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-brand-green focus:outline-none transition-colors"
+                    className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:border-brand-green focus:outline-none transition-colors"
                   >
                     <option value="text">Text (Short)</option>
                     <option value="textarea">Textarea (Long)</option>
@@ -199,7 +199,7 @@ export default function FormBuilder() {
                       value={newField.options} 
                       onChange={e => setNewField({...newField, options: e.target.value})}
                       placeholder="Low, Medium, High"
-                      className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-brand-green focus:outline-none transition-colors"
+                      className="w-full bg-white dark:bg-surface-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:border-brand-green focus:outline-none transition-colors"
                     />
                   </div>
                 )}
@@ -217,7 +217,7 @@ export default function FormBuilder() {
 
                 <button 
                   onClick={addField}
-                  className="w-full py-3 mt-4 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold rounded-xl transition-colors"
+                  className="w-full py-3 mt-4 bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-white font-bold rounded-xl transition-colors"
                 >
                   + Add Field
                 </button>

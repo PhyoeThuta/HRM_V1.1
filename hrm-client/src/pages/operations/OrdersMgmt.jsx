@@ -13,6 +13,9 @@ export default function OrdersMgmt() {
   const [orderForm, setOrderForm] = useState({ customer_id: '', daily_menu_id: '', count: 1, date: new Date().toISOString().split('T')[0] });
   const [expandedGroups, setExpandedGroups] = useState({});
   const [activeTab, setActiveTab] = useState('active');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [batchConfirmData, setBatchConfirmData] = useState(null);
+  const [undoConfirmData, setUndoConfirmData] = useState(null);
 
   const { data: orders, isLoading } = useQuery({ queryKey: ['orders'], queryFn: () => api.get('/operations/orders').then(res => res.data) });
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/crm/customers').then(res => res.data) });
@@ -21,7 +24,7 @@ export default function OrdersMgmt() {
   const createOrderMutation = useMutation({
     mutationFn: (data) => api.post('/operations/orders', data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['orders']);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Order created successfully');
       setIsModalOpen(false);
       setOrderForm({ customer_id: '', daily_menu_id: '', count: 1, date: new Date().toISOString().split('T')[0] });
@@ -32,7 +35,7 @@ export default function OrdersMgmt() {
   const autoGenerateMutation = useMutation({
     mutationFn: (date) => api.post('/operations/orders/auto-generate', { date }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries(['orders']);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       if (res.data.generatedCount > 0) {
         toast.success(`Successfully generated ${res.data.generatedCount} orders!`);
       } else {
@@ -46,7 +49,7 @@ export default function OrdersMgmt() {
   const statusMutation = useMutation({
     mutationFn: ({ id, delivery_status }) => api.put(`/operations/orders/${id}/status`, { delivery_status }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['orders']);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Order status updated');
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to update order status')
@@ -55,10 +58,19 @@ export default function OrdersMgmt() {
   const batchStatusMutation = useMutation({
     mutationFn: ({ order_ids, delivery_status }) => api.put(`/operations/orders/batch-status`, { order_ids, delivery_status }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['orders']);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Orders status updated');
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to update order status')
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/operations/orders/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast.success('Order deleted');
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to delete order')
   });
 
   const getStatusColor = (status) => {
@@ -134,8 +146,11 @@ export default function OrdersMgmt() {
         ) : (
           (() => {
             const filteredGroups = Object.entries(groupedOrders).filter(([date, group]) => {
-              if (activeTab === 'active') return group.deliveredQty < group.totalQty;
-              return group.deliveredQty === group.totalQty && group.totalQty > 0;
+              const todayStr = new Date().toISOString().split('T')[0];
+              if (activeTab === 'active') {
+                return date === todayStr && group.deliveredQty < group.totalQty;
+              }
+              return date !== todayStr || group.deliveredQty === group.totalQty;
             });
             
             if (filteredGroups.length === 0) {
@@ -200,19 +215,30 @@ export default function OrdersMgmt() {
                               <button 
                                 onClick={(e) => { 
                                   e.stopPropagation();
-                                  if(window.confirm('Mark ALL orders for this customer as DELIVERED?')) {
-                                    const pendingIds = customer.orders.filter(o => o.delivery_status !== 'DELIVERED').map(o => o.id);
-                                    batchStatusMutation.mutate({ order_ids: pendingIds, delivery_status: 'DELIVERED' });
-                                  }
+                                  const pendingIds = customer.orders.filter(o => o.delivery_status !== 'DELIVERED').map(o => o.id);
+                                  setBatchConfirmData({ customerName: customer.name, pendingIds });
                                 }} 
                                 className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-emerald-500/20 shadow-lg whitespace-nowrap"
                               >
                                 Mark All Delivered
                               </button>
                             ) : (
-                              <span className="px-4 py-2 bg-white/5 text-emerald-500 text-xs font-bold rounded-lg border border-white/5 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
-                                ✅ Delivered
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="px-4 py-2 bg-white/5 text-emerald-500 text-xs font-bold rounded-lg border border-white/5 uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                  ✅ Delivered
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const deliveredIds = customer.orders.filter(o => o.delivery_status === 'DELIVERED').map(o => o.id);
+                                    setUndoConfirmData({ customerName: customer.name, deliveredIds });
+                                  }}
+                                  className="px-2 py-2 bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white text-xs font-bold rounded-lg transition-colors border border-rose-500/20 shadow-lg"
+                                  title="Reset to PENDING"
+                                >
+                                  ↩️ Undo
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -227,6 +253,18 @@ export default function OrdersMgmt() {
                                   <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border ${getStatusColor(order.delivery_status)}`}>
                                     {order.delivery_status}
                                   </span>
+                                  {order.delivery_status === 'PENDING' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteConfirmId(order.id);
+                                      }}
+                                      className="ml-2 text-rose-500 hover:text-rose-400 opacity-50 hover:opacity-100 transition-opacity"
+                                      title="Delete Order"
+                                    >
+                                      🗑️
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -303,6 +341,102 @@ export default function OrdersMgmt() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-surface-800 w-full max-w-sm rounded-3xl border border-rose-500/30 shadow-[0_0_40px_rgba(244,63,94,0.1)] p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-rose-500/20">
+              🗑️
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Delete Order?</h3>
+            <p className="text-sm text-slate-400 mb-8">
+              Are you sure you want to delete this pending order? This action cannot be undone.
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setDeleteConfirmId(null)} 
+                className="flex-1 py-3 bg-surface-700 hover:bg-surface-600 text-white font-bold rounded-xl transition-colors border border-white/5"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  deleteMutation.mutate(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                }} 
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-500/20 transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Deliver Confirm Modal */}
+      {batchConfirmData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-surface-800 w-full max-w-sm rounded-3xl border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)] p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-emerald-500/20">
+              ✅
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Confirm Delivery</h3>
+            <p className="text-sm text-slate-400 mb-8">
+              Mark all <strong className="text-fuchsia-400">{batchConfirmData.pendingIds.length}</strong> pending orders for <strong className="text-white">{batchConfirmData.customerName}</strong> as DELIVERED?
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setBatchConfirmData(null)} 
+                className="flex-1 py-3 bg-surface-700 hover:bg-surface-600 text-white font-bold rounded-xl transition-colors border border-white/5"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  batchStatusMutation.mutate({ order_ids: batchConfirmData.pendingIds, delivery_status: 'DELIVERED' });
+                  setBatchConfirmData(null);
+                }} 
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Undo Confirm Modal */}
+      {undoConfirmData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-surface-800 w-full max-w-sm rounded-3xl border border-rose-500/30 shadow-[0_0_40px_rgba(244,63,94,0.1)] p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-rose-500/20">
+              ↩️
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Undo Delivery?</h3>
+            <p className="text-sm text-slate-400 mb-8">
+              Reset all <strong className="text-rose-400">{undoConfirmData.deliveredIds.length}</strong> delivered orders for <strong className="text-white">{undoConfirmData.customerName}</strong> back to PENDING?
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setUndoConfirmData(null)} 
+                className="flex-1 py-3 bg-surface-700 hover:bg-surface-600 text-white font-bold rounded-xl transition-colors border border-white/5"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  batchStatusMutation.mutate({ order_ids: undoConfirmData.deliveredIds, delivery_status: 'PENDING' });
+                  setUndoConfirmData(null);
+                }} 
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-500/20 transition-all"
+              >
+                Undo
+              </button>
+            </div>
           </div>
         </div>
       )}

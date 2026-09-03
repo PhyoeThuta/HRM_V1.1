@@ -203,10 +203,12 @@ router.post('/crm/feedback', async (req, res) => {
   try {
     const { customer_id, rating, comment } = req.body;
     
-    if (!customer_id || !rating) return res.status(400).json({ error: 'Missing required fields' });
+    if (!customer_id) return res.status(400).json({ error: 'Missing customer ID' });
+
+    const finalRating = rating !== null && rating !== undefined ? parseInt(rating) : null;
 
     const { data, error } = await supabaseAdmin.schema('crm').from('feedbacks')
-      .insert({ customer_id: parseInt(customer_id), rating: parseInt(rating), comment: comment || '' })
+      .insert({ customer_id: parseInt(customer_id), rating: finalRating, comment: comment || '' })
       .select().single();
       
     if (error) throw error;
@@ -215,7 +217,9 @@ router.post('/crm/feedback', async (req, res) => {
     const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
     const custName = cust ? cust.full_name : 'Customer';
     
-    const notiMsg = `${custName} submitted a ${rating}-star feedback.`;
+    const notiMsg = finalRating !== null 
+      ? `${custName} submitted a ${finalRating}-star feedback.` 
+      : `${custName} submitted a new request or complaint.`;
     await dbInsert('system_notifications', {
       recipient_role: 'boss',
       title: 'New Customer Feedback',
@@ -227,6 +231,64 @@ router.post('/crm/feedback', async (req, res) => {
     return res.status(201).json({ success: true, feedback: data });
   } catch (e) {
     console.error('[PUBLIC FEEDBACK ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+// GET /api/public/menu-plans?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+router.get('/menu-plans', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) return res.status(400).json({ error: 'Missing date range' });
+
+    const { data, error } = await supabaseAdmin.from('operations_menu_plans')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[PUBLIC MENU PLANS ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/public/crm/menu-feedback
+router.post('/crm/menu-feedback', async (req, res) => {
+  try {
+    const { customer_id, week_name, ratings_json, best_pick, worst_pick, comment } = req.body;
+    
+    if (!customer_id || !week_name) return res.status(400).json({ error: 'Missing customer or week info' });
+
+    const { data, error } = await supabaseAdmin.from('crm_menu_feedbacks')
+      .insert({
+        customer_id: parseInt(customer_id),
+        week_name,
+        ratings_json,
+        best_pick: best_pick || null,
+        worst_pick: worst_pick || null,
+        comment: comment || null
+      })
+      .select().single();
+      
+    if (error) throw error;
+    
+    // Notify boss
+    const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
+    const custName = cust ? cust.full_name : 'Customer';
+    
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: 'New Weekly Menu Feedback',
+      message: `${custName} submitted feedback for ${week_name}.`,
+      link_url: `/crm/weekly-feedbacks`,
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({ success: true, feedback: data });
+  } catch (e) {
+    console.error('[PUBLIC MENU FEEDBACK ERROR]', e);
     return res.status(500).json({ error: e.message });
   }
 });

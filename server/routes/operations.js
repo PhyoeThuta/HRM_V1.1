@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../lib/supabase.js';
 import { verifyToken, requireOperations } from '../middleware/auth.js';
+import { emitInquiryMessage } from '../lib/crmRealtime.js';
 import multer from 'multer';
 import xlsx from 'xlsx';
 
@@ -261,6 +262,108 @@ router.post('/import-costing', upload.single('file'), async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+router.get('/menu-plans', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from('operations_menu_plans').select('*').order('date', { ascending: true });
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/import-menu-plan', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    // Use header: "A" to force keys to be "A", "B", "C" etc. This prevents column shifting if Column A is empty.
+    const rows = xlsx.utils.sheet_to_json(sheet, { header: "A" });
+
+    let count = 0;
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row) continue;
+
+      let dateRaw = row['B']; // Date is in Column B
+      if (!dateRaw || String(dateRaw).trim().toLowerCase() === 'date' || String(dateRaw).trim() === '') continue;
+      
+      let parsedDate;
+      if (typeof dateRaw === 'number') {
+         // Excel serial date
+         parsedDate = new Date((dateRaw - (25567 + 2)) * 86400 * 1000);
+      } else {
+         // Fix string dates like "1-Jun-26" -> node might parse as 2001 instead of 2026.
+         // Or timezone issues.
+         const strDate = String(dateRaw);
+         if (strDate.includes('-')) {
+             const parts = strDate.split('-');
+             if (parts.length === 3) {
+                 const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+                 const monthMap = {'Jan':'01', 'Feb':'02', 'Mar':'03', 'Apr':'04', 'May':'05', 'Jun':'06', 'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10', 'Nov':'11', 'Dec':'12'};
+                 const monthStr = parts[1].substring(0, 3);
+                 const month = monthMap[monthStr] || '01';
+                 const day = parts[0].padStart(2, '0');
+                 parsedDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // use midday UTC to avoid TZ issues
+             } else {
+                 parsedDate = new Date(strDate);
+             }
+         } else {
+             parsedDate = new Date(strDate);
+         }
+      }
+
+      if (isNaN(parsedDate.getTime())) continue; // Skip invalid dates
+
+      const formattedDate = parsedDate.toISOString().split('T')[0];
+      
+      // Look at the next row for night dishes (assuming 2 rows per day)
+      const nextRow = (r + 1 < rows.length) ? rows[r+1] : {};
+
+      const mainDish1 = row['E'] ? String(row['E']).trim() : null; // Column E
+      const mainDish2 = nextRow['E'] ? String(nextRow['E']).trim() : null;
+      
+      const sideDish1 = row['F'] ? String(row['F']).trim() : null; // Column F
+      const sideDish2 = nextRow['F'] ? String(nextRow['F']).trim() : null;
+      
+      const dessert = row['G'] ? String(row['G']).trim() : null; // Column G
+      const soup = row['H'] ? String(row['H']).trim() : null; // Column H
+      
+      let hasRice = null;
+      if (row['I']) hasRice = String(row['I']).trim();
+      else if (nextRow['I']) hasRice = String(nextRow['I']).trim();
+
+      const { error } = await supabaseAdmin.from('operations_menu_plans')
+        .upsert({
+          date: formattedDate,
+          main_dish_1: mainDish1,
+          main_dish_2: mainDish2,
+          side_dish_1: sideDish1,
+          side_dish_2: sideDish2,
+          soup,
+          dessert,
+          has_rice: hasRice
+        }, { onConflict: 'date' });
+
+      if (error) {
+        console.error('Menu Plan Upsert Error for date:', formattedDate, error);
+      } else {
+        count++;
+      }
+    }
+
+    if (count === 0) {
+       return res.status(400).json({ error: 'No valid dates found in the file. Ensure the Date is in Column B.' });
+    }
+
+    res.json({ success: true, count });
+  } catch (err) {
+    console.error('[IMPORT MENU PLAN ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.post('/recalculate-bom', async (req, res) => {
   try {
@@ -500,6 +603,37 @@ router.post('/orders/auto-generate', async (req, res) => {
         .insert(newOrders);
         
       if (insertErr) throw insertErr;
+      
+      // AUTO TRIGGER TELEGRAM CHEF ALERT
+      try {
+        const fetch = (await import('node-fetch')).default || globalThis.fetch;
+        const host = req.get('host');
+        const protocol = req.protocol || 'http';
+        
+        // We need to fetch the Kitchen Dashboard data to get the BOM for the chef
+        const dashRes = await fetch(`${protocol}://${host}/api/crm/kitchen-dashboard?date=${targetDate}`, {
+          headers: { 'Authorization': req.headers.authorization } // pass token
+        });
+        const dashData = await dashRes.json();
+        
+        if (dashData && dashData.dailyMenus) {
+          // Send to Chef Telegram
+          await fetch(`${protocol}://${host}/api/telegram/send-to-chef`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.authorization 
+            },
+            body: JSON.stringify({
+              targetDate,
+              dailyMenus: dashData.dailyMenus,
+              aggregatedBOM: dashData.aggregatedBOM
+            })
+          });
+        }
+      } catch (tgErr) {
+        console.error('[AUTO GENERATE -> CHEF ALERT ERROR]', tgErr);
+      }
     }
 
     return res.json({ success: true, generatedCount: newOrders.length });
@@ -507,6 +641,64 @@ router.post('/orders/auto-generate', async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 });
+
+async function sendDeliveryZernioMessage(customerId, orderId) {
+  try {
+    const { data: customer } = await supabaseAdmin.schema('crm').from('customers').select('full_name, facebook_name').eq('id', customerId).single();
+    if (!customer) return;
+
+    let { data: inquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', customerId);
+    if ((!inquiries || inquiries.length === 0) && customer.facebook_name) {
+      const { data: fbInquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').ilike('prospect_name', customer.facebook_name);
+      if (fbInquiries && fbInquiries.length > 0) inquiries = fbInquiries;
+    }
+    if (!inquiries || inquiries.length === 0) return;
+
+    const inquiryIds = inquiries.map(i => i.id);
+    const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages').select('metadata').in('inquiry_id', inquiryIds).eq('sender_type', 'prospect').not('metadata', 'is', null).order('created_at', { ascending: false }).limit(1);
+
+    if (!prospectMsgs || prospectMsgs.length === 0) return;
+    const meta = prospectMsgs[0].metadata;
+    const conversationId = meta?.message?.conversationId || meta?.conversationId;
+    if (!conversationId) return;
+
+    const zernioApiKey = process.env.ZERNIO_API_KEY;
+    if (!zernioApiKey) return;
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
+
+    const text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ။ အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
+
+    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+    await fetch(zernioUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
+      body: JSON.stringify({
+        accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+        message: text
+      })
+    });
+    console.log(`[ZERNIO] Sent delivery feedback link to customer ${customerId}`);
+
+    // Insert locally so UI updates instantly
+    const { data: newMsg } = await supabaseAdmin.schema('crm')
+      .from('inquiries_messages')
+      .insert({
+        inquiry_id: inquiryIds[0],
+        message_text: text,
+        sender_type: 'ai_bot',
+        metadata: { auto_reply: true, conversationId, delivery_alert: true }
+      })
+      .select().single();
+      
+    if (newMsg) emitInquiryMessage(inquiryIds[0], newMsg);
+
+  } catch (err) {
+    console.error('[ZERNIO DELIVERY ERROR]', err.message);
+  }
+}
+
 router.put('/orders/batch-status', async (req, res) => {
   try {
     const { order_ids, delivery_status } = req.body;
@@ -567,9 +759,9 @@ router.put('/orders/batch-status', async (req, res) => {
           });
           
           for (const [itemId, deductQty] of Object.entries(deductions)) {
-            const { data: balData } = await supabase.schema('inventory').from('balances').select('*').eq('item_id', itemId).single();
+            const { data: balData } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
             if (balData) {
-              await supabase.schema('inventory').from('transactions').insert({
+              await supabase.from('inventory_transactions').insert({
                 item_id: itemId,
                 transaction_type: 'USAGE_OUT',
                 quantity_change: deductQty,
@@ -577,7 +769,7 @@ router.put('/orders/batch-status', async (req, res) => {
                 reference_id: order.id,
                 created_by: req.user.id
               });
-              await supabase.schema('inventory').from('balances').update({
+              await supabase.from('inventory_balances').update({
                 current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
                 updated_by: req.user.id,
                 updated_at: now
@@ -585,6 +777,13 @@ router.put('/orders/batch-status', async (req, res) => {
             }
           }
         }
+      }
+      
+      // TRIGGER ZERNIO DELIVERY ALERT
+      const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
+      for (const cid of customerIds) {
+        // Run asynchronously without awaiting so we don't delay the API response
+        sendDeliveryZernioMessage(cid).catch(e => console.error('[Batch Zernio Error]', e));
       }
     }
     
@@ -644,9 +843,9 @@ router.put('/orders/:id/status', async (req, res) => {
         
         for (const [itemId, deductQty] of Object.entries(deductions)) {
           // Fetch balance from inventory schema
-          const { data: balData } = await supabase.schema('inventory').from('balances').select('*').eq('item_id', itemId).single();
+          const { data: balData } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
           if (balData) {
-            await supabase.schema('inventory').from('transactions').insert({
+            await supabase.from('inventory_transactions').insert({
               item_id: itemId,
               transaction_type: 'USAGE_OUT',
               quantity_change: deductQty,
@@ -654,13 +853,18 @@ router.put('/orders/:id/status', async (req, res) => {
               reference_id: id,
               created_by: req.user.id
             });
-            await supabase.schema('inventory').from('balances').update({
+            await supabase.from('inventory_balances').update({
               current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
               updated_by: req.user.id,
               updated_at: now
             }).eq('id', balData.id);
           }
         }
+      }
+      
+      // TRIGGER ZERNIO DELIVERY ALERT FOR SINGLE ORDER
+      if (result && result.customer_id) {
+        sendDeliveryZernioMessage(result.customer_id, result.id).catch(e => console.error('[Single Zernio Error]', e));
       }
     }
     
@@ -693,5 +897,4 @@ router.post('/skip-days', async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 });
-
 export default router;

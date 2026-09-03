@@ -31,6 +31,7 @@ import miscRouter from './routes/misc.js';
 import publicRouter from './routes/public.js';
 import financeRouter from './routes/finance.js';
 import crmRouter from './routes/crm.js';
+import analyticsRouter from './routes/analytics.js';
 import enrollRouter from './routes/enroll.js';
 import inventoryRoutes from './routes/inventory.js';
 import operationsRoutes from './routes/operations.js';
@@ -113,7 +114,9 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/public', publicRouter); // /api/public/jobs, /api/public/apply
+app.use('/api/crm/analytics', analyticsRouter);
 app.use('/api/crm', crmRouter);       // Must be before orgRouter to prevent verifyToken leakage to public webhooks
+app.use('/api/telegram', telegramRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/enroll', enrollRouter);
 app.use('/api/dashboard', dashboardRouter);
@@ -131,9 +134,8 @@ app.use('/api/boss', bossRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/sops, etc.
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
-app.use('/api/telegram', telegramRouter);
-
 // ── Test Endpoints ─────────────────────────────────────────────
 app.post('/api/test/trigger-birthdays', async (req, res) => {
   const result = await checkAndNotifyBirthdays();

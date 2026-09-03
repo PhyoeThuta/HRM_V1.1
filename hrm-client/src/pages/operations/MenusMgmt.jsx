@@ -5,11 +5,13 @@ import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import OpsNavBar from './OpsNavBar';
 import CostingImportModal from '../../components/operations/CostingImportModal';
+import MenuPlanImportModal from '../../components/operations/MenuPlanImportModal';
 
 export default function MenusMgmt() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState(null);
   
@@ -89,6 +91,9 @@ export default function MenusMgmt() {
           className="px-5 py-2.5 bg-surface-700 hover:bg-surface-600 text-slate-300 font-bold rounded-xl transition-all"
         >
           {recalculateMutation.isLoading ? 'Recalculating...' : 'Recalculate BOM Costs'}
+        </button>
+        <button onClick={() => setIsPlanModalOpen(true)} className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2">
+          <span>📅</span> Import Monthly Plan
         </button>
         <button onClick={() => setIsImportModalOpen(true)} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
           <span>📥</span> Import Costing Excel
@@ -263,6 +268,11 @@ export default function MenusMgmt() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => queryClient.invalidateQueries(['menus'])}
+      />
+
+      <MenuPlanImportModal 
+        isOpen={isPlanModalOpen}
+        onClose={() => setIsPlanModalOpen(false)}
       />
     </Layout>
   );

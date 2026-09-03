@@ -25,6 +25,8 @@ import OpsDashboard from './pages/operations/OpsDashboard';
 import MenusMgmt from './pages/operations/MenusMgmt';
 import OrdersMgmt from './pages/operations/OrdersMgmt';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import MenuFeedbacks from './pages/operations/MenuFeedbacks';
+import MonthlyPlan from './pages/operations/MonthlyPlan';
 import Documents from './pages/Documents';
 import SOPs from './pages/SOPs';
 import PeerVoting from './pages/PeerVoting';
@@ -57,6 +59,7 @@ import Layout from './components/layout/Layout';
 
 // CRM Pages
 import CRMDashboard from './pages/crm/CRMDashboard';
+import WeeklyFeedbacks from './pages/crm/WeeklyFeedbacks';
 import Inquiries from './pages/crm/Inquiries';
 import LeadsPipeline from './pages/crm/LeadsPipeline';
 import Customers from './pages/crm/Customers';
@@ -66,10 +69,14 @@ import LevelSettings from './pages/crm/LevelSettings';
 import Packages from './pages/crm/Packages';
 import KitchenDashboard from './pages/crm/KitchenDashboard';
 import FormBuilder from './pages/crm/FormBuilder';
+import CustomerVoices from './pages/crm/CustomerVoices';
+import SalesAnalytics from './pages/crm/SalesAnalytics';
+import LeadConversions from './pages/crm/LeadConversions';
 
 // Public Forms
 import CustomerEnrollment from './pages/public/CustomerEnrollment';
 import CustomerFeedback from './pages/public/CustomerFeedback';
+import WeeklyMenuFeedback from './pages/public/WeeklyMenuFeedback';
 
 // Protected route wrapper
 function Protected({ children, allowedRoles }) {
@@ -124,11 +131,14 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/enroll" element={<CustomerEnrollment />} />
       <Route path="/feedback/:customer_id" element={<CustomerFeedback />} />
+      <Route path="/menu-feedback/:customer_id" element={<WeeklyMenuFeedback />} />
 
       {/* Operations & Inventory Routes */}
       <Route path="/operations/dashboard" element={<OperationsRoute><OpsDashboard /></OperationsRoute>} />
       <Route path="/operations/menus" element={<OperationsRoute><MenusMgmt /></OperationsRoute>} />
       <Route path="/operations/orders" element={<OperationsRoute><OrdersMgmt /></OperationsRoute>} />
+      <Route path="/operations/feedbacks" element={<OperationsRoute><MenuFeedbacks /></OperationsRoute>} />
+      <Route path="/operations/monthly-plan" element={<OperationsRoute><MonthlyPlan /></OperationsRoute>} />
       <Route path="/inventory/dashboard" element={<OperationsRoute><InventoryDashboard /></OperationsRoute>} />
 
       {/* Admin routes */}
@@ -170,6 +180,10 @@ function AppRoutes() {
       <Route path="/crm/packages" element={<Protected allowedRoles={['admin', 'manager', 'boss', 'marketing']}><Packages /></Protected>} />
       <Route path="/crm/kitchen" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><KitchenDashboard /></Protected>} />
       <Route path="/crm/form-builder" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><FormBuilder /></Protected>} />
+      <Route path="/crm/voices" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing', 'marketing_junior']}><CustomerVoices /></Protected>} />
+      <Route path="/crm/weekly-feedbacks" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><WeeklyFeedbacks /></Protected>} />
+      <Route path="/crm/reports/sales" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager']}><SalesAnalytics /></Protected>} />
+      <Route path="/crm/reports/leads" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager']}><LeadConversions /></Protected>} />
 
       {/* Employee portal */}
       <Route path="/portal" element={<EmployeeRoute><Portal /></EmployeeRoute>} />

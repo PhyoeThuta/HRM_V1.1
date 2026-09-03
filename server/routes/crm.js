@@ -214,6 +214,33 @@ router.post('/customers', verifyToken, async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 });
+// POST /api/crm/customers/:id/avatar
+router.post('/customers/:id/avatar', verifyToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    
+    const { id } = req.params;
+    const file = req.file;
+    const filename = id; // use customer id as filename
+    
+    const { data, error } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(filename, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true
+      });
+      
+    if (error) throw error;
+    
+    const { data: { publicUrl } } = supabaseAdmin.storage.from('avatars').getPublicUrl(filename);
+    const avatarUrl = `${publicUrl}?t=${Date.now()}`; // cache busting
+    
+    res.json({ success: true, avatar_url: avatarUrl });
+  } catch (err) {
+    console.error('[AVATAR UPLOAD ERROR]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /api/crm/customers/:id
 router.get('/customers/:id', verifyToken, async (req, res) => {
@@ -627,6 +654,8 @@ router.post('/kitchen-dashboard/deduct-meals', verifyToken, async (req, res) => 
 // GET /api/crm/kitchen-dashboard
 router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
   try {
+    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
+    
     // Get all active packages today with customer info
     const { data: packages, error } = await supabaseAdmin.schema('crm')
       .from('customer_packages')
@@ -639,7 +668,8 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
         )
       `)
       .eq('status', 'Active')
-      .gt('meal_count', 0);
+      .gt('meal_count', 0)
+      .gte('expires_at', targetDate);
 
     if (error) throw error;
     
@@ -681,7 +711,7 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
     });
 
     // Get date filter (default to today)
-    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
+    // targetDate already declared at top
 
     // Fetch Daily Menus for the target date
     const { data: dailyMenus } = await supabaseAdmin
@@ -1476,6 +1506,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       { data: recentLeads },
       { data: recentCustomers },
       { data: allInquiriesForSource },
+      { data: recentFeedbacks },
     ] = await Promise.all([
       supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
@@ -1485,6 +1516,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
       supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
       supabaseAdmin.schema('crm').from('inquiries').select('source'),
+      supabaseAdmin.schema('crm').from('feedbacks').select('*, customers!inner(full_name)').order('created_at', { ascending: false }).limit(30),
     ]);
 
     const mappedRenewals = (upcomingRenewals || []).map(pkg => {
@@ -1521,6 +1553,39 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       else sourceCounts['Other']++;
     });
 
+    // Filter flagged feedbacks
+    const flaggedFeedback = (recentFeedbacks || [])
+      .filter(fb => {
+        const comment = fb.comment || '';
+        if (comment.includes('[RESOLVED]')) return false;
+        
+        // Flag if rating is bad or if it's explicitly a complaint or request
+        return fb.rating <= 2 || comment.includes('[COMPLAIN]') || comment.includes('[REQUEST]');
+      })
+      .map(fb => {
+        let type = 'Issue';
+        if (fb.comment?.includes('[REQUEST]')) type = 'Request';
+        else if (fb.comment?.includes('[COMPLAIN]')) type = 'Complaint';
+        else if (fb.rating <= 2) type = 'Low Rating';
+        
+        let cleanText = (fb.comment || '')
+          .replace(/\[GENERAL\]/g, '')
+          .replace(/\[MENU\]/g, '')
+          .replace(/\[FEEDBACK\]/g, '')
+          .replace(/\[COMPLAIN\]/g, '')
+          .replace(/\[REQUEST\]/g, '')
+          .trim();
+
+        return {
+          id: fb.id,
+          customerName: fb.customers?.full_name || 'Unknown',
+          date: new Date(fb.created_at).toLocaleDateString(),
+          text: cleanText,
+          type: type,
+          rating: fb.rating
+        };
+      });
+
     return res.json({
       totalCustomers: totalCustomers || 0,
       activeLeads: totalLeads || 0,
@@ -1529,7 +1594,8 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       upcomingRenewals: mappedRenewals,
       recentLeads: recentLeads || [],
       customerGrowth: customerGrowth,
-      sourceCounts: sourceCounts
+      sourceCounts: sourceCounts,
+      flaggedFeedback: flaggedFeedback
     });
   } catch (e) {
     console.error('[CRM DASHBOARD]', e.message);
@@ -1690,6 +1756,22 @@ router.post('/onboarding/submit', async (req, res) => {
   }
 });
 
+// GET All Feedbacks (For Customer Voices)
+router.get('/feedbacks', verifyToken, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.schema('crm')
+      .from('feedbacks')
+      .select('*, customers!inner(full_name)')
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    console.error('[CRM GET ALL FEEDBACKS]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // DELETE Feedback (Boss only)
 router.delete('/feedbacks/:id', verifyToken, requireBoss, async (req, res) => {
   try {
@@ -1745,12 +1827,14 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { package: selectedPackage } = req.body;
 
+    const newToken = crypto.randomUUID();
+
     // 1. Generate token and update inquiry status
     const { data: inquiry, error } = await supabaseAdmin.schema('crm').from('inquiries')
       .update({ 
         onboarding_status: 'form_sent',
-        selected_package: selectedPackage
-        // onboarding_token is auto-generated by the DB default (gen_random_uuid)
+        selected_package: selectedPackage,
+        onboarding_token: newToken
       })
       .eq('id', id)
       .select()
@@ -1760,7 +1844,7 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
 
     // 2. Auto-send the form link via AI Bot (or admin)
     const token = inquiry.onboarding_token;
-    const link = `https://hrm.duolinkmm.com/enroll?token=${token}`;
+    const link = `http://localhost:5173/enroll?token=${token}`;
     const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီရှင်။ 🎉\n\nအစ်ကို/အစ်မအတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော်။\n\n${link}`;
 
     // Insert message into history so it sends to Facebook
@@ -1812,6 +1896,49 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('[MARK PAID ERROR]', err);
     res.status(500).send('Internal Error');
+  }
+});
+// GET /api/crm/weekly-feedbacks
+router.get('/weekly-feedbacks', verifyToken, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from('crm_menu_feedbacks')
+      .select('*, customers(full_name)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('[GET WEEKLY FEEDBACKS ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/crm/feedback/:id/resolve
+router.post('/feedback/:id/resolve', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get current comment
+    const { data: fb, error: fetchErr } = await supabaseAdmin.schema('crm')
+      .from('feedbacks')
+      .select('comment')
+      .eq('id', id)
+      .single();
+      
+    if (fetchErr) throw fetchErr;
+    
+    const updatedComment = fb.comment + '\n[RESOLVED]';
+    
+    const { error: updateErr } = await supabaseAdmin.schema('crm')
+      .from('feedbacks')
+      .update({ comment: updatedComment })
+      .eq('id', id);
+      
+    if (updateErr) throw updateErr;
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

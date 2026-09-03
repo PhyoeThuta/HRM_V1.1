@@ -26,6 +26,32 @@ export default function CustomerDetail() {
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
 
+  // Avatar State
+  const avatarInputRef = useRef(null);
+  const [avatarError, setAvatarError] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      setUploadingAvatar(true);
+      await crmApi.uploadAvatar(id, file);
+      
+      setAvatarError(false);
+      toast.success("Profile picture updated!");
+      
+      setCustomer(prev => ({ ...prev, _avatar_updated: Date.now() }));
+    } catch (err) {
+      toast.error("Failed to upload picture");
+      console.error(err);
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
   // Edit Customer Modal State
   const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
   const [customerForm, setCustomerForm] = useState({
@@ -750,8 +776,42 @@ export default function CustomerDetail() {
       {/* Header Card */}
       <div className="rounded-3xl p-8 bg-surface-800 border border-white/5 flex flex-col md:flex-row items-center md:items-start gap-8 mb-8 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-brand-green/10 to-transparent rounded-full translate-x-32 -translate-y-32 blur-3xl"></div>
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] flex-shrink-0">
-          {customer.full_name.charAt(0)}
+        <div className="relative w-24 h-24 flex-shrink-0 group">
+          <input 
+            type="file" 
+            ref={avatarInputRef} 
+            onChange={handleAvatarUpload} 
+            accept="image/*" 
+            className="hidden" 
+          />
+          <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_20px_rgba(99,102,241,0.4)] relative">
+            {!avatarError ? (
+              <img 
+                src={`https://kcswzfrwpvioaaizfpnk.supabase.co/storage/v1/object/public/avatars/${customer.id}?t=${customer._avatar_updated || 1}`}
+                alt={customer.full_name}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-3xl font-black text-white">
+                {customer.full_name.charAt(0)}
+              </div>
+            )}
+            
+            <div 
+              onClick={() => avatarInputRef.current?.click()}
+              className={`absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer transition-opacity duration-200 ${uploadingAvatar ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            >
+              {uploadingAvatar ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <span className="text-xl">📷</span>
+                  <span className="text-[10px] font-bold text-white uppercase tracking-wider mt-1">Upload</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
         <div className="text-center md:text-left z-10 flex-1">
           <div className="flex flex-col md:flex-row items-center justify-between w-full">
@@ -839,15 +899,23 @@ export default function CustomerDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Age</p>
-              <p className="text-xl text-white font-black">{customer.age} Years</p>
+              <p className="text-xl text-white font-black">{customer.age || 'N/A'} {customer.age ? 'Years' : ''}</p>
             </div>
             <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Gender</p>
-              <p className="text-xl text-white font-black">{customer.gender}</p>
+              <p className="text-xl text-white font-black">{customer.gender || 'N/A'}</p>
+            </div>
+            <div className="md:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Home Address</p>
+              <p className="text-lg text-white font-medium leading-relaxed">{customer.address || 'N/A'}</p>
             </div>
             <div className="md:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Delivery Address</p>
-              <p className="text-lg text-white font-medium leading-relaxed">{customer.address}</p>
+              <p className="text-lg text-white font-medium leading-relaxed">{customer.delivery_address || customer.address || 'N/A'}</p>
+            </div>
+            <div className="md:col-span-2 p-6 rounded-2xl bg-brand-green/5 border border-brand-green/20">
+              <p className="text-xs font-bold text-brand-green uppercase tracking-wider mb-2 flex items-center gap-2"><span>🚚</span> Delivery Notes</p>
+              <p className="text-lg text-white font-medium leading-relaxed">{customer.delivery_notes || 'None'}</p>
             </div>
           </div>
         )}
@@ -855,14 +923,10 @@ export default function CustomerDetail() {
         {activeTab === 'lifestyle' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 text-amber-500">Food Restrictions / Allergies</p>
-              <p className="text-white font-medium text-lg leading-relaxed">{customer.lifestyle?.food_restriction || 'None'}</p>
-            </div>
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 text-blue-400">Activity Level</p>
               <p className="text-white font-medium text-lg">{customer.lifestyle?.activity_level || 'N/A'}</p>
             </div>
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner md:col-span-2">
+            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 text-purple-400">Fasting Willingness</p>
               <p className="text-white font-medium text-lg">{customer.lifestyle?.fasting_willingness || 'N/A'}</p>
             </div>
@@ -905,11 +969,15 @@ export default function CustomerDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 relative overflow-hidden">
                 <p className="text-xs text-rose-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>⚠️</span> Medical Conditions</p>
-                <p className="text-white font-medium text-lg relative z-10">{customer.health?.medical_condition || 'None reported'}</p>
+                <p className="text-white font-medium text-lg relative z-10">{(!customer.health?.medical_condition || customer.health?.medical_condition === 'None') ? 'None reported' : customer.health?.medical_condition}</p>
               </div>
               <div className="p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20 relative overflow-hidden">
                 <p className="text-xs text-orange-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>🥜</span> Food Allergies</p>
-                <p className="text-white font-medium text-lg relative z-10">{customer.health?.allergies || customer.lifestyle?.food_restriction || 'None reported'}</p>
+                <p className="text-white font-medium text-lg relative z-10">{((!customer.health?.allergies || customer.health?.allergies === 'None') && (!customer.lifestyle?.food_restriction || customer.lifestyle?.food_restriction === 'None')) ? 'None reported' : (customer.health?.allergies !== 'None' && customer.health?.allergies ? customer.health.allergies : customer.lifestyle?.food_restriction)}</p>
+              </div>
+              <div className="p-6 rounded-2xl bg-teal-500/10 border border-teal-500/20 relative overflow-hidden md:col-span-2">
+                <p className="text-xs text-teal-300 uppercase tracking-wider mb-2 font-black flex items-center gap-2"><span>👨‍🍳</span> Special Chef Requests</p>
+                <p className="text-white font-medium text-lg relative z-10">{(!customer.health?.special_requests || customer.health?.special_requests === 'None') ? 'None' : customer.health?.special_requests}</p>
               </div>
             </div>
           </div>
@@ -1089,28 +1157,60 @@ export default function CustomerDetail() {
             {(!customer.feedbacks || customer.feedbacks.length === 0) && (
               <div className="p-10 text-center text-slate-400">No feedback recorded for this customer yet.</div>
             )}
-            {customer.feedbacks && customer.feedbacks.map(fb => (
-              <div key={fb.id} className="p-6 rounded-3xl border bg-surface-800 border-white/10 shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-brand-orange"></div>
-                <div className="flex justify-between items-start mb-4 pl-2">
-                  <div className="flex items-center gap-2 bg-brand-orange/20 px-3 py-1.5 rounded-xl border border-brand-orange/30">
-                    <span className="text-brand-orange font-black">{fb.rating}/5</span>
-                    <svg className="w-4 h-4 text-brand-orange fill-brand-orange drop-shadow-[0_0_5px_rgba(255,119,0,0.5)]" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            {customer.feedbacks && customer.feedbacks.map(fb => {
+              let displayComment = fb.comment || '';
+              let badgeText = 'FEEDBACK';
+              let badgeColor = 'bg-brand-green/20 text-brand-green border-brand-green/30';
+              let dotColor = 'bg-brand-green';
+
+              if (displayComment.includes('[COMPLAIN]')) {
+                badgeText = 'COMPLAIN';
+                badgeColor = 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+                dotColor = 'bg-rose-500';
+              } else if (displayComment.includes('[REQUEST]')) {
+                badgeText = 'REQUEST';
+                badgeColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                dotColor = 'bg-amber-500';
+              }
+
+              displayComment = displayComment
+                .replace(/\[GENERAL\]/g, '')
+                .replace(/\[MENU\]/g, '')
+                .replace(/\[FEEDBACK\]/g, '')
+                .replace(/\[COMPLAIN\]/g, '')
+                .replace(/\[REQUEST\]/g, '')
+                .trim();
+
+              return (
+                <div key={fb.id} className="p-6 rounded-3xl border bg-surface-800 border-white/10 shadow-lg relative overflow-hidden">
+                  <div className={`absolute top-0 left-0 w-1 h-full ${dotColor}`}></div>
+                  <div className="flex justify-between items-start mb-4 pl-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-xs tracking-wider ${badgeColor}`}>
+                        {badgeText}
+                      </div>
+                      {fb.rating > 0 && fb.rating !== null && (
+                        <div className="flex items-center gap-1.5 bg-brand-orange/20 px-3 py-1.5 rounded-xl border border-brand-orange/30">
+                          <span className="text-brand-orange font-black text-xs">{fb.rating}/5</span>
+                          <svg className="w-3.5 h-3.5 text-brand-orange fill-brand-orange drop-shadow-[0_0_5px_rgba(255,119,0,0.5)]" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-slate-500 bg-black/50 px-3 py-1.5 rounded-xl border border-white/5">{new Date(fb.created_at).toLocaleDateString()}</span>
+                      {user?.role === 'boss' && (
+                        <button onClick={() => handleDeleteFeedback(fb.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors border border-rose-500/20" title="Delete Feedback">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-500 bg-black/50 px-3 py-1.5 rounded-xl border border-white/5">{new Date(fb.created_at).toLocaleDateString()}</span>
-                    {user?.role === 'boss' && (
-                      <button onClick={() => handleDeleteFeedback(fb.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors border border-rose-500/20" title="Delete Feedback">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    )}
+                  <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap pl-2 font-medium">
+                    {displayComment || <span className="text-slate-600 italic">No comments provided.</span>}
                   </div>
                 </div>
-                <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap pl-2 font-medium">
-                  {fb.comment || <span className="text-slate-600 italic">No comments provided.</span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

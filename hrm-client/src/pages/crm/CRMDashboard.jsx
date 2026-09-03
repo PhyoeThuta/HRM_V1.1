@@ -4,6 +4,7 @@ import { Chart, registerables } from 'chart.js';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { crmApi } from '../../api/crm';
+import toast from 'react-hot-toast';
 
 Chart.register(...registerables);
 
@@ -42,7 +43,6 @@ export default function CRMDashboard() {
     activeLeads: '0',
     convertedThisMonth: '0',
     activePackages: '0',
-    activePackages: '0',
     revenue: '$0',
   });
   const [isTesting, setIsTesting] = useState(false);
@@ -59,6 +59,21 @@ export default function CRMDashboard() {
   const [linkTargetRenewal, setLinkTargetRenewal] = useState(null);
   const [selectedInquiryId, setSelectedInquiryId] = useState('');
   const [isLinking, setIsLinking] = useState(false);
+  
+  const [resolvingIds, setResolvingIds] = useState({});
+
+  const handleResolveFeedback = async (id) => {
+    setResolvingIds(prev => ({ ...prev, [id]: true }));
+    try {
+      await crmApi.resolveFeedback(id);
+      setFlaggedFeedback(prev => prev.filter(fb => fb.id !== id));
+      toast.success('Feedback resolved and removed from dashboard.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to resolve feedback');
+    } finally {
+      setResolvingIds(prev => ({ ...prev, [id]: false }));
+    }
+  };
 
   useEffect(() => {
     // Load real data from Supabase via API
@@ -72,6 +87,7 @@ export default function CRMDashboard() {
       });
       setUpcomingRenewals(data.upcomingRenewals || []);
       setRecentLeads(data.recentLeads || []);
+      setFlaggedFeedback(data.flaggedFeedback || []);
 
       if (chartInstances.current?.lineChart) {
         chartInstances.current.lineChart.data.datasets[0].data = data.customerGrowth || [0, 0, 0, 0, 0, 0, 0];
@@ -381,8 +397,8 @@ export default function CRMDashboard() {
               Reports <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
             <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
-              <div className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Sales Analytics</div>
-              <div className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Lead Conversions</div>
+              <Link to="/crm/reports/sales" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Sales Analytics</Link>
+              <Link to="/crm/reports/leads" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Lead Conversions</Link>
             </div>
           </div>
 
@@ -392,7 +408,9 @@ export default function CRMDashboard() {
               Settings <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
             <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
-              <Link to="/crm/form-builder" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Form Builder</Link>
+              <Link to="/crm/form-builder" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Form Builder</Link>
+              <Link to="/crm/voices" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Customer Voices</Link>
+              <Link to="/crm/weekly-feedbacks" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Weekly Menu Feedbacks</Link>
             </div>
           </div>
 
@@ -605,16 +623,28 @@ export default function CRMDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {flaggedFeedback.map((fb, i) => (
-                  <div key={i} className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="font-bold text-white">{fb.customerName}</span>
-                      <span className="text-xs text-rose-400 font-black">{fb.date}</span>
+                {flaggedFeedback.map((fb, i) => {
+                  const isRequest = fb.type === 'Request';
+                  return (
+                    <div key={i} className={`p-4 rounded-2xl border ${isRequest ? 'bg-amber-500/10 border-amber-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-white">{fb.customerName}</span>
+                        <div className="text-right">
+                          <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md mb-1 inline-block ${isRequest ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{fb.type}</span>
+                          <p className="text-[10px] text-slate-500">{fb.date}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-300 italic">"{fb.text}"</p>
+                      <button 
+                        onClick={() => handleResolveFeedback(fb.id)}
+                        disabled={resolvingIds[fb.id]}
+                        className={`mt-3 text-xs font-bold text-white px-3 py-1.5 rounded-lg transition-colors ${isRequest ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600'} disabled:opacity-50`}
+                      >
+                        {resolvingIds[fb.id] ? 'Resolving...' : 'Resolve Case'}
+                      </button>
                     </div>
-                    <p className="text-sm text-slate-300 italic">"{fb.text}"</p>
-                    <button className="mt-3 text-xs font-bold bg-rose-500 text-white px-3 py-1.5 rounded-lg hover:bg-rose-600 transition-colors">Review Case</button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

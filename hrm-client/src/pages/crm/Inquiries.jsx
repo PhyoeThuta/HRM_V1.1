@@ -524,7 +524,7 @@ export default function Inquiries() {
               >
                 <option value="">-- Select Package --</option>
                 {packages.map(pkg => (
-                  <option key={pkg.id} value={pkg.id}>{pkg.name} - {pkg.price} Ks</option>
+                  <option key={pkg.id} value={pkg.id}>{pkg.name} - {pkg.price} THB</option>
                 ))}
               </select>
             </div>

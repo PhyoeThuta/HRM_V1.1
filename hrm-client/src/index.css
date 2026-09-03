@@ -235,3 +235,9 @@ html[data-theme="light"] #theme-toggle:hover { background: rgba(0,0,0,0.08); }
 .glow-orange {
   box-shadow: 0 0 20px rgba(255,119,0,0.3);
 }
+
+
+/* Force light mode on feedback page */
+body:has(.feedback-page-override) {
+  background-color: #f8f9fa !important;
+}

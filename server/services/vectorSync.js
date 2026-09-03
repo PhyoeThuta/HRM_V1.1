@@ -11,14 +11,7 @@ const model = genAI.getGenerativeModel({ model: "text-embedding-004" }); // Stan
  * Generate a 768-dimensional embedding for a text string
  */
 async function generateEmbedding(text) {
-  if (!process.env.GEMINI_API_KEY) return null;
-  try {
-    const result = await model.embedContent(text);
-    return result.embedding.values;
-  } catch (error) {
-    console.error('[VectorSync] Embedding Error:', error);
-    return null;
-  }
+  return null; // Temporarily disabled to prevent backend crashes
 }
 
 /**

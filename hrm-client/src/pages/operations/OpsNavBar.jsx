@@ -31,7 +31,19 @@ export default function OpsNavBar() {
           to="/operations/orders" 
           className={`py-2 px-4 rounded-full transition-colors whitespace-nowrap ${isActive('/operations/orders') ? 'bg-fuchsia-50 dark:bg-white/5 text-fuchsia-600 dark:text-fuchsia-400' : 'hover:text-fuchsia-500'}`}
         >
-          Orders
+          Daily Orders
+        </Link>
+        <Link 
+          to="/operations/monthly-plan" 
+          className={`py-2 px-4 rounded-full transition-colors whitespace-nowrap ${isActive('/operations/monthly-plan') ? 'bg-fuchsia-50 dark:bg-white/5 text-fuchsia-600 dark:text-fuchsia-400' : 'hover:text-fuchsia-500'}`}
+        >
+          Monthly Plan
+        </Link>
+        <Link 
+          to="/operations/feedbacks" 
+          className={`py-2 px-4 rounded-full transition-colors whitespace-nowrap flex items-center gap-2 ${isActive('/operations/feedbacks') ? 'bg-fuchsia-50 dark:bg-white/5 text-fuchsia-600 dark:text-fuchsia-400' : 'hover:text-fuchsia-500'}`}
+        >
+          <span>💬</span> Menu Feedbacks
         </Link>
         <Link 
           to="/inventory/dashboard" 
