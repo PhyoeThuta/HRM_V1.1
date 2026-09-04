@@ -20,11 +20,12 @@ jobs:
         EMAIL_USER: ${{ secrets.EMAIL_USER }}
         EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         PAYMENT_INFO_TEXT: ${{ secrets.PAYMENT_INFO_TEXT }}
+        VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
       with:
         host: ${{ secrets.GCP_VM_IP }}
         username: ${{ secrets.GCP_USERNAME }}
         key: ${{ secrets.GCP_SSH_KEY }}
-        envs: GITHUB_TOKEN,EMAIL_USER,EMAIL_PASS,PAYMENT_INFO_TEXT
+        envs: GITHUB_TOKEN,EMAIL_USER,EMAIL_PASS,PAYMENT_INFO_TEXT,VITE_GOOGLE_MAPS_API_KEY
         script: |
           # 1. Navigate to project folder
           cd /var/www/hrm_react
@@ -43,6 +44,11 @@ jobs:
           # 3. Build React Frontend
           echo "Building Frontend..."
           cd hrm-client
+          
+          # Inject Frontend Secrets into .env
+          touch .env
+          grep -q "^VITE_GOOGLE_MAPS_API_KEY=" .env && sed -i "s|^VITE_GOOGLE_MAPS_API_KEY=.*|VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY|" .env || echo "VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY" >> .env
+
           npm install
           npm run build
           
