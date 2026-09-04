@@ -26,6 +26,7 @@ export default function CustomerTracking() {
   const [duration, setDuration] = useState('');
   
   const hasCalculatedRoute = useRef(false);
+  const lastFetchTime = useRef(0);
   const mapRef = useRef(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -78,6 +79,7 @@ export default function CustomerTracking() {
     };
 
     const fetchDirections = () => {
+      lastFetchTime.current = Date.now();
       const directionsService = new window.google.maps.DirectionsService();
       directionsService.route(
         {
@@ -106,15 +108,13 @@ export default function CustomerTracking() {
       );
     };
 
-    // Fetch immediately on first load
-    if (!hasCalculatedRoute.current) {
+    const now = Date.now();
+    // Only fetch if 10 seconds have passed since the last fetch, or if it's the very first time
+    // This prevents burning Google Maps API quota while still providing real-time updates when the rider moves
+    if (!hasCalculatedRoute.current || (now - lastFetchTime.current > 10000)) {
       fetchDirections();
       hasCalculatedRoute.current = true;
     }
-
-    // Then update every 10 seconds to show ETA dropping live
-    const intervalId = setInterval(fetchDirections, 10000);
-    return () => clearInterval(intervalId);
   }, [isLoaded, riderLocation, customer]);
 
   // Smoothly pan map to new rider location if moving
