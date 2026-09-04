@@ -131,9 +131,21 @@ router.post('/apply', upload.single('resume'), async (req, res) => {
 
 // Helper for generating code
 async function generateCustomerCode() {
-  const { count } = await supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true });
-  const num = String((count || 0) + 1).padStart(3, '0');
-  return `BBD-${num}`;
+  const { data } = await supabaseAdmin
+    .schema('crm')
+    .from('customers')
+    .select('customer_code')
+    .order('id', { ascending: false })
+    .limit(1);
+    
+  let num = 1;
+  if (data && data.length > 0 && data[0].customer_code) {
+    const match = data[0].customer_code.match(/\d+$/);
+    if (match) {
+      num = parseInt(match[0], 10) + 1;
+    }
+  }
+  return `BBD-${String(num).padStart(3, '0')}`;
 }
 
 // POST /api/public/crm/enroll
