@@ -576,10 +576,22 @@ router.post('/orders/auto-generate', async (req, res) => {
     for (const pkg of packages) {
       const pkgMeals = (pkg.meal_type || '').toUpperCase(); // e.g. "LUNCH, DINNER"
       
+      // Track which meal types this customer already has orders for on this date
+      const customerExistingOrders = existingOrders?.filter(o => o.customer_id === pkg.customer_id) || [];
+      const fulfilledMealTypes = new Set();
+      
+      for (const eo of customerExistingOrders) {
+        const menu = dailyMenus.find(m => m.id === eo.daily_menu_id);
+        if (menu && menu.meal_type) {
+          fulfilledMealTypes.add(menu.meal_type.toUpperCase());
+        }
+      }
+      
       for (const menu of dailyMenus) {
         const menuType = (menu.meal_type || '').toUpperCase(); // e.g. "LUNCH"
         
-        if (pkgMeals.includes(menuType)) {
+        // If package includes this meal type AND we haven't already fulfilled it for this customer today
+        if (pkgMeals.includes(menuType) && !fulfilledMealTypes.has(menuType)) {
           const comboKey = `${pkg.customer_id}-${menu.id}`;
           if (!existingSet.has(comboKey)) {
             newOrders.push({
@@ -590,7 +602,8 @@ router.post('/orders/auto-generate', async (req, res) => {
               delivery_status: 'PENDING',
               created_by: req.user.id
             });
-            existingSet.add(comboKey); // Prevent duplicates in the same loop if any
+            existingSet.add(comboKey); // Prevent exact duplicates
+            fulfilledMealTypes.add(menuType); // Mark this meal type as fulfilled!
           }
         }
       }
