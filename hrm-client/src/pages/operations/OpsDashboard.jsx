@@ -123,7 +123,7 @@ export default function OpsDashboard() {
           ) : (
             <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
               {(() => {
-                const menusForDate = dailyMenus?.filter(dm => dm.date === selectedDate) || [];
+                const menusForDate = dailyMenus?.filter(dm => dm.date === selectedDate && dm.menu_types && dm.menu_types.length > 0) || [];
                 if (menusForDate.length === 0) {
                   return <div className="flex items-center justify-center h-[120px] text-slate-500 bg-surface-900/50 rounded-xl border border-white/5">No menus scheduled for this date</div>;
                 }

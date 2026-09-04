@@ -293,4 +293,34 @@ router.post('/crm/menu-feedback', async (req, res) => {
   }
 });
 
+// GET /api/public/tracking/:orderId
+router.get('/tracking/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    let customerId = orderId;
+    
+    // Check if orderId is actually an order ID
+    const { data: order } = await supabaseAdmin.from('operations_orders')
+      .select('customer_id')
+      .eq('id', orderId)
+      .single();
+      
+    if (order && order.customer_id) {
+      customerId = order.customer_id;
+    }
+    
+    const { data: customer, error } = await supabaseAdmin.schema('crm').from('customers')
+      .select('full_name, phone, delivery_address')
+      .eq('id', customerId)
+      .single();
+      
+    if (error) throw error;
+    
+    return res.json({ customer });
+  } catch (e) {
+    console.error('[PUBLIC TRACKING ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

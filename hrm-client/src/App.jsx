@@ -22,6 +22,8 @@ import Handovers from './pages/Handovers';
 
 // Ops & Inventory
 import OpsDashboard from './pages/operations/OpsDashboard';
+import DeliveryDashboard from './pages/operations/DeliveryDashboard';
+import RiderApp from './pages/operations/RiderApp';
 import MenusMgmt from './pages/operations/MenusMgmt';
 import OrdersMgmt from './pages/operations/OrdersMgmt';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
@@ -39,6 +41,7 @@ import UserAccounts from './pages/UserAccounts';
 import FinanceDashboard from './pages/FinanceDashboard';
 import ForceChangePassword from './pages/ForceChangePassword';
 
+import CustomerTracking from './pages/public/CustomerTracking';
 import CameraCheckin from './pages/portal/CameraCheckin';
 import QRScanner from './pages/portal/QRScanner';
 import PeerVotingForm from './pages/portal/PeerVotingForm';
@@ -132,9 +135,12 @@ function AppRoutes() {
       <Route path="/enroll" element={<CustomerEnrollment />} />
       <Route path="/feedback/:customer_id" element={<CustomerFeedback />} />
       <Route path="/menu-feedback/:customer_id" element={<WeeklyMenuFeedback />} />
+      <Route path="/track/:orderId" element={<CustomerTracking />} />
 
       {/* Operations & Inventory Routes */}
       <Route path="/operations/dashboard" element={<OperationsRoute><OpsDashboard /></OperationsRoute>} />
+      <Route path="/operations/delivery" element={<OperationsRoute><DeliveryDashboard /></OperationsRoute>} />
+      <Route path="/operations/rider" element={<Protected allowedRoles={['employee', 'rider', 'boss', 'admin']}><RiderApp /></Protected>} />
       <Route path="/operations/menus" element={<OperationsRoute><MenusMgmt /></OperationsRoute>} />
       <Route path="/operations/orders" element={<OperationsRoute><OrdersMgmt /></OperationsRoute>} />
       <Route path="/operations/feedbacks" element={<OperationsRoute><MenuFeedbacks /></OperationsRoute>} />

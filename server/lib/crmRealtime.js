@@ -4,7 +4,7 @@ import { JWT_SECRET } from '../middleware/auth.js';
 
 let io = null;
 
-const CRM_ROLES = ['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior'];
+const CRM_ROLES = ['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior', 'employee', 'rider'];
 
 export function initCrmRealtime(httpServer) {
   const corsOrigins = (
@@ -28,7 +28,15 @@ export function initCrmRealtime(httpServer) {
       const token =
         socket.handshake.auth?.token ||
         (socket.handshake.headers?.authorization || '').replace(/^Bearer\s+/i, '');
-      if (!token) return next(new Error('Unauthorized'));
+      
+      if (!token) {
+        if (socket.handshake.query?.public_track) {
+          socket.user = { role: 'public', id: 'public' };
+          return next();
+        }
+        return next(new Error('Unauthorized'));
+      }
+      
       const user = jwt.verify(token, JWT_SECRET);
       if (!user?.id) return next(new Error('Unauthorized'));
       if (!CRM_ROLES.includes(user.role)) {
@@ -42,8 +50,22 @@ export function initCrmRealtime(httpServer) {
   });
 
   io.on('connection', (socket) => {
-    socket.join('crm:inbox');
-    console.log(`[CRM WS] connected user=${socket.user?.username || socket.user?.id}`);
+    if (socket.user?.role !== 'public') {
+      socket.join('crm:inbox');
+    }
+    console.log(`[CRM WS] connected user=${socket.user?.username || socket.user?.id} role=${socket.user?.role}`);
+
+    socket.on('rider:location_update', (data) => {
+      // Broadcast this rider's location to everyone (admins in crm:inbox and customers listening)
+      io.emit('rider:location', {
+        rider_id: socket.user.id,
+        lat: data.lat,
+        lng: data.lng,
+        heading: data.heading,
+        speed: data.speed,
+        timestamp: new Date().toISOString()
+      });
+    });
 
     socket.on('inquiry:join', (inquiryId) => {
       if (!inquiryId || typeof inquiryId !== 'string') return;

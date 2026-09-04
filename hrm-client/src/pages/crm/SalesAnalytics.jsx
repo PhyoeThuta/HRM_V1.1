@@ -89,7 +89,7 @@ export default function SalesAnalytics() {
               
               <div className="bg-surface-800 rounded-3xl p-6 border border-white/5 shadow-xl">
                 <h3 className="text-sm font-bold text-slate-400 mb-2">Active Packages</h3>
-                <p className="text-4xl font-black text-white">{data?.packages?.active || 0}</p>
+                <p className="text-4xl font-black text-white">{data?.packageStatus?.active || 0}</p>
                 <div className="mt-4 inline-flex items-center px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold">
                   Currently paying customers
                 </div>
@@ -97,7 +97,7 @@ export default function SalesAnalytics() {
 
               <div className="bg-surface-800 rounded-3xl p-6 border border-white/5 shadow-xl">
                 <h3 className="text-sm font-bold text-slate-400 mb-2">Expired Packages</h3>
-                <p className="text-4xl font-black text-white">{data?.packages?.expired || 0}</p>
+                <p className="text-4xl font-black text-white">{data?.packageStatus?.expired || 0}</p>
                 <div className="mt-4 inline-flex items-center px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-xs font-bold">
                   Needs follow up!
                 </div>

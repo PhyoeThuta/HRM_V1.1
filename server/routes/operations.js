@@ -642,7 +642,7 @@ router.post('/orders/auto-generate', async (req, res) => {
   }
 });
 
-async function sendDeliveryZernioMessage(customerId, orderId) {
+async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED') {
   try {
     const { data: customer } = await supabaseAdmin.schema('crm').from('customers').select('full_name, facebook_name').eq('id', customerId).single();
     if (!customer) return;
@@ -665,10 +665,16 @@ async function sendDeliveryZernioMessage(customerId, orderId) {
     const zernioApiKey = process.env.ZERNIO_API_KEY;
     if (!zernioApiKey) return;
 
+    let text = '';
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
-
-    const text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ။ အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
+    
+    if (type === 'ON_THE_WAY') {
+      const trackLink = `${frontendUrl}/track/${orderId || customerId}`;
+      text = `မင်္ဂလာပါရှင့်။ သင့် အစားအသောက်များ လာပို့နေပါပြီရှင့် 🚚\n\nဒီ Link လေးကနေတစ်ဆင့် Rider ဘယ်ရောက်နေပြီလဲဆိုတာကို Live ကြည့်လို့ရပါတယ်ရှင့် 👇\n${trackLink}`;
+    } else {
+      const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
+      text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ။ အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
+    }
 
     const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
     await fetch(zernioUrl, {
@@ -783,11 +789,26 @@ router.put('/orders/batch-status', async (req, res) => {
       const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
       for (const cid of customerIds) {
         // Run asynchronously without awaiting so we don't delay the API response
-        sendDeliveryZernioMessage(cid).catch(e => console.error('[Batch Zernio Error]', e));
+        sendDeliveryZernioMessage(cid, null, 'DELIVERED').catch(e => console.error('[Batch Zernio Error]', e));
+      }
+    } else if (delivery_status === 'ON_THE_WAY' && updatedOrders && updatedOrders.length > 0) {
+      const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
+      for (const cid of customerIds) {
+        sendDeliveryZernioMessage(cid, null, 'ON_THE_WAY').catch(e => console.error('[Batch Zernio Error]', e));
       }
     }
     
     return res.json({ success: true, updatedCount: updatedOrders?.length || 0 });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await opsDelete('orders', id);
+    return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -864,8 +885,10 @@ router.put('/orders/:id/status', async (req, res) => {
       
       // TRIGGER ZERNIO DELIVERY ALERT FOR SINGLE ORDER
       if (result && result.customer_id) {
-        sendDeliveryZernioMessage(result.customer_id, result.id).catch(e => console.error('[Single Zernio Error]', e));
+        sendDeliveryZernioMessage(result.customer_id, result.id, 'DELIVERED').catch(e => console.error('[Single Zernio Error]', e));
       }
+    } else if (delivery_status === 'ON_THE_WAY' && result && result.customer_id) {
+      sendDeliveryZernioMessage(result.customer_id, result.id, 'ON_THE_WAY').catch(e => console.error('[Single Zernio Error]', e));
     }
     
     return res.json(result);

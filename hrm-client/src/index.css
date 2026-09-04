@@ -241,3 +241,8 @@ html[data-theme="light"] #theme-toggle:hover { background: rgba(0,0,0,0.08); }
 body:has(.feedback-page-override) {
   background-color: #f8f9fa !important;
 }
+
+/* Map Dark Mode Filter */
+html:not([data-theme="light"]) .dark-map .map-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}

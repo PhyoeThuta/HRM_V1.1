@@ -732,7 +732,7 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
         menu: menus?.find(m => m.id === mt.menu_id) || { name_en: 'Uncosted Item', name_mm: '' }
       }));
       return { ...dm, menu_types: enrichedTypes };
-    });
+    }).filter(dm => dm.menu_types && dm.menu_types.length > 0);
 
     // Aggregate BOM
     const bomMap = new Map();

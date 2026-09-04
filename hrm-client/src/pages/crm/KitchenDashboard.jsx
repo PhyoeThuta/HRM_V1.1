@@ -75,10 +75,10 @@ const KitchenDashboard = () => {
     );
   };
 
-  if (isLoading) return <Layout title="Kitchen & Delivery"><div className="p-8 text-center text-slate-400">Loading daily tasks...</div></Layout>;
+  if (isLoading) return <Layout title="Kitchen Dashboard"><div className="p-8 text-center text-slate-400">Loading daily tasks...</div></Layout>;
 
   return (
-    <Layout title="Kitchen & Delivery" subtitle="Daily Operations Dashboard">
+    <Layout title="Kitchen Dashboard" subtitle="Daily Operations Dashboard">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Back Button */}
@@ -197,9 +197,9 @@ const KitchenDashboard = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {/* Special Requests */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className="space-y-4">
             <div className="bg-surface-800 border border-white/5 rounded-3xl p-6 shadow-xl">
               <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2">
                 <span>⚠️</span> Special Requests
@@ -210,7 +210,7 @@ const KitchenDashboard = () => {
                   No special requests today.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {dashboardData.specialRequests.map((req, i) => (
                     <div key={i} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
                       <p className="text-white font-bold mb-1">{req.customer}</p>
@@ -218,53 +218,6 @@ const KitchenDashboard = () => {
                       <p className="text-slate-400 text-xs mt-2">Type: {req.type}</p>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Delivery List */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-surface-800 border border-white/5 rounded-3xl p-6 shadow-xl">
-              <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2">
-                <span>🚚</span> Today's Delivery List ({dashboardData?.deliveryList?.length || 0})
-              </h3>
-              
-              {!dashboardData?.deliveryList?.length ? (
-                <div className="text-center p-10 text-slate-500 bg-white/[0.02] rounded-2xl border border-dashed border-white/10">
-                  No deliveries for today.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[600px]">
-                    <thead>
-                      <tr className="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
-                        <th className="p-4 font-bold">Customer</th>
-                        <th className="p-4 font-bold">Phone</th>
-                        <th className="p-4 font-bold">Address & Notes</th>
-                        <th className="p-4 font-bold">Meal Type</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {dashboardData.deliveryList.map((item, i) => (
-                        <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="p-4 font-bold text-white">{item.name}</td>
-                          <td className="p-4 text-slate-300">{item.phone}</td>
-                          <td className="p-4">
-                            <p className="text-slate-300 text-sm">{item.delivery_address}</p>
-                            {item.delivery_notes && (
-                              <p className="text-emerald-400 text-xs mt-1 font-bold">Note: {item.delivery_notes}</p>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <span className="bg-surface-900 border border-white/10 text-slate-300 px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap">
-                              {item.meal_type}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
               )}
             </div>

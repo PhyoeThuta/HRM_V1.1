@@ -9,7 +9,7 @@ const COLUMNS = [
   { id: 'new', title: 'New Leads', color: 'from-blue-500/20 to-blue-600/20', borderColor: 'border-blue-500/30' },
   { id: 'in_progress', title: 'Follow Up / Negotiating', color: 'from-amber-500/20 to-amber-600/20', borderColor: 'border-amber-500/30' },
   { id: 'converted', title: 'Converted (Won)', color: 'from-emerald-500/20 to-emerald-600/20', borderColor: 'border-emerald-500/30' },
-  { id: 'closed', title: 'Lost (Closed)', color: 'from-rose-500/20 to-rose-600/20', borderColor: 'border-rose-500/30' }
+  { id: 'lost', title: 'Lost (Closed)', color: 'from-rose-500/20 to-rose-600/20', borderColor: 'border-rose-500/30' }
 ];
 
 export default function LeadsPipeline() {
@@ -22,7 +22,7 @@ export default function LeadsPipeline() {
   // Aggregate stats
   const totalLeads = leads.length;
   const convertedCount = leads.filter(l => l.status === 'converted').length;
-  const lostCount = leads.filter(l => l.status === 'closed').length;
+  const lostCount = leads.filter(l => l.status === 'lost').length;
   const avgConfidence = totalLeads > 0 
     ? Math.round(leads.reduce((sum, l) => sum + (l.service_interest_confidence || 0), 0) / totalLeads)
     : 0;
