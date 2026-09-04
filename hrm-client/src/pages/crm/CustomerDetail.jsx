@@ -25,6 +25,7 @@ export default function CustomerDetail() {
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
+  const [availablePackages, setAvailablePackages] = useState([]);
 
   // Avatar State
   const avatarInputRef = useRef(null);
@@ -120,12 +121,14 @@ export default function CustomerDetail() {
   useEffect(() => {
     const fetchCustomerAndInquiries = async () => {
       try {
-        const [data, inquiriesData] = await Promise.all([
+        const [data, inquiriesData, packagesData] = await Promise.all([
           crmApi.getCustomer(id),
-          crmApi.getCustomerInquiries(id)
+          crmApi.getCustomerInquiries(id),
+          crmApi.getPackages()
         ]);
         setCustomer(data);
         setLinkedInquiries(inquiriesData);
+        setAvailablePackages(packagesData);
         // Pre-fill metrics form from DB health data
         if (data.health) {
           setMetricsForm({
@@ -239,36 +242,38 @@ export default function CustomerDetail() {
   };
   const handlePackageNameChange = (e) => {
     const val = e.target.value;
+    const selectedPkg = availablePackages.find(p => p.name === val);
+    
     let duration = '30 Days';
-    let meal_count = 60;
     let amount = 5000;
-
-    if (val === 'Weekly Keto Plan') { duration = '7 Days'; meal_count = 14; amount = 1600; }
-    else if (val === '14 Days Detox') { duration = '14 Days'; meal_count = 28; amount = 2800; }
-    else if (val === '2 Days Daily Plan') { duration = '2 Days'; meal_count = 4; amount = 600; }
-    else if (val === '1 Day Trial Plan') { duration = '1 Day'; meal_count = 2; amount = 300; }
+    
+    if (selectedPkg) {
+      duration = selectedPkg.duration || '30 Days';
+      amount = parseInt(selectedPkg.price) || 5000;
+    }
 
     setPackageForm(prev => ({
       ...prev,
       name: val,
       duration,
-      meal_count,
       amount
     }));
   };
 
   const openAddPackage = () => {
     setEditingPackageId(null);
+    const defaultPkg = availablePackages.length > 0 ? availablePackages[0] : null;
+    
     setPackageForm({
-      name: '1 Month Boss Diet',
-      duration: '30 Days',
+      name: defaultPkg ? defaultPkg.name : '1 Month Boss Diet',
+      duration: defaultPkg ? (defaultPkg.duration || '30 Days') : '30 Days',
       start_date: '',
       expires_at: '',
       meal_count: 60,
       meal_type: 'LUNCH, DINNER',
       payment_status: 'Unpaid',
       status: 'Active',
-      amount: 5000
+      amount: defaultPkg ? (parseInt(defaultPkg.price) || 5000) : 5000
     });
     setShowPackageModal(true);
   };
@@ -511,11 +516,10 @@ export default function CustomerDetail() {
               <div>
                 <label className="block text-sm font-bold text-slate-400 mb-2">Package Name</label>
                 <select value={packageForm.name} onChange={handlePackageNameChange} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
-                  <option>1 Month Boss Diet</option>
-                  <option>Weekly Keto Plan</option>
-                  <option>14 Days Detox</option>
-                  <option>2 Days Daily Plan</option>
-                  <option>1 Day Trial Plan</option>
+                  {availablePackages.map(pkg => (
+                    <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
+                  ))}
+                  {availablePackages.length === 0 && <option>No packages found</option>}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
