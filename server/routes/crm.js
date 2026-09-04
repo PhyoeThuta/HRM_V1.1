@@ -1844,7 +1844,8 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
 
     // 2. Auto-send the form link via AI Bot (or admin)
     const token = inquiry.onboarding_token;
-    const link = `http://localhost:5173/enroll?token=${token}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const link = `${frontendUrl}/enroll?token=${token}`;
     const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီရှင်။ 🎉\n\nအစ်ကို/အစ်မအတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော်။\n\n${link}`;
 
     // Insert message into history so it sends to Facebook
