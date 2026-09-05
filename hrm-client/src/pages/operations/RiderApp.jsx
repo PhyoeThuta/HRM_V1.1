@@ -160,7 +160,10 @@ export default function RiderApp() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [simulatorMode, setSimulatorMode] = useState(() => localStorage.getItem('simMode') === 'true');
+  const [simulatorMode, setSimulatorMode] = useState(() => {
+    const saved = localStorage.getItem('simMode');
+    return saved !== 'false'; // Default to true for testing
+  });
 
   useEffect(() => {
     localStorage.setItem('simMode', simulatorMode);
