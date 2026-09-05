@@ -227,11 +227,11 @@ export default function RiderApp() {
     if (!orders) return [];
     const groups = {};
     orders.forEach(o => {
-      const cid = o.customer_id;
-      if (!groups[cid]) {
-        groups[cid] = { customer_id: cid, customer: o.customer, orders: [] };
+      const groupKey = `${o.customer_id}_${o.date}`;
+      if (!groups[groupKey]) {
+        groups[groupKey] = { customer_id: o.customer_id, date: o.date, customer: o.customer, orders: [] };
       }
-      groups[cid].orders.push(o);
+      groups[groupKey].orders.push(o);
     });
 
     return Object.values(groups).map(g => {
