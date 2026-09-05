@@ -527,7 +527,7 @@ router.get('/orders', async (req, res) => {
         ...o,
         daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
         customer: customersMap[o.customer_id] || { full_name: 'Unknown' },
-        rider_status: assignmentsMap[o.id]?.status || 'ASSIGNED',
+        rider_status: o.delivery_status === 'DELIVERED' ? 'DELIVERED' : (assignmentsMap[o.id]?.status || 'ASSIGNED'),
       }));
 
       return res.json(enriched);
