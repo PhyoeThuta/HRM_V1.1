@@ -279,24 +279,28 @@ export default function RiderApp() {
         lastTick = now;
         const chunks = Math.max(Math.ceil(deltaSec), 1);
 
-        for (let i = 0; i < chunks; i++) {
-          if (simPath.current.length > 0 && simPathIndex.current < simPath.current.length) {
-            const target = simPath.current[simPathIndex.current];
-            if (target) {
-              const dx = target.lng - simPos.current.lng;
-              const dy = target.lat - simPos.current.lat;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              if (dist < 0.0003) {
-                simPos.current = { lat: target.lat, lng: target.lng };
-                simPathIndex.current++;
-              } else {
-                const speed = 0.003; // ← 4x faster for testing
-                simPos.current = {
-                  lat: simPos.current.lat + (dy / dist) * Math.min(speed, dist),
-                  lng: simPos.current.lng + (dx / dist) * Math.min(speed, dist),
-                };
-              }
-            }
+        let distanceToMove = 0.003; // Base speed per tick (~300 meters per second for fast testing)
+
+        while (distanceToMove > 0 && simPath.current.length > 0 && simPathIndex.current < simPath.current.length) {
+          const target = simPath.current[simPathIndex.current];
+          if (!target) break;
+
+          const dx = target.lng - simPos.current.lng;
+          const dy = target.lat - simPos.current.lat;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          // If the waypoint is very close or we have enough speed to pass it
+          if (dist <= distanceToMove || dist < 0.0001) {
+            simPos.current = { lat: target.lat, lng: target.lng };
+            distanceToMove -= dist; // Consume distance
+            simPathIndex.current++;
+          } else {
+            // Move partially towards the waypoint
+            simPos.current = {
+              lat: simPos.current.lat + (dy / dist) * distanceToMove,
+              lng: simPos.current.lng + (dx / dist) * distanceToMove,
+            };
+            distanceToMove = 0; // Used up all movement for this tick
           }
         }
 
