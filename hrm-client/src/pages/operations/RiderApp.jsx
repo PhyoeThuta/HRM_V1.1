@@ -286,11 +286,11 @@ export default function RiderApp() {
               const dx = target.lng - simPos.current.lng;
               const dy = target.lat - simPos.current.lat;
               const dist = Math.sqrt(dx * dx + dy * dy);
-              if (dist < 0.0003) {
+              if (dist < 0.003) {
                 simPos.current = { lat: target.lat, lng: target.lng };
                 simPathIndex.current++;
               } else {
-                const speed = 0.003; // ← 4x faster for testing
+                const speed = 0.03; // ← 10x faster than before for fast testing
                 simPos.current = {
                   lat: simPos.current.lat + (dy / dist) * Math.min(speed, dist),
                   lng: simPos.current.lng + (dx / dist) * Math.min(speed, dist),
