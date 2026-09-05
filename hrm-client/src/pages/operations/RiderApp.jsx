@@ -1,20 +1,171 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { getCrmSocket } from '../../lib/crmSocket';
 import { useJsApiLoader } from '@react-google-maps/api';
 import toast from 'react-hot-toast';
 
-// Default Bangkok coords for fallback
 const BANGKOK = { lat: 13.765, lng: 100.640 };
 
+// ────────────────────────────────────────────────────────────
+// Delivery Card Component
+// ────────────────────────────────────────────────────────────
+function DeliveryCard({ group, onUpdateStatus, isPending }) {
+  const statusConfig = {
+    ASSIGNED: {
+      border: 'border-amber-500/30',
+      bg: 'bg-amber-500/5',
+      glow: {},
+      dot: 'bg-amber-400',
+      label: 'Preparing',
+      labelColor: 'text-amber-400',
+    },
+    ACCEPTED: { // Legacy support
+      border: 'border-amber-500/30',
+      bg: 'bg-amber-500/5',
+      glow: {},
+      dot: 'bg-amber-400',
+      label: 'Assigned',
+      labelColor: 'text-amber-400',
+    },
+    PICKING_UP: {
+      border: 'border-orange-500/50',
+      bg: 'bg-orange-500/5',
+      glow: { boxShadow: '0 0 20px rgba(251,146,60,0.15)' },
+      dot: 'bg-orange-400 animate-pulse',
+      label: 'ပစ္စည်းယူနေပါပြီ',
+      labelColor: 'text-orange-400',
+    },
+    ON_THE_WAY: {
+      border: 'border-fuchsia-500/50',
+      bg: 'bg-fuchsia-500/5',
+      glow: { boxShadow: '0 0 30px rgba(217,70,239,0.2)' },
+      dot: 'bg-fuchsia-400 animate-pulse',
+      label: 'On The Way 🚀',
+      labelColor: 'text-fuchsia-400',
+    },
+  };
+
+  const cfg = statusConfig[group.status] || statusConfig.ASSIGNED;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((group.customer?.delivery_address || '') + ', Thailand')}`;
+
+  return (
+    <div
+      className={`rounded-3xl border ${cfg.border} ${cfg.bg} p-5 transition-all duration-300`}
+      style={cfg.glow}
+    >
+      {/* Status Row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
+          <span className={`text-xs font-black uppercase tracking-widest ${cfg.labelColor}`}>
+            {cfg.label}
+          </span>
+        </div>
+        <div className="flex gap-1.5 flex-wrap justify-end">
+          {group.orders.map(o => (
+            <span
+              key={o.id}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                o.daily_menus?.meal_type === 'LUNCH'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-indigo-500/20 text-indigo-400'
+              }`}
+            >
+              {o.daily_menus?.meal_type} ×{o.count}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Customer */}
+      <h3 className="text-white text-xl font-black mb-3 leading-tight">
+        {group.customer?.full_name}
+      </h3>
+
+      <div className="space-y-2 mb-5">
+        <div className="flex items-start gap-2">
+          <span className="text-fuchsia-400 text-base mt-0.5 shrink-0">📍</span>
+          <p className="text-slate-300 text-sm leading-relaxed">{group.customer?.delivery_address || '—'}</p>
+        </div>
+        <a
+          href={`tel:${group.customer?.phone}`}
+          className="flex items-center gap-2 w-fit bg-sky-500/10 border border-sky-500/30 rounded-xl px-3 py-2 hover:bg-sky-500/20 active:scale-95 transition-all"
+        >
+          <span className="text-base">📞</span>
+          <span className="text-sky-400 text-sm font-black">{group.customer?.phone}</span>
+          <span className="text-sky-600 text-xs">Tap to call</span>
+        </a>
+        {group.customer?.delivery_notes && (
+          <p className="text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl">
+            📝 {group.customer.delivery_notes}
+          </p>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="space-y-2">
+        {(group.status === 'ASSIGNED' || group.status === 'ACCEPTED') && (
+          <button
+            onClick={() => onUpdateStatus(group, 'PICKING_UP')}
+            disabled={isPending}
+            className="w-full py-4 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 border border-amber-500/40 text-amber-200 font-black text-base transition-all disabled:opacity-50"
+          >
+            📦 ပစ္စည်းယူရန်ရောက်ပါပြီ
+          </button>
+        )}
+
+        {group.status === 'PICKING_UP' && (
+          <button
+            onClick={() => onUpdateStatus(group, 'ON_THE_WAY')}
+            disabled={isPending}
+            className="w-full py-4 rounded-2xl font-black text-lg text-white transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-fuchsia-500/30"
+            style={{ background: 'linear-gradient(135deg, #c026d3, #7c3aed)' }}
+          >
+            🚀 ထွက်ပါပြီ — Start Delivery
+          </button>
+        )}
+
+        {group.status === 'ON_THE_WAY' && (
+          <>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-3 rounded-2xl bg-sky-500/20 hover:bg-sky-500/30 active:scale-95 border border-sky-500/40 text-sky-300 font-black text-center transition-all"
+            >
+              🗺️ Open in Google Maps
+            </a>
+            <button
+              onClick={() => onUpdateStatus(group, 'DELIVERED')}
+              disabled={isPending}
+              className="w-full py-4 rounded-2xl font-black text-lg text-white transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-emerald-500/30"
+              style={{ background: 'linear-gradient(135deg, #059669, #0d9488)' }}
+            >
+              ✅ Delivered
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Main RiderApp
+// ────────────────────────────────────────────────────────────
 export default function RiderApp() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [simulatorMode, setSimulatorMode] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
-  const targetDate = new Date().toISOString().split('T')[0];
+  const [showDevPanel, setShowDevPanel] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [simDest, setSimDest] = useState(null); // Destination for simulator route
+  const [alert, setAlert] = useState(null);     // Food-ready notification banner
 
   const watchId = useRef(null);
   const simInterval = useRef(null);
@@ -23,37 +174,96 @@ export default function RiderApp() {
   const simPathIndex = useRef(0);
   const socket = getCrmSocket();
 
-  // Fetch orders
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders'],
-    queryFn: () => api.get('/operations/orders').then(res => res.data)
+  // Fetch orders filtered by this rider (backend handles filtering)
+  const { data: orders, isLoading, refetch } = useQuery({
+    queryKey: ['rider-orders', user?.id],
+    queryFn: () => api.get('/operations/orders').then(res => res.data),
+    refetchInterval: 15000, // Auto-refresh every 15s for new assignments
   });
 
-  const updateBatchStatusMutation = useMutation({
-    mutationFn: ({ orderIds, status }) => api.put(`/operations/orders/batch-status`, { order_ids: orderIds, delivery_status: status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['orders']);
-      toast.success('Status updated successfully');
+  // Request browser notification permission + join personal socket room
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
     }
-  });
+  }, []);
 
-  // When simulator is turned on, try to start from real GPS location
+  useEffect(() => {
+    if (!socket || !user?.id) return;
+
+    // Join personal notification room
+    socket.emit('rider:join');
+
+    // Listen for admin food-ready notification
+    const handleNotification = (data) => {
+      // Show in-app alert banner
+      setAlert(data);
+
+      // Also fire browser notification (works when tab is in background)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🍱 BBD Delivery Alert', {
+          body: data.customer_name ? `${data.customer_name} — ${data.message}` : data.message,
+          icon: '/favicon.ico',
+        });
+      }
+
+      // Auto-refresh orders so the card shows up
+      refetch();
+    };
+
+    socket.on('rider:notification', handleNotification);
+    return () => socket.off('rider:notification', handleNotification);
+  }, [socket, user?.id, refetch]);
+
+  // Group by customer, compute group-level rider_status
+  const groupedOrders = React.useMemo(() => {
+    if (!orders) return [];
+    const groups = {};
+    orders.forEach(o => {
+      const cid = o.customer_id;
+      if (!groups[cid]) {
+        groups[cid] = { customer_id: cid, customer: o.customer, orders: [] };
+      }
+      groups[cid].orders.push(o);
+    });
+
+    return Object.values(groups).map(g => {
+      let status = 'ASSIGNED';
+      if (g.orders.some(o => o.rider_status === 'ON_THE_WAY')) status = 'ON_THE_WAY';
+      else if (g.orders.some(o => o.rider_status === 'PICKING_UP')) status = 'PICKING_UP';
+      else if (g.orders.every(o => o.rider_status === 'DELIVERED')) status = 'DELIVERED';
+      else if (g.orders.every(o => ['ACCEPTED', 'ASSIGNED'].includes(o.rider_status || 'ASSIGNED'))) status = 'ASSIGNED';
+      return { ...g, status };
+    });
+  }, [orders]);
+
+  const activeDeliveries = groupedOrders.filter(g => g.status !== 'DELIVERED');
+  const completedDeliveries = groupedOrders.filter(g => g.status === 'DELIVERED');
+
+  // Auto-start GPS on page load if already ON_THE_WAY (e.g. after refresh)
+  useEffect(() => {
+    const onTheWayGroup = activeDeliveries.find(g => g.status === 'ON_THE_WAY');
+    if (onTheWayGroup && !isTracking) {
+      setIsTracking(true);
+      if (!simDest) setSimDest(onTheWayGroup.customer?.delivery_address);
+    }
+    if (!onTheWayGroup && isTracking) {
+      setIsTracking(false);
+      setSimDest(null);
+    }
+  }, [activeDeliveries]);
+
+  // Simulator: try to start from real GPS location
   useEffect(() => {
     if (simulatorMode) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          simPos.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          toast.success("Simulator starting from your real location! 📍");
-        },
-        () => {
-          simPos.current = { lat: BANGKOK.lat, lng: BANGKOK.lng };
-          toast.success("Simulator starting from Bangkok default location");
-        }
+        pos => { simPos.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+        () => { simPos.current = { lat: BANGKOK.lat, lng: BANGKOK.lng }; }
       );
     }
   }, [simulatorMode]);
 
-  // Start tracking when status is ON_THE_WAY
+  // GPS tracking effect — only runs when isTracking = true
   useEffect(() => {
     if (!isTracking) {
       if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
@@ -63,35 +273,28 @@ export default function RiderApp() {
 
     if (simulatorMode) {
       let lastTick = Date.now();
-      
-      // Simulate moving smartly along the actual route path
       simInterval.current = setInterval(() => {
         const now = Date.now();
-        let deltaSec = (now - lastTick) / 1000;
+        const deltaSec = Math.min((now - lastTick) / 1000, 300);
         lastTick = now;
-
-        // Catch up on missed time if tab went to sleep! (Max 5 minutes jump)
-        deltaSec = Math.min(deltaSec, 300);
-        let chunks = Math.ceil(deltaSec);
-        if (chunks < 1) chunks = 1;
+        const chunks = Math.max(Math.ceil(deltaSec), 1);
 
         for (let i = 0; i < chunks; i++) {
-          if (simPath.current.length > 0) {
+          if (simPath.current.length > 0 && simPathIndex.current < simPath.current.length) {
             const target = simPath.current[simPathIndex.current];
             if (target) {
               const dx = target.lng - simPos.current.lng;
               const dy = target.lat - simPos.current.lat;
               const dist = Math.sqrt(dx * dx + dy * dy);
-              
-              if (dist < 0.0002) {
-                // Reached this road node, move to next (clone to avoid mutation)
+              if (dist < 0.0003) {
                 simPos.current = { lat: target.lat, lng: target.lng };
                 simPathIndex.current++;
               } else {
-                // Move towards the node (smooth animation)
-                const speed = 0.0008; // Fast delivery speed
-                simPos.current.lat += (dy / dist) * Math.min(speed, dist);
-                simPos.current.lng += (dx / dist) * Math.min(speed, dist);
+                const speed = 0.003; // ← 4x faster for testing
+                simPos.current = {
+                  lat: simPos.current.lat + (dy / dist) * Math.min(speed, dist),
+                  lng: simPos.current.lng + (dx / dist) * Math.min(speed, dist),
+                };
               }
             }
           }
@@ -100,23 +303,22 @@ export default function RiderApp() {
         socket?.emit('rider:location_update', {
           lat: simPos.current.lat,
           lng: simPos.current.lng,
-          speed: 40
+          speed: 40,
+          rider_id: user?.id,
         });
-      }, 1000); // Send updates every 1 second for ultra-smooth movement!
+      }, 1000);
     } else {
       watchId.current = navigator.geolocation.watchPosition(
-        (pos) => {
+        pos => {
           socket?.emit('rider:location_update', {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
             speed: pos.coords.speed,
-            heading: pos.coords.heading
+            heading: pos.coords.heading,
+            rider_id: user?.id,
           });
         },
-        (err) => {
-          toast.error("GPS Error. Please allow location access.");
-          setIsTracking(false);
-        },
+        () => { toast.error('GPS Error. Please allow location access.'); setIsTracking(false); },
         { enableHighAccuracy: true, maximumAge: 0 }
       );
     }
@@ -125,154 +327,224 @@ export default function RiderApp() {
       if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
       if (simInterval.current) clearInterval(simInterval.current);
     };
-  }, [isTracking, simulatorMode, socket]);
+  }, [isTracking, simulatorMode, socket, user?.id]);
 
-  const todaysOrders = orders?.filter(o => o.date === targetDate) || [];
-
-  const groupedOrders = React.useMemo(() => {
-    const groups = {};
-    todaysOrders.forEach(o => {
-      const cid = o.customer_id;
-      if (!groups[cid]) {
-        groups[cid] = {
-          customer_id: cid,
-          customer: o.customer,
-          orders: [],
-          status: 'PENDING'
-        };
-      }
-      groups[cid].orders.push(o);
-    });
-    return Object.values(groups).map(g => {
-      if (g.orders.every(o => o.delivery_status === 'DELIVERED')) g.status = 'DELIVERED';
-      else if (g.orders.some(o => o.delivery_status === 'ON_THE_WAY')) g.status = 'ON_THE_WAY';
-      else if (g.orders.some(o => o.delivery_status === 'DELIVERED')) g.status = 'ON_THE_WAY'; 
-      else g.status = 'PENDING';
-      return g;
-    });
-  }, [todaysOrders]);
-
-  const activeDeliveries = groupedOrders.filter(g => g.status === 'ON_THE_WAY' || g.status === 'PENDING');
-
-  // Stop tracking automatically if no active ON_THE_WAY deliveries
-  useEffect(() => {
-    const hasOnTheWay = activeDeliveries.some(g => g.status === 'ON_THE_WAY');
-    if (hasOnTheWay && !isTracking) setIsTracking(true);
-    if (!hasOnTheWay && isTracking) setIsTracking(false);
-  }, [activeDeliveries, isTracking]);
-
+  // Google Maps for simulator route
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
   });
 
-  // Fetch true route path for simulator to follow strictly along the roads!
+  // Fetch simulator route when destination is set
   useEffect(() => {
-    if (!simulatorMode || !isTracking || !isLoaded) return;
-    const activeDest = activeDeliveries.find(g => g.status === 'ON_THE_WAY')?.customer?.delivery_address;
-    if (!activeDest) return;
+    if (!simulatorMode || !isTracking || !isLoaded || !simDest) return;
+
+    // Reset path before fetching new one
+    simPath.current = [];
+    simPathIndex.current = 0;
 
     const directionsService = new window.google.maps.DirectionsService();
     directionsService.route({
       origin: simPos.current,
-      destination: `${activeDest}, Thailand`,
+      destination: `${simDest}, Thailand`,
       travelMode: window.google.maps.TravelMode.DRIVING
     }, (result, status) => {
       if (status === window.google.maps.DirectionsStatus.OK) {
-        const path = [];
-        result.routes[0].overview_path.forEach(p => {
-          path.push({ lat: p.lat(), lng: p.lng() });
-        });
-        simPath.current = path;
+        simPath.current = result.routes[0].overview_path.map(p => ({ lat: p.lat(), lng: p.lng() }));
         simPathIndex.current = 0;
+        console.log('[SIM] Route loaded:', simPath.current.length, 'waypoints to', simDest);
+      } else {
+        console.error('[SIM] Directions failed:', status);
+        toast.error('Route fetch failed. Check Maps API key.');
       }
     });
-  }, [simulatorMode, isTracking, isLoaded, activeDeliveries]);
+  }, [simulatorMode, isTracking, isLoaded, simDest]);
 
-  const handleUpdateStatus = (group, status) => {
-    updateBatchStatusMutation.mutate({ orderIds: group.orders.map(o => o.id), status });
+  // Status update handler
+  const handleUpdateStatus = async (group, newStatus) => {
+    setIsPending(true);
+    try {
+      await Promise.all(
+        group.orders.map(o =>
+          api.put(`/operations/orders/${o.id}/rider-status`, { status: newStatus })
+        )
+      );
+      queryClient.invalidateQueries(['rider-orders', user?.id]);
+
+      // ── Start / stop GPS tracking immediately, don't wait for query refetch ──
+      if (newStatus === 'ON_THE_WAY') {
+        const dest = group.customer?.delivery_address;
+        setSimDest(dest);     // Set destination for simulator route
+        setIsTracking(true);  // Start GPS NOW
+      } else if (newStatus === 'DELIVERED') {
+        setIsTracking(false);
+        setSimDest(null);
+      }
+
+      const msgs = {
+        PICKING_UP: 'ပစ္စည်းယူရောက်ပြီ ✅',
+        ON_THE_WAY: 'GPS Tracking Started! 🚀',
+        DELIVERED: 'Delivered! Great job 🎉',
+      };
+      toast.success(msgs[newStatus] || 'Updated!');
+    } catch (e) {
+      toast.error('Failed to update status. Try again.');
+      console.error(e);
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  if (isLoading) return <div className="p-8 text-center text-white font-bold">Loading...</div>;
+  // ── Loading screen ──
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#060610,#0d0a1a)' }}>
+        <div className="text-center">
+          <div className="w-14 h-14 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-400 font-bold tracking-wide">Loading your deliveries...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-surface-950 pb-20">
-      {/* Header */}
-      <div className="bg-surface-900 border-b border-white/10 p-4 sticky top-0 z-10 flex justify-between items-center shadow-lg">
-        <h1 className="text-xl font-black text-fuchsia-500">BBD Rider</h1>
-        <button onClick={() => navigate('/operations/dashboard')} className="text-slate-400 font-bold text-sm bg-white/5 px-3 py-1 rounded-lg">Exit</button>
-      </div>
+    <div className="min-h-screen pb-24" style={{ background: 'linear-gradient(160deg, #06060f 0%, #0d0814 60%, #060b12 100%)' }}>
 
-      {/* Simulator Toggle */}
-      <div className="p-4 flex items-center justify-between bg-surface-800 m-4 rounded-2xl border border-dashed border-white/20">
-        <div>
-          <h3 className="font-bold text-white text-sm">GPS Simulator</h3>
-          <p className="text-xs text-slate-400">Mock Chiang Mai location</p>
+      {/* ── Header ── */}
+      <div className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/8 px-4 py-3" style={{ background: 'rgba(6,6,15,0.85)' }}>
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.15em]">BBD Delivery</p>
+            <h1 className="text-white font-black text-lg leading-tight">
+              မင်္ဂလာပါ, <span className="text-fuchsia-400">{user?.full_name?.split(' ')[0] || 'Rider'}</span> 👋
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {isTracking && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border" style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' }}>
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-emerald-400 text-[11px] font-black tracking-wider">GPS LIVE</span>
+              </div>
+            )}
+            {/* Dev settings button */}
+            <button
+              onClick={() => setShowDevPanel(v => !v)}
+              title="Developer GPS Simulator"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-slate-600 hover:text-slate-400 transition-all text-sm"
+            >⚙️</button>
+          </div>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" checked={simulatorMode} onChange={(e) => setSimulatorMode(e.target.checked)} className="sr-only peer" />
-          <div className="w-11 h-6 bg-surface-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-fuchsia-500"></div>
-        </label>
+
+        {/* Developer GPS Panel */}
+        {showDevPanel && (
+          <div className="mt-3 bg-white/5 border border-dashed border-white/15 rounded-2xl p-3 flex items-center justify-between">
+            <div>
+              <p className="text-white text-xs font-black">GPS Simulator</p>
+              <p className="text-slate-500 text-[10px]">Dev mode — Mock location</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={simulatorMode}
+                onChange={e => setSimulatorMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-surface-950 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-fuchsia-500" />
+            </label>
+          </div>
+        )}
       </div>
 
-      {/* Tracking Status Indicator */}
-      {isTracking && (
-        <div className="mx-4 mb-4 bg-emerald-500/20 border border-emerald-500/50 p-3 rounded-xl flex items-center justify-center gap-2 animate-pulse">
-          <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full"></span>
-          <span className="text-emerald-400 font-black text-sm uppercase">GPS Tracking Active</span>
+      {/* ── Food Ready Alert Banner ── */}
+      {alert && (
+        <div
+          className="mx-4 mt-3 rounded-2xl p-4 border border-amber-500/60 animate-pulse"
+          style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(234,88,12,0.15))' }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">🍱</span>
+              <div>
+                <p className="text-amber-300 font-black text-base leading-tight">
+                  {alert.customer_name && <span className="text-white">{alert.customer_name} — </span>}
+                  ပစ္စည်း Ready ဖြစ်ပြီ!
+                </p>
+                <p className="text-amber-400/70 text-xs mt-0.5">လာယူနိုင်ပါပြီ 🚀</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setAlert(null)}
+              className="text-amber-500 hover:text-white text-xl leading-none shrink-0"
+            >✕</button>
+          </div>
         </div>
       )}
 
-      {/* Deliveries */}
-      <div className="p-4 space-y-4">
-        <h2 className="text-white font-black mb-4">My Deliveries ({activeDeliveries.length})</h2>
+      {/* ── Stats Bar ── */}
+      <div className="px-4 pt-4 pb-2 grid grid-cols-3 gap-3">
+        <div className="rounded-2xl p-3 border" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.06)' }}>
+          <p className="text-slate-600 text-[10px] font-black uppercase tracking-wider">Total</p>
+          <p className="text-white text-2xl font-black">{groupedOrders.length}</p>
+        </div>
+        <div className="rounded-2xl p-3 border" style={{ background: 'rgba(217,70,239,0.08)', borderColor: 'rgba(217,70,239,0.2)' }}>
+          <p className="text-fuchsia-500 text-[10px] font-black uppercase tracking-wider">Active</p>
+          <p className="text-white text-2xl font-black">{activeDeliveries.length}</p>
+        </div>
+        <div className="rounded-2xl p-3 border" style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.2)' }}>
+          <p className="text-emerald-500 text-[10px] font-black uppercase tracking-wider">Done</p>
+          <p className="text-white text-2xl font-black">{completedDeliveries.length}</p>
+        </div>
+      </div>
+
+      {/* ── Active Deliveries ── */}
+      <div className="px-4 pt-2 space-y-4">
         {activeDeliveries.length === 0 ? (
-          <div className="text-center py-10 bg-surface-900 rounded-2xl border border-white/5">
-            <span className="text-4xl mb-2 block">🎉</span>
-            <p className="text-slate-400 font-bold">No active deliveries!</p>
+          <div className="mt-4 text-center py-16 rounded-3xl border border-dashed border-white/10">
+            <span className="text-5xl block mb-4">📭</span>
+            <h3 className="text-white font-black text-lg mb-2">No Active Deliveries</h3>
+            <p className="text-slate-600 text-sm px-6">
+              Orders will appear here when admin assigns them to you.
+              <br />Page auto-refreshes every 30 seconds.
+            </p>
           </div>
         ) : (
           activeDeliveries.map(group => (
-            <div key={group.customer_id} className={`bg-surface-900 border ${group.status === 'ON_THE_WAY' ? 'border-fuchsia-500 shadow-[0_0_15px_rgba(217,70,239,0.2)]' : 'border-white/5'} rounded-2xl p-4`}>
-              <div className="flex justify-between items-start mb-3">
-                <h4 className="font-black text-white text-lg">{group.customer?.full_name}</h4>
-                <div className="flex flex-col gap-1 items-end">
-                  {group.orders.map(o => (
-                    <span key={o.id} className={`px-2 py-0.5 rounded-md text-[10px] font-black ${o.daily_menus?.meal_type === 'LUNCH' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
-                      {o.daily_menus?.meal_type} x{o.count}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <p className="text-slate-300 text-sm flex items-start gap-1">
-                  <span className="text-brand-primary mt-0.5">📍</span> {group.customer?.delivery_address}
-                </p>
-                <p className="text-slate-400 font-bold text-sm mt-2 flex items-center gap-1">
-                  <span>📞</span> {group.customer?.phone}
-                </p>
-              </div>
-
-              {group.status === 'PENDING' ? (
-                <button
-                  onClick={() => handleUpdateStatus(group, 'ON_THE_WAY')}
-                  className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black py-3 rounded-xl transition-all"
-                >
-                  🚀 START DELIVERY
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleUpdateStatus(group, 'DELIVERED')}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20"
-                >
-                  ✅ MARK AS DELIVERED
-                </button>
-              )}
-            </div>
+            <DeliveryCard
+              key={group.customer_id}
+              group={group}
+              onUpdateStatus={handleUpdateStatus}
+              isPending={isPending}
+            />
           ))
         )}
       </div>
+
+      {/* ── Completed Section ── */}
+      {completedDeliveries.length > 0 && (
+        <div className="px-4 pt-8 pb-4">
+          <p className="text-slate-600 text-[11px] font-black uppercase tracking-[0.15em] mb-3">
+            ✅ Completed Today
+          </p>
+          <div className="space-y-2">
+            {completedDeliveries.map(group => (
+              <div
+                key={group.customer_id}
+                className="flex justify-between items-center p-4 rounded-2xl border border-white/5 opacity-50"
+                style={{ background: 'rgba(255,255,255,0.02)' }}
+              >
+                <div>
+                  <p className="text-slate-400 font-bold text-sm">{group.customer?.full_name}</p>
+                  <p className="text-slate-600 text-xs mt-0.5">
+                    {(group.customer?.delivery_address || '').substring(0, 45)}
+                    {(group.customer?.delivery_address || '').length > 45 ? '...' : ''}
+                  </p>
+                </div>
+                <span className="text-emerald-500 text-xl ml-3">✅</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

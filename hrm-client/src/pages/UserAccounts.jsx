@@ -96,7 +96,7 @@ export default function UserAccounts() {
     }
   };
 
-  const roleEmoji = { boss: '👑 Boss', manager: '🧑‍💼 Manager', hr_manager: '🤝 HR Manager', finance: '💰 Finance', admin: '⚙️ Admin', employee: '👤 Employee' };
+  const roleEmoji = { boss: '👑 Boss', manager: '🧑‍💼 Manager', hr_manager: '🤝 HR Manager', finance: '💰 Finance', admin: '⚙️ Admin', employee: '👤 Employee', rider: '🏍️ Delivery Rider' };
   
   const filteredUsers = (users || []).filter(u => 
     (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -253,6 +253,7 @@ export default function UserAccounts() {
                 <label className="form-label text-xs tracking-wider uppercase mb-2 block">Role *</label>
                 <select className="form-input bg-surface-900 border-white/5 w-full" value={form.role} onChange={e => setForm({...form, role: e.target.value})}>
                 <option value="employee">Employee (Portal only)</option>
+                <option value="rider">🏍️ Delivery Rider</option>
                 <option value="boss">Boss</option>
                 <option value="manager">Manager</option>
                 <option value="hr_manager">HR Manager</option>

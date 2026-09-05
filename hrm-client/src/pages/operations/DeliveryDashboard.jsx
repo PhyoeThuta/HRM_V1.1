@@ -43,9 +43,17 @@ export default function DeliveryDashboard() {
       }));
     };
 
+    const handleStatusUpdate = () => {
+      queryClient.invalidateQueries(['orders']);
+    };
+
     socket.on('rider:location', handleLocation);
-    return () => socket.off('rider:location', handleLocation);
-  }, [socket]);
+    socket.on('order:status_updated', handleStatusUpdate);
+    return () => {
+      socket.off('rider:location', handleLocation);
+      socket.off('order:status_updated', handleStatusUpdate);
+    };
+  }, [socket, queryClient]);
 
   // Auto-pan map to show all riders
   useEffect(() => {
@@ -69,6 +77,12 @@ export default function DeliveryDashboard() {
     queryFn: () => api.get('/operations/orders').then(res => res.data)
   });
 
+  // Fetch riders for assignment dropdown
+  const { data: riders } = useQuery({
+    queryKey: ['riders'],
+    queryFn: () => api.get('/operations/riders').then(res => res.data)
+  });
+
   const updateBatchStatusMutation = useMutation({
     mutationFn: ({ orderIds, status }) => api.put(`/operations/orders/batch-status`, { order_ids: orderIds, delivery_status: status }),
     onSuccess: () => {
@@ -80,6 +94,33 @@ export default function DeliveryDashboard() {
       console.error(err);
     }
   });
+
+  const handleAssignRider = async (orderIds, riderId) => {
+    try {
+      await Promise.all(orderIds.map(orderId =>
+        api.put(`/operations/orders/${orderId}/assign`, { rider_id: riderId || null })
+      ));
+      queryClient.invalidateQueries(['orders']);
+      toast.success(riderId ? '🏍️ Rider assigned!' : 'Rider unassigned');
+    } catch (e) {
+      toast.error('Failed to assign rider');
+    }
+  };
+
+  const handleNotifyRider = (group) => {
+    const riderId = group.orders[0]?.rider_id;
+    if (!riderId) {
+      toast.error('Please assign a rider first!');
+      return;
+    }
+    if (socket) {
+      socket.emit('admin:notify_rider', {
+        rider_id: riderId,
+        customer_name: group.customer?.full_name
+      });
+      toast.success('🔔 Notified rider!');
+    }
+  };
 
   const todaysOrders = orders?.filter(o => o.date === targetDate) || [];
 
@@ -115,7 +156,9 @@ export default function DeliveryDashboard() {
     updateBatchStatusMutation.mutate({ orderIds, status });
   };
 
-  const GroupCard = ({ group, actions }) => (
+  const GroupCard = ({ group, actions }) => {
+    const assignedRider = riders?.find(r => r.id === group.orders[0]?.rider_id);
+    return (
     <div className="bg-surface-900 border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div>
@@ -131,7 +174,7 @@ export default function DeliveryDashboard() {
         </div>
       </div>
       
-      <div className="mb-4">
+      <div className="mb-3">
         <p className="text-slate-300 text-sm">
           <span className="text-brand-primary">📍</span> {group.customer?.delivery_address || 'No Address Provided'}
         </p>
@@ -139,6 +182,24 @@ export default function DeliveryDashboard() {
           <p className="text-emerald-400 text-xs mt-2 font-bold bg-emerald-500/10 p-2 rounded-lg inline-block">
             Note: {group.customer.delivery_notes}
           </p>
+        )}
+      </div>
+
+      {/* Rider Assignment Section */}
+      <div className="mb-4 pt-3 border-t border-white/5">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">🏍️ Assign Rider</label>
+        <select
+          value={group.orders[0]?.rider_id || ''}
+          onChange={(e) => handleAssignRider(group.orders.map(o => o.id), e.target.value)}
+          className="w-full bg-surface-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-fuchsia-500 transition-colors"
+        >
+          <option value="">— Unassigned —</option>
+          {riders?.map(r => (
+            <option key={r.id} value={r.id}>{r.full_name}</option>
+          ))}
+        </select>
+        {assignedRider && (
+          <p className="text-fuchsia-400 text-xs mt-1.5 font-bold">🏍️ {assignedRider.full_name} • {group.orders[0]?.rider_status || 'ASSIGNED'}</p>
         )}
       </div>
 
@@ -154,7 +215,10 @@ export default function DeliveryDashboard() {
         {actions.map((action, idx) => (
           <button
             key={idx}
-            onClick={() => handleUpdateStatus(group.orders.map(o => o.id), action.status)}
+            onClick={() => {
+              if (action.onClick) action.onClick(group);
+              else handleUpdateStatus(group.orders.map(o => o.id), action.status);
+            }}
             disabled={updateBatchStatusMutation.isPending}
             className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${action.className} disabled:opacity-50`}
           >
@@ -163,7 +227,8 @@ export default function DeliveryDashboard() {
         ))}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <Layout title="Delivery Dashboard" subtitle="Live tracking and status updates for deliveries">
@@ -263,7 +328,11 @@ export default function DeliveryDashboard() {
                     key={group.customer_id} 
                     group={group} 
                     actions={[
-                      { label: '🚀 Start Delivery', status: 'ON_THE_WAY', className: 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white' }
+                      { 
+                        label: '🔔 Food Ready', 
+                        onClick: handleNotifyRider,
+                        className: 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
+                      }
                     ]}
                   />
                 ))}

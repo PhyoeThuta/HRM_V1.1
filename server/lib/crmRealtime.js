@@ -67,6 +67,32 @@ export function initCrmRealtime(httpServer) {
       });
     });
 
+    // Rider joins their personal notification room
+    socket.on('rider:join', () => {
+      if (socket.user?.role === 'rider') {
+        socket.join(`rider:${socket.user.id}`);
+        console.log(`[CRM WS] Rider ${socket.user.username} joined notification room`);
+      }
+    });
+
+    // Admin notifies a specific rider: food is ready, come pick up!
+    socket.on('admin:notify_rider', (data) => {
+      const { rider_id, customer_name } = data;
+      if (!rider_id) return;
+      io.to(`rider:${rider_id}`).emit('rider:notification', {
+        type: 'FOOD_READY',
+        message: 'ပစ္စည်း Ready ဖြစ်ပြီ \u2014 လာယူပါ! \ud83c\udf71',
+        customer_name,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`[CRM WS] Notified rider:${rider_id} - food ready for ${customer_name}`);
+    });
+
+    // When rider updates delivery status → notify admins to refresh
+    socket.on('order:status_update', (data) => {
+      io.to('crm:inbox').emit('order:status_updated', data);
+    });
+
     socket.on('inquiry:join', (inquiryId) => {
       if (!inquiryId || typeof inquiryId !== 'string') return;
       socket.join(`inquiry:${inquiryId}`);
@@ -121,4 +147,15 @@ export function emitInquiryUpdated(inquiry) {
 export function emitInquiryCreated(inquiry) {
   if (!io || !inquiry?.id) return;
   io.to('crm:inbox').emit('inquiry:created', { inquiry });
+}
+
+// Notify all admins that an order's delivery status changed (for real-time dashboard)
+export function emitOrderStatusUpdate(orderId, deliveryStatus, riderId) {
+  if (!io) return;
+  io.to('crm:inbox').emit('order:status_updated', {
+    order_id: orderId,
+    delivery_status: deliveryStatus,
+    rider_id: riderId,
+    timestamp: new Date().toISOString()
+  });
 }

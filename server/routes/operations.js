@@ -1,7 +1,7 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../lib/supabase.js';
 import { verifyToken, requireOperations } from '../middleware/auth.js';
-import { emitInquiryMessage } from '../lib/crmRealtime.js';
+import { emitInquiryMessage, emitOrderStatusUpdate } from '../lib/crmRealtime.js';
 import multer from 'multer';
 import xlsx from 'xlsx';
 
@@ -487,38 +487,98 @@ router.post('/daily-menus', async (req, res) => {
 
 router.get('/orders', async (req, res) => {
   try {
-    const { data: orders, error } = await supabase
-      .from('operations_orders')
-      .select('*')
-      .order('date', { ascending: false });
-      
-    if (error) throw error;
-    
-    const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
-    
-    const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
-    let customersMap = {};
-    if (customerIds.length > 0) {
-      const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers').select('id, full_name, phone, delivery_address').in('id', customerIds);
-      if (cErr) {
-        console.error("[GET /orders] Error fetching customers:", cErr);
+    const isRider = req.user.role === 'rider';
+
+    let orders = [];
+
+    if (isRider) {
+      // ── RIDER VIEW: only show orders assigned to this rider ──
+      const { data: assignments, error: aErr } = await supabase
+        .from('operations_rider_assignments')
+        .select('order_id, status, picked_up_at')
+        .eq('rider_id', req.user.id);
+
+      if (aErr) throw aErr;
+      if (!assignments || assignments.length === 0) return res.json([]);
+
+      const assignedOrderIds = assignments.map(a => a.order_id);
+      const assignmentsMap = Object.fromEntries(assignments.map(a => [a.order_id, a]));
+
+      const { data: fetchedOrders, error } = await supabase
+        .from('operations_orders')
+        .select('*')
+        .in('id', assignedOrderIds)
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      orders = fetchedOrders || [];
+
+      const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
+      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
+      let customersMap = {};
+      if (customerIds.length > 0) {
+        const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
+          .select('id, full_name, phone, delivery_address, delivery_notes')
+          .in('id', customerIds);
+        if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
       }
-      if (customers) {
-        customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+
+      const enriched = orders.map(o => ({
+        ...o,
+        daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
+        customer: customersMap[o.customer_id] || { full_name: 'Unknown' },
+        rider_status: assignmentsMap[o.id]?.status || 'ASSIGNED',
+      }));
+
+      return res.json(enriched);
+
+    } else {
+      // ── ADMIN VIEW: all orders + include assignment info ──
+      const { data: fetchedOrders, error } = await supabase
+        .from('operations_orders')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      orders = fetchedOrders || [];
+
+      // Fetch all assignments for these orders
+      const orderIds = orders.map(o => o.id);
+      let assignmentsMap = {};
+      if (orderIds.length > 0) {
+        const { data: assignments } = await supabase
+          .from('operations_rider_assignments')
+          .select('order_id, rider_id, status')
+          .in('order_id', orderIds);
+        if (assignments) assignmentsMap = Object.fromEntries(assignments.map(a => [a.order_id, a]));
       }
+
+      const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
+      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
+      let customersMap = {};
+      if (customerIds.length > 0) {
+        const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers')
+          .select('id, full_name, phone, delivery_address, delivery_notes')
+          .in('id', customerIds);
+        if (cErr) console.error('[GET /orders] Error fetching customers:', cErr);
+        if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+      }
+
+      const enriched = orders.map(o => ({
+        ...o,
+        daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
+        customer: customersMap[o.customer_id] || { full_name: 'Unknown (Please restart backend server)' },
+        rider_id: assignmentsMap[o.id]?.rider_id || null,
+        rider_status: assignmentsMap[o.id]?.status || null,
+      }));
+
+      return res.json(enriched);
     }
-    
-    const enrichedOrders = orders.map(o => ({
-      ...o,
-      daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
-      customer: customersMap[o.customer_id] || { full_name: 'Unknown (Please restart backend server)' }
-    }));
-    
-    return res.json(enrichedOrders);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 });
+
 
 router.post('/orders', async (req, res) => {
   try {
@@ -907,6 +967,122 @@ router.put('/orders/:id/status', async (req, res) => {
     return res.json(result);
   } catch (e) {
     return res.status(500).json({ error: e.message });
+  }
+});
+
+// ==========================================
+// RIDERS (for admin assignment dropdown)
+// ==========================================
+
+router.get('/riders', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('sys_users')
+      .select('id, full_name, username')
+      .eq('role', 'rider')
+      .eq('is_active', true)
+      .order('full_name');
+    if (error) throw error;
+    return res.json(data || []);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin assigns order to a rider
+router.put('/orders/:id/assign', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rider_id } = req.body;
+
+    // Upsert into rider_assignments
+    const { data: existing } = await supabase
+      .from('operations_rider_assignments')
+      .select('id')
+      .eq('order_id', id)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('operations_rider_assignments')
+        .update({ rider_id: rider_id || null, status: rider_id ? 'ASSIGNED' : null, updated_at: new Date().toISOString() })
+        .eq('order_id', id);
+      if (error) throw error;
+    } else if (rider_id) {
+      const { error } = await supabase
+        .from('operations_rider_assignments')
+        .insert({ order_id: id, rider_id, status: 'ASSIGNED' });
+      if (error) throw error;
+    }
+
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Rider updates their own delivery status
+// Flow: ASSIGNED → PICKING_UP → ON_THE_WAY → DELIVERED
+router.put('/orders/:id/rider-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // PICKING_UP | ON_THE_WAY | DELIVERED
+    const now = new Date().toISOString();
+
+    const assignmentUpdate = { status, updated_at: now };
+    if (status === 'ON_THE_WAY') assignmentUpdate.picked_up_at = now;
+
+    try {
+      const { error: aErr } = await supabaseAdmin
+        .from('operations_rider_assignments')
+        .update(assignmentUpdate)
+        .eq('order_id', id);
+      if (aErr) throw new Error('RiderAssignment Error: ' + JSON.stringify(aErr));
+    } catch (err) {
+      throw err;
+    }
+
+    // If arrived_at column exists, try to set it too (soft fail)
+    if (status === 'PICKING_UP') {
+      try {
+        await supabaseAdmin.from('operations_rider_assignments')
+          .update({ arrived_at: now })
+          .eq('order_id', id);
+      } catch (e) {
+        // Soft fail
+      }
+    }
+
+    // Sync delivery_status on orders table
+    let delivery_status = 'PENDING';
+    if (status === 'ON_THE_WAY') delivery_status = 'ON_THE_WAY';
+    else if (status === 'DELIVERED') delivery_status = 'DELIVERED';
+
+    const orderUpdate = { delivery_status, updated_by: req.user.id, updated_at: now };
+    if (status === 'DELIVERED') orderUpdate.delivered_at = now;
+    
+    try {
+      const { error: oErr } = await supabaseAdmin.from('operations_orders').update(orderUpdate).eq('id', id);
+      if (oErr) throw new Error('OperationsOrders Error: ' + JSON.stringify(oErr));
+    } catch (err) {
+      throw err;
+    }
+
+    // Notify admins in real-time via socket (so Dashboard refreshes without polling)
+    emitOrderStatusUpdate(id, delivery_status, req.user.id);
+
+    // Fire Zernio notification for ON_THE_WAY and DELIVERED
+    if (status === 'ON_THE_WAY' || status === 'DELIVERED') {
+      const { data: order } = await supabaseAdmin.from('operations_orders').select('customer_id').eq('id', id).single();
+      if (order?.customer_id) {
+        sendDeliveryZernioMessage(order.customer_id, id, status).catch(e => console.error('[Rider Status Zernio]', e));
+      }
+    }
+
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[Rider Status Error]:', e);
+    return res.status(500).json({ error: e.message || e });
   }
 });
 

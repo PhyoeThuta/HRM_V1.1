@@ -60,9 +60,9 @@ export function requireOperations(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  // Grant access to cnx-0028 explicitly, or general admins
-  const adminRoles = ['boss', 'general_manager', 'admin'];
-  if (req.user.username === 'cnx-0028' || adminRoles.includes(req.user.role)) {
+  // Grant access to cnx-0028, general admins, and riders
+  const allowedRoles = ['boss', 'general_manager', 'admin', 'rider'];
+  if (req.user.username === 'cnx-0028' || allowedRoles.includes(req.user.role)) {
     return next();
   }
   return res.status(403).json({ error: 'Forbidden: Operations access required' });

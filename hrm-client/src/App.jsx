@@ -88,6 +88,7 @@ function Protected({ children, allowedRoles }) {
   if (user.must_change_password) return <Navigate to="/force-change-password" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     if (user.role === 'employee') return <Navigate to="/portal" replace />;
+    if (user.role === 'rider') return <Navigate to="/operations/rider" replace />;
     return (
       <Layout title="Access Denied">
         <div className="p-8 text-rose-400 font-bold text-center mt-20">
@@ -128,7 +129,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/careers" element={<Careers />} />
-      <Route path="/login" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Login />} />
+      <Route path="/login" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : user.role === 'rider' ? '/operations/rider' : '/dashboard')} replace /> : <Login />} />
       <Route path="/force-change-password" element={user?.must_change_password ? <ForceChangePassword /> : <Navigate to="/" replace />} />
 
       {/* Public Routes */}
