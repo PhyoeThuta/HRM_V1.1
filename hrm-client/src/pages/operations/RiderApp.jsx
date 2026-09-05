@@ -225,8 +225,12 @@ export default function RiderApp() {
   // Group by customer, compute group-level rider_status
   const groupedOrders = React.useMemo(() => {
     if (!orders) return [];
+
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const relevantOrders = orders.filter(o => o.date >= todayStr || ['ON_THE_WAY', 'PICKING_UP'].includes(o.rider_status));
+
     const groups = {};
-    orders.forEach(o => {
+    relevantOrders.forEach(o => {
       const groupKey = `${o.customer_id}_${o.date}`;
       if (!groups[groupKey]) {
         groups[groupKey] = { customer_id: o.customer_id, date: o.date, customer: o.customer, orders: [] };
