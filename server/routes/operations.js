@@ -481,6 +481,51 @@ router.post('/daily-menus', async (req, res) => {
   }
 });
 
+router.put('/daily-menus/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, meal_type, with_rice, menu_types } = req.body;
+    
+    // Update daily menu
+    const dailyMenu = await opsUpdate('daily_menus', id, {
+      date, meal_type, with_rice, updated_by: req.user.id, updated_at: new Date().toISOString()
+    });
+    
+    if (menu_types) {
+      // Clear existing menu types for this daily menu
+      await supabase.from('operations_menu_types').delete().eq('daily_menus_id', id);
+      
+      if (menu_types.length > 0) {
+        const typesToInsert = menu_types.map(mt => ({
+          daily_menus_id: id,
+          menu_id: mt.menu_id,
+          is_main: mt.is_main || false,
+          created_by: req.user.id
+        }));
+        await supabase.from('operations_menu_types').insert(typesToInsert);
+      }
+    }
+    
+    return res.json({ success: true, dailyMenu });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/daily-menus/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Delete menu types first (unless there is cascade delete, but it's safer to delete here)
+    await supabase.from('operations_menu_types').delete().eq('daily_menus_id', id);
+    // Delete the daily menu
+    await opsDelete('daily_menus', id);
+    
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // ==========================================
 // ORDERS
 // ==========================================
@@ -777,6 +822,23 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
     console.error('[ZERNIO DELIVERY ERROR]', err.message);
   }
 }
+
+router.put('/orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { custom_delivery_address } = req.body;
+    const { data, error } = await supabaseAdmin.from('operations_orders')
+      .update({ custom_delivery_address, updated_by: req.user.id, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
 router.put('/orders/batch-status', async (req, res) => {
   try {

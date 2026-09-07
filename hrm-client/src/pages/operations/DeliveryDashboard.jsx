@@ -158,6 +158,27 @@ export default function DeliveryDashboard() {
 
   const GroupCard = ({ group, actions }) => {
     const assignedRider = riders?.find(r => r.id === group.orders[0]?.rider_id);
+    const orderId = group.orders[0]?.id;
+    const initialAddress = group.orders[0]?.custom_delivery_address || group.customer?.delivery_address || '';
+    
+    const [isEditingAddress, setIsEditingAddress] = useState(false);
+    const [addressInput, setAddressInput] = useState(initialAddress);
+    const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+    const handleSaveAddress = async () => {
+      setIsSavingAddress(true);
+      try {
+        await api.put(`/operations/orders/${orderId}`, { custom_delivery_address: addressInput });
+        toast.success('Address updated for this delivery');
+        setIsEditingAddress(false);
+        queryClient.invalidateQueries(['orders']);
+      } catch (err) {
+        toast.error('Failed to update address');
+      } finally {
+        setIsSavingAddress(false);
+      }
+    };
+
     return (
     <div className="bg-surface-900 border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
       <div className="flex justify-between items-start mb-4">
@@ -175,9 +196,35 @@ export default function DeliveryDashboard() {
       </div>
       
       <div className="mb-3">
-        <p className="text-slate-300 text-sm">
-          <span className="text-brand-primary">📍</span> {group.customer?.delivery_address || 'No Address Provided'}
-        </p>
+        {!isEditingAddress ? (
+          <div className="flex items-start justify-between gap-2 group/address">
+            <p className="text-slate-300 text-sm flex-1">
+              <span className="text-brand-primary">📍</span> {initialAddress || 'No Address Provided'}
+            </p>
+            <button 
+              onClick={() => setIsEditingAddress(true)}
+              className="text-slate-500 hover:text-white opacity-0 group-hover/address:opacity-100 transition-opacity"
+              title="Edit today's delivery address"
+            >
+              ✏️
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 mt-1">
+            <textarea 
+              value={addressInput} 
+              onChange={e => setAddressInput(e.target.value)}
+              className="w-full bg-surface-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary"
+              rows={2}
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setIsEditingAddress(false)} className="text-xs px-3 py-1.5 text-slate-400 hover:text-white">Cancel</button>
+              <button onClick={handleSaveAddress} disabled={isSavingAddress} className="text-xs px-3 py-1.5 bg-brand-primary text-black font-bold rounded-lg hover:bg-brand-primary/90">
+                {isSavingAddress ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        )}
         {group.customer?.delivery_notes && (
           <p className="text-emerald-400 text-xs mt-2 font-bold bg-emerald-500/10 p-2 rounded-lg inline-block">
             Note: {group.customer.delivery_notes}

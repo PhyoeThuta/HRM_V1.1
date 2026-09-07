@@ -10,6 +10,7 @@ dotenv.config();
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
+import { startDailyFeedbackCron, checkAndNotifyDailyFeedback } from './cron/daily_feedback.js';
 import { initCrmRealtime } from './lib/crmRealtime.js';
 import { startVectorSyncCron } from './services/vectorSync.js';
 
@@ -36,6 +37,7 @@ import enrollRouter from './routes/enroll.js';
 import inventoryRoutes from './routes/inventory.js';
 import operationsRoutes from './routes/operations.js';
 import telegramRouter from './routes/telegram.js';
+import dailyFeedbackRouter from './routes/daily_feedback.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -136,6 +138,7 @@ app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/s
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
+app.use('/api/daily-feedback', dailyFeedbackRouter);
 // ── Test Endpoints ─────────────────────────────────────────────
 app.post('/api/test/trigger-birthdays', async (req, res) => {
   const result = await checkAndNotifyBirthdays();
@@ -144,6 +147,11 @@ app.post('/api/test/trigger-birthdays', async (req, res) => {
 
 app.post('/api/test/trigger-followups', async (req, res) => {
   const result = await checkAndNotifyFollowups();
+  res.json(result);
+});
+
+app.post('/api/test/trigger-daily-feedback', async (req, res) => {
+  const result = await checkAndNotifyDailyFeedback();
   res.json(result);
 });
 
@@ -169,4 +177,5 @@ server.listen(PORT, () => {
   startBirthdayCron();
   startVectorSyncCron();
   startFollowupCron();
+  startDailyFeedbackCron();
 });

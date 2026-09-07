@@ -11,6 +11,7 @@ export default function OpsDashboard() {
   const [isPlannerOpen, setIsPlannerOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [planForm, setPlanForm] = useState({ date: new Date().toISOString().split('T')[0], meal_type: 'LUNCH', with_rice: true, selectedMenus: [] });
+  const [editingMenuId, setEditingMenuId] = useState(null);
 
   // Generate 7 days for the calendar
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
@@ -39,10 +40,51 @@ export default function OpsDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries(['daily-menus']);
       toast.success('Daily Menu Planned!');
-      setIsPlannerOpen(false);
-      setPlanForm({ ...planForm, selectedMenus: [] });
+      closePlanner();
     }
   });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: (data) => {
+      const payload = {
+        date: data.date,
+        meal_type: data.meal_type,
+        with_rice: data.with_rice,
+        menu_types: data.selectedMenus.map(m => ({ menu_id: m, is_main: true }))
+      };
+      return api.put(`/operations/daily-menus/${editingMenuId}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['daily-menus']);
+      toast.success('Daily Menu Updated!');
+      closePlanner();
+    }
+  });
+
+  const deletePlanMutation = useMutation({
+    mutationFn: (id) => api.delete(`/operations/daily-menus/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['daily-menus']);
+      toast.success('Daily Menu Deleted!');
+    }
+  });
+
+  const closePlanner = () => {
+    setIsPlannerOpen(false);
+    setEditingMenuId(null);
+    setPlanForm({ date: new Date().toISOString().split('T')[0], meal_type: 'LUNCH', with_rice: true, selectedMenus: [] });
+  };
+
+  const handleEditClick = (dm) => {
+    setEditingMenuId(dm.id);
+    setPlanForm({
+      date: dm.date,
+      meal_type: dm.meal_type,
+      with_rice: dm.with_rice,
+      selectedMenus: dm.menu_types ? dm.menu_types.map(mt => mt.menu_id) : []
+    });
+    setIsPlannerOpen(true);
+  };
 
   const toggleMenuSelection = (menuId) => {
     setPlanForm(prev => {
@@ -57,7 +99,11 @@ export default function OpsDashboard() {
   const handlePlanSubmit = (e) => {
     e.preventDefault();
     if (planForm.selectedMenus.length === 0) return toast.error('Select at least one menu');
-    createPlanMutation.mutate(planForm);
+    if (editingMenuId) {
+      updatePlanMutation.mutate(planForm);
+    } else {
+      createPlanMutation.mutate(planForm);
+    }
   };
 
   return (
@@ -66,7 +112,7 @@ export default function OpsDashboard() {
       
       <div className="flex justify-between items-end mb-6">
         <h2 className="text-xl font-bold text-white">Daily Menus (Schedule)</h2>
-        <button onClick={() => setIsPlannerOpen(true)} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all">
+        <button onClick={() => { closePlanner(); setIsPlannerOpen(true); }} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all">
           + Plan Daily Menu
         </button>
       </div>
@@ -136,6 +182,14 @@ export default function OpsDashboard() {
                         </span>
                         {dm.with_rice && <span className="text-[10px] bg-white/10 px-2 py-1 rounded-md text-slate-300 font-bold">W/ Rice</span>}
                       </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditClick(dm)} className="text-slate-400 hover:text-indigo-400 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onClick={() => { if(window.confirm('Delete this menu?')) deletePlanMutation.mutate(dm.id); }} className="text-slate-400 hover:text-rose-400 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2 mt-4">
                       {dm.menu_types?.map(mt => (
@@ -192,8 +246,8 @@ export default function OpsDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-surface-800 w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-white/5 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-white">Plan Daily Menu</h3>
-              <button onClick={() => setIsPlannerOpen(false)} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+              <h3 className="text-xl font-bold text-white">{editingMenuId ? 'Edit Daily Menu' : 'Plan Daily Menu'}</h3>
+              <button onClick={closePlanner} className="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
             </div>
             
             <form onSubmit={handlePlanSubmit} className="flex flex-col flex-1 overflow-hidden">
@@ -234,8 +288,8 @@ export default function OpsDashboard() {
               </div>
 
               <div className="p-6 border-t border-white/5 flex gap-4">
-                <button type="button" onClick={() => setIsPlannerOpen(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors">Cancel</button>
-                <button type="submit" disabled={createPlanMutation.isPending} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50">Save Plan</button>
+                <button type="button" onClick={closePlanner} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors">Cancel</button>
+                <button type="submit" disabled={createPlanMutation.isPending || updatePlanMutation.isPending} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50">Save Plan</button>
               </div>
             </form>
           </div>

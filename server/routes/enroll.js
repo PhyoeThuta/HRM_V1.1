@@ -55,11 +55,12 @@ router.get('/:token', async (req, res) => {
     const defaultSchema = [
       // Basic Info
       { id: 'name', type: 'text', label: 'Full Name', required: true, section: '01. Basic Information', width: 'half', placeholder: 'e.g. Aung Aung' },
-      { id: 'fb_name', type: 'text', label: 'Facebook Name', required: false, section: '01. Basic Information', width: 'half', placeholder: 'e.g. Aung (Gamer)' },
+      { id: 'fb_name', type: 'text', label: 'Facebook Name', required: true, section: '01. Basic Information', width: 'half', placeholder: 'Auto-filled', readonly: true },
       { id: 'age', type: 'number', label: 'Age', required: true, section: '01. Basic Information', width: 'third', placeholder: 'e.g. 28' },
       { id: 'gender', type: 'dropdown', label: 'Gender', required: true, options: ['Male', 'Female', 'Other'], section: '01. Basic Information', width: 'third' },
       { id: 'phone', type: 'text', label: 'Phone Number', required: true, section: '01. Basic Information', width: 'third', placeholder: 'e.g. 09123456789' },
-      { id: 'start_date', type: 'date', label: 'Desired Start Date', required: true, section: '01. Basic Information', width: 'full' },
+      { id: 'package_id', type: 'dropdown', label: 'Select Package', required: true, section: '01. Basic Information', width: 'half' },
+      { id: 'start_date', type: 'date', label: 'Desired Start Date', required: true, section: '01. Basic Information', width: 'half' },
       { id: 'home_address', type: 'textarea', label: 'Home Address', required: false, section: '01. Basic Information', width: 'full', placeholder: 'Home address' },
       { id: 'delivery_address', type: 'textarea', label: 'Delivery Address', required: true, section: '01. Basic Information', width: 'full', placeholder: 'Full address for meal delivery' },
       { id: 'delivery_notes', type: 'text', label: 'Delivery Notes (Optional)', required: false, section: '01. Basic Information', width: 'full', placeholder: 'e.g. Leave at security gate, call when arrived' },
@@ -78,6 +79,20 @@ router.get('/:token', async (req, res) => {
       { id: 'fasting_willingness', type: 'dropdown', label: 'Fasting Willingness', required: false, options: ['No, prefer regular meals', 'Yes, 16:8 fasting', 'Yes, 14:10 fasting'], section: '03. Lifestyle & Diet Prep', width: 'half' }
     ];
 
+    let finalSchema = formSettings?.schema?.length > 0 ? formSettings.schema : defaultSchema;
+
+    // Fetch packages
+    const { data: packages } = await supabaseAdmin.schema('crm').from('packages').select('*').order('price', { ascending: true });
+    if (packages && packages.length > 0) {
+      const packageOptions = packages.map(p => ({ label: `${p.name} - ${p.duration} days`, value: p.id, pkg_data: p }));
+      finalSchema = finalSchema.map(field => {
+        if (field.id === 'package_id') {
+          return { ...field, type: 'dropdown', options: packageOptions };
+        }
+        return field;
+      });
+    }
+
     res.json({
       inquiry: {
         id: inquiry.id,
@@ -85,7 +100,8 @@ router.get('/:token', async (req, res) => {
         service_interest: inquiry.service_interest,
         package: inquiry.selected_package
       },
-      schema: formSettings?.schema?.length > 0 ? formSettings.schema : defaultSchema
+      packages: packages || [],
+      schema: finalSchema
     });
 
   } catch (err) {
@@ -164,9 +180,18 @@ router.post('/:token', async (req, res) => {
       })
       .eq('id', inquiry.id);
 
-    // 6. Auto Assign the selected package (BBD Default Plan)
-    if (inquiry.selected_package) {
-      const pkg = inquiry.selected_package;
+    // 6. Auto Assign the selected package
+    let selectedPackage = null;
+    if (formData.package_id) {
+      const { data: pkgData } = await supabaseAdmin.schema('crm').from('packages').select('*').eq('id', formData.package_id).single();
+      if (pkgData) selectedPackage = pkgData;
+    }
+    if (!selectedPackage && inquiry.selected_package) {
+      selectedPackage = inquiry.selected_package;
+    }
+
+    if (selectedPackage) {
+      const pkg = selectedPackage;
       let durationDays = 30; // default 30 days
       if (pkg.duration) {
         const durStr = String(pkg.duration).toLowerCase();
@@ -179,13 +204,19 @@ router.post('/:token', async (req, res) => {
       }
       
       const startDate = formData.start_date ? new Date(formData.start_date) : new Date();
-      // If the customer didn't specify, default to tomorrow, since usually they don't start the exact same day
       if (!formData.start_date) {
         startDate.setDate(startDate.getDate() + 1);
       }
+      // Zero out time for comparison
+      startDate.setHours(0, 0, 0, 0);
       
       const expiresAt = new Date(startDate);
       expiresAt.setDate(startDate.getDate() + durationDays);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const packageStatus = startDate > today ? 'Upcoming' : 'Active';
 
       // Calculate meal count dynamically based on duration and meal type
       const mealType = pkg.meal_type || 'Lunch & Dinner';
@@ -205,7 +236,7 @@ router.post('/:token', async (req, res) => {
           start_date: startDate.toISOString(), 
           expires_at: expiresAt.toISOString(), 
           payment_status: 'Paid', 
-          status: 'Active', 
+          status: packageStatus, 
           amount: pkg.price || 0 
         });
     }

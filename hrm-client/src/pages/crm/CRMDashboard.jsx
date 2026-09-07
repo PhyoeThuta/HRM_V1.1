@@ -43,6 +43,7 @@ export default function CRMDashboard() {
     activeLeads: '0',
     convertedThisMonth: '0',
     activePackages: '0',
+    upcomingBookings: '0',
     revenue: '$0',
   });
   const [isTesting, setIsTesting] = useState(false);
@@ -83,6 +84,7 @@ export default function CRMDashboard() {
         activeLeads: String(data.activeLeads || 0),
         convertedThisMonth: String(data.convertedThisMonth || 0),
         activePackages: String(data.activePackages || 0),
+        upcomingBookings: String(data.upcomingBookings || 0),
         revenue: '—', // billing module not yet implemented
       });
       setUpcomingRenewals(data.upcomingRenewals || []);
@@ -442,7 +444,7 @@ export default function CRMDashboard() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <StatCard 
           label="Total Revenue" 
           value={metrics.revenue} 
@@ -474,6 +476,14 @@ export default function CRMDashboard() {
           icon="🍱" 
           trend={15.3}
           subtext="Diet plans currently running"
+        />
+        <StatCard 
+          label="Upcoming Bookings" 
+          value={metrics.upcomingBookings} 
+          gradient="from-blue-400 to-cyan-500" 
+          icon="📅" 
+          trend={10.2}
+          subtext="Confirmed future starts"
         />
       </div>
 

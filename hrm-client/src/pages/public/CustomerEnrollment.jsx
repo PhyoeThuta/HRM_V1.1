@@ -34,7 +34,10 @@ export default function CustomerEnrollment() {
         setSchema(data.schema || []);
         
         const initialData = {};
-        if (data.inquiry?.prospect_name) initialData.name = data.inquiry.prospect_name;
+        if (data.inquiry?.prospect_name) {
+          initialData.name = data.inquiry.prospect_name;
+          initialData.fb_name = data.inquiry.prospect_name;
+        }
         
         // Initialize dropdowns with first option if required and no placeholder fallback
         (data.schema || []).forEach(field => {
@@ -149,9 +152,14 @@ export default function CustomerEnrollment() {
             value={formData[field.id] || ''}
             onChange={e => handleChange(field.id, e.target.value)}
             className={`${commonClasses} appearance-none`}
+            disabled={field.readonly}
           >
             <option value="" disabled hidden>{field.placeholder || 'Select an option'}</option>
-            {field.options?.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+            {field.options?.map((opt, i) => {
+              const val = typeof opt === 'object' ? opt.value : opt;
+              const lbl = typeof opt === 'object' ? opt.label : opt;
+              return <option key={i} value={val}>{lbl}</option>;
+            })}
           </select>
         );
       case 'checkbox':
@@ -162,7 +170,8 @@ export default function CustomerEnrollment() {
               required={field.required}
               checked={formData[field.id] || false}
               onChange={e => handleChange(field.id, e.target.checked)}
-              className="w-5 h-5 text-brand-green bg-white dark:bg-surface-900 border-slate-300 dark:border-white/10 rounded focus:ring-brand-green focus:ring-offset-2 dark:focus:ring-offset-surface-900 transition-all"
+              disabled={field.readonly}
+              className="w-5 h-5 text-brand-green bg-white dark:bg-surface-900 border-slate-300 dark:border-white/10 rounded focus:ring-brand-green focus:ring-offset-2 dark:focus:ring-offset-surface-900 transition-all disabled:opacity-50"
             />
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Yes, I agree</span>
           </div>
@@ -174,7 +183,9 @@ export default function CustomerEnrollment() {
             required={field.required}
             value={formData[field.id] || ''}
             onChange={e => handleChange(field.id, e.target.value)}
-            className={`${commonClasses} dark:[color-scheme:dark]`}
+            min={new Date().toISOString().split('T')[0]}
+            disabled={field.readonly}
+            className={`${commonClasses} dark:[color-scheme:dark] disabled:opacity-70 disabled:bg-slate-100 disabled:cursor-not-allowed`}
           />
         );
       default: // text, number
@@ -185,7 +196,8 @@ export default function CustomerEnrollment() {
             value={formData[field.id] || ''}
             onChange={e => handleChange(field.id, e.target.value)}
             placeholder={field.placeholder || ''}
-            className={commonClasses}
+            readOnly={field.readonly}
+            className={`${commonClasses} ${field.readonly ? 'opacity-70 bg-slate-100 dark:bg-surface-800 cursor-not-allowed' : ''}`}
           />
         );
     }

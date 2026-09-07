@@ -49,7 +49,8 @@ function DeliveryCard({ group, onUpdateStatus, isPending }) {
   };
 
   const cfg = statusConfig[group.status] || statusConfig.ASSIGNED;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((group.customer?.delivery_address || '') + ', Thailand')}`;
+  const deliveryAddress = group.orders[0]?.custom_delivery_address || group.customer?.delivery_address || '';
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(deliveryAddress + ', Thailand')}`;
 
   return (
     <div
@@ -88,7 +89,7 @@ function DeliveryCard({ group, onUpdateStatus, isPending }) {
       <div className="space-y-2 mb-5">
         <div className="flex items-start gap-2">
           <span className="text-fuchsia-400 text-base mt-0.5 shrink-0">📍</span>
-          <p className="text-slate-300 text-sm leading-relaxed">{group.customer?.delivery_address || '—'}</p>
+          <p className="text-slate-300 text-sm leading-relaxed">{deliveryAddress || '—'}</p>
         </div>
         <a
           href={`tel:${group.customer?.phone}`}

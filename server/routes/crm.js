@@ -593,11 +593,42 @@ router.delete('/customer-packages/:id', verifyToken, async (req, res) => {
 router.put('/customer-packages/:id/pause', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Get customer_id before pausing
+    const { data: pkg, error: pkgFetchErr } = await supabaseAdmin.schema('crm').from('customer_packages')
+      .select('customer_id').eq('id', id).single();
+      
+    if (pkgFetchErr) throw pkgFetchErr;
+
     const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
       .update({ status: 'Paused' })
       .eq('id', id)
       .select().single();
     if (error) throw error;
+    
+    // Auto-remove any pending daily orders for this customer from today onwards
+    const today = new Date().toISOString().split('T')[0];
+    await supabaseAdmin.from('operations_orders')
+      .delete()
+      .eq('customer_id', pkg.customer_id)
+      .gte('date', today)
+      .eq('delivery_status', 'PENDING');
+
+    // Fetch customer info for notification
+    const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
+      .select('full_name').eq('id', pkg.customer_id).single();
+
+    // Create system notification for BBD admins & bosses
+    const notifs = ['admin', 'boss', 'operations'].map(role => ({
+      recipient_role: role,
+      title: 'Customer Package Paused ⏸️',
+      message: `${cust?.full_name || 'A customer'}'s package was paused. Pending deliveries removed.`,
+      link_url: `/crm/customers/${pkg.customer_id}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    }));
+    await supabaseAdmin.from('system_notifications').insert(notifs);
+
     return res.json(data);
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -1510,7 +1541,8 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       { count: totalCustomers },
       { count: totalLeads },
       { data: convertedLeads },
-      { data: activePackages },
+      { count: activePackages },
+      { count: upcomingBookings },
       { data: upcomingRenewals },
       { data: recentLeads },
       { data: recentCustomers },
@@ -1520,7 +1552,8 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact' }).gte('expires_at', today),
+      supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+      supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Upcoming'),
       supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
       supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
@@ -1599,7 +1632,8 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       totalCustomers: totalCustomers || 0,
       activeLeads: totalLeads || 0,
       convertedThisMonth: convertedLeads?.length || 0,
-      activePackages: activePackages?.length || 0,
+      activePackages: activePackages || 0,
+      upcomingBookings: upcomingBookings || 0,
       upcomingRenewals: mappedRenewals,
       recentLeads: recentLeads || [],
       customerGrowth: customerGrowth,
@@ -1640,8 +1674,8 @@ router.post('/inquiries/:id/generate-link', verifyToken, async (req, res) => {
       
     if (error) throw error;
     
-    const baseUrl = process.env.DIET_BUDDY_URL || process.env.FRONTEND_ONBOARDING_URL || 'http://localhost:3000';
-    const link = `${baseUrl}/onboarding?token=${data.onboarding_token}`;
+    const baseUrl = process.env.DIET_BUDDY_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const link = `${baseUrl}/enroll?token=${data.onboarding_token}`;
     
     return res.json({ link });
   } catch (e) {

@@ -41,6 +41,7 @@ import UserAccounts from './pages/UserAccounts';
 import FinanceDashboard from './pages/FinanceDashboard';
 import ForceChangePassword from './pages/ForceChangePassword';
 
+import DailyFeedback from './pages/public/DailyFeedback';
 import CustomerTracking from './pages/public/CustomerTracking';
 import CameraCheckin from './pages/portal/CameraCheckin';
 import QRScanner from './pages/portal/QRScanner';
@@ -136,6 +137,7 @@ function AppRoutes() {
       <Route path="/enroll" element={<CustomerEnrollment />} />
       <Route path="/feedback/:customer_id" element={<CustomerFeedback />} />
       <Route path="/menu-feedback/:customer_id" element={<WeeklyMenuFeedback />} />
+      <Route path="/daily-feedback/:customer_id" element={<DailyFeedback />} />
       <Route path="/track/:orderId" element={<CustomerTracking />} />
 
       {/* Operations & Inventory Routes */}
