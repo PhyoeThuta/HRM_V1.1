@@ -1,17 +1,23 @@
-name: Auto PR & Merge to Main
+name: Dev → Auto PR → Main
 
-# Triggers whenever you push to ANY branch except main
+# Real-world workflow:
+# 1. Developer pushes code to `dev` branch
+# 2. Docker build check runs automatically
+# 3. If build passes → Auto PR created → Auto-merged into `main`
+# 4. deploy.yml triggers on main merge → deploys to production
+
 on:
   push:
-    branches-ignore:
-      - main
+    branches:
+      - dev
 
 jobs:
   # ─────────────────────────────────────────────────────────────────
-  # Job 1: Build Docker image to verify the branch is healthy
+  # Job 1: Build Docker image to verify dev branch is healthy
+  # Runs on EVERY push to dev — catches broken code before it reaches main
   # ─────────────────────────────────────────────────────────────────
   build-check:
-    name: Build Check
+    name: 🔨 Build Check (Docker)
     runs-on: ubuntu-latest
 
     permissions:
@@ -32,7 +38,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (no push — just verify)
+      - name: Build Docker image (verify only — no push)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -43,12 +49,13 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/phyoethuta/hrm_v1.1:buildcache
 
   # ─────────────────────────────────────────────────────────────────
-  # Job 2: Auto-create PR and enable auto-merge (runs after build passes)
+  # Job 2: Auto-create PR and enable auto-merge into main
+  # Only runs AFTER build-check passes ✅
   # ─────────────────────────────────────────────────────────────────
   auto-pr-merge:
-    name: Auto PR & Merge
+    name: 🔀 Auto PR → main
     runs-on: ubuntu-latest
-    needs: build-check  # Only runs if build-check passes ✅
+    needs: build-check
 
     permissions:
       contents: write
@@ -58,30 +65,33 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Create PR if not exists, then auto-merge
+      - name: Create PR if not exists, then enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: ${{ github.ref_name }}
         run: |
-          # Check if a PR already exists for this branch
-          EXISTING_PR=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number' 2>/dev/null || echo "")
+          # Check if a PR already exists from dev → main
+          EXISTING_PR=$(gh pr list --head "dev" --base "main" --json number --jq '.[0].number' 2>/dev/null || echo "")
 
           if [ -z "$EXISTING_PR" ]; then
-            echo "Creating new PR for branch: $BRANCH"
+            echo "=== Creating PR: dev → main ==="
             gh pr create \
               --base main \
-              --head "$BRANCH" \
-              --title "Auto: Merge $BRANCH → main" \
-              --body "🤖 Auto-created by CI. Docker build passed. Merging automatically."
+              --head dev \
+              --title "🚀 Release: dev → main" \
+              --body "🤖 Auto-created by CI pipeline.
+              
+              **Docker build:** ✅ Passed
+              
+              This PR was automatically created after the build check succeeded on \`dev\` branch.
+              It will be automatically merged into \`main\` to trigger production deployment."
           else
-            echo "PR #$EXISTING_PR already exists for branch: $BRANCH"
+            echo "=== PR #${EXISTING_PR} already exists for dev → main ==="
           fi
 
-          # Enable auto-merge (squash) — merges as soon as required checks pass
-          gh pr merge "$BRANCH" \
+          # Enable auto-merge (squash strategy keeps main history clean)
+          gh pr merge dev \
             --squash \
             --auto \
-            --delete-branch \
-            --subject "Auto-merge: $BRANCH → main"
+            --subject "Release: dev → main [auto-merged after build check]"
 
-          echo "✅ Auto-merge enabled. Will merge once all checks pass."
+          echo "=== ✅ Auto-merge enabled. Will merge once all required checks pass. ==="
