@@ -6,6 +6,7 @@ import {
   getActiveHandoversForOutgoing,
   getActiveHandoversForIncoming,
   enrichHandover,
+  enrichHandoversBulk,
 } from '../lib/handoverHelpers.js';
 import multer from 'multer';
 import path from 'path';
@@ -153,7 +154,6 @@ router.get('/portal', async (req, res) => {
 
     const offboardingRecord = await dbFetchOne('corporate_offboarding', 'id', { employee_id: empId });
     let outgoingActive = await getActiveHandoversForOutgoing(empId);
-    for (const h of outgoingActive) await enrichHandover(h);
 
     // Fallback: pick up leave-linked handovers even if not returned by outgoing query edge cases
     const linkedHandoverIds = [
@@ -161,17 +161,23 @@ router.get('/portal', async (req, res) => {
         leaveReqs.flatMap(r => [r.coverage_handover_id, r.return_handover_id].filter(Boolean))
       ),
     ];
-    for (const hid of linkedHandoverIds) {
-      if (outgoingActive.some(h => h.id === hid)) continue;
-      const h = await dbFetchOne('employee_handovers', '*', { id: hid });
-      if (h && h.outgoing_employee_id === empId && !['completed', 'waived', 'cancelled'].includes(h.status)) {
-        await enrichHandover(h);
-        outgoingActive.push(h);
+    
+    if (linkedHandoverIds.length > 0) {
+      const { data: linked } = await supabase.from('employee_handovers').select('*').in('id', linkedHandoverIds);
+      if (linked) {
+        for (const h of linked) {
+          if (outgoingActive.some(o => o.id === h.id)) continue;
+          if (h.outgoing_employee_id === empId && !['completed', 'waived', 'cancelled'].includes(h.status)) {
+            outgoingActive.push(h);
+          }
+        }
       }
     }
 
     const incomingActive = await getActiveHandoversForIncoming(empId);
-    for (const h of incomingActive) await enrichHandover(h);
+    
+    await enrichHandoversBulk(outgoingActive);
+    await enrichHandoversBulk(incomingActive);
 
     const exitOutgoing = outgoingActive.filter(h => h.handover_kind === 'exit');
     const coverageOutgoing = outgoingActive.filter(h => h.handover_kind === 'coverage' || h.handover_kind === 'return');
@@ -197,10 +203,10 @@ router.get('/portal', async (req, res) => {
     const parsedAnnouncements = announcements.map(a => {
       let content = a.content || '';
       let expiry = null;
-      const expIndex = content.indexOf('___EXPIRY:');
-      if (expIndex !== -1) {
-        expiry = content.substring(expIndex + 10).trim();
-        content = content.substring(0, expIndex);
+      const match = content.match(/___EXPIRY:([\d-]+)/);
+      if (match) {
+        expiry = match[1];
+        content = content.replace(match[0], '').trim();
       }
       return { ...a, content, expiry_date: expiry };
     });
@@ -312,6 +318,28 @@ router.post('/sops/auto-assign', requireAdmin, async (req, res) => {
     const { data: employees, error: eErr } = await supabase.from('Employees').select('id, position_id').eq('status', 'Active');
     if (eErr) throw eErr;
 
+    // Fetch all existing SOPs for the month in ONE query to avoid N+1 in the loop
+    const monthStart = `${year}-${monthStr}-01T00:00:00.000Z`;
+    const monthEnd = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}T23:59:59.999Z`;
+
+    const { data: existingSOPs, error: existingErr } = await supabase
+      .from('daily_sops')
+      .select('id, employee_id, created_at')
+      .gte('created_at', monthStart)
+      .lte('created_at', monthEnd);
+
+    if (existingErr) throw existingErr;
+
+    const existingSet = new Set();
+    if (existingSOPs) {
+      existingSOPs.forEach(sop => {
+        if (sop.created_at) {
+          const dateStr = sop.created_at.split('T')[0];
+          existingSet.add(`${sop.employee_id}_${dateStr}`);
+        }
+      });
+    }
+
     let totalCreated = 0;
     let totalSkipped = 0;
     const records = [];
@@ -321,20 +349,13 @@ router.post('/sops/auto-assign', requireAdmin, async (req, res) => {
       if (positionEmployees.length === 0) continue;
 
       for (let day = 1; day <= lastDay; day++) {
-        const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}T06:00:00.000Z`;
+        const dayStr = String(day).padStart(2, '0');
+        const dateStr = `${year}-${monthStr}-${dayStr}T06:00:00.000Z`;
+        const dayDate = `${year}-${monthStr}-${dayStr}`;
 
         for (const emp of positionEmployees) {
-          // Check if record already exists for this employee on this day
-          const dayDate = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
-          const { data: existing } = await supabase
-            .from('daily_sops')
-            .select('id')
-            .eq('employee_id', emp.id)
-            .gte('created_at', `${dayDate}T00:00:00`)
-            .lte('created_at', `${dayDate}T23:59:59`)
-            .single();
-
-          if (existing) {
+          // Check locally if record already exists for this employee on this day
+          if (existingSet.has(`${emp.id}_${dayDate}`)) {
             totalSkipped++;
             continue;
           }
@@ -436,18 +457,26 @@ router.post('/sops', requireAdmin, async (req, res) => {
 
     const task_desc = title ? `${title}\n\n${content}` : content;
     
-    // Insert SOP for each employee
+    // Fetch users for these employees in one query
+    const empIds = employees.map(e => e.id);
+    const { data: users } = await supabase.from('sys_users').select('id, employee_id').in('employee_id', empIds);
+    const userMap = new Map((users || []).map(u => [u.employee_id, u.id]));
+    
+    // Build bulk insert arrays
+    const sopRecords = [];
+    const notificationRecords = [];
+    
     for (const emp of employees) {
-      await dbInsert('daily_sops', {
+      sopRecords.push({
         employee_id: emp.id,
         task_description: task_desc,
         assigned_by: req.user.employee_id || null
       });
       
-      const user = await dbFetchOne('sys_users', 'id', { employee_id: emp.id });
-      if (user) {
-        await dbInsert('system_notifications', {
-          recipient_user_id: user.id,
+      const userId = userMap.get(emp.id);
+      if (userId) {
+        notificationRecords.push({
+          recipient_user_id: userId,
           title: 'New SOP Assigned',
           message: `You have been assigned a new SOP: ${title || 'Daily Task'}`,
           link_url: '/portal',
@@ -455,6 +484,13 @@ router.post('/sops', requireAdmin, async (req, res) => {
           created_at: new Date().toISOString()
         });
       }
+    }
+    
+    if (sopRecords.length > 0) {
+      await supabase.from('daily_sops').insert(sopRecords);
+    }
+    if (notificationRecords.length > 0) {
+      await supabase.from('system_notifications').insert(notificationRecords);
     }
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'SOPs', details: `Assigned SOP "${title || 'Daily Task'}" to ${employees.length} employees`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, assigned_count: employees.length });
@@ -466,8 +502,8 @@ router.patch('/sops/bulk-update', requireAdmin, async (req, res) => {
   try {
     const { ids, task_description } = req.body;
     if (!Array.isArray(ids) || !task_description) return res.status(400).json({ error: 'ids and task_description required' });
-    for (const id of ids) {
-      await dbUpdate('daily_sops', id, { task_description });
+    if (ids.length > 0) {
+      await supabase.from('daily_sops').update({ task_description }).in('id', ids);
     }
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'SOPs', details: `Bulk updated ${ids.length} SOPs`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
@@ -489,8 +525,8 @@ router.post('/sops/bulk-delete', requireAdmin, async (req, res) => {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array' });
-    for (const id of ids) {
-      await dbDelete('daily_sops', id);
+    if (ids.length > 0) {
+      await supabase.from('daily_sops').delete().in('id', ids);
     }
     await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'SOPs', details: `Bulk deleted ${ids.length} SOPs`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
@@ -609,6 +645,23 @@ router.post('/peer-voting/submit', async (req, res) => {
     
     if (!voter_id) return res.status(400).json({ error: 'You must be linked to an employee profile to vote' });
     if (!nominee_id) return res.status(400).json({ error: 'Nominee required' });
+    if (voter_id == nominee_id) return res.status(400).json({ error: 'You cannot vote for yourself' });
+
+    // Prevent double voting this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0,0,0,0);
+    
+    const { data: existingVotes } = await supabase
+      .from('peer_voting_records')
+      .select('id')
+      .eq('voter_id', voter_id)
+      .eq('nominee_id', nominee_id)
+      .gte('created_at', startOfMonth.toISOString());
+      
+    if (existingVotes && existingVotes.length > 0) {
+      return res.status(400).json({ error: 'You have already voted for this peer this month' });
+    }
     
     // Average out the 5 parameters to get an integer score out of 5
     const total = parseFloat(attendance) + parseFloat(punctuality) + parseFloat(sops) + parseFloat(peer) + parseFloat(initiative);

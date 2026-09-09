@@ -4,6 +4,7 @@ import { verifyToken, requireAdmin, hashPassword } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { validate } from '../middleware/validate.js';
 import { createUserSchema } from '../schemas/index.js';
+import bcryptjs from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
@@ -34,8 +35,8 @@ async function sendTelegramMessage(chatId, text) {
 router.get('/overview', async (req, res) => {
   try {
     const employees = await dbFetch('Employees', 'id', { status: 'Active' });
-    const positions = await dbFetch('Positions', 'id, title');
-    const leaveRequests = await dbFetch('leave_requests', 'id, status', { status: 'Pending' });
+    const positions = await dbFetch('positions', 'id, title');
+    const leaveRequests = await dbFetch('Leave_Request', 'id, status', { status: 'Pending' });
     
     // In a real scenario we would aggregate payroll, here we mock some basic stats
     const total_employees = employees.length;
@@ -137,6 +138,7 @@ router.post('/chat', async (req, res) => {
       queryEmbedding = embedResult.embedding.values;
     } catch (embErr) {
       console.error('[BOSS CHAT] Embedding failed:', embErr);
+      throw embErr;
     }
 
     let extraKnowledge = "";
@@ -205,16 +207,16 @@ router.post('/chat', async (req, res) => {
     ${contextStr}
     ${historyStr}
     
-    The boss asks: ${message}
-    Be proactive to look up data. 
-    CRITICAL RULES FOR ANALYTICS AND DATA QUERIES:
-    1. If the boss asks an analytical question (e.g., "How many people missed checkout in July?", "Which department has the most late arrivals?", "Total sales this month?"), YOU MUST use the 'execute_analytics_query' tool to run a SQL query and get the exact answer. DO NOT guess or rely on 'fetch_table_records' for aggregations.
     2. When writing SQL for 'execute_analytics_query', ensure it is purely READ-ONLY (SELECT).
     3. If 'execute_analytics_query' returns a SQL error, analyze the error and try again with a corrected SQL query.
     4. For simple record lookups (e.g., "What is John's phone number?"), you may use 'fetch_table_records'.
-    5. DO NOT use action tools (like send_employee_warning, send_team_announcement, etc.) UNLESS the Boss EXPLICITLY and CLEARLY instructs you to do so. Acknowledgements like "okay" or "good" are NOT instructions to take action.
+    5. HUMAN-IN-THE-LOOP REQUIRED: Before executing ANY action tools (e.g. approve_leave_requests, extend_customer_package, create_kpi_task, send_team_announcement, etc.), YOU MUST explicitly ask the user for confirmation and WAIT for their "Yes" or "Confirm" response. Do NOT execute actions on your own initiative or based on assumptions.
     
-    Answer concisely in the Boss's language.`;
+    Answer concisely in the Boss's language.
+    
+    === UNTRUSTED USER INPUT ===
+    The boss asks: <user_input>${message}</user_input>
+    === END UNTRUSTED USER INPUT ===`;
 
     const tools = [{
       functionDeclarations: [
@@ -683,8 +685,8 @@ router.post('/users/add', validate(createUserSchema), async (req, res) => {
     const existing = await dbFetchOne('sys_users', 'id', { username: d.username });
     if (existing) return res.status(400).json({ error: 'Username already exists' });
     
-    // Hash the password with SHA-256 for compatibility with auth.js
-    const hash = 'MUST_CHANGE:' + hashPassword(d.password);
+    // Hash the password with bcrypt
+    const hash = bcryptjs.hashSync(d.password, 10);
 
     await dbInsert('sys_users', {
       username: d.username,
@@ -709,7 +711,7 @@ router.put('/users/:id/toggle', async (req, res) => {
 router.put('/users/:id/reset-password', async (req, res) => {
   try {
     const { new_password } = req.body;
-    const hash = 'MUST_CHANGE:' + hashPassword(new_password);
+    const hash = bcryptjs.hashSync(new_password, 10);
     await dbUpdate('sys_users', req.params.id, { password_hash: hash });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }

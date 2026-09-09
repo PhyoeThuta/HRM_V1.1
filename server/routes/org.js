@@ -105,7 +105,7 @@ router.post('/positions', requireAdmin, async (req, res) => {
     await dbInsert('sys_audit_logs', {
       user_id: req.user.id,
       action: 'CREATE',
-      module: 'Positions',
+      module: 'positions',
       details: `Created position ${d.title}`,
       ip_address: req.ip || '0.0.0.0'
     });
@@ -124,7 +124,7 @@ router.put('/positions/:id', requireAdmin, async (req, res) => {
     await dbInsert('sys_audit_logs', {
       user_id: req.user.id,
       action: 'UPDATE',
-      module: 'Positions',
+      module: 'positions',
       details: `Updated position ${d.title}`,
       ip_address: req.ip || '0.0.0.0'
     });
@@ -138,7 +138,7 @@ router.delete('/positions/:id', requireAdmin, async (req, res) => {
     await dbInsert('sys_audit_logs', {
       user_id: req.user.id,
       action: 'DELETE',
-      module: 'Positions',
+      module: 'positions',
       details: `Deleted position ID: ${req.params.id}`,
       ip_address: req.ip || '0.0.0.0'
     });
@@ -195,7 +195,7 @@ router.post('/positions/:id/publish-facebook', requireAdmin, upload.single('imag
     await dbInsert('sys_audit_logs', {
       user_id: req.user.id,
       action: 'CREATE',
-      module: 'Positions',
+      module: 'positions',
       details: `Published hiring announcement for ${pos.title} via ${result.provider}. Post: ${result.zernioPostId || result.postId}`,
       ip_address: req.ip || '0.0.0.0'
     });

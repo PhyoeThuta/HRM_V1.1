@@ -1,12 +1,25 @@
 import express from 'express';
-import { createClient } from '@supabase/supabase-js';
-import WebSocket from 'ws';
+import { supabaseAdmin } from '../lib/supabase.js';
 
 const router = express.Router();
-const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  realtime: { transport: WebSocket }
-});
+
+// Simple Mutex to prevent duplicate customer codes during concurrent enrollments
+class Mutex {
+  constructor() { this._queue = []; this._locked = false; }
+  async acquire() {
+    return new Promise(resolve => {
+      this._queue.push(resolve);
+      this._dispatch();
+    });
+  }
+  _dispatch() {
+    if (this._locked || this._queue.length === 0) return;
+    this._locked = true;
+    const resolve = this._queue.shift();
+    resolve(() => { this._locked = false; this._dispatch(); });
+  }
+}
+const enrollMutex = new Mutex();
 
 // Helper: generate customer code
 async function generateCustomerCode() {
@@ -130,26 +143,33 @@ router.post('/:token', async (req, res) => {
       return res.status(400).json({ error: 'Form already submitted' });
     }
 
-    // 2. Create Customer Profile
-    const customer_code = await generateCustomerCode();
+    // 2. Create Customer Profile — inside mutex to prevent duplicate BBD codes
+    const release = await enrollMutex.acquire();
+    let newCustomer;
+    try {
+      const customer_code = await generateCustomerCode();
     
-    const { data: newCustomer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
-      .insert({
-        full_name: formData.name || inquiry.prospect_name || 'Customer',
-        facebook_name: formData.fb_name || formData.facebook_name || inquiry.prospect_name || null,
-        age: formData.age ? parseInt(formData.age) : null,
-        gender: formData.gender || 'Unknown',
-        email: formData.email || null,
-        phone: formData.phone || inquiry.prospect_contact || null,
-        address: formData.home_address || null,
-        delivery_address: formData.delivery_address || formData.home_address || null,
-        delivery_notes: formData.delivery_notes || null,
-        customer_code
-      })
-      .select()
-      .single();
+      const { data: createdCustomer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
+        .insert({
+          full_name: formData.name || inquiry.prospect_name || 'Customer',
+          facebook_name: formData.fb_name || formData.facebook_name || inquiry.prospect_name || null,
+          age: formData.age ? parseInt(formData.age) : null,
+          gender: formData.gender || 'Unknown',
+          email: formData.email || null,
+          phone: formData.phone || inquiry.prospect_contact || null,
+          address: formData.home_address || null,
+          delivery_address: formData.delivery_address || formData.home_address || null,
+          delivery_notes: formData.delivery_notes || null,
+          customer_code
+        })
+        .select()
+        .single();
 
-    if (custErr) throw custErr;
+      if (custErr) throw custErr;
+      newCustomer = createdCustomer;
+    } finally {
+      release();
+    }
 
     // 3. Insert health record
     await supabaseAdmin.schema('crm').from('customer_health').insert({
@@ -176,7 +196,7 @@ router.post('/:token', async (req, res) => {
       .update({ 
         onboarding_status: 'completed',
         customer_id: newCustomer.id,
-        status: 'won'
+        status: 'converted'
       })
       .eq('id', inquiry.id);
 

@@ -3,8 +3,12 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 dotenv.config();
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'hrm-secret-key-fallback';
+export const JWT_SECRET = process.env.JWT_SECRET;
 
+if (!JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is missing.');
+  process.exit(1);
+}
 export function hashPassword(plainText) {
   return crypto.createHash('sha256').update(plainText).digest('hex');
 }
@@ -32,8 +36,7 @@ export function generateRefreshToken(user) {
 }
 
 export function verifyToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+  const token = req.cookies?.token;
 
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });
@@ -42,6 +45,14 @@ export function verifyToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    
+    // Server-side enforcement of must_change_password
+    if (decoded.must_change_password) {
+      if (req.originalUrl !== '/api/auth/change-password' && req.originalUrl !== '/api/auth/logout') {
+        return res.status(403).json({ error: 'You must change your temporary password before accessing the system.', must_change_password: true });
+      }
+    }
+    
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Invalid or expired token' });

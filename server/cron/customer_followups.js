@@ -25,6 +25,7 @@ export function startFollowupCron() {
     console.log('[CRON] Running daily CRM follow-ups check...');
     await checkAndNotifyFollowups();
     await checkAndNotifyFormReminders();
+    await autoMarkLostProspects();
   });
 }
 
@@ -259,6 +260,36 @@ export async function checkAndNotifyFormReminders() {
     return { checked: inquiries.length, notified: notifiedCount };
   } catch (err) {
     console.error('[CRON] Error during form reminders:', err.message);
+    return { error: err.message };
+  }
+}
+
+export async function autoMarkLostProspects() {
+  try {
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    // Find inquiries that are NOT 'converted' and NOT 'lost', whose updated_at is older than 3 days ago.
+    const { data: inquiries, error } = await supabaseAdmin.schema('crm')
+      .from('inquiries')
+      .select('id, prospect_name, status')
+      .not('status', 'eq', 'converted')
+      .not('status', 'ilike', 'lost')
+      .lt('updated_at', threeDaysAgo.toISOString());
+
+    if (error) throw error;
+    if (!inquiries || inquiries.length === 0) return { marked: 0 };
+
+    let markedCount = 0;
+    for (const inq of inquiries) {
+      await supabaseAdmin.schema('crm').from('inquiries').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', inq.id);
+      markedCount++;
+    }
+
+    console.log(`[CRON] Auto-marked ${markedCount} prospects as Lost due to 3 days of inactivity.`);
+    return { marked: markedCount };
+  } catch (err) {
+    console.error('[CRON] Error auto-marking lost prospects:', err.message);
     return { error: err.message };
   }
 }

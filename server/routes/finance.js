@@ -20,7 +20,7 @@ router.get('/dashboard', async (req, res) => {
     
     const payrolls = await dbFetch('payrolls', 'id, total_amount, month', {}, { order: 'month', ascending: false });
     const depts = await dbFetch('Departments', 'id');
-    const leaves = await dbFetch('leave_requests', 'id, status', { status: 'Approved' });
+    const leaves = await dbFetch('Leave_Request', 'id, status', { status: 'Approved' });
     
     // Aggregation logic
     const headcount = activeEmployees.length;

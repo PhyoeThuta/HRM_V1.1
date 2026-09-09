@@ -44,13 +44,13 @@ export async function dbFetch(table, columns = '*', filters = {}, options = {}) 
     }
     if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
     if (options.limit) q = q.limit(options.limit);
-    else q = q.limit(500);
+    
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
   } catch (e) {
     console.error(`[DB FETCH] ${table}:`, e.message);
-    return [];
+    throw e;
   }
 }
 
@@ -60,40 +60,34 @@ export async function dbFetchOne(table, columns = '*', filters = {}) {
 }
 
 export async function dbInsert(table, data) {
-  try {
-    const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
-    );
-    const { data: result, error } = await supabase.from(table).insert(clean).select();
-    if (error) throw error;
-    return result?.[0] || null;
-  } catch (e) {
-    console.error(`[DB INSERT] ${table}:`, e.message);
-    return null;
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
+  );
+  const { data: result, error } = await supabase.from(table).insert(clean).select();
+  if (error) {
+    console.error(`[DB INSERT] ${table}:`, error.message);
+    throw error;
   }
+  return result?.[0] || null;
 }
 
 export async function dbUpdate(table, id, data, idCol = 'id') {
-  try {
-    const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== undefined)
-    );
-    const { error } = await supabase.from(table).update(clean).eq(idCol, id);
-    if (error) throw error;
-    return true;
-  } catch (e) {
-    console.error(`[DB UPDATE] ${table}:`, e.message);
-    return false;
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+  const { error } = await supabase.from(table).update(clean).eq(idCol, id);
+  if (error) {
+    console.error(`[DB UPDATE] ${table}:`, error.message);
+    throw error;
   }
+  return true;
 }
 
 export async function dbDelete(table, id, idCol = 'id') {
-  try {
-    const { error } = await supabase.from(table).delete().eq(idCol, id);
-    if (error) throw error;
-    return true;
-  } catch (e) {
-    console.error(`[DB DELETE] ${table}:`, e.message);
-    return false;
+  const { error } = await supabase.from(table).delete().eq(idCol, id);
+  if (error) {
+    console.error(`[DB DELETE] ${table}:`, error.message);
+    throw error;
   }
+  return true;
 }

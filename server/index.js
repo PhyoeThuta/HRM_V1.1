@@ -1,5 +1,7 @@
 import express from 'express';
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -15,6 +17,7 @@ import { initCrmRealtime } from './lib/crmRealtime.js';
 import { startVectorSyncCron } from './services/vectorSync.js';
 
 // Routes
+import { requireAdmin } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import dashboardRouter from './routes/dashboard.js';
 import employeesRouter from './routes/employees.js';
@@ -41,7 +44,7 @@ import dailyFeedbackRouter from './routes/daily_feedback.js';
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 // ── Security & Middleware ──────────────────────────────────────
 app.set('trust proxy', 1); // Trust the first proxy to get real client IPs
@@ -49,24 +52,25 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:5173', 
-      'http://localhost:4173', 
-      'http://127.0.0.1:5173', 
-      'http://localhost:3000', 
-      'http://localhost:3001',
-      'https://hrm.duolinkmm.com'
-    ];
-    if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
-    if (process.env.DIET_BUDDY_URL) allowedOrigins.push(process.env.DIET_BUDDY_URL);
-
-    // Allow requests with no origin (like mobile apps or curl requests)
-    // Allow localhost/env origins
-    // Allow any Vercel deployment dynamically
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-      callback(null, true);
+    if (process.env.ALLOWED_ORIGINS) {
+      const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    }
+    
+    // Fallback if ALLOWED_ORIGINS is missing
+    if (process.env.NODE_ENV === 'production') {
+      console.error('CRITICAL WARNING: ALLOWED_ORIGINS is not set in production. Blocking cross-origin request.');
+      return callback(new Error('Not allowed by CORS'));
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Development fallback
+      const devOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+      if (!origin || devOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -81,25 +85,7 @@ app.use(cookieParser());
 app.use('/api/uploads', express.static('uploads')); // Serve safely under /api path
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
-// --- DEBUG ROUTE FOR PUPPETEER ---
-app.get('/api/debug-pdf', async (req, res) => {
-  try {
-    const puppeteer = require('puppeteer');
-    const browser = await puppeteer.launch({
-      headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-    });
-    const page = await browser.newPage();
-    await page.setContent('<h1>Test</h1>');
-    const pdfBuffer = await page.pdf();
-    await browser.close();
-    res.set('Content-Type', 'application/pdf');
-    res.send(pdfBuffer);
-  } catch (err) {
-    res.status(500).send(`<h2>Puppeteer Error:</h2><pre>${err.message}\n\n${err.stack}</pre>`);
-  }
-});
-// ---------------------------------
+// DEBUG ROUTE REMOVED — Never expose stack traces or internal tooling in production.
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -136,34 +122,61 @@ app.use('/api/boss', bossRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/sops, etc.
 app.use('/api/inventory', inventoryRoutes);
-app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
 app.use('/api/daily-feedback', dailyFeedbackRouter);
-// ── Test Endpoints ─────────────────────────────────────────────
-app.post('/api/test/trigger-birthdays', async (req, res) => {
+// ── Test Endpoints (Admin-Only) ─────────────────────────────────────────────
+// These endpoints are protected by requireAdmin to prevent unauthorized Cron triggering.
+app.post('/api/test/trigger-birthdays', requireAdmin, async (req, res) => {
   const result = await checkAndNotifyBirthdays();
   res.json(result);
 });
 
-app.post('/api/test/trigger-followups', async (req, res) => {
+app.post('/api/test/trigger-followups', requireAdmin, async (req, res) => {
   const result = await checkAndNotifyFollowups();
   res.json(result);
 });
 
-app.post('/api/test/trigger-daily-feedback', async (req, res) => {
+app.post('/api/test/trigger-daily-feedback', requireAdmin, async (req, res) => {
   const result = await checkAndNotifyDailyFeedback();
   res.json(result);
 });
 
-// ── 404 ────────────────────────────────────────────────────────
-app.use((req, res) => {
+// ── Serve React Frontend (Single-Container Deployment) ───────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(express.static(path.join(__dirname, '../hrm-client/dist')));
+
+// Fallback all non-API routes to React's index.html
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, '../hrm-client/dist/index.html'));
+});
+
+// ── 404 for API ────────────────────────────────────────────────
+app.use('/api', (req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
 });
 
+// ── Process-Level Error Handlers (Fail-Safe) ───────────────────
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+});
+
 // ── Error Handler ──────────────────────────────────────────────
+// SECURITY: Never expose stack traces or internal error details to the client.
+// Stack traces reveal file paths, library versions, and server internals to attackers.
 app.use((err, req, res, next) => {
-  console.error('[SERVER ERROR]', err);
-  res.status(500).json({ error: err.stack || err.message || 'Internal server error' });
+  // Always log the full error server-side for debugging.
+  console.error('[SERVER ERROR]', err.stack || err);
+  // Only send a safe, generic message to the client.
+  const statusCode = err.status || err.statusCode || 500;
+  res.status(statusCode).json({ error: err.message || 'Internal server error' });
 });
 
 initCrmRealtime(server);

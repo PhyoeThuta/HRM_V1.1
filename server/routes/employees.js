@@ -215,7 +215,9 @@ router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) 
       return res.json({ success: true, employee: result, message: `Employee added! Login: ${username} / 123456` });
     } catch (userErr) {
       console.error('Auto-create user failed:', userErr);
-      return res.json({ success: true, employee: result });
+      // Rollback employee insertion to maintain data consistency
+      await dbDelete('Employees', result.id).catch(e => console.error('Rollback failed:', e));
+      return res.status(500).json({ error: 'Failed to create user login account. Employee creation rolled back. Reason: ' + userErr.message });
     }
   } catch (e) {
     return res.status(500).json({ error: e.message });

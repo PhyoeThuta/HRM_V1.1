@@ -9,18 +9,14 @@ let socket = null;
 export function getCrmSocket() {
   if (socket?.connected) return socket;
 
-  const token = localStorage.getItem('hrm_token');
-  if (!token) return null;
-
   if (socket) {
-    socket.auth = { token };
     if (!socket.connected) socket.connect();
     return socket;
   }
 
   socket = io({
     path: '/socket.io',
-    auth: { token },
+    withCredentials: true,
     transports: ['websocket', 'polling'],
     autoConnect: true,
     reconnection: true,

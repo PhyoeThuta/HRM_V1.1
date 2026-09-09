@@ -144,6 +144,68 @@ export async function enrichHandover(handover) {
   return handover;
 }
 
+export async function enrichHandoversBulk(handovers) {
+  if (!handovers || handovers.length === 0) return handovers;
+
+  const employees = await dbFetch('Employees', 'id,Full_name,employee_id,Manager_id');
+  const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+
+  // Find leave IDs associated with these handovers
+  const leaveIds = new Set();
+  const handoverIds = new Set();
+  
+  handovers.forEach(h => {
+    if (h.leave_request_id) leaveIds.add(h.leave_request_id);
+    handoverIds.add(h.id);
+  });
+
+  // Since dbFetch doesn't support 'in' natively in this wrapper, we fetch all leaves
+  // if there are any leave linkages needed. In a real world we'd use supabase directly
+  // but dbFetch fetches 500 rows limit which might be okay for now, or use supabaseAdmin.
+  // Actually, let's use supabase directly for bulk fetch to avoid limits.
+  const { supabase } = await import('./supabase.js');
+  
+  let allLeaves = [];
+  if (leaveIds.size > 0 || handoverIds.size > 0) {
+    const { data } = await supabase.from('Leave_Request').select('id,start_date,end_date,status,coverage_handover_id,return_handover_id');
+    allLeaves = data || [];
+  }
+
+  handovers.forEach(handover => {
+    handover.outgoing_name = empMap[handover.outgoing_employee_id]?.Full_name || '—';
+    handover.outgoing_code = empMap[handover.outgoing_employee_id]?.employee_id || '—';
+    handover.successor_name = handover.successor_employee_id
+      ? (empMap[handover.successor_employee_id]?.Full_name || '—')
+      : null;
+    handover.successor_code = handover.successor_employee_id
+      ? (empMap[handover.successor_employee_id]?.employee_id || '—')
+      : null;
+    handover.handover_kind = getHandoverKind(handover);
+    handover.handover_label = getHandoverLabel(handover);
+
+    if (handover.leave_request_id) {
+      const leave = allLeaves.find(l => l.id === handover.leave_request_id);
+      if (leave) {
+        handover.leave_start = leave.start_date;
+        handover.leave_end = leave.end_date;
+        handover.leave_status = leave.status;
+      }
+    } else {
+      const leave = allLeaves.find(l => l.coverage_handover_id === handover.id);
+      const returnLeave = leave ? null : allLeaves.find(l => l.return_handover_id === handover.id);
+      const linked = leave || returnLeave;
+      if (linked) {
+        handover.leave_start = linked.start_date;
+        handover.leave_end = linked.end_date;
+        handover.leave_status = linked.status;
+        if (!handover.leave_request_id) handover.leave_request_id = linked.id;
+      }
+    }
+  });
+
+  return handovers;
+}
+
 export function isActiveHandover(h) {
   return h && !TERMINAL_HANDOVER_STATUSES.includes(h.status);
 }

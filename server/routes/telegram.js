@@ -27,9 +27,11 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('[TELEGRAM ERROR]', errorData);
+      throw new Error(JSON.stringify(errorData));
     }
   } catch (error) {
     console.error('[TELEGRAM ERROR]', error.message);
+    throw error;
   }
 }
 
@@ -51,9 +53,11 @@ async function editTelegramMessageText(chatId, messageId, text) {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('[TELEGRAM ERROR]', errorData);
+      throw new Error(JSON.stringify(errorData));
     }
   } catch (error) {
     console.error('[TELEGRAM ERROR]', error.message);
+    throw error;
   }
 }
 
@@ -113,7 +117,24 @@ router.post('/send-to-chef', async (req, res) => {
 });
 
 // POST /api/telegram/webhook
-router.post('/webhook', async (req, res) => {
+// Security: Telegram will send a secret token in the header if configured via setWebhook.
+// Set TELEGRAM_WEBHOOK_SECRET in .env and pass it when calling:
+//   setWebhook?url=...&secret_token=TELEGRAM_WEBHOOK_SECRET
+router.post('/webhook', (req, res, next) => {
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (incomingSecret !== webhookSecret) {
+      console.warn('[TELEGRAM WEBHOOK] Unauthorized request — invalid or missing secret token. IP:', req.ip);
+      return res.sendStatus(401);
+    }
+  } else {
+    // Log a warning if secret is not configured — do NOT block in case the server hasn't set it yet,
+    // but operators should configure this as soon as possible.
+    console.warn('[TELEGRAM WEBHOOK] ⚠️ TELEGRAM_WEBHOOK_SECRET is not set! Webhook is unprotected. Set this in .env immediately.');
+  }
+  next();
+}, async (req, res) => {
   try {
     const update = req.body;
 

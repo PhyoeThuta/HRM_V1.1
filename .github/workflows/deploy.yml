@@ -1,87 +1,142 @@
-name: Deploy to GCP VM
+name: Build & Deploy to GCP VM
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (leave blank to deploy latest build)"
+        required: false
+        default: ""
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/hrm_v1.1
 
 jobs:
-  deploy:
+  # ─────────────────────────────────────────────────────────────────
+  # Job 1: Build Docker image and push to GitHub Container Registry
+  # ─────────────────────────────────────────────────────────────────
+  build:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Deploy via SSH to GCP
-      uses: appleboy/ssh-action@v1.0.3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        EMAIL_USER: ${{ secrets.EMAIL_USER }}
-        EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-        PAYMENT_INFO_TEXT: ${{ secrets.PAYMENT_INFO_TEXT }}
-        VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
-      with:
-        host: ${{ secrets.GCP_VM_IP }}
-        username: ${{ secrets.GCP_USERNAME }}
-        key: ${{ secrets.GCP_SSH_KEY }}
-        envs: GITHUB_TOKEN,EMAIL_USER,EMAIL_PASS,PAYMENT_INFO_TEXT,VITE_GOOGLE_MAPS_API_KEY
-        script: |
-          # 1. Navigate to project folder
-          cd /var/www/hrm_react
-          
-          # 2. Pull latest code from GitHub (init if first time)
-          if [ ! -d ".git" ]; then
-            git init
-            git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/PhyoeThuta/HRM_V1.1.git
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Pass VITE build-time arg securely from GitHub Secrets
+          build-args: |
+            VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          # Layer cache from GHCR for faster builds
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to:   type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  # ─────────────────────────────────────────────────────────────────
+  # Job 2: Deploy new image to GCP VM via SSH
+  # ─────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to GCP VM
+    runs-on: ubuntu-latest
+    needs: build
+    # Only deploy to production from main branch
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Resolve image tag to deploy
+        id: resolve_tag
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
           else
-            git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/PhyoeThuta/HRM_V1.1.git
+            echo "IMAGE_TAG=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
           fi
-          
-          git fetch --all
-          git reset --hard origin/main
-          
-          # 3. Build React Frontend
-          echo "Building Frontend..."
-          cd hrm-client
-          
-          # Inject Frontend Secrets into .env
-          touch .env
-          grep -q "^VITE_GOOGLE_MAPS_API_KEY=" .env && sed -i "s|^VITE_GOOGLE_MAPS_API_KEY=.*|VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY|" .env || echo "VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY" >> .env
 
-          npm install
-          npm run build
-          
-          # Start Frontend via PM2 (in case Nginx proxies to it)
-          pm2 delete hrm_react_client || true
-          pm2 start npm --name "hrm_react_client" -- run preview -- --port 4173
-          
-          # 4. Setup and Restart Node.js Backend
-          echo "Restarting Backend API..."
-          cd ../server
-          
-          # Inject Secrets into .env file
-          touch .env
-          grep -q "^EMAIL_USER=" .env && sed -i "s/^EMAIL_USER=.*/EMAIL_USER=$EMAIL_USER/" .env || echo "EMAIL_USER=$EMAIL_USER" >> .env
-          grep -q "^EMAIL_PASS=" .env && sed -i "s/^EMAIL_PASS=.*/EMAIL_PASS=$EMAIL_PASS/" .env || echo "EMAIL_PASS=$EMAIL_PASS" >> .env
-          grep -q "^PAYMENT_INFO_TEXT=" .env && sed -i "s|^PAYMENT_INFO_TEXT=.*|PAYMENT_INFO_TEXT=\"$PAYMENT_INFO_TEXT\"|" .env || echo "PAYMENT_INFO_TEXT=\"$PAYMENT_INFO_TEXT\"" >> .env
-          grep -q "^FRONTEND_URL=" .env && sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=https://hrm.duolinkmm.com|" .env || echo "FRONTEND_URL=https://hrm.duolinkmm.com" >> .env
+      - name: Deploy via SSH to GCP VM
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host:     ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key:      ${{ secrets.GCP_SSH_KEY }}
+          envs:     IMAGE_TAG,IMAGE_NAME,GITHUB_ACTOR,GITHUB_TOKEN
+          script: |
+            set -euo pipefail
 
-          # Install Puppeteer Chromium dependencies (Ubuntu/Debian)
-          sudo apt-get update || true
-          sudo apt-get install -yq fonts-sil-padauk fonts-noto-core fonts-noto-cjk libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libcairo2 libpango-1.0-0 || true
+            echo "=== Deploying image: ${IMAGE_NAME}:${IMAGE_TAG} ==="
 
-          npm install --no-audit --no-fund
-          
-          # Delete only the specific backend process instead of 'all' to prevent killing other services
-          pm2 delete hrm_react_api || true
-          pm2 start index.js --name "hrm_react_api"
-          pm2 save
-          # Increase Nginx payload limit to allow large photo check-ins
-          sudo sed -i 's/client_max_body_size .*/client_max_body_size 50M;/' /etc/nginx/nginx.conf || true
-          if ! grep -q "client_max_body_size 50M;" /etc/nginx/nginx.conf; then
-            sudo sed -i '/http {/a \    client_max_body_size 50M;' /etc/nginx/nginx.conf || true
-          fi
-          sudo systemctl reload nginx || true
-          
-          echo "Deployment Successful!"
+            # Authenticate to GHCR from the VM
+            echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+            # Pull the new image before stopping the old one (pre-pull for faster cutover)
+            docker pull "${IMAGE_NAME}:${IMAGE_TAG}"
+
+            # Update the IMAGE_TAG for docker compose
+            export IMAGE_TAG="${IMAGE_TAG}"
+
+            # Navigate to the compose file location
+            cd /opt/bbd
+
+            # Write current IMAGE_TAG to .env so docker compose picks it up
+            echo "IMAGE_TAG=${IMAGE_TAG}" > .compose.env
+
+            # Rolling replace: start new container, old one is stopped automatically
+            IMAGE_TAG="${IMAGE_TAG}" docker compose up -d --pull never
+
+            # Wait for health check to pass (max 60s)
+            echo "=== Waiting for health check ==="
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' bbd_hrm_app 2>/dev/null || echo "starting")
+              echo "Health: ${STATUS} (attempt ${i}/12)"
+              if [ "${STATUS}" = "healthy" ]; then
+                echo "=== Deployment successful! ==="
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "=== ERROR: Container failed health check. Rolling back. ==="
+            # Rollback: find the previously running image and restart it
+            PREVIOUS_IMAGE=$(docker ps -a --filter "name=bbd_hrm_app" --format "{{.Image}}" | tail -n 2 | head -n 1 || true)
+            if [ -n "${PREVIOUS_IMAGE}" ]; then
+              IMAGE_TAG=$(echo "${PREVIOUS_IMAGE}" | cut -d: -f2) docker compose up -d --pull never
+            fi
+            exit 1

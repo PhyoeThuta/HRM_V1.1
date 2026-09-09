@@ -12,6 +12,11 @@ import {
 
 const router = express.Router();
 
+// ── SECURITY: Global authentication guard ────────────────────────
+// ALL CRM routes require a valid JWT. This ensures that even if a developer
+// forgets to add verifyToken to a new route, it is still protected by default.
+router.use(verifyToken);
+
 // Multer memory storage for photo uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -40,6 +45,30 @@ async function generateCustomerCode() {
   }
   return `BBD-${String(num).padStart(3, '0')}`;
 }
+
+class Mutex {
+  constructor() {
+    this._queue = [];
+    this._locked = false;
+  }
+  async acquire() {
+    return new Promise(resolve => {
+      this._queue.push(resolve);
+      this._dispatch();
+    });
+  }
+  _dispatch() {
+    if (this._locked || this._queue.length === 0) return;
+    this._locked = true;
+    const resolve = this._queue.shift();
+    resolve(() => {
+      this._locked = false;
+      this._dispatch();
+    });
+  }
+}
+
+const customerCreationMutex = new Mutex();
 
 // ──────────────────────────────────────────────────────────────────
 // SETTINGS (LEVELS)
@@ -184,7 +213,9 @@ router.post('/customers', verifyToken, async (req, res) => {
 
     if (!full_name) return res.status(400).json({ error: 'full_name is required' });
 
-    const customer_code = await generateCustomerCode();
+    const release = await customerCreationMutex.acquire();
+    try {
+      const customer_code = await generateCustomerCode();
 
     // Insert customer
     const { data: customer, error: custErr } = await supabaseAdmin
@@ -217,7 +248,17 @@ router.post('/customers', verifyToken, async (req, res) => {
       fasting_willingness: fasting_willingness || 'No',
     });
 
+    // Add to MailerLite
+    if (email) {
+      import('./mailerlite.js').then(({ default: mailerlite }) => {
+        mailerlite.addSubscriber(email, full_name, { age, gender, phone }).catch(e => console.error('[MailerLite Add Failed]', e.message));
+      }).catch(err => console.error('Failed to load mailerlite module', err));
+    }
+
     return res.status(201).json(customer);
+    } finally {
+      release();
+    }
   } catch (e) {
     console.error('[CRM POST CUSTOMER]', e.message);
     return res.status(500).json({ error: e.message });
@@ -676,13 +717,24 @@ router.post('/kitchen-dashboard/deduct-meals', verifyToken, async (req, res) => 
     if (fetchErr) throw fetchErr;
     
     let deductedCount = 0;
-    // Basic loop update (in production, use RPC for bulk update)
+    
+    // Group packages by their current meal_count to perform bulk updates
+    const groups = {};
     for (const pkg of packages) {
+      if (!groups[pkg.meal_count]) groups[pkg.meal_count] = [];
+      groups[pkg.meal_count].push(pkg.id);
+    }
+    
+    for (const [mealCountStr, ids] of Object.entries(groups)) {
+      const mealCount = parseInt(mealCountStr, 10);
       const { error } = await supabaseAdmin.schema('crm')
         .from('customer_packages')
-        .update({ meal_count: pkg.meal_count - 1 })
-        .eq('id', pkg.id);
-      if (!error) deductedCount++;
+        .update({ meal_count: mealCount - 1 })
+        .in('id', ids);
+        
+      if (!error) {
+        deductedCount += ids.length;
+      }
     }
     
     return res.json({ success: true, message: `Deducted 1 meal from ${deductedCount} active packages.` });
@@ -1071,7 +1123,7 @@ The JSON must have the following exact keys:
   "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100),
-  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'converted', 'closed').",
+  "pipeline_status": "string (must be EXACTLY one of: 'new', 'hot', 'pending', 'converted', 'lost').",
   "auto_reply_text": "string or null. CRITICAL RULE: If the PROSPECT asks a question or asks for details/explanation, you MUST return a polite Burmese reply explaining the packages and do NOT send payment info yet. ONLY send Payment Details if the prospect explicitly asks 'How to pay?', 'Where to transfer?', or says they are ready to transfer money now. If they just say 'thank you' or 'ok', return null."
 }
 
@@ -1133,10 +1185,12 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
         if (newMsg) emitInquiryMessage(inquiryId, newMsg);
       } catch (err) {
         console.error('[CRM AI AUTO REPLY ERROR]', err);
+        throw err;
       }
     }
   } catch (aiErr) {
     console.error('[CRM AI ANALYSIS ERROR]', aiErr);
+    throw aiErr;
   }
 }
 
@@ -1253,7 +1307,7 @@ router.post('/webhooks/zernio', async (req, res) => {
         id: payload.sender?.id || payload.message?.sender?.id || payload.entry?.[0]?.messaging?.[0]?.sender?.id
       },
       imageUrl: imageUrl,
-      raw_webhook_payload: payload
+      // Note: raw payload is intentionally NOT stored to prevent PII data accumulation in DB
     };
 
     // Ignore webhooks for outgoing messages (e.g. admin replying from Facebook Pages)
@@ -1294,7 +1348,7 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     if (newMsg) emitInquiryMessage(inquiryId, newMsg);
 
-    setTimeout(() => triggerAIAnalysis(inquiryId, conversationId), 100);
+    setTimeout(() => triggerAIAnalysis(inquiryId, conversationId).catch(err => console.error('[CRM AI BACKGROUND ERROR]', err)), 100);
 
     return res.status(200).json({ ok: true, inquiry_id: inquiryId, message_id: newMsg?.id, created: !!createdInquiry });
   } catch (err) {
@@ -1327,7 +1381,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
     emitInquiryMessage(id, newMsg);
     
     // 2. Run AI Analysis in the background
-    setTimeout(() => triggerAIAnalysis(id), 100);
+    setTimeout(() => triggerAIAnalysis(id).catch(err => console.error('[CRM AI BACKGROUND ERROR]', err)), 100);
 
     // 3. Send message to Facebook via Zernio (or direct FB fallback) if it's an admin reply
     if ((!sender_type || sender_type === 'admin') && (process.env.ZERNIO_API_KEY || process.env.FACEBOOK_PAGE_ACCESS_TOKEN)) {
@@ -1361,6 +1415,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
             if (!zernioResponse.ok || zernioResult.error) {
               const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
               console.error('[ZERNIO SEND ERROR]', errorDetail);
+              throw new Error(errorDetail);
             }
           } else {
             // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
@@ -1379,12 +1434,14 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
               const fbResult = await fbResponse.json();
               if (fbResult.error) {
                 console.error('[FB SEND ERROR]', fbResult.error);
+                throw new Error(fbResult.error.message || JSON.stringify(fbResult.error));
               }
             }
           }
         }
       } catch (fbErr) {
         console.error('[REPLY SEND ERROR]', fbErr.message);
+        throw fbErr;
       }
     }
 
@@ -1539,9 +1596,9 @@ router.get('/dashboard', verifyToken, async (req, res) => {
 
     const [
       { count: totalCustomers },
-      { count: totalLeads },
+      { data: allPackages },
+      { data: allInquiriesForStatus },
       { data: convertedLeads },
-      { count: activePackages },
       { count: upcomingBookings },
       { data: upcomingRenewals },
       { data: recentLeads },
@@ -1550,9 +1607,9 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       { data: recentFeedbacks },
     ] = await Promise.all([
       supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
-      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
+      supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, amount, payment_status'),
+      supabaseAdmin.schema('crm').from('inquiries').select('id, status, notes, updated_at, customer_id'),
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
       supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Upcoming'),
       supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
       supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
@@ -1560,6 +1617,54 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('inquiries').select('source'),
       supabaseAdmin.schema('crm').from('feedbacks').select('*, customers!inner(full_name)').order('created_at', { ascending: false }).limit(30),
     ]);
+
+    // Calculate 8 Dashboard Metrics
+    const pkgs = allPackages || [];
+    let totalRevenue = 0;
+    let activeCustomersSet = new Set();
+    let hasExpiredPackagesSet = new Set();
+    let hasAnyPackageSet = new Set();
+
+    pkgs.forEach(pkg => {
+      hasAnyPackageSet.add(pkg.customer_id);
+      if (pkg.payment_status === 'Paid') {
+        totalRevenue += (Number(pkg.amount) || 0);
+      }
+      
+      const expiresAtDate = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
+      expiresAtDate.setHours(0,0,0,0);
+      const todayDate = new Date();
+      todayDate.setHours(0,0,0,0);
+
+      const isActive = (expiresAtDate >= todayDate) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
+
+      if (isActive) {
+        activeCustomersSet.add(pkg.customer_id);
+      } else {
+        hasExpiredPackagesSet.add(pkg.customer_id);
+      }
+    });
+
+    let churnedCustomers = 0;
+    hasExpiredPackagesSet.forEach(cid => {
+      if (!activeCustomersSet.has(cid)) churnedCustomers++;
+    });
+
+    let hotProspects = 0, followUpProspects = 0, pendingProspects = 0, lostProspects = 0;
+    (allInquiriesForStatus || []).forEach(inq => {
+      const s = (inq.status || '').toLowerCase();
+      
+      // Best Practice: If an inquiry is linked to a customer, it is fundamentally "converted", regardless of its status string.
+      if (inq.customer_id || s === 'converted') {
+        // Already converted, do not count as pending/followup
+        return;
+      }
+
+      if (s === 'hot') hotProspects++;
+      else if (s === 'pending') pendingProspects++;
+      else if (s === 'lost') lostProspects++;
+      else followUpProspects++;
+    });
 
     const mappedRenewals = (upcomingRenewals || []).map(pkg => {
       const daysLeft = Math.ceil((new Date(pkg.expires_at) - new Date(today)) / (1000 * 60 * 60 * 24));
@@ -1595,13 +1700,10 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       else sourceCounts['Other']++;
     });
 
-    // Filter flagged feedbacks
     const flaggedFeedback = (recentFeedbacks || [])
       .filter(fb => {
         const comment = fb.comment || '';
         if (comment.includes('[RESOLVED]')) return false;
-        
-        // Flag if rating is bad or if it's explicitly a complaint or request
         return fb.rating <= 2 || comment.includes('[COMPLAIN]') || comment.includes('[REQUEST]');
       })
       .map(fb => {
@@ -1629,11 +1731,16 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       });
 
     return res.json({
+      // The 8 new metrics
+      totalRevenue,
       totalCustomers: totalCustomers || 0,
-      activeLeads: totalLeads || 0,
-      convertedThisMonth: convertedLeads?.length || 0,
-      activePackages: activePackages || 0,
-      upcomingBookings: upcomingBookings || 0,
+      activeCustomers: activeCustomersSet.size,
+      churnedCustomers,
+      hotProspects,
+      followUpProspects,
+      pendingProspects,
+      lostProspects,
+      // Legacy metrics for charts/bottom UI
       upcomingRenewals: mappedRenewals,
       recentLeads: recentLeads || [],
       customerGrowth: customerGrowth,
@@ -1642,6 +1749,90 @@ router.get('/dashboard', verifyToken, async (req, res) => {
     });
   } catch (e) {
     console.error('[CRM DASHBOARD]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/crm/segments/:segment
+router.get('/segments/:segment', verifyToken, async (req, res) => {
+  try {
+    const { segment } = req.params;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    if (segment === 'revenue') {
+      const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, phone, customer_code)').eq('payment_status', 'Paid').order('created_at', { ascending: false });
+      if (error) throw error;
+      return res.json(data);
+    } 
+    else if (segment === 'customers') {
+      const { data, error } = await supabaseAdmin.schema('crm').from('customers').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return res.json(data);
+    } 
+    else if (segment === 'active') {
+      const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
+        .select('*, customers!inner(full_name, phone, customer_code)')
+        .in('status', ['Active', 'Paused', 'Upcoming'])
+        .order('expires_at', { ascending: false });
+      if (error) throw error;
+      
+      const filtered = data.filter(pkg => {
+        const exp = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
+        exp.setHours(0,0,0,0);
+        return (exp >= today) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
+      });
+      return res.json(filtered);
+    } 
+    else if (segment === 'churned') {
+      const { data: allPackages, error: pkgErr } = await supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, customers!inner(*)');
+      if (pkgErr) throw pkgErr;
+
+      let activeSet = new Set();
+      let hasExpiredSet = new Set();
+      let customerMap = new Map();
+
+      (allPackages || []).forEach(pkg => {
+        customerMap.set(pkg.customer_id, pkg.customers);
+        const exp = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
+        exp.setHours(0,0,0,0);
+        
+        const isActive = (exp >= today) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
+
+        if (isActive) {
+          activeSet.add(pkg.customer_id);
+        } else {
+          hasExpiredSet.add(pkg.customer_id);
+        }
+      });
+
+      let churned = [];
+      hasExpiredSet.forEach(cid => {
+        if (!activeSet.has(cid)) churned.push(customerMap.get(cid));
+      });
+      return res.json(churned);
+    } 
+    else if (segment === 'hot' || segment === 'pending' || segment === 'lost') {
+      const { data, error } = await supabaseAdmin.schema('crm').from('inquiries').select('*').eq('status', segment).order('created_at', { ascending: false });
+      if (error) throw error;
+      return res.json(data);
+    } 
+    else if (segment === 'follow_up') {
+      const { data, error } = await supabaseAdmin.schema('crm').from('inquiries').select('*')
+        .is('customer_id', null)
+        .not('status', 'eq', 'converted')
+        .not('status', 'eq', 'hot')
+        .not('status', 'eq', 'pending')
+        .not('status', 'eq', 'lost')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return res.json(data);
+    } 
+    else {
+      return res.json([]);
+    }
+  } catch (e) {
+    console.error('[CRM GET SEGMENT]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });

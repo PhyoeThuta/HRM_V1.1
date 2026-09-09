@@ -4,29 +4,38 @@ import api from '../api/client';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('hrm_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  });
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (userData, token) => {
-    localStorage.setItem('hrm_token', token);
-    localStorage.setItem('hrm_user', JSON.stringify(userData));
+  useEffect(() => {
+    // Fetch user session on load using the httpOnly cookie
+    api.get('/auth/me')
+      .then(res => {
+        setUser(res.data.user);
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const login = (userData) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    localStorage.removeItem('hrm_token');
-    localStorage.removeItem('hrm_user');
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout API failed:', e);
+    }
     setUser(null);
   };
 
   const updateUser = (updates) => {
     const updatedUser = { ...user, ...updates };
-    localStorage.setItem('hrm_user', JSON.stringify(updatedUser));
     setUser(updatedUser);
   };
 

@@ -142,6 +142,7 @@ export const crmApi = {
   getFeedbacks: () => api.get('/crm/feedbacks').then(r => r.data),
 
   getDashboard: () => api.get('/crm/dashboard').then(r => r.data),
+  getSegment: (segment) => api.get(`/crm/segments/${segment}`).then(r => r.data),
   
   getSalesAnalytics: () => api.get('/crm/analytics/sales').then(r => r.data),
   getLeadAnalytics: () => api.get('/crm/analytics/leads').then(r => r.data),

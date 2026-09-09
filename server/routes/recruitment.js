@@ -35,7 +35,7 @@ router.post('/', requireAdmin, async (req, res) => {
       status: d.status || 'Applied', notes: d.notes || null,
       created_at: new Date().toISOString(),
     });
-    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Recruitment', details: `Added candidate ${d.candidate_name}`, ip_address: req.ip || '0.0.0.0' });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'CREATE', module: 'Recruitment', details: `Added candidate ${d.candidate_name}` });
     return res.json({ success: !!result, candidate: result });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -49,7 +49,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       position_id: d.position_id, status: d.status, notes: d.notes,
       updated_at: new Date().toISOString(),
     });
-    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Updated candidate ${d.candidate_name || req.params.id}`, ip_address: req.ip || '0.0.0.0' });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'UPDATE', module: 'Recruitment', details: `Updated candidate ${d.candidate_name || req.params.id}` });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
@@ -58,7 +58,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await dbDelete('recruitment_candidates', req.params.id);
-    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Recruitment', details: `Deleted candidate ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
+    await dbInsert('sys_audit_logs', { user_id: req.user.id, action: 'DELETE', module: 'Recruitment', details: `Deleted candidate ID: ${req.params.id}` });
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });

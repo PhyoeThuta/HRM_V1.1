@@ -6,12 +6,8 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every request
+// API Interceptor for future use, credentials are automatically handled by browser
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('hrm_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
   return config;
 });
 
@@ -52,17 +48,16 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        localStorage.setItem('hrm_token', data.token);
+        // No need to store token in localStorage, it's in httpOnly cookie now.
         localStorage.setItem('hrm_user', JSON.stringify(data.user));
         
-        api.defaults.headers.common['Authorization'] = 'Bearer ' + data.token;
-        originalRequest.headers['Authorization'] = 'Bearer ' + data.token;
+        // Remove manual Authorization header injection
+        // Cookies are sent automatically with `withCredentials: true`
         
-        processQueue(null, data.token);
+        processQueue(null, 'cookie'); // token is irrelevant now
         return api(originalRequest);
       } catch (err) {
         processQueue(err, null);
-        localStorage.removeItem('hrm_token');
         localStorage.removeItem('hrm_user');
         window.location.href = '/login';
         return Promise.reject(err);

@@ -63,7 +63,8 @@ router.post('/request', async (req, res) => {
       requested_hours = (end - start) / 3600000;
       if (requested_hours < 0) requested_hours += 24; // Handle overnight shift
     } catch (e) {
-      console.error(e);
+      console.error('Failed to parse overtime hours', e);
+      throw new Error('Invalid start or end time format.');
     }
 
     const status = requested_by === 'hr_boss' ? 'Pending_Employee_Acceptance' : 'Pending_Boss_Approval';

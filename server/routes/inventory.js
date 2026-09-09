@@ -15,13 +15,12 @@ async function invFetch(table, columns = '*', filters = {}, options = {}) {
     }
     if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
     if (options.limit) q = q.limit(options.limit);
-    else q = q.limit(500);
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
   } catch (e) {
     console.error(`[INV FETCH] ${table}:`, e.message);
-    return [];
+    throw e;
   }
 }
 
@@ -31,42 +30,36 @@ async function invFetchOne(table, columns = '*', filters = {}) {
 }
 
 async function invInsert(table, data) {
-  try {
-    const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
-    );
-    const { data: result, error } = await supabase.from('inventory_' + table).insert(clean).select();
-    if (error) throw error;
-    return result?.[0] || null;
-  } catch (e) {
-    console.error(`[INV INSERT] ${table}:`, e.message);
-    return null;
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
+  );
+  const { data: result, error } = await supabase.from('inventory_' + table).insert(clean).select();
+  if (error) {
+    console.error(`[INV INSERT] ${table}:`, error.message);
+    throw error;
   }
+  return result?.[0] || null;
 }
 
 async function invUpdate(table, id, data, idCol = 'id') {
-  try {
-    const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== undefined)
-    );
-    const { data: result, error } = await supabase.from('inventory_' + table).update(clean).eq(idCol, id).select();
-    if (error) throw error;
-    return result?.[0] || null;
-  } catch (e) {
-    console.error(`[INV UPDATE] ${table}:`, e.message);
-    return null;
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+  const { data: result, error } = await supabase.from('inventory_' + table).update(clean).eq(idCol, id).select();
+  if (error) {
+    console.error(`[INV UPDATE] ${table}:`, error.message);
+    throw error;
   }
+  return result?.[0] || null;
 }
 
 async function invDelete(table, id, idCol = 'id') {
-  try {
-    const { error } = await supabase.from('inventory_' + table).delete().eq(idCol, id);
-    if (error) throw error;
-    return true;
-  } catch (e) {
-    console.error(`[INV DELETE] ${table}:`, e.message);
-    return false;
+  const { error } = await supabase.from('inventory_' + table).delete().eq(idCol, id);
+  if (error) {
+    console.error(`[INV DELETE] ${table}:`, error.message);
+    throw error;
   }
+  return true;
 }
 
 // ==========================================
@@ -191,7 +184,31 @@ router.get('/transactions', async (req, res) => {
   }
 });
 
+class Mutex {
+  constructor() {
+    this._queue = [];
+    this._locked = false;
+  }
+  async acquire() {
+    return new Promise(resolve => {
+      this._queue.push(resolve);
+      this._dispatch();
+    });
+  }
+  _dispatch() {
+    if (this._locked || this._queue.length === 0) return;
+    this._locked = true;
+    const resolve = this._queue.shift();
+    resolve(() => {
+      this._locked = false;
+      this._dispatch();
+    });
+  }
+}
+const manualInvMutex = new Mutex();
+
 router.post('/transactions', async (req, res) => {
+  const release = await manualInvMutex.acquire();
   try {
     const { item_id, transaction_type, quantity_change, unit_price_at_transaction, reference_type, reference_id } = req.body;
     
@@ -229,6 +246,8 @@ router.post('/transactions', async (req, res) => {
     return res.json({ success: true, transaction: tx, new_quantity: newQty });
   } catch (e) {
     return res.status(500).json({ error: e.message });
+  } finally {
+    release();
   }
 });
 

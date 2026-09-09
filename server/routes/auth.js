@@ -6,12 +6,16 @@ import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// Verify password: bcrypt (if starts with $2b$) OR SHA-256 fallback
 function verifyPassword(plain, stored) {
   if (!stored) return false;
   if (stored.startsWith('$2b$') || stored.startsWith('$2a$')) {
-    return bcryptjs.compareSync(plain, stored);
+    // Try plain text first (for new passwords)
+    if (bcryptjs.compareSync(plain, stored)) return true;
+    // Try SHA256 wrapped text (for migrated passwords)
+    if (bcryptjs.compareSync(hashPassword(plain), stored)) return true;
+    return false;
   }
+  // Legacy fallback for unmigrated
   return hashPassword(plain) === stored;
 }
 
@@ -28,6 +32,10 @@ router.post('/login', async (req, res) => {
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    if (!user.is_active) {
+      return res.status(401).json({ error: 'User account is disabled' });
     }
 
     let stored = user.password_hash || '';
@@ -57,19 +65,32 @@ router.post('/login', async (req, res) => {
 
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: false, // process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Changed from strict to lax to allow top-level navigations
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+
     return res.json({
-      token,
       user: payload,
     });
   } catch (e) {
     console.error('[AUTH LOGIN]', e);
     return res.status(500).json({ error: 'Server error' });
   }
+});
+
+// POST /api/auth/logout
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', { sameSite: 'strict' });
+  res.clearCookie('refresh_token', { sameSite: 'strict' });
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // POST /api/auth/refresh
@@ -105,9 +126,15 @@ router.post('/refresh', async (req, res) => {
     };
 
     const newToken = generateToken(payload);
-    // Return a new refresh token too? Optionally yes, but currently we just keep the old one unless they login again.
     
-    return res.json({ token: newToken, user: payload });
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+    
+    return res.json({ user: payload });
   } catch (e) {
     console.log(`[AUTH REFRESH] Failed: jwt.verify error:`, e.message);
     return res.status(401).json({ error: 'Invalid refresh token' });
@@ -119,11 +146,6 @@ router.get('/me', verifyToken, (req, res) => {
   return res.json({ user: req.user });
 });
 
-// POST /api/auth/logout
-router.post('/logout', (req, res) => {
-  res.clearCookie('refresh_token');
-  return res.json({ message: 'Logged out successfully' });
-});
 
 // POST /api/auth/change-password
 router.post('/change-password', verifyToken, async (req, res) => {
@@ -144,7 +166,7 @@ router.post('/change-password', verifyToken, async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Incorrect current password' });
     
     // 2. Hash new password and update
-    const newHash = hashPassword(newPassword);
+    const newHash = bcryptjs.hashSync(newPassword, 10);
     await dbUpdate('sys_users', user.id, { password_hash: newHash });
     
     return res.json({ message: 'Password updated successfully' });
