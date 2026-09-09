@@ -1247,11 +1247,12 @@ router.post('/webhooks/zernio', async (req, res) => {
       .limit(10);
 
     if (recentMsgs && recentMsgs.length > 0) {
-      const match = recentMsgs.find(m => m.message_text?.trim() === text.trim());
+      // Only deduplicate prospect messages (same sender within 10 seconds).
+      // NEVER skip an incoming prospect message just because an admin sent the same text.
+      const match = recentMsgs.find(m => m.message_text?.trim() === text.trim() && m.sender_type === 'prospect');
       if (match) {
         const timeDiff = Math.abs(new Date() - new Date(match.created_at));
-        const isEcho = (match.sender_type === 'prospect' && timeDiff < 10000) || 
-                       (match.sender_type !== 'prospect' && timeDiff < 900000); // 15 mins for admin echoes
+        const isEcho = timeDiff < 10000; // only 10s dedup for prospect echoes
                        
         if (isEcho) {
           console.log('[WEBHOOK ECHO IGNORED]', text.substring(0, 50));
