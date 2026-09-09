@@ -121,6 +121,26 @@ jobs:
             # Pull the new image before stopping the old one (pre-pull for faster cutover)
             docker pull "${IMAGE_NAME}:${IMAGE_TAG}"
 
+            # ── PM2 → Docker Cutover ──────────────────────────────────────────
+            # Stop PM2 processes if they exist (one-time migration from old setup)
+            if command -v pm2 &> /dev/null; then
+              echo "=== Stopping PM2 processes to free port 8080 ==="
+              pm2 stop hrm_react_api 2>/dev/null || true
+              pm2 stop hrm_react_client 2>/dev/null || true
+              pm2 delete hrm_react_api 2>/dev/null || true
+              pm2 delete hrm_react_client 2>/dev/null || true
+              pm2 save 2>/dev/null || true
+            fi
+
+            # Safety net: kill anything still holding port 8080
+            PIDS=$(lsof -ti tcp:8080 2>/dev/null || true)
+            if [ -n "${PIDS}" ]; then
+              echo "=== Force-killing leftover process on port 8080 (PID: ${PIDS}) ==="
+              echo "${PIDS}" | xargs kill -9 2>/dev/null || true
+              sleep 2
+            fi
+            # ─────────────────────────────────────────────────────────────────
+
             # Update the IMAGE_TAG for docker compose
             export IMAGE_TAG="${IMAGE_TAG}"
 
