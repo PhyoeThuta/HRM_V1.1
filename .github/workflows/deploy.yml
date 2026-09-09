@@ -12,7 +12,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/hrm_v1.1
+  IMAGE_NAME: ghcr.io/phyoethuta/hrm_v1.1
 
 jobs:
   # ─────────────────────────────────────────────────────────────────
