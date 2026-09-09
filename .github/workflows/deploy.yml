@@ -77,6 +77,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
+      - name: Checkout code (needed for docker-compose.yml)
+        uses: actions/checkout@v4
+
       - name: Resolve image tag to deploy
         id: resolve_tag
         run: |
@@ -85,6 +88,15 @@ jobs:
           else
             echo "IMAGE_TAG=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
           fi
+
+      - name: Copy docker-compose.yml to GCP VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host:     ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key:      ${{ secrets.GCP_SSH_KEY }}
+          source:   "docker-compose.yml"
+          target:   "/opt/bbd"
 
       - name: Deploy via SSH to GCP VM
         uses: appleboy/ssh-action@v1.0.3
