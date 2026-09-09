@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
 import { toast } from 'react-hot-toast';
+import api from '../../api/client';
 
 export default function FormBuilder() {
   const [schema, setSchema] = useState([]);
@@ -16,14 +17,8 @@ export default function FormBuilder() {
 
   const fetchFormSettings = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:3000/api/crm/settings/form', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSchema(data.schema || []);
-      }
+      const { data } = await api.get('/crm/settings/form');
+      setSchema(data.schema || []);
     } catch (err) {
       console.error(err);
       toast.error('Failed to load form settings');
@@ -35,20 +30,11 @@ export default function FormBuilder() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:3000/api/crm/settings/form', {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schema })
-      });
-      if (res.ok) {
-        toast.success('Form settings saved successfully!');
-      } else {
-        toast.error('Failed to save settings');
-      }
+      await api.put('/crm/settings/form', { schema });
+      toast.success('Form settings saved successfully!');
     } catch (err) {
       console.error(err);
-      toast.error('An error occurred');
+      toast.error('Failed to save settings');
     } finally {
       setIsSaving(false);
     }

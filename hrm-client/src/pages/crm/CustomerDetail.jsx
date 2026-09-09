@@ -119,6 +119,7 @@ export default function CustomerDetail() {
   }, [packageForm.start_date, packageForm.duration]);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchCustomerAndInquiries = async () => {
       try {
         const [data, inquiriesData, packagesData] = await Promise.all([
@@ -126,6 +127,7 @@ export default function CustomerDetail() {
           crmApi.getCustomerInquiries(id),
           crmApi.getPackages()
         ]);
+        if (!isMounted) return;
         setCustomer(data);
         setLinkedInquiries(inquiriesData);
         setAvailablePackages(packagesData);
@@ -140,11 +142,13 @@ export default function CustomerDetail() {
           });
         }
       } catch (e) {
+        if (!isMounted) return;
         toast.error('Failed to load customer profile');
         console.error(e);
       }
     };
     fetchCustomerAndInquiries();
+    return () => { isMounted = false; };
   }, [id]);
 
   const openLinkModal = async () => {

@@ -15,11 +15,17 @@ router.use(verifyToken);
 // GET /api/leave
 router.get('/', async (req, res) => {
   try {
+    const adminRoles = ['boss', 'hr_manager', 'general_manager', 'admin'];
+    const isAdmin = adminRoles.includes(req.user.role);
+    
+    const reqFilter = isAdmin ? {} : { employee_id: req.user.employee_id };
+    const balFilter = isAdmin ? {} : { employee_id: req.user.employee_id };
+
     const [requests, leaveTypes, employees, balances, offboardingRecords] = await Promise.all([
-      dbFetch('Leave_Request', '*', {}, { order: 'created_at', ascending: false }),
+      dbFetch('Leave_Request', '*', reqFilter, { order: 'created_at', ascending: false }),
       dbFetch('Leave_type', '*'),
       dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' }),
-      dbFetch('Leave_balances', '*'),
+      dbFetch('Leave_balances', '*', balFilter),
       dbFetch('corporate_offboarding', 'employee_id,id,last_working_date'),
     ]);
     const ltMap = Object.fromEntries(leaveTypes.map(t => [t.id, t.type_name]));
@@ -35,10 +41,11 @@ router.get('/', async (req, res) => {
     ];
     let handoverMap = {};
     if (handoverIds.length) {
-      const handovers = await Promise.all(
-        handoverIds.map(id => dbFetchOne('employee_handovers', 'id,status,completion_pct', { id }))
-      );
-      handoverMap = Object.fromEntries(handovers.filter(Boolean).map(h => [h.id, h]));
+      const { data: handovers } = await supabase
+        .from('employee_handovers')
+        .select('id,status,completion_pct')
+        .in('id', handoverIds);
+      handoverMap = Object.fromEntries((handovers || []).map(h => [h.id, h]));
     }
 
     const offboardingByEmp = Object.fromEntries(offboardingRecords.map(o => [o.employee_id, o]));
@@ -85,14 +92,19 @@ router.post('/request', upload.single('attachment'), async (req, res) => {
       
       if (error) {
         console.error('[STORAGE UPLOAD ERROR]', error);
+        return res.status(500).json({ error: 'Failed to upload document. Please try again.' });
       } else {
         const { data: pubData } = supabase.storage.from('leave_documents').getPublicUrl(fileName);
         documentUrl = pubData.publicUrl;
       }
     }
 
+    // CRITICAL: Trust Boundary - override body employee_id
+    const employee_id = req.user.employee_id;
+    if (!employee_id) return res.status(403).json({ error: 'No employee ID associated with this account' });
+
     const result = await dbInsert('Leave_Request', {
-      employee_id: d.employee_id, leave_type_id: d.leave_type_id,
+      employee_id: employee_id, leave_type_id: d.leave_type_id,
       start_date: d.start_date, end_date: d.end_date,
       reason: d.reason, status: 'Pending',
       document_url: documentUrl,
@@ -123,10 +135,59 @@ router.post('/request', upload.single('attachment'), async (req, res) => {
 router.put('/:id/status', requireAdmin, async (req, res) => {
   try {
     const { status, e_signature } = req.body;
+    
+    // Whitelist Status
+    const validStatuses = ['Pending', 'Approved', 'Rejected'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status provided' });
+    }
+    
+    const reqData = await dbFetchOne('Leave_Request', '*', { id: req.params.id });
+    if (!reqData) return res.status(404).json({ error: 'Leave request not found' });
+    
+    // Prevent Self-Approval
+    if (reqData.employee_id === req.user.employee_id) {
+      return res.status(403).json({ error: 'You cannot approve or reject your own leave request.' });
+    }
+    
+    // Deduct Leave Balance on Approval
+    if (status === 'Approved' && reqData.status !== 'Approved') {
+      const start = new Date(reqData.start_date);
+      const end = new Date(reqData.end_date);
+      const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+      
+      const balance = await dbFetchOne('Leave_balances', '*', { 
+        employee_id: reqData.employee_id, 
+        leave_type_id: reqData.leave_type_id 
+      });
+      
+      if (balance) {
+        if (balance.balance < diffDays) {
+          return res.status(400).json({ error: 'Insufficient leave balance.' });
+        }
+        await dbUpdate('Leave_balances', balance.id, { balance: balance.balance - diffDays });
+      }
+    }
+    
+    // Revert balance if moving from Approved to something else
+    if (status !== 'Approved' && reqData.status === 'Approved') {
+      const start = new Date(reqData.start_date);
+      const end = new Date(reqData.end_date);
+      const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+      
+      const balance = await dbFetchOne('Leave_balances', '*', { 
+        employee_id: reqData.employee_id, 
+        leave_type_id: reqData.leave_type_id 
+      });
+      
+      if (balance) {
+        await dbUpdate('Leave_balances', balance.id, { balance: balance.balance + diffDays });
+      }
+    }
+
     await dbUpdate('Leave_Request', req.params.id, { status, e_signature });
     
     // Notify Employee
-    const reqData = await dbFetchOne('Leave_Request', 'employee_id', { id: req.params.id });
     if (reqData && reqData.employee_id) {
       const user = await dbFetchOne('sys_users', 'id', { employee_id: reqData.employee_id });
       if (user) {

@@ -11,17 +11,36 @@ router.get('/', verifyToken, async (req, res) => {
     const user = req.user;
     const role = user?.role || '';
 
-    const [employees, attendance, leaveReqs, offboarding, onboarding, candidates, payrolls, rawAnnouncements] =
-      await Promise.all([
-        dbFetch('Employees', 'id,employee_id,Full_name,status,Dept_id'),
-        dbFetch('attendance_records', 'id,employee_id,check_in,check_out,is_late'),
-        dbFetch('Leave_Request', 'id,status'),
-        dbFetch('corporate_offboarding', 'id,settlement_status'),
-        dbFetch('employee_onboarding', 'id,status'),
-        dbFetch('recruitment_candidates', 'id,status'),
-        dbFetch('payrolls', 'id,payment_status,net_salary'),
-        dbFetch('announcements', '*'),
-      ]);
+    const { supabase } = await import('../lib/supabase.js');
+
+    const [
+      employeesRes,
+      attendanceRes,
+      leaveReqsRes,
+      offboardingRes,
+      onboardingRes,
+      candidatesRes,
+      payrollsRes,
+      announcementsRes
+    ] = await Promise.all([
+      supabase.from('Employees').select('id,employee_id,Full_name,status,Dept_id'),
+      supabase.from('attendance_records').select('id,employee_id,check_in,check_out,is_late').gte('check_in', `${today}T00:00:00`),
+      supabase.from('Leave_Request').select('id,status'),
+      supabase.from('corporate_offboarding').select('id,settlement_status'),
+      supabase.from('employee_onboarding').select('id,status'),
+      supabase.from('recruitment_candidates').select('id,status'),
+      supabase.from('payrolls').select('id,payment_status,net_salary').eq('payment_status', 'Paid'),
+      supabase.from('announcements').select('*'),
+    ]);
+
+    const employees = employeesRes.data || [];
+    const attendance = attendanceRes.data || [];
+    const leaveReqs = leaveReqsRes.data || [];
+    const offboarding = offboardingRes.data || [];
+    const onboarding = onboardingRes.data || [];
+    const candidates = candidatesRes.data || [];
+    const payrolls = payrollsRes.data || [];
+    const rawAnnouncements = announcementsRes.data || [];
 
     const totalStaff = employees.length;
     const activeStaff = employees.filter(e => String(e.status || '').toLowerCase() === 'active').length;
@@ -53,10 +72,10 @@ router.get('/', verifyToken, async (req, res) => {
     const parsedAnnouncements = rawAnnouncements.map(a => {
       let content = a.content || '';
       let expiry = null;
-      const expIndex = content.indexOf('___EXPIRY:');
-      if (expIndex !== -1) {
-        expiry = content.substring(expIndex + 10).trim();
-        content = content.substring(0, expIndex);
+      const match = content.match(/___EXPIRY:([\d-]+)/);
+      if (match) {
+        expiry = match[1];
+        content = content.replace(match[0], '').trim();
       }
       return { ...a, content, expiry_date: expiry };
     });

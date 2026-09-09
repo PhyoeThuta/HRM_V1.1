@@ -1,16 +1,84 @@
-FROM python:3.12-slim
+# ─────────────────────────────────────────────────────────────
+# Stage 1: Build the React Frontend
+# ─────────────────────────────────────────────────────────────
+FROM node:20-alpine AS build-frontend
 
-WORKDIR /app
+WORKDIR /app/hrm-client
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PORT=8080
+# Install dependencies first (layer-cached if package.json unchanged)
+COPY hrm-client/package*.json ./
+RUN npm ci --no-audit --no-fund
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy source and build
+COPY hrm-client/ ./
 
-COPY . .
+# VITE_* build-time env vars must be passed as build args
+ARG VITE_GOOGLE_MAPS_API_KEY
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
+
+RUN npm run build
+
+# ─────────────────────────────────────────────────────────────
+# Stage 2: Production Backend Image
+# Uses node:20-slim (not alpine) because Puppeteer/Chromium
+# requires glibc which musl-based Alpine does not provide.
+# ─────────────────────────────────────────────────────────────
+FROM node:20-slim AS production
+
+# ── Puppeteer / Chromium system dependencies ──
+# These are the exact packages required for headless Chromium to
+# run inside a Linux container (used for PDF generation in boss AI).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    fonts-noto-core \
+    fonts-noto-cjk \
+    fonts-sil-padauk \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libcairo2 \
+    libpango-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tell Puppeteer to use system Chromium instead of downloading its own.
+# This is the correct pattern for containerized Puppeteer.
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+WORKDIR /app/server
+
+# Install backend production dependencies only
+COPY server/package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+# Copy backend source
+COPY server/ ./
+
+# Copy built frontend from Stage 1
+COPY --from=build-frontend /app/hrm-client/dist /app/hrm-client/dist
+
+# Create uploads directory (PDF files written here; should be volume-mounted in production)
+RUN mkdir -p /app/server/uploads && chmod 755 /app/server/uploads
+
+# Run as non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8080
 
-CMD exec uvicorn app:app --host 0.0.0.0 --port ${PORT}
+# Healthcheck — Docker will mark container unhealthy if /api/health fails
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+CMD ["node", "index.js"]

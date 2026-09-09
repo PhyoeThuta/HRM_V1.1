@@ -4,6 +4,7 @@ import { supabase, dbFetch, dbFetchOne, dbInsert, dbUpdate } from '../lib/supaba
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 import {
   enrichHandover,
+  enrichHandoversBulk,
   recalcHandoverCompletion,
   syncKnowledgeTransferFromHandover,
   createHandoverForOffboarding,
@@ -47,6 +48,27 @@ async function loadHandoverDetail(handoverId) {
   return { handover, items, attachments, employees, successor_ack };
 }
 
+async function loadBulkHandoverDetails(handovers) {
+  if (!handovers || handovers.length === 0) return [];
+  await enrichHandoversBulk(handovers);
+  const hIds = handovers.map(h => h.id);
+  
+  const { supabase } = await import('../lib/supabase.js');
+  const [itemsRes, attachmentsRes] = await Promise.all([
+    supabase.from('handover_items').select('*').in('handover_id', hIds).order('sort_order'),
+    supabase.from('handover_attachments').select('*').in('handover_id', hIds)
+  ]);
+  
+  const allItems = itemsRes.data || [];
+  const allAttachments = attachmentsRes.data || [];
+  
+  return handovers.map(h => ({
+    handover: h,
+    items: allItems.filter(i => i.handover_id === h.id),
+    attachments: allAttachments.filter(a => a.handover_id === h.id)
+  }));
+}
+
 // GET /api/handover — admin list with filters
 router.get('/', requireAdmin, async (req, res) => {
   try {
@@ -59,15 +81,23 @@ router.get('/', requireAdmin, async (req, res) => {
     const lim = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
     const page = handovers.slice(off, off + lim);
 
-    const summaries = [];
-    for (const h of page) {
-      await enrichHandover(h);
-      const items = await dbFetch('handover_items', 'id', { handover_id: h.id });
-      summaries.push(summarizeHandoverForList(h, items.length));
+    await enrichHandoversBulk(page);
+
+    const handoverIds = page.map(h => h.id);
+    let allItems = [];
+    if (handoverIds.length > 0) {
+      const { data } = await supabase.from('handover_items').select('id, handover_id').in('handover_id', handoverIds);
+      allItems = data || [];
     }
+
+    const summaries = page.map(h => {
+      const itemCount = allItems.filter(item => item.handover_id === h.id).length;
+      return summarizeHandoverForList(h, itemCount);
+    });
 
     return res.json({ handovers: summaries, total, limit: lim, offset: off });
   } catch (e) {
+    console.error(e);
     return res.status(500).json({ error: e.message });
   }
 });
@@ -79,13 +109,7 @@ router.get('/portal/history/outgoing', async (req, res) => {
     if (!empId) return res.json({ handovers: [] });
 
     const terminal = await getTerminalHandoversForOutgoing(empId);
-    const handovers = [];
-    for (const h of terminal) {
-      const detail = await loadHandoverDetail(h.id);
-      if (detail) {
-        handovers.push({ handover: detail.handover, items: detail.items, attachments: detail.attachments });
-      }
-    }
+    const handovers = await loadBulkHandoverDetails(terminal);
     return res.json({ handovers });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -99,13 +123,7 @@ router.get('/portal/history/incoming', async (req, res) => {
     if (!empId) return res.json({ handovers: [] });
 
     const terminal = await getTerminalHandoversForIncoming(empId);
-    const handovers = [];
-    for (const h of terminal) {
-      const detail = await loadHandoverDetail(h.id);
-      if (detail) {
-        handovers.push({ handover: detail.handover, items: detail.items, attachments: detail.attachments });
-      }
-    }
+    const handovers = await loadBulkHandoverDetails(terminal);
     return res.json({ handovers });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -131,11 +149,7 @@ router.get('/portal/outgoing', async (req, res) => {
     if (!empId) return res.json({ handovers: [], handover: null, items: [], attachments: [] });
 
     const active = await getActiveHandoversForOutgoing(empId);
-    const handovers = [];
-    for (const h of active) {
-      const detail = await loadHandoverDetail(h.id);
-      if (detail) handovers.push(detail);
-    }
+    const handovers = await loadBulkHandoverDetails(active);
 
     const first = handovers[0] || null;
     return res.json({
@@ -156,12 +170,7 @@ router.get('/portal/incoming', async (req, res) => {
     if (!empId) return res.json({ handovers: [] });
 
     const active = await getActiveHandoversForIncoming(empId);
-    const result = [];
-    for (const h of active) {
-      await enrichHandover(h);
-      const items = await dbFetch('handover_items', '*', { handover_id: h.id }, { order: 'sort_order', ascending: true });
-      result.push({ handover: h, items });
-    }
+    const result = await loadBulkHandoverDetails(active);
     return res.json({ handovers: result });
   } catch (e) {
     return res.status(500).json({ error: e.message });

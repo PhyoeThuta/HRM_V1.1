@@ -64,11 +64,13 @@ export async function checkAndNotifyDailyFeedback() {
         if (!response.ok) {
           const errText = await response.text();
           console.error(`[CRON] Failed to send to ${customer.full_name}:`, errText);
+          throw new Error(errText);
         } else {
           count++;
         }
       } catch (err) {
         console.error(`[CRON] Error notifying ${customer?.full_name}:`, err.message);
+        throw err;
       }
     }
 
@@ -76,7 +78,7 @@ export async function checkAndNotifyDailyFeedback() {
     return { success: true, count };
   } catch (error) {
     console.error('[CRON] Daily feedback cron failed:', error);
-    return { success: false, error: error.message };
+    throw error;
   }
 }
 

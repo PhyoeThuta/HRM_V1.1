@@ -1,7 +1,11 @@
 {
-  "dependencies": {
-    "@supabase/supabase-js": "^2.110.2",
-    "dotenv": "^17.4.2",
-    "xlsx": "^0.18.5"
+  "name": "bbd-hrm-crm",
+  "version": "1.0.0",
+  "description": "BBD Full-stack Application",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix hrm-client",
+    "dev": "npx concurrently \"npm run dev --prefix server\" \"npm run dev --prefix hrm-client\"",
+    "build": "npm run build --prefix hrm-client",
+    "start": "npm start --prefix server"
   }
 }

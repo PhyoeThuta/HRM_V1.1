@@ -7,13 +7,15 @@ let io = null;
 const CRM_ROLES = ['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior', 'employee', 'rider'];
 
 export function initCrmRealtime(httpServer) {
-  const corsOrigins = (
-    process.env.CRM_WS_CORS_ORIGINS ||
-    'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,https://hrm.duolinkmm.com'
-  )
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  let corsOrigins = [];
+  if (process.env.ALLOWED_ORIGINS) {
+    corsOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean);
+  } else if (process.env.NODE_ENV === 'production') {
+    console.error('CRITICAL WARNING: ALLOWED_ORIGINS is not set for WebSocket in production.');
+    corsOrigins = []; // Block all cross-origin WS
+  } else {
+    corsOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  }
 
   io = new Server(httpServer, {
     path: '/socket.io',
@@ -25,7 +27,11 @@ export function initCrmRealtime(httpServer) {
 
   io.use((socket, next) => {
     try {
+      const cookies = socket.request.headers.cookie;
+      const cookieToken = cookies?.split(';').find(c => c.trim().startsWith('token='))?.split('=')[1];
+
       const token =
+        cookieToken ||
         socket.handshake.auth?.token ||
         (socket.handshake.headers?.authorization || '').replace(/^Bearer\s+/i, '');
       

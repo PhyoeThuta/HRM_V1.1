@@ -45,13 +45,9 @@ export default function SOPExecution() {
         const formData = new FormData();
         if (file) formData.append('file', file);
         if (manualReports[sopId]) formData.append('manualReport', manualReports[sopId]);
-        const token = localStorage.getItem('hrm_token');
-        
         return fetch(`/api/sops/${sopId}/complete`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
+          credentials: 'include',
           body: formData
         }).then(res => {
           if (!res.ok) throw new Error('Upload failed');

@@ -1,5 +1,33 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../lib/supabase.js';
+
+// Simple in-memory Mutex to prevent race conditions during inventory deduction
+class Mutex {
+  constructor() {
+    this.queue = [];
+    this.locked = false;
+  }
+  async lock() {
+    return new Promise(resolve => {
+      if (this.locked) {
+        this.queue.push(resolve);
+      } else {
+        this.locked = true;
+        resolve();
+      }
+    });
+  }
+  unlock() {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+const inventoryMutex = new Mutex();
+
 import { verifyToken, requireOperations } from '../middleware/auth.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../lib/crmRealtime.js';
 import multer from 'multer';
@@ -20,13 +48,12 @@ async function opsFetch(table, columns = '*', filters = {}, options = {}) {
     }
     if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
     if (options.limit) q = q.limit(options.limit);
-    else q = q.limit(500);
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
   } catch (e) {
     console.error(`[OPS FETCH] ${table}:`, e.message);
-    return [];
+    throw e;
   }
 }
 
@@ -36,42 +63,36 @@ async function opsFetchOne(table, columns = '*', filters = {}) {
 }
 
 async function opsInsert(table, data) {
-  try {
-    const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
-    );
-    const { data: result, error } = await supabase.from('operations_' + table).insert(clean).select();
-    if (error) throw error;
-    return result?.[0] || null;
-  } catch (e) {
-    console.error(`[OPS INSERT] ${table}:`, e.message);
-    return null;
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
+  );
+  const { data: result, error } = await supabase.from('operations_' + table).insert(clean).select();
+  if (error) {
+    console.error(`[OPS INSERT] ${table}:`, error.message);
+    throw error;
   }
+  return result?.[0] || null;
 }
 
 async function opsUpdate(table, id, data, idCol = 'id') {
-  try {
-    const clean = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== undefined)
-    );
-    const { data: result, error } = await supabase.from('operations_' + table).update(clean).eq(idCol, id).select();
-    if (error) throw error;
-    return result?.[0] || null;
-  } catch (e) {
-    console.error(`[OPS UPDATE] ${table}:`, e.message);
-    return null;
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+  const { data: result, error } = await supabase.from('operations_' + table).update(clean).eq(idCol, id).select();
+  if (error) {
+    console.error(`[OPS UPDATE] ${table}:`, error.message);
+    throw error;
   }
+  return result?.[0] || null;
 }
 
 async function opsDelete(table, id, idCol = 'id') {
-  try {
-    const { error } = await supabase.from('operations_' + table).delete().eq(idCol, id);
-    if (error) throw error;
-    return true;
-  } catch (e) {
-    console.error(`[OPS DELETE] ${table}:`, e.message);
-    return false;
+  const { error } = await supabase.from('operations_' + table).delete().eq(idCol, id);
+  if (error) {
+    console.error(`[OPS DELETE] ${table}:`, error.message);
+    throw error;
   }
+  return true;
 }
 
 // ==========================================
@@ -390,9 +411,19 @@ router.post('/recalculate-bom', async (req, res) => {
       menuBom.set(r.menu_id, menuBom.get(r.menu_id) + total);
     }
     
-    // Update all menus
+    // Group by totalBom to minimize DB calls
+    const groups = {};
     for (const [menuId, totalBom] of menuBom.entries()) {
-      await supabase.from('operations_menus').update({ total_bill_of_materials: totalBom }).eq('id', menuId);
+      const roundedBom = totalBom.toFixed(2); // Group by 2 decimal places
+      if (!groups[roundedBom]) groups[roundedBom] = [];
+      groups[roundedBom].push(menuId);
+    }
+    
+    // Update menus in bulk per unique BOM value
+    for (const [bom, ids] of Object.entries(groups)) {
+      await supabase.from('operations_menus')
+        .update({ total_bill_of_materials: parseFloat(bom) })
+        .in('id', ids);
     }
     
     return res.json({ success: true, updated: menuBom.size });
@@ -751,6 +782,7 @@ router.post('/orders/auto-generate', async (req, res) => {
         }
       } catch (tgErr) {
         console.error('[AUTO GENERATE -> CHEF ALERT ERROR]', tgErr);
+        throw tgErr;
       }
     }
 
@@ -820,6 +852,7 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
 
   } catch (err) {
     console.error('[ZERNIO DELIVERY ERROR]', err.message);
+    throw err;
   }
 }
 
@@ -870,14 +903,14 @@ router.put('/orders/batch-status', async (req, res) => {
     if (delivery_status === 'DELIVERED' && updatedOrders && updatedOrders.length > 0) {
       for (const order of updatedOrders) {
         // Just duplicate the single order deduction logic here for safety
-        const { data: orderDetails } = await supabase.schema('operations')
-          .from('orders')
+        const { data: orderDetails, error: orderErr } = await supabase
+          .from('operations_orders')
           .select(`
             count,
-            daily_menus (
-              menu_types (
-                menus (
-                  recipes (inventory_item_id, qty)
+            operations_daily_menus (
+              operations_menu_types (
+                operations_menus (
+                  operations_recipes (inventory_item_id, quantity)
                 )
               )
             )
@@ -885,24 +918,36 @@ router.put('/orders/batch-status', async (req, res) => {
           .eq('id', order.id)
           .single();
           
-        if (orderDetails && orderDetails.daily_menus) {
+        if (orderErr) {
+          console.error('[BOM DEDUCTION ERROR] Could not fetch order details:', orderErr);
+          throw new Error('Failed to fetch order details for BOM deduction');
+        }
+          
+        if (orderDetails && orderDetails.operations_daily_menus) {
           const orderCount = orderDetails.count || 1;
           const deductions = {}; 
           
-          orderDetails.daily_menus.menu_types.forEach(mt => {
-            if (mt.menus && mt.menus.recipes) {
-              mt.menus.recipes.forEach(r => {
-                if (r.inventory_item_id && r.qty) {
-                  deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.qty * orderCount);
+          orderDetails.operations_daily_menus.operations_menu_types.forEach(mt => {
+            if (mt.operations_menus && mt.operations_menus.operations_recipes) {
+              mt.operations_menus.operations_recipes.forEach(r => {
+                if (r.inventory_item_id && r.quantity) {
+                  deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.quantity * orderCount);
                 }
               });
             }
           });
           
-          for (const [itemId, deductQty] of Object.entries(deductions)) {
-            const { data: balData } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
-            if (balData) {
-              await supabase.from('inventory_transactions').insert({
+          // Acquire lock to prevent race condition during deduction
+          await inventoryMutex.lock();
+          try {
+            for (const [itemId, deductQty] of Object.entries(deductions)) {
+              const { data: balData, error: balErr } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
+              if (balErr || !balData) {
+                console.error(`[BOM DEDUCTION ERROR] Missing balance for item ${itemId}`);
+                throw new Error(`Missing inventory balance for item ${itemId}`);
+              }
+              
+              const { error: txErr } = await supabase.from('inventory_transactions').insert({
                 item_id: itemId,
                 transaction_type: 'USAGE_OUT',
                 quantity_change: deductQty,
@@ -910,12 +955,17 @@ router.put('/orders/batch-status', async (req, res) => {
                 reference_id: order.id,
                 created_by: req.user.id
               });
-              await supabase.from('inventory_balances').update({
+              if (txErr) throw txErr;
+
+              const { error: updErr } = await supabase.from('inventory_balances').update({
                 current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
                 updated_by: req.user.id,
                 updated_at: now
               }).eq('id', balData.id);
+              if (updErr) throw updErr;
             }
+          } finally {
+            inventoryMutex.unlock();
           }
         }
       }
@@ -923,13 +973,13 @@ router.put('/orders/batch-status', async (req, res) => {
       // TRIGGER ZERNIO DELIVERY ALERT
       const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
       for (const cid of customerIds) {
-        // Run asynchronously without awaiting so we don't delay the API response
-        sendDeliveryZernioMessage(cid, null, 'DELIVERED').catch(e => console.error('[Batch Zernio Error]', e));
+        // Run sequentially to ensure fail-fast behavior on delivery alert error
+        await sendDeliveryZernioMessage(cid, null, 'DELIVERED');
       }
     } else if (delivery_status === 'ON_THE_WAY' && updatedOrders && updatedOrders.length > 0) {
       const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
       for (const cid of customerIds) {
-        sendDeliveryZernioMessage(cid, null, 'ON_THE_WAY').catch(e => console.error('[Batch Zernio Error]', e));
+        await sendDeliveryZernioMessage(cid, null, 'ON_THE_WAY');
       }
     }
     
@@ -968,14 +1018,14 @@ router.put('/orders/:id/status', async (req, res) => {
     const result = await opsUpdate('orders', id, updateData);
     
     if (delivery_status === 'DELIVERED' && result) {
-      const { data: orderDetails } = await supabase.schema('operations')
-        .from('orders')
+      const { data: orderDetails, error: orderErr } = await supabase
+        .from('operations_orders')
         .select(`
           count,
-          daily_menus (
-            menu_types (
-              menus (
-                recipes (inventory_item_id, qty)
+          operations_daily_menus (
+            operations_menu_types (
+              operations_menus (
+                operations_recipes (inventory_item_id, quantity)
               )
             )
           )
@@ -983,25 +1033,36 @@ router.put('/orders/:id/status', async (req, res) => {
         .eq('id', id)
         .single();
         
-      if (orderDetails && orderDetails.daily_menus) {
+      if (orderErr) {
+        console.error('[BOM DEDUCTION ERROR] Could not fetch order details:', orderErr);
+        throw new Error('Failed to fetch order details for BOM deduction');
+      }
+        
+      if (orderDetails && orderDetails.operations_daily_menus) {
         const orderCount = orderDetails.count || 1;
         const deductions = {}; 
         
-        orderDetails.daily_menus.menu_types.forEach(mt => {
-          if (mt.menus && mt.menus.recipes) {
-            mt.menus.recipes.forEach(r => {
-              if (r.inventory_item_id && r.qty) {
-                deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.qty * orderCount);
+        orderDetails.operations_daily_menus.operations_menu_types.forEach(mt => {
+          if (mt.operations_menus && mt.operations_menus.operations_recipes) {
+            mt.operations_menus.operations_recipes.forEach(r => {
+              if (r.inventory_item_id && r.quantity) {
+                deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.quantity * orderCount);
               }
             });
           }
         });
         
-        for (const [itemId, deductQty] of Object.entries(deductions)) {
-          // Fetch balance from inventory schema
-          const { data: balData } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
-          if (balData) {
-            await supabase.from('inventory_transactions').insert({
+        // Acquire lock to prevent race condition during deduction
+        await inventoryMutex.lock();
+        try {
+          for (const [itemId, deductQty] of Object.entries(deductions)) {
+            const { data: balData, error: balErr } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
+            if (balErr || !balData) {
+              console.error(`[BOM DEDUCTION ERROR] Missing balance for item ${itemId}`);
+              throw new Error(`Missing inventory balance for item ${itemId}`);
+            }
+            
+            const { error: txErr } = await supabase.from('inventory_transactions').insert({
               item_id: itemId,
               transaction_type: 'USAGE_OUT',
               quantity_change: deductQty,
@@ -1009,21 +1070,26 @@ router.put('/orders/:id/status', async (req, res) => {
               reference_id: id,
               created_by: req.user.id
             });
-            await supabase.from('inventory_balances').update({
+            if (txErr) throw txErr;
+
+            const { error: updErr } = await supabase.from('inventory_balances').update({
               current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
               updated_by: req.user.id,
               updated_at: now
             }).eq('id', balData.id);
+            if (updErr) throw updErr;
           }
+        } finally {
+          inventoryMutex.unlock();
         }
       }
       
       // TRIGGER ZERNIO DELIVERY ALERT FOR SINGLE ORDER
       if (result && result.customer_id) {
-        sendDeliveryZernioMessage(result.customer_id, result.id, 'DELIVERED').catch(e => console.error('[Single Zernio Error]', e));
+        await sendDeliveryZernioMessage(result.customer_id, result.id, 'DELIVERED');
       }
     } else if (delivery_status === 'ON_THE_WAY' && result && result.customer_id) {
-      sendDeliveryZernioMessage(result.customer_id, result.id, 'ON_THE_WAY').catch(e => console.error('[Single Zernio Error]', e));
+      await sendDeliveryZernioMessage(result.customer_id, result.id, 'ON_THE_WAY');
     }
     
     return res.json(result);
@@ -1111,7 +1177,8 @@ router.put('/orders/:id/rider-status', async (req, res) => {
           .update({ arrived_at: now })
           .eq('order_id', id);
       } catch (e) {
-        // Soft fail
+        console.error('Failed to update arrived_at', e);
+        throw e;
       }
     }
 

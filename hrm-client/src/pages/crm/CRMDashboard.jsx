@@ -8,14 +8,14 @@ import toast from 'react-hot-toast';
 
 Chart.register(...registerables);
 
-function StatCard({ label, value, gradient, icon, trend, subtext }) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-surface-800 border border-white/5 group">
+function StatCard({ label, value, gradient, icon, trend, subtext, to }) {
+  const content = (
+    <div className="relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-surface-800 border border-white/5 group h-full cursor-pointer hover:border-brand-green/30">
       <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 translate-x-10 -translate-y-10 bg-gradient-to-br ${gradient} group-hover:scale-110 transition-transform duration-500`} />
       
       <div className="flex justify-between items-start mb-4 relative z-10">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br ${gradient} bg-opacity-20 backdrop-blur-sm shadow-inner`}>
-          <span className="text-2xl">{icon}</span>
+          <div className="flex items-center justify-center text-white w-6 h-6">{icon}</div>
         </div>
         {trend && (
           <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${trend > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
@@ -31,6 +31,8 @@ function StatCard({ label, value, gradient, icon, trend, subtext }) {
       </div>
     </div>
   );
+
+  return to ? <Link to={to} className="block h-full">{content}</Link> : content;
 }
 
 export default function CRMDashboard() {
@@ -39,12 +41,14 @@ export default function CRMDashboard() {
   const doughnutChartRef = useRef(null);
   const chartInstances = useRef({});
   const [metrics, setMetrics] = useState({
+    totalRevenue: '0 Ks',
     totalCustomers: '0',
-    activeLeads: '0',
-    convertedThisMonth: '0',
-    activePackages: '0',
-    upcomingBookings: '0',
-    revenue: '$0',
+    activeCustomers: '0',
+    churnedCustomers: '0',
+    hotProspects: '0',
+    followUpProspects: '0',
+    pendingProspects: '0',
+    lostProspects: '0',
   });
   const [isTesting, setIsTesting] = useState(false);
   const [sendingZernio, setSendingZernio] = useState({});
@@ -77,15 +81,21 @@ export default function CRMDashboard() {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     // Load real data from Supabase via API
     crmApi.getDashboard().then(data => {
+      if (!isMounted) return;
+
       setMetrics({
+        totalRevenue: new Intl.NumberFormat('th-TH').format(data.totalRevenue || 0) + ' ฿',
         totalCustomers: String(data.totalCustomers || 0),
-        activeLeads: String(data.activeLeads || 0),
-        convertedThisMonth: String(data.convertedThisMonth || 0),
-        activePackages: String(data.activePackages || 0),
-        upcomingBookings: String(data.upcomingBookings || 0),
-        revenue: '—', // billing module not yet implemented
+        activeCustomers: String(data.activeCustomers || 0),
+        churnedCustomers: String(data.churnedCustomers || 0),
+        hotProspects: String(data.hotProspects || 0),
+        followUpProspects: String(data.followUpProspects || 0),
+        pendingProspects: String(data.pendingProspects || 0),
+        lostProspects: String(data.lostProspects || 0),
       });
       setUpcomingRenewals(data.upcomingRenewals || []);
       setRecentLeads(data.recentLeads || []);
@@ -198,6 +208,7 @@ export default function CRMDashboard() {
 
     chartInstances.current = { lineChart, doughnutChart };
     return () => {
+      isMounted = false;
       if (chartInstances.current.lineChart) chartInstances.current.lineChart.destroy();
       if (chartInstances.current.doughnutChart) chartInstances.current.doughnutChart.destroy();
     };
@@ -444,46 +455,62 @@ export default function CRMDashboard() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard 
           label="Total Revenue" 
-          value={metrics.revenue} 
+          value={metrics.totalRevenue} 
           gradient="from-emerald-400 to-teal-500" 
-          icon="💰" 
-          trend={12.5}
-          subtext="Compared to last month"
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          to="/crm/list?segment=revenue"
         />
         <StatCard 
           label="Total Customers" 
           value={metrics.totalCustomers} 
           gradient="from-indigo-400 to-blue-500" 
-          icon="👥" 
-          trend={8.2}
-          subtext="Active users in system"
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>}
+          to="/crm/list?segment=customers"
         />
         <StatCard 
-          label="Active Leads" 
-          value={metrics.activeLeads} 
-          gradient="from-amber-400 to-orange-500" 
-          icon="🔥" 
-          trend={-2.4}
-          subtext="Pending conversions"
-        />
-        <StatCard 
-          label="Active Packages" 
-          value={metrics.activePackages} 
+          label="Active Customers" 
+          value={metrics.activeCustomers} 
           gradient="from-purple-400 to-pink-500" 
-          icon="🍱" 
-          trend={15.3}
-          subtext="Diet plans currently running"
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          to="/crm/list?segment=active"
         />
         <StatCard 
-          label="Upcoming Bookings" 
-          value={metrics.upcomingBookings} 
+          label="Churned Customers" 
+          value={metrics.churnedCustomers} 
+          gradient="from-rose-400 to-red-500" 
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM21 12h-6M15 21H3v-1a6 6 0 0112 0v1z" /></svg>}
+          to="/crm/list?segment=churned"
+        />
+        <StatCard 
+          label="Hot Prospects" 
+          value={metrics.hotProspects} 
+          gradient="from-amber-400 to-orange-500" 
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 7 10c0-2 .5-3 1.5-4 1.5 0 2.5 1 2.5 2.5s-1.5 2.5-1.5 2.5a4.5 4.5 0 005.657 5.657z" /></svg>}
+          to="/crm/list?segment=hot"
+        />
+        <StatCard 
+          label="Follow-up Prospects" 
+          value={metrics.followUpProspects} 
           gradient="from-blue-400 to-cyan-500" 
-          icon="📅" 
-          trend={10.2}
-          subtext="Confirmed future starts"
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>}
+          to="/crm/list?segment=follow_up"
+        />
+        <StatCard 
+          label="Pending Prospects" 
+          value={metrics.pendingProspects} 
+          gradient="from-slate-400 to-slate-500" 
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          to="/crm/list?segment=pending"
+        />
+        <StatCard 
+          label="Lost Prospects" 
+          value={metrics.lostProspects} 
+          gradient="from-stone-400 to-stone-500" 
+          icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          to="/crm/list?segment=lost"
         />
       </div>
 

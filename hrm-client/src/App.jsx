@@ -63,6 +63,7 @@ import Layout from './components/layout/Layout';
 
 // CRM Pages
 import CRMDashboard from './pages/crm/CRMDashboard';
+import CRMListView from './pages/crm/CRMListView';
 import WeeklyFeedbacks from './pages/crm/WeeklyFeedbacks';
 import Inquiries from './pages/crm/Inquiries';
 import LeadsPipeline from './pages/crm/LeadsPipeline';
@@ -124,8 +125,16 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const adminRoles = ['boss', 'hr_manager', 'general_manager', 'admin', 'finance', 'manager'];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -180,6 +189,7 @@ function AppRoutes() {
 
       {/* CRM Routes */}
       <Route path="/crm" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CRMDashboard /></Protected>} />
+      <Route path="/crm/list" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CRMListView /></Protected>} />
       <Route path="/crm/leads-overview" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><LeadsPipeline /></Protected>} />
       <Route path="/crm/inquiries" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Inquiries /></Protected>} />
       <Route path="/crm/customers" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Customers /></Protected>} />

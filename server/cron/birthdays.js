@@ -42,6 +42,8 @@ export async function checkAndNotifyBirthdays() {
     const allUsers = await dbFetch('sys_users', 'id, employee_id', { is_active: true });
 
     let count = 0;
+    const notificationsToInsert = [];
+
     for (const birthdayBoy of birthdayPeople) {
       console.log(`[CRON] Generating notifications for ${birthdayBoy.Full_name}'s birthday...`);
       
@@ -55,7 +57,7 @@ export async function checkAndNotifyBirthdays() {
       const recipients = allUsers.filter(u => u.employee_id !== birthdayBoy.id);
       
       for (const user of recipients) {
-        await dbInsert('system_notifications', {
+        notificationsToInsert.push({
           recipient_user_id: user.id,
           title: title,
           message: message,
@@ -66,6 +68,15 @@ export async function checkAndNotifyBirthdays() {
         count++;
       }
     }
+
+    if (notificationsToInsert.length > 0) {
+      const { supabase } = await import('../lib/supabase.js');
+      const { error } = await supabase.from('system_notifications').insert(notificationsToInsert);
+      if (error) {
+        console.error('[CRON] Error bulk inserting notifications:', error);
+      }
+    }
+
     console.log(`[CRON] Birthday notifications sent: ${count}`);
     return { success: true, count };
   } catch (err) {

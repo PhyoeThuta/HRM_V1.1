@@ -93,16 +93,21 @@ router.post('/onboarding', requireAdmin, async (req, res) => {
     
     if (result) {
       const defaultTasks = await dbFetch('onboarding_tasks', 'id,due_days_after_hire');
+      const insertTasks = [];
       for (const task of defaultTasks) {
         const dueDays = parseInt(task.due_days_after_hire || 1);
         const dueDate = new Date(new Date(sd).getTime() + dueDays * 24 * 60 * 60 * 1000);
-        await dbInsert('onboarding_assignments', {
+        insertTasks.push({
           onboarding_id: result.id,
           task_id: task.id,
           status: 'Pending',
           due_date: dueDate.toISOString().slice(0, 10),
           created_at: new Date().toISOString(),
         });
+      }
+      if (insertTasks.length > 0) {
+        const { supabase } = await import('../lib/supabase.js');
+        await supabase.from('onboarding_assignments').insert(insertTasks);
       }
     }
     
@@ -244,16 +249,19 @@ router.post('/offboarding', requireAdmin, async (req, res) => {
         { task_name: 'Return Company Documents', category: 'HR', responsible: 'HR' },
         { task_name: 'Schedule Exit Interview', category: 'HR', responsible: 'HR' },
       ];
-      for (const task of defaultTasks) {
-        await dbInsert(CASE_TASKS, {
-          offboarding_id: result.id,
-          task_name: task.task_name,
-          category: task.category,
-          responsible: task.responsible,
-          status: 'Pending',
-          due_date: lastDay,
-          created_at: new Date().toISOString(),
-        });
+      const insertTasks = defaultTasks.map(task => ({
+        offboarding_id: result.id,
+        task_name: task.task_name,
+        category: task.category,
+        responsible: task.responsible,
+        status: 'Pending',
+        due_date: lastDay,
+        created_at: new Date().toISOString(),
+      }));
+      
+      if (insertTasks.length > 0) {
+        const { supabase } = await import('../lib/supabase.js');
+        await supabase.from(CASE_TASKS).insert(insertTasks);
       }
 
       await createHandoverForOffboarding(result, req.user?.id);

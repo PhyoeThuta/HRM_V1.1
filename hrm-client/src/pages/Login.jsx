@@ -16,7 +16,7 @@ export default function Login() {
   const { mutate, isPending: loading } = useMutation({
     mutationFn: (credentials) => api.post('/auth/login', credentials),
     onSuccess: (data) => {
-      login(data.data.user, data.data.token);
+      login(data.data.user);
       toast.success('Login successful!');
       navigate(data.data.user.role === 'employee' ? '/portal' : '/dashboard');
     },

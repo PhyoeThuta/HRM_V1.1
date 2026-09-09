@@ -67,6 +67,7 @@ async function syncTable(schemaName, tableName, formatContentFn) {
 
       if (upsertErr) {
         console.error(`[VectorSync] Error upserting ${tableName}:${record.id}`, upsertErr);
+        throw upsertErr;
       } else {
         updatedCount++;
       }
@@ -78,6 +79,7 @@ async function syncTable(schemaName, tableName, formatContentFn) {
     console.log(`[VectorSync] ${schemaName}.${tableName} sync complete. Updated ${updatedCount} records.`);
   } catch (err) {
     console.error(`[VectorSync] Failed to sync ${schemaName}.${tableName}:`, err);
+    throw err;
   }
 }
 
@@ -98,13 +100,14 @@ export async function runVectorSync() {
     console.log('[VectorSync] Skipped - GEMINI_API_KEY is not configured.');
     return;
   }
-  console.log('[VectorSync] Starting background sync...');
-  
-  await syncTable('crm', 'customers', formatters.customer);
-  await syncTable('operations', 'menus', formatters.menu);
-  await syncTable('inventory', 'items', formatters.item);
-  
-  console.log('[VectorSync] Background sync finished.');
+  try {
+    await syncTable('crm', 'customers', formatters.customer);
+    await syncTable('public', 'operations_menus', formatters.menu);
+    await syncTable('public', 'inventory_items', formatters.item);
+    console.log('[VectorSync] Background sync finished.');
+  } catch (err) {
+    console.error('[VectorSync] CRITICAL ERROR during background sync:', err.message);
+  }
 }
 
 // Start the cron job (Runs every 30 minutes)

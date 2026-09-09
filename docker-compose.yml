@@ -1,11 +1,54 @@
-version: '3.8'
+# docker-compose.yml — Production deployment configuration
+# Usage on GCP VM:
+#   docker compose pull && docker compose up -d
+#
+# Rollback:
+#   IMAGE_TAG=<previous-tag> docker compose up -d
 
 services:
-  hrm_app:
-    build: .
-    container_name: hrm_app
-    ports:
-      - "8000:8080"
+  app:
+    image: ghcr.io/phyoethuta/hrm_v1.1:${IMAGE_TAG:-latest}
+    container_name: bbd_hrm_app
+    restart: unless-stopped
+
+    # Load all secrets from a file on the VM — never commit this file
+    # Location: /opt/bbd/.env.production
     env_file:
-      - .env
-    restart: always
+      - /opt/bbd/.env.production
+
+    # Port is intentionally NOT exposed to the host publicly.
+    # Nginx (running on the host) proxies to the container via Docker bridge network.
+    expose:
+      - "8080"
+
+    ports:
+      # Bind only to localhost so Nginx can reach it but it is not publicly accessible.
+      - "127.0.0.1:8080:8080"
+
+    # Persist the uploads directory across container restarts.
+    # Puppeteer-generated PDFs are written here and served via /api/uploads.
+    volumes:
+      - uploads_data:/app/server/uploads
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # Resource limits — adjust based on GCP VM tier
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  uploads_data:
+    driver: local
