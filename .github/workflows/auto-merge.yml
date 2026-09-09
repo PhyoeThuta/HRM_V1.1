@@ -1,8 +1,9 @@
-name: Dev → Create PR to Main
+name: Dev → Auto PR → Main
 
-# Step 1 of 2: When dev is pushed, create a PR to main.
-# The build check (pr-build-check.yml) will run separately on the PR itself.
-# Auto-merge will happen automatically once the build check passes.
+# Real-world workflow:
+# 1. Developer pushes code to `dev` branch
+# 2. Docker build check runs automatically
+# 3. If build passes → Auto PR created → Auto-merged into `main`
 
 on:
   push:
@@ -10,9 +11,48 @@ on:
       - dev
 
 jobs:
-  create-pr:
-    name: 📝 Create PR (dev → main)
+  # ─────────────────────────────────────────────────────────────────
+  # Job 1: Build Docker image to verify dev branch is healthy
+  # ─────────────────────────────────────────────────────────────────
+  build-check:
+    name: 🔨 Build Check (Docker)
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (verify only — no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          build-args: |
+            VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          cache-from: type=registry,ref=ghcr.io/phyoethuta/hrm_v1.1:buildcache
+
+  # ─────────────────────────────────────────────────────────────────
+  # Job 2: Auto-create PR and enable auto-merge into main
+  # ─────────────────────────────────────────────────────────────────
+  auto-pr-merge:
+    name: 🔀 Auto PR → main
+    runs-on: ubuntu-latest
+    needs: build-check
 
     permissions:
       contents: write
@@ -22,7 +62,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Create PR if not exists and enable auto-merge
+      - name: Create PR if not exists, then enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -35,22 +75,27 @@ jobs:
               --base main \
               --head dev \
               --title "Release: dev to main" \
-              --body "Auto-created by CI. Docker build check will run on this PR. Will auto-merge once all checks pass.")
+              --body "Auto-created by CI. Docker build passed. Merging automatically.")
 
             echo "=== PR created: ${PR_URL} ==="
 
-            # Enable auto-merge — GitHub will merge once build check passes
+            # IMPORTANT: Wait for GitHub to calculate mergeability before enabling auto-merge
+            # Otherwise we get "Pull request is in unstable status" error
+            echo "Waiting 15 seconds for GitHub to process the PR..."
+            sleep 15
+
             PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
             gh pr merge "${PR_NUMBER}" \
               --squash \
-              --auto || \
-            echo "Auto-merge will be enabled once checks are running."
+              --auto || echo "Auto-merge could not be enabled automatically."
           else
-            echo "=== PR #${EXISTING_PR} already exists. Skipping creation. ==="
+            echo "=== PR #${EXISTING_PR} already exists. ==="
+            
+            # Wait a bit just in case it was just created
+            sleep 5
+            
             # Update auto-merge on existing PR in case it was disabled
             gh pr merge "${EXISTING_PR}" \
               --squash \
-              --auto \
-              --subject "Release: dev → main [auto-merged after build check ✅]" || \
-            echo "Auto-merge already enabled or checks still running."
+              --auto || echo "Auto-merge already enabled or checks still running."
           fi
