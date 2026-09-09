@@ -34,23 +34,16 @@ jobs:
             PR_URL=$(gh pr create \
               --base main \
               --head dev \
-              --title "🚀 Release: dev → main" \
-              --body "🤖 Auto-created by CI pipeline.
-
-**Triggered by:** \`${{ github.actor }}\` on \`${{ github.ref_name }}\`
-**Commit:** \`${{ github.sha }}\`
-
-The Docker build check will run automatically on this PR.
-This PR will be auto-merged once all required checks pass. ✅")
+              --title "Release: dev to main" \
+              --body "Auto-created by CI. Docker build check will run on this PR. Will auto-merge once all checks pass.")
 
             echo "=== PR created: ${PR_URL} ==="
 
             # Enable auto-merge — GitHub will merge once build check passes
-            PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
             gh pr merge "${PR_NUMBER}" \
               --squash \
-              --auto \
-              --subject "Release: dev → main [auto-merged after build check ✅]" || \
+              --auto || \
             echo "Auto-merge will be enabled once checks are running."
           else
             echo "=== PR #${EXISTING_PR} already exists. Skipping creation. ==="
