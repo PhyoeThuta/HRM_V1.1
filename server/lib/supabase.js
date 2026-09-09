@@ -3,9 +3,9 @@ import { WebSocket } from 'ws';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL?.replace(/^"|"$/g, '');
-const supabaseKey = process.env.SUPABASE_KEY?.replace(/^"|"$/g, '');
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY?.replace(/^"|"$/g, '');
+const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/^["']|["']$/g, '');
+const supabaseKey = process.env.SUPABASE_KEY?.trim().replace(/^["']|["']$/g, '');
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY?.trim().replace(/^["']|["']$/g, '');
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('[SUPABASE] Missing SUPABASE_URL or SUPABASE_KEY in .env');

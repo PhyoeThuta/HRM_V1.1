@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 dotenv.config();
 
-export const JWT_SECRET = process.env.JWT_SECRET?.replace(/^"|"$/g, '');
+export const JWT_SECRET = process.env.JWT_SECRET?.trim().replace(/^["']|["']$/g, '');
 
 if (!JWT_SECRET) {
   console.error('FATAL ERROR: JWT_SECRET environment variable is missing.');
