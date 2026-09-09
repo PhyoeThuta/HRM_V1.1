@@ -4,18 +4,21 @@ import multer from 'multer';
 import { supabaseAdmin, isSupabaseServiceRoleConfigured } from '../lib/supabase.js';
 import { verifyToken, requireBoss } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import {
-  emitInquiryMessage,
-  emitInquiryUpdated,
-  emitInquiryCreated,
-} from '../lib/crmRealtime.js';
+import { emitInquiryMessage, emitInquiryUpdated, emitInquiryCreated } from '../lib/crmRealtime.js';
+import { packageBodySchema, resumePackageSchema } from '../schemas/crmPackagesSchema.js';
+import { crmPackagesService } from '../services/crmPackagesService.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 
 const router = express.Router();
 
 // ── SECURITY: Global authentication guard ────────────────────────
-// ALL CRM routes require a valid JWT. This ensures that even if a developer
-// forgets to add verifyToken to a new route, it is still protected by default.
-router.use(verifyToken);
+// ALL CRM routes require a valid JWT, EXCEPT for public webhooks.
+router.use((req, res, next) => {
+  if (req.path === '/webhooks/zernio') {
+    return next();
+  }
+  return verifyToken(req, res, next);
+});
 
 // Multer memory storage for photo uploads
 const upload = multer({
@@ -577,132 +580,48 @@ router.delete('/customers/:id', verifyToken, async (req, res) => {
 // ──────────────────────────────────────────────────────────────────
 
 // POST /api/crm/customers/:id/packages
-router.post('/customers/:id/packages', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status, amount } = req.body;
-
-    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .insert({ customer_id: id, name, duration, meal_type, meal_count, start_date, expires_at, payment_status: payment_status || 'Unpaid', status: status || 'Active', amount: amount || 0 })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.status(201).json(data);
-  } catch (e) {
-    console.error('[CRM POST PACKAGE]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/customers/:id/packages', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const validatedData = packageBodySchema.parse(req.body);
+  const data = await crmPackagesService.createPackage(id, validatedData);
+  return res.status(201).json(data);
+}));
 
 // PUT /api/crm/customer-packages/:id
-router.put('/customer-packages/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status } = req.body;
-    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .update({ name, duration, meal_type, meal_count, start_date, expires_at, payment_status, status })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    console.error('[CRM PUT CUSTOMER_PACKAGE]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/customer-packages/:id', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const validatedData = packageBodySchema.parse(req.body);
+  const data = await crmPackagesService.updatePackage(id, validatedData);
+  return res.json(data);
+}));
 
 // DELETE /api/crm/customer-packages/:id
-router.delete('/customer-packages/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    console.error('[CRM DELETE CUSTOMER_PACKAGE]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/customer-packages/:id', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await crmPackagesService.deletePackage(id);
+  return res.json({ success: true });
+}));
 
 // PUT /api/crm/customer-packages/:id/pause
-router.put('/customer-packages/:id/pause', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Get customer_id before pausing
-    const { data: pkg, error: pkgFetchErr } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .select('customer_id').eq('id', id).single();
-      
-    if (pkgFetchErr) throw pkgFetchErr;
-
-    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .update({ status: 'Paused' })
-      .eq('id', id)
-      .select().single();
-    if (error) throw error;
-    
-    // Auto-remove any pending daily orders for this customer from today onwards
-    const today = new Date().toISOString().split('T')[0];
-    await supabaseAdmin.from('operations_orders')
-      .delete()
-      .eq('customer_id', pkg.customer_id)
-      .gte('date', today)
-      .eq('delivery_status', 'PENDING');
-
-    // Fetch customer info for notification
-    const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
-      .select('full_name').eq('id', pkg.customer_id).single();
-
-    // Create system notification for BBD admins & bosses
-    const notifs = ['admin', 'boss', 'operations'].map(role => ({
-      recipient_role: role,
-      title: 'Customer Package Paused ⏸️',
-      message: `${cust?.full_name || 'A customer'}'s package was paused. Pending deliveries removed.`,
-      link_url: `/crm/customers/${pkg.customer_id}`,
-      is_read: false,
-      created_at: new Date().toISOString()
-    }));
-    await supabaseAdmin.from('system_notifications').insert(notifs);
-
-    return res.json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/customer-packages/:id/pause', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { package: data, customerId } = await crmPackagesService.pausePackage(id);
+  await crmPackagesService.notifyPause(customerId);
+  return res.json(data);
+}));
 
 // PUT /api/crm/customer-packages/:id/resume
-router.put('/customer-packages/:id/resume', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { days_paused } = req.body; // To extend expiry date
-    
-    // First get current expiry
-    const { data: pkg, error: pkgErr } = await supabaseAdmin.schema('crm').from('customer_packages').select('expires_at').eq('id', id).single();
-    if (pkgErr) throw pkgErr;
-    
-    let newExpiry = pkg.expires_at;
-    if (days_paused && pkg.expires_at) {
-      const expDate = new Date(pkg.expires_at);
-      expDate.setDate(expDate.getDate() + parseInt(days_paused));
-      newExpiry = expDate.toISOString().split('T')[0];
-    }
+router.put('/customer-packages/:id/resume', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { days_paused } = resumePackageSchema.parse(req.body);
+  const data = await crmPackagesService.resumePackage(id, days_paused);
+  return res.json(data);
+}));
 
-    const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-      .update({ status: 'Active', expires_at: newExpiry })
-      .eq('id', id)
-      .select().single();
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+// POST /api/crm/customer-packages/:id/renew (Deprecated by UI, but kept for API compatibility)
+router.post('/customer-packages/:id/renew', verifyToken, asyncHandler(async (req, res) => {
+  return res.status(501).json({ error: 'Please use /api/crm/customers/:id/packages instead' });
+}));
 
 // POST /api/crm/kitchen-dashboard/deduct-meals
 router.post('/kitchen-dashboard/deduct-meals', verifyToken, async (req, res) => {
@@ -1441,7 +1360,19 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
         }
       } catch (fbErr) {
         console.error('[REPLY SEND ERROR]', fbErr.message);
-        throw fbErr;
+        
+        // BEST PRACTICE: If third-party delivery fails, mark it in the local DB instead of returning 500
+        const updatedMeta = { 
+          ...(newMsg.metadata || {}), 
+          delivery_status: 'failed', 
+          delivery_error: fbErr.message 
+        };
+        
+        await supabaseAdmin.schema('crm').from('inquiries_messages')
+          .update({ metadata: updatedMeta })
+          .eq('id', newMsg.id);
+          
+        newMsg.metadata = updatedMeta;
       }
     }
 

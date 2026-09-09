@@ -172,8 +172,15 @@ process.on('uncaughtException', (err) => {
 // SECURITY: Never expose stack traces or internal error details to the client.
 // Stack traces reveal file paths, library versions, and server internals to attackers.
 app.use((err, req, res, next) => {
+  // Check if it's a Zod validation error
+  if (err.name === 'ZodError' || err.errors) {
+    console.error(`[VALIDATION ERROR] ${req.method} ${req.originalUrl}`);
+    return res.status(400).json({ error: 'Validation Error', details: err.errors });
+  }
+
   // Always log the full error server-side for debugging.
-  console.error('[SERVER ERROR]', err.stack || err);
+  console.error(`[SERVER ERROR] ${req.method} ${req.originalUrl}`, err.stack || err);
+  
   // Only send a safe, generic message to the client.
   const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json({ error: err.message || 'Internal server error' });

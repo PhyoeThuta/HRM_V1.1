@@ -70,19 +70,36 @@ export async function checkAndNotifyFollowups() {
       let messageText = '';
       const customer = pkg.customers;
 
+      // ALREADY RENEWED CHECK:
+      // If customer has any newer package (Active or Upcoming) with an expiry date later than this one,
+      // it means they have already renewed. Skip all reminders for this older package!
+      const { data: newerPackages } = await supabaseAdmin.schema('crm')
+        .from('customer_packages')
+        .select('id')
+        .eq('customer_id', pkg.customer_id)
+        .gt('expires_at', pkg.expires_at)
+        .in('status', ['Active', 'Upcoming']);
+
+      if (newerPackages && newerPackages.length > 0) {
+        // Already renewed, skip!
+        continue;
+      }
+
       if (diffDays < 0) {
         // Past expiry
         shouldNotify = true;
         messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေး ကုန်သွားတာ ${Math.abs(diffDays)} ရက် ရှိသွားပါပြီရှင်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လားရှင်။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါရှင် 🥗✨`;
       } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
-        if (diffDays === 3) {
+        // 30-day plans: Reminder at 5 days and 1 day
+        if (diffDays === 5 || diffDays === 1) {
           shouldNotify = true;
-          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays} ရက်နေရင် ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
         }
       } else {
-        if (diffDays === 1 || diffDays === 0) {
+        // Weekly/Default plans: Reminder at 3 days and 1 day
+        if (diffDays === 3 || diffDays === 1) {
           shouldNotify = true;
-          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 0 ? 'ဒီနေ့' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
         }
       }
 

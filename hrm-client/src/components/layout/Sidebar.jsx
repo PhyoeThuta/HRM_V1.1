@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRef, useEffect } from 'react';
 
 const NavItem = ({ to, label, icon, end }) => (
   <NavLink
@@ -60,6 +61,22 @@ const ICONS = {
 export default function Sidebar({ isOpen, close }) {
   const { user, logout, isAdmin, isBoss, isFinance, isEmployee, isMarketingJunior } = useAuth();
   const navigate = useNavigate();
+  const navRef = useRef(null);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    if (navRef.current) {
+      const savedScroll = sessionStorage.getItem('sidebarScrollPos');
+      if (savedScroll) {
+        navRef.current.scrollTop = parseInt(savedScroll, 10);
+      }
+    }
+  }, []);
+
+  // Save scroll position
+  const handleScroll = (e) => {
+    sessionStorage.setItem('sidebarScrollPos', e.target.scrollTop);
+  };
 
   const handleNavClick = () => {
     if (close) close();
@@ -100,7 +117,12 @@ export default function Sidebar({ isOpen, close }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-0.5" onClick={handleNavClick}>
+      <nav 
+        ref={navRef}
+        onScroll={handleScroll}
+        className="flex-1 px-3 py-4 overflow-y-auto space-y-0.5" 
+        onClick={handleNavClick}
+      >
         {isEmployee() ? (
           <>
             <NavSection title="Attendance" />
