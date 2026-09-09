@@ -44,6 +44,9 @@ export const crmApi = {
   // Delete assigned package
   deleteAssignedPackage: (id) => api.delete(`/crm/customer-packages/${id}`).then(r => r.data),
 
+  // Renew package (1-click)
+  renewPackage: (id) => api.post(`/crm/customer-packages/${id}/renew`).then(r => r.data),
+
   // Pause package
   pausePackage: (id) => api.put(`/crm/customer-packages/${id}/pause`).then(r => r.data),
 

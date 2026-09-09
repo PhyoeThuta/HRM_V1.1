@@ -4,6 +4,8 @@ import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
+import AssignPackageForm from '../../components/crm/AssignPackageForm';
+import CustomerPackagesList from '../../components/crm/CustomerPackagesList';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -20,7 +22,7 @@ export default function CustomerDetail() {
   // Modal State
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [editingPackageId, setEditingPackageId] = useState(null);
-  const [deletePackageId, setDeletePackageId] = useState(null);
+  const [renewPackageId, setRenewPackageId] = useState(null);
   const [deleteFeedbackId, setDeleteFeedbackId] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
@@ -67,10 +69,7 @@ export default function CustomerDetail() {
     delivery_notes: ''
   });
 
-  // Custom Resume Modal State
-  const [showResumeModal, setShowResumeModal] = useState(false);
-  const [packageToResume, setPackageToResume] = useState(null);
-  const [resumeDays, setResumeDays] = useState(3);
+
 
   const [photoForm, setPhotoForm] = useState({ type: 'Before', url: '' });
   const [packageForm, setPackageForm] = useState({
@@ -95,28 +94,6 @@ export default function CustomerDetail() {
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  useEffect(() => {
-    if (!packageForm.start_date || !packageForm.duration) return;
-
-    let daysToAdd = 30;
-    const durStr = packageForm.duration.toLowerCase();
-    if (durStr.includes('month')) daysToAdd = (parseInt(durStr) || 1) * 30;
-    else if (durStr.includes('week')) daysToAdd = (parseInt(durStr) || 1) * 7;
-    else if (durStr.includes('day')) daysToAdd = parseInt(durStr) || 1;
-
-    const startDate = new Date(packageForm.start_date);
-    if (!isNaN(startDate.getTime())) {
-      const expiresAt = new Date(startDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-      setPackageForm(prev => {
-        const calculatedExpiry = expiresAt.toISOString().split('T')[0];
-        if (prev.expires_at !== calculatedExpiry) {
-          return { ...prev, expires_at: calculatedExpiry };
-        }
-        return prev;
-      });
-    }
-  }, [packageForm.start_date, packageForm.duration]);
 
   useEffect(() => {
     let isMounted = true;
@@ -192,29 +169,6 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleAssignPackage = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingPackageId) {
-        const updatedPkg = await crmApi.updateAssignedPackage(editingPackageId, packageForm);
-        setCustomer(prev => ({
-          ...prev,
-          packages_list: (prev.packages_list || []).map(p => p.id === editingPackageId ? updatedPkg : p)
-        }));
-        toast.success('Package updated successfully!');
-      } else {
-        const newPkg = await crmApi.assignPackage(id, packageForm);
-        setCustomer(prev => ({ ...prev, packages_list: [newPkg, ...(prev.packages_list || [])] }));
-        toast.success('Package successfully assigned!');
-      }
-      setShowPackageModal(false);
-      setEditingPackageId(null);
-    } catch (err) {
-      toast.error('Failed to save package');
-      console.error(err);
-    }
-  };
-
   const openEditCustomer = () => {
     setCustomerForm({
       full_name: customer?.full_name || '',
@@ -244,26 +198,6 @@ export default function CustomerDetail() {
       console.error(e);
     }
   };
-  const handlePackageNameChange = (e) => {
-    const val = e.target.value;
-    const selectedPkg = availablePackages.find(p => p.name === val);
-    
-    let duration = '30 Days';
-    let amount = 5000;
-    
-    if (selectedPkg) {
-      duration = selectedPkg.duration || '30 Days';
-      amount = parseInt(selectedPkg.price) || 5000;
-    }
-
-    setPackageForm(prev => ({
-      ...prev,
-      name: val,
-      duration,
-      amount
-    }));
-  };
-
   const openAddPackage = () => {
     setEditingPackageId(null);
     const defaultPkg = availablePackages.length > 0 ? availablePackages[0] : null;
@@ -274,7 +208,7 @@ export default function CustomerDetail() {
       start_date: '',
       expires_at: '',
       meal_count: 60,
-      meal_type: 'LUNCH, DINNER',
+      meal_type: defaultPkg ? (defaultPkg.meal_type || 'LUNCH, DINNER') : 'LUNCH, DINNER',
       payment_status: 'Unpaid',
       status: 'Active',
       amount: defaultPkg ? (parseInt(defaultPkg.price) || 5000) : 5000
@@ -282,72 +216,6 @@ export default function CustomerDetail() {
     setShowPackageModal(true);
   };
 
-  const openEditPackage = (pkg) => {
-    setEditingPackageId(pkg.id);
-    setPackageForm({
-      name: pkg.name,
-      duration: pkg.duration,
-      start_date: pkg.start_date || '',
-      expires_at: pkg.expires_at || '',
-      meal_count: pkg.meal_count || 60,
-      meal_type: pkg.meal_type || 'LUNCH, DINNER',
-      payment_status: pkg.payment_status || 'Unpaid',
-      status: pkg.status || 'Active',
-      amount: pkg.amount || 0
-    });
-    setShowPackageModal(true);
-  };
-
-  const handlePausePackage = async (id) => {
-    try {
-      const updatedPkg = await crmApi.pausePackage(id);
-      setCustomer(prev => ({
-        ...prev,
-        packages_list: (prev.packages_list || []).map(p => p.id === id ? updatedPkg : p)
-      }));
-      toast.success('Package paused!');
-    } catch (err) {
-      toast.error('Failed to pause package');
-    }
-  };
-
-  const handleResumePackage = (id) => {
-    setPackageToResume(id);
-    setResumeDays(3); // Default value
-    setShowResumeModal(true);
-  };
-
-  const confirmResumePackage = async () => {
-    if (!packageToResume) return;
-    try {
-      const updatedPkg = await crmApi.resumePackage(packageToResume, parseInt(resumeDays));
-      setCustomer(prev => ({
-        ...prev,
-        packages_list: (prev.packages_list || []).map(p => p.id === packageToResume ? updatedPkg : p)
-      }));
-      setShowResumeModal(false);
-      setPackageToResume(null);
-      toast.success('Package resumed and expiry extended!');
-    } catch (err) {
-      toast.error('Failed to resume package');
-    }
-  };
-
-  const confirmDeletePackage = async () => {
-    if (!deletePackageId) return;
-    try {
-      await crmApi.deleteAssignedPackage(deletePackageId);
-      setCustomer(prev => ({
-        ...prev,
-        packages_list: (prev.packages_list || []).filter(p => p.id !== deletePackageId)
-      }));
-      setDeletePackageId(null);
-      toast.success('Package deleted successfully');
-    } catch (err) {
-      toast.error('Failed to delete package');
-      console.error(err);
-    }
-  };
   const confirmDeleteFeedback = async () => {
     if (!deleteFeedbackId) return;
     try {
@@ -469,112 +337,25 @@ export default function CustomerDetail() {
 
   return (
     <Layout title="Customer Profile" subtitle={`Details for ${customer.full_name}`}>
-
-      {/* Resume Package Modal */}
-      {showResumeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-emerald-500/10 to-transparent">
-              <h3 className="font-black text-white text-lg flex items-center gap-2">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                Resume Package
-              </h3>
-              <button onClick={() => { setShowResumeModal(false); setPackageToResume(null); }} className="text-slate-400 hover:text-white">✕</button>
-            </div>
-            <div className="p-6">
-              <p className="text-slate-300 text-sm mb-4">
-                How many days was the package paused for? The system will automatically extend the expiry date by this number of days.
-              </p>
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Days Paused</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={resumeDays}
-                  onChange={e => setResumeDays(e.target.value)}
-                  className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green"
-                />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => { setShowResumeModal(false); setPackageToResume(null); }} className="flex-1 py-3 px-4 rounded-xl font-bold text-slate-300 bg-surface-900 border border-white/10 hover:bg-white/5 transition-colors">
-                  Cancel
-                </button>
-                <button type="button" onClick={confirmResumePackage} className="flex-1 py-3 px-4 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-500 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-[1.02]">
-                  Confirm Resume
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Package Modal */}
-      {showPackageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-brand-green/10 to-transparent">
-              <h3 className="font-black text-white text-lg">{editingPackageId ? 'Edit Diet Package' : 'Assign Diet Package'}</h3>
-              <button onClick={() => { setShowPackageModal(false); setEditingPackageId(null); }} className="text-slate-400 hover:text-white">✕</button>
-            </div>
-            <form onSubmit={handleAssignPackage} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Package Name</label>
-                <select value={packageForm.name} onChange={handlePackageNameChange} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
-                  {availablePackages.map(pkg => (
-                    <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
-                  ))}
-                  {availablePackages.length === 0 && <option>No packages found</option>}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Total Meals</label>
-                  <input type="number" value={packageForm.meal_count} onChange={e => setPackageForm({ ...packageForm, meal_count: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Amount (THB)</label>
-                  <input type="number" required value={packageForm.amount} onChange={e => setPackageForm({ ...packageForm, amount: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Start Date</label>
-                  <input required type="date" value={packageForm.start_date} onChange={e => setPackageForm({ ...packageForm, start_date: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Exact Expiry Date</label>
-                  <input required type="date" value={packageForm.expires_at} onChange={e => setPackageForm({ ...packageForm, expires_at: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green [color-scheme:dark]" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Meal Type Timetable</label>
-                  <select value={packageForm.meal_type} onChange={e => setPackageForm({ ...packageForm, meal_type: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
-                    <option>LUNCH, DINNER</option>
-                    <option>LUNCH ONLY</option>
-                    <option>DINNER ONLY</option>
-                    <option>BREAKFAST, LUNCH, DINNER</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Payment Status</label>
-                  <select value={packageForm.payment_status} onChange={e => setPackageForm({ ...packageForm, payment_status: e.target.value })} className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green">
-                    <option>Unpaid</option>
-                    <option>Partial</option>
-                    <option>Paid</option>
-                  </select>
-                </div>
-              </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => { setShowPackageModal(false); setEditingPackageId(null); }} className="px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                  {editingPackageId ? 'Update Package' : 'Assign Package'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Assign Package Modal Extracted */}
+      <AssignPackageForm
+        customerId={id}
+        isOpen={showPackageModal}
+        onClose={() => { setShowPackageModal(false); setEditingPackageId(null); }}
+        onSuccess={(pkg, isEdit) => {
+          if (isEdit) {
+            setCustomer(prev => ({
+              ...prev,
+              packages_list: (prev.packages_list || []).map(p => p.id === pkg.id ? pkg : p)
+            }));
+          } else {
+            setCustomer(prev => ({ ...prev, packages_list: [pkg, ...(prev.packages_list || [])] }));
+          }
+        }}
+        editingPackageId={editingPackageId}
+        initialData={editingPackageId ? packageForm : null}
+        availablePackages={availablePackages}
+      />
 
       {/* Edit Metrics Modal */}
       {showMetricsModal && (
@@ -1035,81 +816,14 @@ export default function CustomerDetail() {
         )}
 
         {activeTab === 'packages' && (
-          <div className="space-y-4">
-            {(!customer.packages_list || customer.packages_list.length === 0) && (
-              <div className="p-10 text-center border-2 border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
-                <div className="text-4xl mb-4">🍱</div>
-                <h4 className="text-white font-bold mb-2">No Active Packages</h4>
-                <p className="text-slate-400 text-sm mb-6">This customer does not have any diet plans assigned yet.</p>
-                {user?.role !== 'marketing_junior' && (
-                  <button onClick={openAddPackage} className="px-6 py-3 bg-brand-green text-black font-black rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform">
-                    Assign First Package
-                  </button>
-                )}
-              </div>
-            )}
-
-            {customer.packages_list && customer.packages_list.map(pkg => (
-              <div key={pkg.id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-brand-green/30 transition-colors">
-                <div>
-                  <h3 className="text-xl font-black text-white mb-2">{pkg.name}</h3>
-                  <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm font-medium">
-                    <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg">Duration: {pkg.duration}</span>
-                    {pkg.start_date && (
-                      <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg flex items-center gap-1"><span>📅</span> Start: {pkg.start_date}</span>
-                    )}
-                    <span className="text-slate-400 bg-white/5 px-3 py-1 rounded-lg flex items-center gap-1"><span>⏳</span> Expires: {pkg.expires_at}</span>
-                  </div>
-                </div>
-                <div className="flex flex-col items-start md:items-end w-full md:w-auto">
-                  <div className="flex items-center gap-3 mb-3 w-full md:w-auto justify-between md:justify-end">
-                    {pkg.status === 'Paused' ? (
-                      <span className="inline-block bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.1)]">PAUSED</span>
-                    ) : pkg.status === 'Expired' ? (
-                      <span className="inline-block bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-1.5 rounded-full text-xs font-black">EXPIRED</span>
-                    ) : pkg.status === 'Upcoming' ? (
-                      <span className="inline-block bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(59,130,246,0.1)]">UPCOMING / BOOKING CONFIRMED</span>
-                    ) : (
-                      <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.1)]">ACTIVE PLAN</span>
-                    )}
-
-                    <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-black border ${pkg.payment_status === 'Paid' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : pkg.payment_status === 'Partial' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
-                      {pkg.payment_status || 'Unpaid'}
-                    </span>
-
-                    {user?.role !== 'marketing_junior' && (
-                      <div className="flex gap-2 w-full md:w-auto">
-                        {pkg.status === 'Paused' ? (
-                          <button onClick={() => handleResumePackage(pkg.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors border border-emerald-500/30 font-bold text-sm shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                            <span>▶️</span> Resume Plan
-                          </button>
-                        ) : (
-                          <button onClick={() => handlePausePackage(pkg.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors border border-amber-500/30 font-bold text-sm shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                            <span>⏸️</span> Pause Plan
-                          </button>
-                        )}
-                        <button onClick={() => openEditPackage(pkg)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/20 text-slate-300 hover:text-white transition-colors border border-white/10" title="Edit Package">
-                          ✏️
-                        </button>
-                        <button onClick={() => setDeletePackageId(pkg.id)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors border border-rose-500/20" title="Delete Package">
-                          🗑️
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-sm font-bold text-slate-300 bg-surface-900 px-4 py-2 rounded-xl border border-white/5">
-                    {pkg.meal_count} Meals <span className="text-brand-green">({pkg.meal_type})</span>
-                  </p>
-                </div>
-              </div>
-            ))}
-
-            {(customer.packages_list && customer.packages_list.length > 0 && user?.role !== 'marketing_junior') && (
-              <button onClick={openAddPackage} className="w-full py-4 mt-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-400 hover:text-white hover:border-white/30 transition-colors font-bold text-sm bg-white/[0.01]">
-                + Assign Another Package
-              </button>
-            )}
-          </div>
+          <CustomerPackagesList
+            customer={customer}
+            user={user}
+            onCustomerUpdate={setCustomer}
+            openAddPackage={openAddPackage}
+            openEditPackage={openEditPackage}
+            openRenewPackage={openRenewPackage}
+          />
         )}
 
         {activeTab === 'communications' && (
