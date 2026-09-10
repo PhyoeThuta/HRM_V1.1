@@ -176,16 +176,31 @@ jobs:
               exit 1
             fi
 
-            # ── Nginx: sync config + reload ───────────────────────────────────
-            # Always reload nginx after a successful container swap so it
-            # flushes stale upstream connections and serves the new container.
-            # Also syncs nginx/hrm.conf from the repo in case it changed.
+            # ── Nginx: sync config + symlink + reload ────────────────────────
+            # 1. Copy latest nginx config from repo
+            # 2. Remove legacy static-file configs (old PM2 era)
+            # 3. Ensure correct symlink is active
+            # 4. Validate + reload nginx
             NGINX_CONF_SRC="/opt/bbd/nginx/hrm.conf"
             NGINX_CONF_DST="/etc/nginx/sites-available/hrm.duolinkmm.com"
+            NGINX_ENABLED="/etc/nginx/sites-enabled/hrm.duolinkmm.com"
+            NGINX_OLD_LINK="/etc/nginx/sites-enabled/hrm_react"
 
             if [ -f "${NGINX_CONF_SRC}" ]; then
               echo "=== Syncing nginx config from repo ==="
               sudo cp "${NGINX_CONF_SRC}" "${NGINX_CONF_DST}"
+            fi
+
+            # Remove legacy static-file nginx config (old PM2 setup)
+            if [ -L "${NGINX_OLD_LINK}" ]; then
+              echo "=== Removing legacy nginx config: hrm_react ==="
+              sudo rm -f "${NGINX_OLD_LINK}"
+            fi
+
+            # Create symlink if not already enabled
+            if [ ! -L "${NGINX_ENABLED}" ]; then
+              echo "=== Creating nginx symlink for hrm.duolinkmm.com ==="
+              sudo ln -s "${NGINX_CONF_DST}" "${NGINX_ENABLED}"
             fi
 
             if sudo nginx -t 2>&1; then
