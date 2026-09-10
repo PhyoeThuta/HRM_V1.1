@@ -169,6 +169,7 @@ export default function Sidebar({ isOpen, close }) {
 
             <NavSection title="CRM" color="text-brand-green" />
             <NavItem to="/crm/dashboard" label="CRM Dashboard" icon={ICONS.portal} />
+            <NavItem to="/crm/analytics" label="Report & Analytics" icon={ICONS.boss} />
 
             {(user?.username === 'cnx-0028' || isAdmin()) && (
               <>

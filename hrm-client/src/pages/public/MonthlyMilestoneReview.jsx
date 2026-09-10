@@ -361,6 +361,23 @@ export default function MonthlyMilestoneReview() {
             </button>
           </form>
         )}
+
+        {/* Referral Promo Banner */}
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950/40 via-surface-800 to-teal-950/40 border border-emerald-500/30 text-center space-y-3 shadow-xl">
+          <span className="text-3xl">🎁</span>
+          <h3 className="text-lg font-black text-white">မိတ်ဆွေများအား BBD နှင့် မိတ်ဆက်ပေးပါ</h3>
+          <p className="text-slate-300 text-xs max-w-md mx-auto leading-relaxed">
+            ဝိတ်ကျ ကျန်းမာလိုသော မိတ်ဆွေများအား BBD ညွှန်းဆိုပေးပြီး နှစ်ဦးစလုံး အထူး Promo Discount ခံစားခွင့် ရယူလိုက်ပါ။
+          </p>
+          <a
+            href={`/referral/${customer_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-green text-black font-black text-xs hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+          >
+            <span>🎁</span> မိတ်ဆွေ ညွှန်းဆိုရန် (Refer a Friend)
+          </a>
+        </div>
       </div>
     </div>
   );

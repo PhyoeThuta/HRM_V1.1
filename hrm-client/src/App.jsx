@@ -80,6 +80,7 @@ import FormBuilder from './pages/crm/FormBuilder';
 import CustomerVoices from './pages/crm/CustomerVoices';
 import SalesAnalytics from './pages/crm/SalesAnalytics';
 import LeadConversions from './pages/crm/LeadConversions';
+import ReportAnalytics from './pages/crm/ReportAnalytics';
 
 // Public Forms
 import CustomerEnrollment from './pages/public/CustomerEnrollment';
@@ -88,6 +89,8 @@ import CustomerFeedback from './pages/public/CustomerFeedback';
 import WeeklyMenuFeedback from './pages/public/WeeklyMenuFeedback';
 import CustomerWelcomeDossier from './pages/public/CustomerWelcomeDossier';
 import MonthlyMilestoneReview from './pages/public/MonthlyMilestoneReview';
+import CustomerChurnExitForm from './pages/public/CustomerChurnExitForm';
+import CustomerReferralForm from './pages/public/CustomerReferralForm';
 
 // Role-based redirect helper
 function RoleRedirect({ user }) {
@@ -166,6 +169,8 @@ function AppRoutes() {
       <Route path="/menu-feedback/:customer_id" element={<WeeklyMenuFeedback />} />
       <Route path="/daily-feedback/:customer_id" element={<DailyFeedback />} />
       <Route path="/track/:orderId" element={<CustomerTracking />} />
+      <Route path="/churn-exit/:customer_id" element={<CustomerChurnExitForm />} />
+      <Route path="/referral/:customer_id" element={<CustomerReferralForm />} />
 
       {/* Operations & Inventory Routes */}
       <Route path="/operations/dashboard" element={<OperationsRoute><OpsDashboard /></OperationsRoute>} />
@@ -227,6 +232,9 @@ function AppRoutes() {
       <Route path="/crm/reports/sales" element={<Navigate to="/crm/sales-analytics" replace />} />
       <Route path="/crm/lead-conversions" element={<Protected allowedRoles={adminRoles}><LeadConversions /></Protected>} />
       <Route path="/crm/reports/leads" element={<Navigate to="/crm/lead-conversions" replace />} />
+      <Route path="/crm/analytics" element={<Protected allowedRoles={adminRoles}><ReportAnalytics /></Protected>} />
+      <Route path="/crm/reports" element={<Navigate to="/crm/analytics" replace />} />
+      <Route path="/crm/report" element={<Navigate to="/crm/analytics" replace />} />
       <Route path="/crm/learn-bbd" element={<Protected allowedRoles={adminRoles}><LearnBBD /></Protected>} />
 
       {/* Portal Routes (Employee Self-Service) */}

@@ -561,6 +561,16 @@ export default function CustomerDetail() {
             </button>
             <button 
               onClick={() => {
+                const link = `${window.location.origin}/referral/${id}`;
+                navigator.clipboard.writeText(link);
+                toast.success('Referral Form Link copied!');
+              }} 
+              className="bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+            >
+              <span>🎁</span> Copy Referral Link
+            </button>
+            <button 
+              onClick={() => {
                 const link = `${window.location.origin}/monthly-review/${id}`;
                 navigator.clipboard.writeText(link);
                 toast.success('Monthly Review Link copied for Boss Customer!');
@@ -669,6 +679,51 @@ export default function CustomerDetail() {
           </div>
         </div>
       </div>
+
+      {/* Churn Customer Exit Survey Banner */}
+      {((customer?.status || '').toLowerCase() === 'churned' || 
+        (customer?.status || '').toLowerCase() === 'inactive' ||
+        (customer?.packages_list && customer.packages_list.length > 0 && customer.packages_list.every(p => p.status === 'expired' || p.expires_at < new Date().toISOString().split('T')[0])) ||
+        (customer?.full_name || '').toLowerCase().includes('hlyam')) && (
+        <div className="mb-6 p-6 rounded-3xl bg-gradient-to-r from-rose-900/30 via-surface-800 to-rose-950/30 border border-rose-500/30 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+              🛑
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-white">Churn Customer Exit Survey (ထွက်ခွာ မေးခွန်းဖောင်)</h3>
+                <span className="bg-rose-500/20 text-rose-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase border border-rose-500/30">
+                  Churn Profile
+                </span>
+              </div>
+              <p className="text-slate-300 text-xs mt-1 leading-relaxed">
+                ဤ Customer သည် ဆက်လက် မဝယ်ယူတော့ဘဲ ရပ်နားထားသော Churned Customer ဖြစ်ပါသည်။ ဘာကြောင့် ဆက်မယူဖြစ်တာလဲဆိုသည့် အကြောင်းအရင်းအား မေးမြန်း ဖြည့်စွက်ရန် Exit Form Link ကို အသုံးပြုနိုင်ပါသည်။
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0 w-full md:w-auto">
+            <button
+              onClick={() => {
+                const link = `${window.location.origin}/churn-exit/${id}`;
+                navigator.clipboard.writeText(link);
+                toast.success('Churn Exit Survey Link copied to clipboard!');
+              }}
+              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>🔗</span> Copy Exit Form Link
+            </button>
+            <a
+              href={`/churn-exit/${id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>📝</span> Fill Exit Form
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex overflow-x-auto mb-6 bg-surface-800 p-1.5 rounded-2xl border border-white/5 w-max shadow-lg">

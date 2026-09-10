@@ -152,6 +152,7 @@ export const crmApi = {
   
   getSalesAnalytics: () => api.get('/crm/analytics/sales').then(r => r.data),
   getLeadAnalytics: () => api.get('/crm/analytics/leads').then(r => r.data),
+  getFullAnalyticsReport: (params) => api.get('/crm/analytics/full-report', { params }).then(r => r.data),
   
   resolveFeedback: (id) => api.post(`/crm/feedback/${id}/resolve`).then(r => r.data),
   

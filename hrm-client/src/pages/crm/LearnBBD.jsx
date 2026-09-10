@@ -63,6 +63,32 @@ export default function LearnBBD() {
       triggerTiming: 'Package စတင်သည်မှ ရက် ၃၀ ပြည့်သွားချိန်တိုင်း (သို့မဟုတ် Admin မှ Manual ပို့ချိန်)',
       destination: 'crm.feedbacks & Customer Welcome Dossier',
       colorGradient: 'from-purple-500/20 to-pink-500/20'
+    },
+    {
+      id: 'churn-exit',
+      title: '5. Churn Customer Exit Survey Form',
+      subtitle: 'မဝယ်တော့သော / သက်တမ်းကုန်သွားသော Churn Customer များထံမှ မဝယ်တော့သည့် အကြောင်းရင်း မေးမြန်းသည့် Form',
+      badge: 'Churn Customer Profile',
+      badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+      icon: '🛑',
+      linkPath: `/churn-exit/${sampleCustomerId}`,
+      description: 'Churn customer များ (ဥပမာ- Hlyam ကဲ့သို့ မဝယ်တော့သည့် Customer များ) ၏ Profile တွင် သီးသန့် ပေါ်လာသော Form ဖြစ်ပါသည်။ ဘာကြောင့် ဆက်မဝယ်ဖြစ်တာလဲဆိုသည့် အကြောင်းအရင်းများ (ပြောင်းရွှေ့သွားခြင်း၊ အရသာ/ဝန်ဆောင်မှု၊ စျေးနှုန်း၊ ခရီးသွားခြင်း၊ ကျန်းမာရေးပြောင်းလဲခြင်း) ကို ကောက်ယူပေးပြီး Report & Analytics တွင် Auto-aggregate လုပ်ပေးပါသည်။',
+      triggerTiming: 'Customer သက်တမ်းကုန်သွားချိန် သို့မဟုတ် Status: Churned / Inactive ဖြစ်ချိန်',
+      destination: 'crm.feedbacks ([CHURN_EXIT] Tag) & Report & Analytics',
+      colorGradient: 'from-rose-500/20 to-red-500/20'
+    },
+    {
+      id: 'referral',
+      title: '6. Customer Referral Program Form',
+      subtitle: 'မိတ်ဆွေ/သူငယ်ချင်းများအား BBD Dietary Plan သို့ ညွှန်းဆိုပေးနိုင်သော Referral Form',
+      badge: '1-Month Review / Manual',
+      badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      icon: '🎁',
+      linkPath: `/referral/${sampleCustomerId}`,
+      description: 'Customer များမှ မိတ်ဆွေများအား ညွှန်းဆိုပေးနိုင်မည့် Form ဖြစ်ပါသည်။ 1-Month Milestone Review Form အောက်ခြေတွင် ပူးတွဲပါဝင်သလို Admin မှလည်း Customer Profile မှတစ်ဆင့် Link Manual ကူးယူ ပို့ပေးနိုင်ပါသည်။ ဖြည့်လိုက်သမျှ Referral Leads များသည် crm.inquiries သို့ Lead အသစ်အဖြစ် Auto-register ဖြစ်ပါသည်။',
+      triggerTiming: '1-Month Milestone Review ဖြည့်ပြီးချိန် သို့မဟုတ် Customer Profile မှ Link Manual ထုတ်ချိန်',
+      destination: 'crm.inquiries (Source: Referral Program)',
+      colorGradient: 'from-emerald-500/20 to-teal-500/20'
     }
   ];
 

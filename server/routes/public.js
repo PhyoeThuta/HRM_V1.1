@@ -525,4 +525,92 @@ router.post('/crm/monthly-review/:id', async (req, res) => {
   }
 });
 
+// POST /api/public/crm/churn-exit
+router.post('/crm/churn-exit', async (req, res) => {
+  try {
+    const { customer_id, reason_category, comments, would_recommend } = req.body;
+    if (!customer_id) return res.status(400).json({ error: 'Missing customer ID' });
+
+    const commentText = `[CHURN_EXIT][${reason_category || 'General'}]\nReason: ${reason_category || 'Not specified'}\nComments: ${comments || 'None'}\nWould Recommend: ${would_recommend ? 'Yes' : 'No'}`;
+
+    const { data, error } = await supabaseAdmin.schema('crm').from('feedbacks')
+      .insert({
+        customer_id: parseInt(customer_id),
+        rating: 1,
+        comment: commentText,
+        type: 'churn_survey',
+        status: 'open'
+      })
+      .select().single();
+
+    if (error) throw error;
+
+    // Also update customer status to churned if not already
+    await supabaseAdmin.schema('crm').from('customers')
+      .update({ status: 'churned', updated_at: new Date().toISOString() })
+      .eq('id', customer_id);
+
+    // Notify Boss & Admin
+    const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
+    const custName = cust ? cust.full_name : 'Customer';
+
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: 'Customer Exit Survey Submitted',
+      message: `${custName} submitted churn exit survey: ${reason_category}`,
+      link_url: `/crm/customers/${customer_id}`,
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({ success: true, feedback: data });
+  } catch (e) {
+    console.error('[PUBLIC CHURN EXIT ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/public/crm/referral
+router.post('/crm/referral', async (req, res) => {
+  try {
+    const { referrer_customer_id, referred_name, referred_phone, note } = req.body;
+    if (!referred_name || !referred_phone) {
+      return res.status(400).json({ error: 'Friend\'s name and phone number are required' });
+    }
+
+    let referrerName = 'Existing Customer';
+    if (referrer_customer_id) {
+      const { data: refCust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', referrer_customer_id).single();
+      if (refCust) referrerName = refCust.full_name;
+    }
+
+    // Insert inquiry into crm.inquiries as new lead
+    const { data: inquiry, error } = await supabaseAdmin.schema('crm').from('inquiries')
+      .insert({
+        prospect_name: referred_name,
+        contact_phone: referred_phone,
+        source: 'Referral',
+        status: 'new',
+        requirements: `[REFERRAL] Referred by Customer ${referrerName} (ID: ${referrer_customer_id || 'N/A'}). Note: ${note || 'None'}`
+      })
+      .select().single();
+
+    if (error) throw error;
+
+    // Notify Boss
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: '🎁 New Customer Referral!',
+      message: `${referrerName} referred a new lead: ${referred_name} (${referred_phone})`,
+      link_url: `/crm/inquiries`,
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({ success: true, inquiry });
+  } catch (e) {
+    console.error('[PUBLIC REFERRAL ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
+
