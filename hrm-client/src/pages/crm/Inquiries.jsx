@@ -176,18 +176,20 @@ export default function Inquiries() {
     }
   };
 
+  const [sendAs, setSendAs] = useState('prospect');
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedInquiry) return;
     setIsSending(true);
     try {
-      const msg = await crmApi.postInquiryMessage(selectedInquiry.id, {
+      await crmApi.postInquiryMessage(selectedInquiry.id, {
         message_text: newMessage,
-        sender_type: 'admin'
+        sender_type: sendAs
       });
       setNewMessage('');
     } catch (err) {
-      toast.error('Failed to send message');
+      toast.error(err.response?.data?.error || 'Failed to send message');
     } finally {
       setIsSending(false);
     }
@@ -203,6 +205,18 @@ export default function Inquiries() {
       }
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'Failed to generate link');
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!selectedInquiry) return;
+    try {
+      await crmApi.updateInquiry(selectedInquiry.id, { status: newStatus });
+      setSelectedInquiry(prev => ({ ...prev, status: newStatus }));
+      setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status: newStatus } : i));
+      toast.success('Stage updated');
+    } catch (e) {
+      toast.error('Failed to update stage');
     }
   };
 
@@ -262,7 +276,28 @@ export default function Inquiries() {
             {inquiries.length === 0 ? (
               <p className="text-slate-500 text-sm p-4 text-center">No leads yet.</p>
             ) : (
-              inquiries.map(inq => (
+              inquiries.map(inq => {
+                const s = (inq.status || 'new').toLowerCase();
+                const isEnrolled = !!inq.customer_id || s === 'converted';
+
+                let badgeLabel = 'Hot Prospect';
+                let badgeStyle = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+
+                if (isEnrolled) {
+                  badgeLabel = 'Enrolled';
+                  badgeStyle = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                } else if (s === 'pending' || s === 'payment_pending') {
+                  badgeLabel = 'Pending';
+                  badgeStyle = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+                } else if (s === 'in_progress' || s === 'followup' || s === 'contacted' || s === 'chatting') {
+                  badgeLabel = 'Follow-up';
+                  badgeStyle = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                } else if (s === 'lost' || s === 'closed') {
+                  badgeLabel = 'Lost';
+                  badgeStyle = 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+                }
+
+                return (
                 <div 
                   key={inq.id} 
                   onClick={() => handleSelectInquiry(inq)}
@@ -291,12 +326,8 @@ export default function Inquiries() {
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded-md">
                       {inq.source}
                     </span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                      inq.status === 'New' ? 'bg-rose-500/20 text-rose-400' :
-                      inq.status === 'Chatting' ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      {inq.status}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${badgeStyle}`}>
+                      {badgeLabel}
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 truncate">
@@ -305,7 +336,8 @@ export default function Inquiries() {
                       : 'No messages yet...'}
                   </p>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -318,7 +350,7 @@ export default function Inquiries() {
             {selectedInquiry ? (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b border-white/5 bg-surface-850 flex justify-between items-center">
+                <div className="p-4 border-b border-white/5 bg-surface-850 flex justify-between items-center flex-wrap gap-2">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-lg border border-indigo-500/30">
                       {selectedInquiry.prospect_name.charAt(0).toUpperCase()}
@@ -328,18 +360,31 @@ export default function Inquiries() {
                       <p className="text-xs text-slate-400">{selectedInquiry.prospect_contact || 'No contact provided'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Stage Selector Dropdown */}
+                    <select
+                      value={selectedInquiry.customer_id ? 'converted' : (selectedInquiry.status || 'new').toLowerCase()}
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      className="bg-surface-900 border border-white/10 text-white rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-none focus:border-brand-green"
+                    >
+                      <option value="new">Hot Prospect</option>
+                      <option value="in_progress">Follow-up</option>
+                      <option value="pending">Pending Payment</option>
+                      <option value="lost">Lost</option>
+                      <option value="converted">Enrolled Customer</option>
+                    </select>
+
                     {selectedInquiry.customer_id ? (
                       <button 
                         onClick={() => navigate(`/crm/customers/${selectedInquiry.customer_id}`)} 
                         className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
                       >
-                        ✓ Form Completed — View Profile
+                        ✓ View Profile
                       </button>
                     ) : selectedInquiry.onboarding_status === 'form_sent' ? (
                       <div className="flex gap-2">
                         <span className="px-3 py-1.5 bg-amber-500/20 text-amber-400 rounded-lg text-xs font-bold flex items-center gap-1">
-                          ⏳ Waiting for Form
+                          ⏳ Form Sent
                         </span>
                         <button 
                           onClick={handleGenerateLink} 
@@ -352,14 +397,11 @@ export default function Inquiries() {
                     ) : (
                       <button 
                         onClick={() => setShowPaidModal(true)} 
-                        className="px-4 py-1.5 bg-brand-green text-black hover:scale-105 rounded-lg text-sm font-black transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1"
+                        className="px-3.5 py-1.5 bg-brand-green text-black hover:scale-105 rounded-lg text-xs font-black transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1"
                       >
-                        💰 Mark as Paid
+                        💰 Mark Paid
                       </button>
                     )}
-                    <button onClick={handleSimulateProspect} className="px-3 py-1.5 bg-white/5 text-slate-300 hover:text-white rounded-lg text-xs font-bold border border-white/10 transition-colors">
-                      Simulate Reply 🤖
-                    </button>
                   </div>
                 </div>
 
@@ -418,15 +460,27 @@ export default function Inquiries() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Message Input */}
+                {/* Message Input with Customer / Admin Sender Toggle */}
                 <div className="p-4 border-t border-white/5 bg-surface-850">
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => setSendAs(prev => prev === 'admin' ? 'prospect' : 'admin')}
+                      className={`px-3 py-2.5 rounded-full text-xs font-black border transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                        sendAs === 'prospect' 
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
+                          : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                      }`}
+                      title="Click to toggle sender role (Customer vs Admin)"
+                    >
+                      {sendAs === 'prospect' ? '👤 Customer' : '👔 Admin'}
+                    </button>
                     <input 
                       type="text" 
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..." 
-                      className="flex-1 bg-surface-900 border border-white/10 rounded-full px-5 py-3 text-white focus:outline-none focus:border-brand-green transition-colors"
+                      placeholder={sendAs === 'prospect' ? "Type as Customer (e.g. 30 Days Plan ရဲ့ Menu တွေ...)" : "Type reply as Admin..."} 
+                      className="flex-1 bg-surface-900 border border-white/10 rounded-full px-5 py-3 text-white focus:outline-none focus:border-brand-green transition-colors text-sm"
                     />
                     <button 
                       type="submit" 

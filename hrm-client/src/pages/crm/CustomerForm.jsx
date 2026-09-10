@@ -56,7 +56,7 @@ export default function CustomerForm() {
   };
 
   return (
-    <Layout title="Add New Customer" subtitle="Create a comprehensive CRM profile">
+    <Layout title="Admin Manual Enrollment" subtitle="Create a comprehensive customer profile manually">
       <div className="max-w-4xl mx-auto">
         
         <div className="flex flex-col gap-4 mb-6">

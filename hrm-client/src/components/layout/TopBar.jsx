@@ -11,6 +11,10 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [theme, setTheme] = useState(() => localStorage.getItem('hrm-theme') || 'dark');
 
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [recentCustomerMsgs, setRecentCustomerMsgs] = useState([]);
+
   const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await api.get('/notifications');
@@ -19,11 +23,74 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
     } catch {}
   }, []);
 
+  const fetchRecentCustomerMessages = useCallback(async () => {
+    try {
+      const { data } = await api.get('/crm/inquiries');
+      if (Array.isArray(data)) {
+        const withMsgs = data.map(inq => {
+          const msgs = inq.inquiries_messages || [];
+          const lastMsg = msgs[msgs.length - 1];
+          // Check if there are unread messages sent by prospect
+          const unreadCountForInq = msgs.filter(m => m.sender_type === 'prospect' && (m.is_read === false || m.is_read === 0)).length;
+          return {
+            id: inq.id,
+            prospect_name: inq.prospect_name || 'Customer',
+            prospect_contact: inq.prospect_contact || '',
+            lastMessage: lastMsg?.message_text || 'Sent a message',
+            updated_at: lastMsg?.created_at || inq.updated_at,
+            unreadCount: unreadCountForInq,
+            hasUnread: unreadCountForInq > 0
+          };
+        });
+
+        // Total sum of all unread prospect messages
+        const totalUnreadCount = withMsgs.reduce((sum, item) => sum + item.unreadCount, 0);
+        setUnreadMsgCount(totalUnreadCount);
+        setRecentCustomerMsgs(withMsgs.slice(0, 5));
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => { 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    fetchRecentCustomerMessages();
+    const interval = setInterval(fetchRecentCustomerMessages, 15000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, fetchRecentCustomerMessages]);
+
+  useEffect(() => {
+    let socket;
+    import('../../lib/crmSocket').then(({ getCrmSocket }) => {
+      socket = getCrmSocket();
+      if (!socket) return;
+
+      const handleNewMessage = ({ inquiry_id, message }) => {
+        if (message?.sender_type === 'prospect') {
+          setUnreadMsgCount(c => c + 1);
+          setRecentCustomerMsgs(prev => {
+            const filtered = prev.filter(item => item.id !== inquiry_id);
+            return [
+              {
+                id: inquiry_id,
+                prospect_name: message.prospect_name || 'Customer',
+                lastMessage: message.message_text,
+                updated_at: message.created_at || new Date().toISOString(),
+                hasUnread: true,
+                unreadCount: 1
+              },
+              ...filtered
+            ].slice(0, 5);
+          });
+        }
+      };
+
+      socket.on('inquiry:message', handleNewMessage);
+    });
+
+    return () => {
+      if (socket) socket.off('inquiry:message');
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -89,10 +156,99 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
           </div>
         )}
 
+        {/* Facebook Messenger Notification Icon & Badge */}
+        <div className="relative">
+          <button
+            onClick={() => { setMsgOpen(o => !o); setNotifOpen(false); if (!msgOpen) fetchRecentCustomerMessages(); }}
+            className="relative p-2 text-slate-300 hover:text-white transition-all hover:bg-white/10 rounded-full flex items-center justify-center"
+            title="Customer Inbox Messages"
+          >
+            {/* Facebook Messenger SVG Icon */}
+            <svg className="w-6 h-6 text-blue-500 hover:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.45 5.518 3.716 7.215V22l3.355-1.842c.935.258 1.92.398 2.929.398 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.192 12.484l-2.585-2.756-5.044 2.756 5.549-5.89 2.646 2.756 4.983-2.756-5.549 5.89z" />
+            </svg>
+
+            {/* Red Badge with Count */}
+            {unreadMsgCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] px-1 items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-extrabold shadow-lg animate-pulse border-2 border-slate-900">
+                {unreadMsgCount > 99 ? '99+' : unreadMsgCount}
+              </span>
+            )}
+          </button>
+
+          {/* Messenger Dropdown Preview */}
+          {msgOpen && (
+            <div className="absolute right-0 mt-2 w-80 md:w-96 rounded-2xl shadow-2xl z-50 overflow-hidden animate-slide-in" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.45 5.518 3.716 7.215V22l3.355-1.842c.935.258 1.92.398 2.929.398 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.192 12.484l-2.585-2.756-5.044 2.756 5.549-5.89 2.646 2.756 4.983-2.756-5.549 5.89z" />
+                  </svg>
+                  <h3 className="text-sm font-bold text-white">Customer Messages</h3>
+                </div>
+                {unreadMsgCount > 0 && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 uppercase">
+                    {unreadMsgCount} Unread
+                  </span>
+                )}
+              </div>
+
+              <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
+                {recentCustomerMsgs.length > 0 ? (
+                  recentCustomerMsgs.map(m => (
+                    <div
+                      key={m.id}
+                      onClick={() => {
+                        setMsgOpen(false);
+                        navigate(`/crm/inquiries?id=${m.id}`);
+                      }}
+                      className="px-4 py-3 hover:bg-white/5 cursor-pointer transition-colors flex items-start gap-3 relative group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-md">
+                        {(m.prospect_name || 'C')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <p className="text-xs font-bold text-white truncate">{m.prospect_name}</p>
+                          <span className="text-[10px] text-slate-400">
+                            {m.updated_at ? new Date(m.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                        <p className={`text-xs truncate ${m.hasUnread ? 'text-white font-semibold' : 'text-slate-400'}`}>
+                          {m.lastMessage}
+                        </p>
+                      </div>
+                      {m.hasUnread && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 my-auto flex-shrink-0" />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-8 text-center text-slate-400 text-xs">
+                    No customer messages yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="p-2 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  onClick={() => {
+                    setMsgOpen(false);
+                    navigate('/crm/inquiries');
+                  }}
+                  className="w-full py-2 text-xs font-bold text-brand-green hover:text-emerald-300 hover:bg-brand-green/10 rounded-xl transition-colors"
+                >
+                  Open Inbox & Response Center →
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Notification Bell */}
         <div className="relative">
           <button
-            onClick={() => { setNotifOpen(o => !o); if (!notifOpen) fetchNotifications(); }}
+            onClick={() => { setNotifOpen(o => !o); setMsgOpen(false); if (!notifOpen) fetchNotifications(); }}
             className="relative p-1.5 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
@@ -154,7 +310,7 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
         {/* Theme Toggle */}
         <button id="theme-toggle" onClick={toggleTheme} title="Toggle dark/light mode">
           <span id="theme-icon">{theme === 'light' ? '☀️' : '🌙'}</span>
-          <span id="theme-label">{theme === 'light' ? 'Light' : 'Dark'}</span>
+          <span id="theme-label">{theme === 'light' ? 'Dark' : 'Dark'}</span>
           <div className="toggle-track"><div className="toggle-thumb" /></div>
         </button>
 

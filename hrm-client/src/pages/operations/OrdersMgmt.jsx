@@ -146,7 +146,14 @@ export default function OrdersMgmt() {
         ) : (
           (() => {
             const filteredGroups = Object.entries(groupedOrders).filter(([date, group]) => {
-              const todayStr = new Date().toISOString().split('T')[0];
+              const d = new Date();
+              const bkkStr = d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+              const bkkDate = new Date(bkkStr);
+              const yyyy = bkkDate.getFullYear();
+              const mm = String(bkkDate.getMonth() + 1).padStart(2, '0');
+              const dd = String(bkkDate.getDate()).padStart(2, '0');
+              const todayStr = `${yyyy}-${mm}-${dd}`;
+              
               if (activeTab === 'active') {
                 return date === todayStr && group.deliveredQty < group.totalQty;
               }

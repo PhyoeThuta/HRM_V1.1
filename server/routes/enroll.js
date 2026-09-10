@@ -21,6 +21,173 @@ class Mutex {
 }
 const enrollMutex = new Mutex();
 
+// LRU Cache for Geocoding requests to prevent rate-limiting and redundant external calls
+const geocodeCache = new Map();
+const GEOCODE_CACHE_TTL = 1000 * 60 * 60; // 1 hour TTL
+
+function getCachedGeocode(url) {
+  const cached = geocodeCache.get(url);
+  if (cached && (Date.now() - cached.timestamp < GEOCODE_CACHE_TTL)) {
+    return cached.data;
+  }
+  geocodeCache.delete(url);
+  return null;
+}
+
+function setCachedGeocode(url, data) {
+  if (geocodeCache.size > 100) {
+    const firstKey = geocodeCache.keys().next().value;
+    geocodeCache.delete(firstKey);
+  }
+  geocodeCache.set(url, { data, timestamp: Date.now() });
+}
+
+/**
+ * Extracts Lat/Long or resolves Google Maps Short Links (maps.app.goo.gl, etc.)
+ */
+async function resolveMapsUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return null;
+  const trimmed = urlStr.trim();
+
+  const directCoordRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)|[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)|\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/i;
+  const directMatch = trimmed.match(directCoordRegex);
+  if (directMatch) {
+    const lat = directMatch[1] || directMatch[3] || directMatch[5];
+    const lng = directMatch[2] || directMatch[4] || directMatch[6];
+    if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng), finalUrl: trimmed };
+  }
+
+  if (/goo\.gl|maps\.app\.goo\.gl|g\.co/i.test(trimmed)) {
+    try {
+      const getResp = await fetch(trimmed, { 
+        method: 'GET', 
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      });
+      const finalUrl = getResp.url || trimmed;
+      const htmlText = await getResp.text();
+
+      let scrapedTitle = null;
+      const titleMatch = htmlText.match(/<meta content="([^"]+)" itemProp="name">|<meta property="og:title" content="([^"]+)">|<title>([^<]+)<\/title>/i);
+      if (titleMatch) {
+        const rawTitle = titleMatch[1] || titleMatch[2] || titleMatch[3];
+        if (rawTitle && !rawTitle.includes('Google Maps')) {
+          scrapedTitle = rawTitle.replace(/ - Google Maps$/, '').trim();
+        }
+      }
+
+      const redirectMatch = finalUrl.match(directCoordRegex);
+      if (redirectMatch) {
+        const lat = redirectMatch[1] || redirectMatch[3] || redirectMatch[5];
+        const lng = redirectMatch[2] || redirectMatch[4] || redirectMatch[6];
+        if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng), finalUrl, scrapedTitle };
+      }
+
+      const metaMatch = htmlText.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (metaMatch) {
+        return { lat: parseFloat(metaMatch[1]), lng: parseFloat(metaMatch[2]), finalUrl, scrapedTitle };
+      }
+    } catch (err) {
+      console.warn('[RESOLVE_MAPS_URL_WARN]', err.message);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Reverse geocode coordinates using OpenStreetMap Nominatim API formatted like Google Maps Address
+ */
+async function reverseGeocode(lat, lng) {
+  try {
+    const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=en,my`;
+    const res = await fetch(nominatimUrl, {
+      headers: {
+        'User-Agent': 'BBD-CRM-System/1.0 (info@bbd-fitness.com)'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    
+    if (data && data.address) {
+      const addr = data.address;
+      
+      const placeName = addr.building || addr.amenity || addr.apartment || addr.complex || '';
+      const houseNumber = addr.house_number || '';
+      const road = addr.road || addr.pedestrian || addr.footway || '';
+      const streetAddress = [houseNumber, road].filter(Boolean).join(' ');
+
+      const subdistrict = addr.subdistrict || addr.quarter || addr.neighbourhood || addr.suburb || addr.residential || '';
+      const district = addr.district || addr.city_district || addr.township || addr.county || '';
+      const city = addr.city || addr.state_district || addr.state || addr.region || '';
+      const postcode = addr.postcode || '';
+
+      const formattedParts = [
+        placeName,
+        streetAddress,
+        subdistrict,
+        district,
+        city,
+        postcode
+      ].filter(Boolean);
+
+      const displayAddress = formattedParts.length > 0 ? formattedParts.join(', ') : data.display_name;
+      
+      return {
+        display_name: displayAddress,
+        raw_nominatim: data.display_name,
+        components: { placeName, houseNumber, road, subdistrict, district, city, postcode }
+      };
+    }
+  } catch (err) {
+    console.error('[REVERSE_GEOCODE_ERR]', err);
+  }
+  return null;
+}
+
+// POST /api/enroll/parse-maps-link - Realtime Google Maps parser & Reverse Geocoder
+router.post('/parse-maps-link', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'Valid URL is required' });
+    }
+
+    const cachedResult = getCachedGeocode(url.trim());
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
+
+    const resolved = await resolveMapsUrl(url);
+    if (!resolved) {
+      return res.status(422).json({ error: 'Could not extract location coordinates from Google Maps link' });
+    }
+
+    const geoData = await reverseGeocode(resolved.lat, resolved.lng);
+    
+    let finalFormatted = resolved.scrapedTitle || geoData?.display_name || `${resolved.lat}, ${resolved.lng}`;
+
+    const responsePayload = {
+      success: true,
+      lat: resolved.lat,
+      lng: resolved.lng,
+      formatted_address: finalFormatted,
+      raw_geocoded: geoData?.raw_nominatim || null,
+      maps_url: resolved.finalUrl || url,
+      components: geoData?.components || {}
+    };
+
+    setCachedGeocode(url.trim(), responsePayload);
+    res.json(responsePayload);
+  } catch (err) {
+    console.error('[PARSE_MAPS_LINK_ERR]', err);
+    res.status(500).json({ error: 'Failed to process Google Maps link' });
+  }
+});
+
 // Helper: generate customer code
 async function generateCustomerCode() {
   const { data } = await supabaseAdmin
@@ -39,6 +206,73 @@ async function generateCustomerCode() {
   }
   return `BBD-${String(num).padStart(3, '0')}`;
 }
+
+// GET /api/enroll/update-address/:customerId - Fetch customer basic info for public update address form
+router.get('/update-address/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    let query = supabaseAdmin.schema('crm').from('customers').select('id, full_name, customer_code, address, delivery_address, delivery_notes');
+    
+    if (customerId.startsWith('BBD-') || !customerId.includes('-')) {
+      query = query.eq('customer_code', customerId);
+    } else {
+      query = query.eq('id', customerId);
+    }
+
+    const { data: customer, error } = await query.single();
+    if (error || !customer) {
+      return res.status(404).json({ error: 'Customer profile not found' });
+    }
+
+    res.json({ success: true, customer });
+  } catch (err) {
+    console.error('[UPDATE_ADDRESS_GET_ERR]', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/enroll/update-address/:customerId - Public submission to update customer delivery address
+router.post('/update-address/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { delivery_address, delivery_notes, maps_url } = req.body;
+
+    let query = supabaseAdmin.schema('crm').from('customers').select('id, delivery_notes');
+    if (customerId.startsWith('BBD-') || !customerId.includes('-')) {
+      query = query.eq('customer_code', customerId);
+    } else {
+      query = query.eq('id', customerId);
+    }
+
+    const { data: existingCustomer, error: findErr } = await query.single();
+    if (findErr || !existingCustomer) {
+      return res.status(404).json({ error: 'Customer profile not found' });
+    }
+
+    let finalNotes = delivery_notes || existingCustomer.delivery_notes || '';
+    if (maps_url) {
+      const linkNote = `📍 Maps Link: ${maps_url}`;
+      if (!finalNotes.includes(maps_url)) {
+        finalNotes = finalNotes ? `${finalNotes} | ${linkNote}` : linkNote;
+      }
+    }
+
+    const { error: updateErr } = await supabaseAdmin.schema('crm').from('customers')
+      .update({
+        delivery_address: delivery_address || null,
+        delivery_notes: finalNotes || null
+      })
+      .eq('id', existingCustomer.id);
+
+    if (updateErr) throw updateErr;
+
+    res.json({ success: true, message: 'Delivery address updated successfully' });
+  } catch (err) {
+    console.error('[UPDATE_ADDRESS_POST_ERR]', err);
+    res.status(500).json({ error: 'Failed to update delivery address' });
+  }
+});
 
 // GET /api/enroll/:token - Fetch form schema and inquiry details
 router.get('/:token', async (req, res) => {
@@ -148,6 +382,15 @@ router.post('/:token', async (req, res) => {
     let newCustomer;
     try {
       const customer_code = await generateCustomerCode();
+
+      let formattedDeliveryNotes = formData.delivery_notes || '';
+      if (formData.delivery_address_url || (formData.delivery_address && formData.delivery_address.startsWith('http'))) {
+        const rawMapUrl = formData.delivery_address_url || formData.delivery_address;
+        const linkNote = `📍 Maps Link: ${rawMapUrl}`;
+        formattedDeliveryNotes = formattedDeliveryNotes 
+          ? `${formattedDeliveryNotes} | ${linkNote}` 
+          : linkNote;
+      }
     
       const { data: createdCustomer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
         .insert({
@@ -157,9 +400,9 @@ router.post('/:token', async (req, res) => {
           gender: formData.gender || 'Unknown',
           email: formData.email || null,
           phone: formData.phone || inquiry.prospect_contact || null,
-          address: formData.home_address || null,
-          delivery_address: formData.delivery_address || formData.home_address || null,
-          delivery_notes: formData.delivery_notes || null,
+          address: formData.home_address_parsed || formData.home_address || null,
+          delivery_address: formData.delivery_address_parsed || formData.delivery_address || formData.home_address || null,
+          delivery_notes: formattedDeliveryNotes || null,
           customer_code
         })
         .select()
@@ -212,7 +455,7 @@ router.post('/:token', async (req, res) => {
 
     if (selectedPackage) {
       const pkg = selectedPackage;
-      let durationDays = 30; // default 30 days
+      let durationDays = 30;
       if (pkg.duration) {
         const durStr = String(pkg.duration).toLowerCase();
         const num = parseInt(durStr) || 1;
@@ -220,14 +463,13 @@ router.post('/:token', async (req, res) => {
         else if (durStr.includes('month') || durStr.includes('mo')) durationDays = num * 30;
         else if (durStr.includes('year') || durStr.includes('yr')) durationDays = num * 365;
         else if (durStr.includes('day')) durationDays = num;
-        else durationDays = num; // fallback to just the number if no unit
+        else durationDays = num;
       }
       
       const startDate = formData.start_date ? new Date(formData.start_date) : new Date();
       if (!formData.start_date) {
         startDate.setDate(startDate.getDate() + 1);
       }
-      // Zero out time for comparison
       startDate.setHours(0, 0, 0, 0);
       
       const expiresAt = new Date(startDate);
@@ -238,7 +480,6 @@ router.post('/:token', async (req, res) => {
       
       const packageStatus = startDate > today ? 'Upcoming' : 'Active';
 
-      // Calculate meal count dynamically based on duration and meal type
       const mealType = pkg.meal_type || 'Lunch & Dinner';
       let mealsPerDay = 1;
       if (mealType.toLowerCase().includes('lunch') && mealType.toLowerCase().includes('dinner')) mealsPerDay = 2;
@@ -261,7 +502,6 @@ router.post('/:token', async (req, res) => {
         });
     }
     
-    // Send success to client, no CRM UI update needed directly because real-time will catch the update
     res.json({ success: true, customer_id: newCustomer.id });
 
   } catch (err) {

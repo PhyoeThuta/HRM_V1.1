@@ -87,7 +87,44 @@ router.get('/level-settings', verifyToken, async (req, res) => {
       .order('required_spend', { ascending: true });
 
     if (error) throw error;
-    return res.json(data);
+    
+    // Decode metadata stored in `color` column if formatted like "amber|max_spend:8000"
+    const decoded = (data || []).map(item => {
+      let color = item.color || 'blue';
+      let max_spend = null;
+
+      if (color && color.includes('|max_spend:')) {
+        const parts = color.split('|max_spend:');
+        color = parts[0];
+        const parsedMax = parseInt(parts[1], 10);
+        if (!isNaN(parsedMax)) max_spend = parsedMax;
+      }
+
+      const min_spend = item.min_spend !== undefined && item.min_spend !== null ? item.min_spend : (item.required_spend || 0);
+
+      return {
+        ...item,
+        min_spend,
+        max_spend,
+        color
+      };
+    });
+
+    // Sort ascending by min_spend
+    const sorted = decoded.sort((a, b) => a.min_spend - b.min_spend);
+
+    // Compute range dynamically: fallback to next tier's min_spend ONLY IF max_spend was not explicitly saved
+    const normalized = sorted.map((s, idx) => {
+      let max = s.max_spend;
+      if (max === null && idx < sorted.length - 1) {
+        const nextMin = sorted[idx + 1].min_spend;
+        max = nextMin > s.min_spend ? nextMin : null;
+      }
+
+      return { ...s, max_spend: max };
+    });
+
+    return res.json(normalized);
   } catch (e) {
     console.error('[CRM GET LEVEL SETTINGS]', e.message);
     return res.status(500).json({ error: e.message });
@@ -97,11 +134,28 @@ router.get('/level-settings', verifyToken, async (req, res) => {
 // POST /api/crm/level-settings
 router.post('/level-settings', verifyToken, async (req, res) => {
   try {
-    const { id, level_name, required_spend, color } = req.body;
+    const { id, level_name, required_spend, min_spend, max_spend, color } = req.body;
     
-    if (!level_name || required_spend === undefined) {
-      return res.status(400).json({ error: 'level_name and required_spend are required' });
+    const parsedMin = min_spend !== undefined && min_spend !== '' ? parseInt(min_spend) : (required_spend !== undefined ? parseInt(required_spend) : 0);
+    const parsedMax = max_spend !== undefined && max_spend !== '' && max_spend !== null ? parseInt(max_spend) : null;
+
+    if (!level_name || parsedMin === undefined || isNaN(parsedMin)) {
+      return res.status(400).json({ error: 'level_name and valid min_spend are required' });
     }
+
+    if (parsedMax !== null && !isNaN(parsedMax) && parsedMin > parsedMax) {
+      return res.status(400).json({ error: 'Minimum spend cannot be greater than maximum spend.' });
+    }
+
+    // Encode explicit max_spend inside color string so DB stores it without schema migration errors
+    const baseColor = color || 'blue';
+    const encodedColor = parsedMax !== null ? `${baseColor}|max_spend:${parsedMax}` : baseColor;
+
+    const payload = {
+      level_name,
+      required_spend: parsedMin, // Keep for DB column compatibility
+      color: encodedColor
+    };
 
     let result;
     if (id) {
@@ -109,7 +163,7 @@ router.post('/level-settings', verifyToken, async (req, res) => {
       const { data, error } = await supabaseAdmin
         .schema('crm')
         .from('level_settings')
-        .update({ level_name, required_spend: parseInt(required_spend), color })
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
@@ -120,14 +174,28 @@ router.post('/level-settings', verifyToken, async (req, res) => {
       const { data, error } = await supabaseAdmin
         .schema('crm')
         .from('level_settings')
-        .insert({ level_name, required_spend: parseInt(required_spend), color })
+        .insert(payload)
         .select()
         .single();
       if (error) throw error;
       result = data;
     }
 
-    return res.json(result);
+    // Normalize output format
+    let resColor = result.color || 'blue';
+    let resMax = null;
+    if (resColor && resColor.includes('|max_spend:')) {
+      const parts = resColor.split('|max_spend:');
+      resColor = parts[0];
+      resMax = parseInt(parts[1], 10);
+    }
+
+    return res.json({
+      ...result,
+      min_spend: parsedMin,
+      max_spend: resMax,
+      color: resColor
+    });
   } catch (e) {
     console.error('[CRM POST LEVEL SETTING]', e.message);
     return res.status(500).json({ error: e.message });
@@ -163,38 +231,75 @@ router.get('/customers', verifyToken, async (req, res) => {
       .from('customers')
       .select(`
         *,
-        customer_packages (amount)
+        customer_packages (
+          id,
+          name,
+          status,
+          amount,
+          start_date,
+          expires_at
+        )
       `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     // Fetch level settings to calculate levels
-    const { data: levelSettings } = await supabaseAdmin
+    const { data: rawLevelSettings } = await supabaseAdmin
       .schema('crm')
       .from('level_settings')
       .select('*')
       .order('required_spend', { ascending: false });
 
+    const levelSettings = (rawLevelSettings || []).map(item => {
+      let color = item.color || 'blue';
+      let max_spend = null;
+      if (color && color.includes('|max_spend:')) {
+        const parts = color.split('|max_spend:');
+        color = parts[0];
+        max_spend = parseInt(parts[1], 10);
+      }
+      return {
+        ...item,
+        min_spend: item.min_spend !== undefined && item.min_spend !== null ? item.min_spend : (item.required_spend || 0),
+        max_spend,
+        color
+      };
+    }).sort((a, b) => b.min_spend - a.min_spend);
+
     // Flatten package amounts and calculate level
     const result = data.map(c => {
-      // Calculate total spend by summing up the amount of all packages
-      const totalSpend = c.customer_packages?.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
+      const rawPackages = c.customer_packages || [];
+      const totalSpend = rawPackages.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
+      const packageCount = rawPackages.length;
       
-      // Determine level based on totalSpend
+      const activePkg = rawPackages.find(p => ['Active', 'Paused', 'Booking Confirmed', 'Upcoming'].includes(p.status));
+      const isActive = !!activePkg;
+      const packageNames = rawPackages.map(p => p.name).filter(Boolean);
+
+      // Determine level based on totalSpend range
       let calculatedLevel = null;
       if (levelSettings && levelSettings.length > 0) {
         for (const setting of levelSettings) {
-          if (totalSpend >= setting.required_spend) {
-            calculatedLevel = setting;
-            break; // found the highest level since it's ordered descending
+          const min = setting.min_spend;
+          const max = setting.max_spend;
+
+          if (totalSpend >= min && (max === null || isNaN(max) || totalSpend <= max)) {
+            calculatedLevel = { ...setting, min_spend: min, max_spend: max };
+            break;
           }
         }
       }
-      
-      const packageCount = c.customer_packages?.length || 0;
-      delete c.customer_packages;
-      return { ...c, level: calculatedLevel, total_spend: totalSpend, packages: packageCount };
+
+      return { 
+        ...c, 
+        level: calculatedLevel, 
+        total_spend: totalSpend, 
+        packages: packageCount,
+        is_active: isActive,
+        package_names: packageNames,
+        customer_packages: rawPackages
+      };
     });
 
     return res.json(result);
@@ -668,7 +773,7 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
     const targetDate = req.query.date || new Date().toISOString().split('T')[0];
     
     // Get all active packages today with customer info
-    const { data: packages, error } = await supabaseAdmin.schema('crm')
+    let { data: packages, error } = await supabaseAdmin.schema('crm')
       .from('customer_packages')
       .select(`
         *,
@@ -678,23 +783,54 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
           customer_lifestyle ( food_restriction )
         )
       `)
-      .eq('status', 'Active')
-      .gt('meal_count', 0)
+      .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
       .gte('expires_at', targetDate);
 
     if (error) throw error;
-    
+
+    // Fallback: If no packages found by date bounds, fetch all active packages or packages for customers with orders today
+    if (!packages || packages.length === 0) {
+      const { data: fallbackPkgs } = await supabaseAdmin.schema('crm')
+        .from('customer_packages')
+        .select(`
+          *,
+          customers:customer_id ( 
+            full_name, phone, address, delivery_address, delivery_notes,
+            customer_health ( allergies, medical_condition, special_requests ),
+            customer_lifestyle ( food_restriction )
+          )
+        `);
+      packages = fallbackPkgs || [];
+    }
+
+    // Also check operations_orders for targetDate to ensure headcount matches generated orders
+    const { data: todayOrders } = await supabaseAdmin
+      .from('operations_orders')
+      .select('customer_id, daily_menu_id, daily_menus:daily_menu_id(meal_type)')
+      .eq('date', targetDate);
+
     let totalLunch = 0;
     let totalDinner = 0;
     const specialRequests = [];
 
+    // If todayOrders exist, count headcount from actual orders
+    if (todayOrders && todayOrders.length > 0) {
+      todayOrders.forEach(o => {
+        const mtype = (o.daily_menus?.meal_type || '').toUpperCase();
+        if (mtype.includes('LUNCH')) totalLunch++;
+        else if (mtype.includes('DINNER')) totalDinner++;
+      });
+    }
+
     // Parse the data for kitchen view
     const deliveryList = packages.map(pkg => {
-      let isLunch = pkg.meal_type.toLowerCase().includes('lunch');
-      let isDinner = pkg.meal_type.toLowerCase().includes('dinner');
+      let isLunch = (pkg.meal_type || '').toLowerCase().includes('lunch');
+      let isDinner = (pkg.meal_type || '').toLowerCase().includes('dinner');
       
-      if (isLunch) totalLunch++;
-      if (isDinner) totalDinner++;
+      if (!todayOrders || todayOrders.length === 0) {
+        if (isLunch) totalLunch++;
+        if (isDinner) totalDinner++;
+      }
       
       const restrictions = [];
       const health = pkg.customers?.customer_health?.[0] || pkg.customers?.customer_health || {};
@@ -705,8 +841,8 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
       if (lifestyle.food_restriction && lifestyle.food_restriction !== 'None') restrictions.push(lifestyle.food_restriction);
       
       const restrictionStr = restrictions.join(', ');
-      if (restrictionStr) {
-        specialRequests.push({ customer: pkg.customers.full_name, request: restrictionStr, type: pkg.meal_type });
+      if (restrictionStr && pkg.customers?.full_name) {
+        specialRequests.push({ customer: pkg.customers.full_name, request: restrictionStr, type: pkg.meal_type || 'Lunch & Dinner' });
       }
 
       return {
@@ -749,7 +885,8 @@ router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
     const bomMap = new Map();
     
     enrichedDailyMenus.forEach(dm => {
-      const multiplier = dm.meal_type === 'LUNCH' ? totalLunch : totalDinner;
+      const mtype = (dm.meal_type || '').toUpperCase();
+      const multiplier = mtype.includes('LUNCH') ? totalLunch : (mtype.includes('DINNER') ? totalDinner : totalLunch);
       if (multiplier === 0) return;
       
       dm.menu_types.forEach(mt => {
@@ -1042,7 +1179,7 @@ The JSON must have the following exact keys:
   "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
   "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
   "confidence_score": integer (0 to 100),
-  "pipeline_status": "string (must be EXACTLY one of: 'new', 'hot', 'pending', 'converted', 'lost').",
+  "pipeline_status": "string (must be EXACTLY one of: 'new', 'in_progress', 'pending', 'converted', 'lost'). Rules: Set 'in_progress' if prospect asks for menu, price, delivery details, or explanations (Follow-up stage). Set 'pending' ONLY if prospect asks to buy/pay/transfer money now. Set 'new' for brief initial greetings.",
   "auto_reply_text": "string or null. CRITICAL RULE: If the PROSPECT asks a question or asks for details/explanation, you MUST return a polite Burmese reply explaining the packages and do NOT send payment info yet. ONLY send Payment Details if the prospect explicitly asks 'How to pay?', 'Where to transfer?', or says they are ready to transfer money now. If they just say 'thank you' or 'ok', return null."
 }
 
@@ -1056,6 +1193,9 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
     
     const aiJson = JSON.parse(aiText);
     
+    // Check existing inquiry state first
+    const { data: existingInq } = await supabaseAdmin.schema('crm').from('inquiries').select('customer_id, status').eq('id', inquiryId).single();
+
     const updatePayload = { 
       updated_at: new Date().toISOString(),
       ai_analysis_result: {
@@ -1063,9 +1203,13 @@ Respond ONLY with the raw JSON object. Do not include markdown formatting or bac
         sentiment: aiJson.sentiment,
         recommended_action: aiJson.recommended_action
       },
-      service_interest_confidence: aiJson.confidence_score,
-      status: aiJson.pipeline_status || 'new'
+      service_interest_confidence: aiJson.confidence_score
     };
+
+    // Only update pipeline status if not already an enrolled customer
+    if (!existingInq?.customer_id && existingInq?.status !== 'converted') {
+      updatePayload.status = aiJson.pipeline_status || 'new';
+    }
 
     const { data: updated } = await supabaseAdmin.schema('crm').from('inquiries')
       .update(updatePayload)
@@ -1334,8 +1478,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
             const zernioResult = await zernioResponse.json();
             if (!zernioResponse.ok || zernioResult.error) {
               const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
-              console.error('[ZERNIO SEND ERROR]', errorDetail);
-              throw new Error(errorDetail);
+              console.error('[ZERNIO SEND ERROR (non-fatal)]', errorDetail);
             }
           } else {
             // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
@@ -1544,7 +1687,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
       supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
       supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Upcoming'),
       supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
-      supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
+      supabaseAdmin.schema('crm').from('inquiries').select('*').is('customer_id', null).neq('status', 'converted').order('created_at', { ascending: false }).limit(6),
       supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
       supabaseAdmin.schema('crm').from('inquiries').select('source'),
       supabaseAdmin.schema('crm').from('feedbacks').select('*, customers!inner(full_name)').order('created_at', { ascending: false }).limit(30),
@@ -1586,16 +1729,20 @@ router.get('/dashboard', verifyToken, async (req, res) => {
     (allInquiriesForStatus || []).forEach(inq => {
       const s = (inq.status || '').toLowerCase();
       
-      // Best Practice: If an inquiry is linked to a customer, it is fundamentally "converted", regardless of its status string.
+      // If inquiry is linked to customer or status is converted, it is a converted customer (not a prospect)
       if (inq.customer_id || s === 'converted') {
-        // Already converted, do not count as pending/followup
         return;
       }
 
-      if (s === 'hot') hotProspects++;
-      else if (s === 'pending') pendingProspects++;
-      else if (s === 'lost') lostProspects++;
-      else followUpProspects++;
+      if (['hot', 'new', 'initial_contact'].includes(s)) {
+        hotProspects++;
+      } else if (['pending', 'payment_pending'].includes(s)) {
+        pendingProspects++;
+      } else if (['lost', 'closed'].includes(s)) {
+        lostProspects++;
+      } else {
+        followUpProspects++;
+      }
     });
 
     const mappedRenewals = (upcomingRenewals || []).map(pkg => {
@@ -1927,7 +2074,7 @@ router.get('/feedbacks', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.schema('crm')
       .from('feedbacks')
-      .select('*, customers!inner(full_name)')
+      .select('*, customers(*)')
       .order('created_at', { ascending: false });
       
     if (error) throw error;
@@ -2065,17 +2212,35 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
     res.status(500).send('Internal Error');
   }
 });
-// GET /api/crm/weekly-feedbacks
+// GET /api/crm/weekly-feedbacks (Daily & Weekly Menu Feedbacks)
 router.get('/weekly-feedbacks', verifyToken, async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('crm_menu_feedbacks')
-      .select('*, customers(full_name)')
+    // 1. Fetch daily feedbacks
+    const { data: dailyFeedbacks, error: dailyErr } = await supabaseAdmin
+      .schema('crm')
+      .from('daily_feedbacks')
+      .select('*, customers(id, full_name, phone, status)')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    res.json(data);
+    if (dailyErr) console.warn('[CRM GET DAILY FEEDBACKS WARN]', dailyErr.message);
+
+    // 2. Fetch weekly menu feedbacks
+    const { data: weeklyFeedbacks, error: weeklyErr } = await supabaseAdmin
+      .from('crm_menu_feedbacks')
+      .select('*, customers(id, full_name, phone, status)')
+      .order('created_at', { ascending: false });
+
+    if (weeklyErr) console.warn('[CRM GET WEEKLY FEEDBACKS WARN]', weeklyErr.message);
+
+    // 3. Combine and return sorted by date
+    const combined = [
+      ...(dailyFeedbacks || []).map(item => ({ ...item, feedback_type: 'DAILY' })),
+      ...(weeklyFeedbacks || []).map(item => ({ ...item, feedback_type: 'WEEKLY' }))
+    ].sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+
+    res.json(combined);
   } catch (err) {
-    console.error('[GET WEEKLY FEEDBACKS ERROR]', err);
+    console.error('[GET WEEKLY/DAILY FEEDBACKS ERROR]', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2106,6 +2271,250 @@ router.post('/feedback/:id/resolve', verifyToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// In-memory or Database-backed daily task quota tracker per user ID & date
+const userDailyTaskQuota = new Map();
+
+// Helper to check and increment daily task quota
+function checkAndIncrementTaskQuota(userId) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const quotaKey = `${userId}_${todayStr}`;
+  const currentUsed = userDailyTaskQuota.get(quotaKey) || 0;
+
+  if (currentUsed >= 5) {
+    return { allowed: false, used: currentUsed, remaining: 0 };
+  }
+
+  userDailyTaskQuota.set(quotaKey, currentUsed + 1);
+  return { allowed: true, used: currentUsed + 1, remaining: 5 - (currentUsed + 1) };
+}
+
+// POST /api/crm/ai-assistant - Universal Agentic Admin CRM AI Copilot
+router.post('/ai-assistant', async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: 'Query is required' });
+    if (!process.env.GEMINI_API_KEY) {
+      return res.json({ response: 'GEMINI_API_KEY is not configured.' });
+    }
+
+    const userId = req.user?.id || 'guest_admin';
+    const userRole = req.user?.role || 'admin';
+
+    // 1. Strict Daily Quota Enforcement (Max 5 AI Agentic Tasks per day)
+    const quota = checkAndIncrementTaskQuota(userId);
+    if (!quota.allowed) {
+      return res.status(429).json({
+        error: 'Daily AI Task Limit Reached',
+        response: `⚠️ **နေ့စဉ် AI ခိုင်းစေနိုင်သည့် ပမာဏ ပြည့်သွားပါပြီ!**\n\nတစ်နေ့လျှင် AI Copilot ထံ Agentic Tasks **(၅) ခု** သာ ခိုင်းစေခွင့် ပြုထားပါသည်။ ဒီနေ့အတွက် ခိုင်းစေမှု (၅/၅) မျိုး ပြည့်သွားပြီဖြစ်၍ မနက်ဖြန်မှ ထပ်မံ ခိုင်းစေနိုင်မည် ဖြစ်ပါသည်။ (မှတ်ချက် - စည်းကမ်းချက်များအား Strict ရေးဆွဲထားပါသည်)`
+      });
+    }
+
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+    const tools = [{
+      functionDeclarations: [
+        {
+          name: "execute_analytics_query",
+          description: "Execute a dynamic Read-Only SQL (PostgreSQL) query to get EXACT data from crm schema (crm.customers, crm.customer_health, crm.customer_lifestyle, crm.customer_packages, crm.inquiries, crm.feedbacks, crm.level_settings, etc.).",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              sql_query: { type: "STRING", description: "Read-only PostgreSQL SELECT query." }
+            },
+            required: ["sql_query"]
+          }
+        },
+        {
+          name: "search_customer_full_memory",
+          description: "Search for a customer by name, phone, or ID and automatically return their full dossier (customer profile, health allergies, medical history, lifestyle preferences, active/past diet packages, and feedback history).",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              search_term: { type: "STRING", description: "Customer name, phone number, or numeric ID" }
+            },
+            required: ["search_term"]
+          }
+        },
+        {
+          name: "get_crm_metrics",
+          description: "Fetches overall CRM metrics: total active customers, inactive/churned customers, leads count, active packages count.",
+          parameters: { type: "OBJECT", properties: { dummy: { type: "STRING" } } }
+        },
+        {
+          name: "agentic_update_customer_note",
+          description: "Agentic action: Update or add a special customer care note or allergy rule directly into the database on behalf of the Admin/Boss.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              customer_id: { type: "NUMBER", description: "Customer numeric ID" },
+              allergies: { type: "STRING", description: "Updated allergy list or special food rules" },
+              special_requests: { type: "STRING", description: "Special requests or care notes" }
+            },
+            required: ["customer_id"]
+          }
+        }
+      ]
+    }];
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", tools });
+
+    const systemPrompt = `You are BBD Admin CRM AI Copilot, the omniscient and AGENTIC CRM assistant for Busy Boss Diet (BBD).
+BILINGUAL INSTRUCTION: Reply in Myanmar (Burmese script) with a professional, helpful, and precise tone.
+
+STRICT PRIVACY & SECURITY RULES:
+- User Role: ${userRole}
+- FINANCIAL REPORT PRIVACY RULE: Comprehensive Financial Revenue, Profit Margins, and Executive Financial Reports are STRICTLY CONFIDENTIAL and reserved FOR THE BOSS ONLY (userRole === 'boss'). If a non-boss user asks for total revenue/financial profits, politely inform them: "⚠️ ဘဏ္ဍာရေး အစီရင်ခံစာများနှင့် ဝင်ငွေအချက်အလက်များသည် 'Boss' (သူဌေး) တစ်ဦးတည်းသာ ကြည့်ရှုခွင့်ရှိသော Strict Confidential Data ဖြစ်ပါသည်။"
+
+DAILY TASK QUOTA CONTEXT:
+- Remaining Tasks Today for this User: ${quota.remaining} of 5 tasks remaining. Mention this remaining quota politely at the end of your response.
+
+AGENTIC CAPABILITIES:
+- You can execute SQL queries, search customer histories, and perform database actions (like updating health notes) when instructed.
+
+WHEN A CUSTOMER IS LOOKED UP OR RETRIEVED:
+1. Provide a clean summary of their profile and status.
+2. Recall their Historical Memory & Preferences (e.g. allergies, beef avoidance, medical notes, target weight).
+3. Include clickable Markdown action links:
+   - [View Customer Profile](/crm/customers/<id>)
+   - [Customer Welcome Dossier](/welcome/<id>)
+   - [Re-enrollment Form](/enroll)
+4. Auto-generate a warm, personalized Burmese "Welcome Back" message ready to copy & send to the customer.
+
+=== ADMIN QUERY ===
+${query}
+=== END QUERY ===`;
+
+    let history = [{ role: 'user', parts: [{ text: systemPrompt }] }];
+    let finalResponseText = "";
+    let toolCallCount = 0;
+
+    while (toolCallCount < 6) {
+      const result = await model.generateContent({ contents: history });
+      const response = result.response;
+      const modelParts = response.candidates?.[0]?.content?.parts || [];
+      history.push({ role: 'model', parts: modelParts });
+
+      const functionCalls = response.functionCalls();
+      if (!functionCalls || functionCalls.length === 0) {
+        try { finalResponseText = response.text() || ""; } catch (e) { finalResponseText = ""; }
+        break;
+      }
+
+      const call = functionCalls[0];
+      let apiRes = {};
+
+      try {
+        if (call.name === "execute_analytics_query") {
+          const { sql_query } = call.args;
+          const { data, error } = await supabaseAdmin.rpc('execute_read_only_sql', { query_text: sql_query });
+          if (error) {
+            apiRes = { error: error.message || error };
+          } else {
+            apiRes = { data: data || [] };
+          }
+        } else if (call.name === "search_customer_full_memory") {
+          const { search_term } = call.args;
+          const term = String(search_term).trim();
+          let isNum = !isNaN(term);
+
+          let q = supabaseAdmin.schema('crm').from('customers').select('*');
+          if (isNum) {
+            q = q.or(`id.eq.${term},phone.ilike.%${term}%,full_name.ilike.%${term}%`);
+          } else {
+            q = q.or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`);
+          }
+
+          const { data: custs } = await q.limit(5);
+          if (custs && custs.length > 0) {
+            const cust = custs[0];
+            const [hRes, lRes, pRes, fRes] = await Promise.all([
+              supabaseAdmin.schema('crm').from('customer_health').select('*').eq('customer_id', cust.id).maybeSingle(),
+              supabaseAdmin.schema('crm').from('customer_lifestyle').select('*').eq('customer_id', cust.id).maybeSingle(),
+              supabaseAdmin.schema('crm').from('customer_packages').select('*').eq('customer_id', cust.id).order('created_at', { ascending: false }),
+              supabaseAdmin.schema('crm').from('feedbacks').select('*').eq('customer_id', cust.id).order('created_at', { ascending: false }).limit(5)
+            ]);
+
+            apiRes = {
+              customer: cust,
+              health: hRes.data || null,
+              lifestyle: lRes.data || null,
+              packages: pRes.data || [],
+              recent_feedbacks: fRes.data || []
+            };
+          } else {
+            apiRes = { message: `No customer found matching '${term}'` };
+          }
+        } else if (call.name === "get_crm_metrics") {
+          const today = new Date().toISOString().split('T')[0];
+          const [
+            { count: totalCust },
+            { count: activeCust },
+            { count: totalLeads },
+            { count: activePkgs }
+          ] = await Promise.all([
+            supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.schema('crm').from('customer_packages').select('customer_id', { count: 'exact', head: true }).gte('expires_at', today),
+            supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact', head: true }).neq('status', 'converted'),
+            supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).gte('expires_at', today)
+          ]);
+
+          apiRes = {
+            total_customers: totalCust || 0,
+            active_customers: activeCust || 0,
+            inactive_customers: (totalCust || 0) - (activeCust || 0),
+            total_leads: totalLeads || 0,
+            active_packages: activePkgs || 0
+          };
+        } else if (call.name === "agentic_update_customer_note") {
+          const { customer_id, allergies, special_requests } = call.args;
+          const { data: existing } = await supabaseAdmin.schema('crm').from('customer_health').select('id').eq('customer_id', customer_id).maybeSingle();
+
+          let updateErr = null;
+          if (existing) {
+            const { error } = await supabaseAdmin.schema('crm').from('customer_health')
+              .update({ allergies, special_requests })
+              .eq('customer_id', customer_id);
+            updateErr = error;
+          } else {
+            const { error } = await supabaseAdmin.schema('crm').from('customer_health')
+              .insert({ customer_id, allergies, special_requests });
+            updateErr = error;
+          }
+
+          if (updateErr) {
+            apiRes = { error: updateErr.message };
+          } else {
+            apiRes = { success: true, message: `Successfully updated customer #${customer_id} health notes & allergies.` };
+          }
+        }
+      } catch (err) {
+        apiRes = { error: err.message };
+      }
+
+      history.push({ role: 'user', parts: [{ functionResponse: { name: call.name, response: apiRes } }] });
+      toolCallCount++;
+    }
+
+    if (!finalResponseText) {
+      history.push({ role: 'user', parts: [{ text: "Present your full response in Burmese." }] });
+      try {
+        const forced = await model.generateContent({ contents: history });
+        finalResponseText = forced.response.text() || "";
+      } catch (e) { finalResponseText = ""; }
+    }
+
+    return res.json({
+      success: true,
+      quota: { remaining: quota.remaining, limit: 5 },
+      response: finalResponseText || "မင်္ဂလာပါ Admin ရှင့်။ တောင်းဆိုချက်ကို ဆောင်ရွက်ရာတွင် အမှားတစ်ခု ဖြစ်ပေါ်သွားပါသည်။"
+    });
+  } catch (err) {
+    console.error('[CRM AI ASSISTANT ERROR]', err);
+    return res.status(500).json({ error: err.message || 'Failed to process request' });
   }
 });
 

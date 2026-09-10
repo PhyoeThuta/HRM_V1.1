@@ -1,57 +1,70 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 
 const COLUMNS = [
-  { id: 'new', title: 'New Leads', color: 'from-blue-500/20 to-blue-600/20', borderColor: 'border-blue-500/30' },
-  { id: 'in_progress', title: 'Follow Up / Negotiating', color: 'from-amber-500/20 to-amber-600/20', borderColor: 'border-amber-500/30' },
-  { id: 'converted', title: 'Converted (Won)', color: 'from-emerald-500/20 to-emerald-600/20', borderColor: 'border-emerald-500/30' },
-  { id: 'lost', title: 'Lost (Closed)', color: 'from-rose-500/20 to-rose-600/20', borderColor: 'border-rose-500/30' }
+  { id: 'new', title: 'Hot Prospects', color: 'from-blue-500/20 to-blue-600/20', borderColor: 'border-blue-500/30', badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  { id: 'in_progress', title: 'Follow-up Prospects', color: 'from-amber-500/20 to-amber-600/20', borderColor: 'border-amber-500/30', badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  { id: 'pending', title: 'Pending Prospects', color: 'from-purple-500/20 to-purple-600/20', borderColor: 'border-purple-500/30', badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  { id: 'lost', title: 'Lost Prospects', color: 'from-rose-500/20 to-rose-600/20', borderColor: 'border-rose-500/30', badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
 ];
 
 export default function LeadsPipeline() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightedStatus = searchParams.get('status') || '';
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState(null);
+  const [convertingLead, setConvertingLead] = useState(null);
+  const [packages, setPackages] = useState([]);
   
-  // Aggregate stats
-  const totalLeads = leads.length;
-  const convertedCount = leads.filter(l => l.status === 'converted').length;
-  const lostCount = leads.filter(l => l.status === 'lost').length;
-  const avgConfidence = totalLeads > 0 
-    ? Math.round(leads.reduce((sum, l) => sum + (l.service_interest_confidence || 0), 0) / totalLeads)
-    : 0;
+  // Convert form state
+  const [selectedPkgId, setSelectedPkgId] = useState('');
 
   useEffect(() => {
-    loadLeads();
+    loadData();
   }, []);
 
-  const loadLeads = () => {
+  const loadData = async () => {
     setLoading(true);
-    crmApi.getInquiries().then(data => {
-      // If a lead doesn't have a status, default it to 'new' for display
-      const normalizedData = data.map(l => ({
-        ...l,
-        status: l.status || 'new'
-      }));
-      setLeads(normalizedData);
-    }).catch(() => {
-      toast.error('Failed to load leads pipeline');
-    }).finally(() => setLoading(false));
+    try {
+      const [inquiriesData, pkgsData] = await Promise.all([
+        crmApi.getInquiries(),
+        crmApi.getPackages()
+      ]);
+
+      // Filter out inquiries that are already linked to a customer or converted
+      const activeLeads = (inquiriesData || []).filter(l => !l.customer_id && l.status !== 'converted').map(l => {
+        let s = (l.status || 'new').toLowerCase();
+        if (s === 'initial_contact' || s === 'hot') s = 'new';
+        if (s === 'followup' || s === 'contacted') s = 'in_progress';
+        if (s === 'closed') s = 'lost';
+        return { ...l, status: s };
+      });
+
+      setLeads(activeLeads);
+      setPackages(pkgsData || []);
+      if (pkgsData && pkgsData.length > 0) {
+        setSelectedPkgId(pkgsData[0].id);
+      }
+    } catch (err) {
+      toast.error('Failed to load leads pipeline data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDragStart = (e, lead) => {
     setDraggedLead(lead);
-    // Setting data transfer allows drop zones to know what's coming
     e.dataTransfer.setData('text/plain', lead.id);
     e.dataTransfer.effectAllowed = 'move';
     
-    // Slight delay to add styling to original card without breaking drag image
     setTimeout(() => {
       e.target.style.opacity = '0.5';
     }, 0);
@@ -63,7 +76,7 @@ export default function LeadsPipeline() {
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault(); // Necessary to allow dropping
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
@@ -72,24 +85,74 @@ export default function LeadsPipeline() {
     if (!draggedLead) return;
     
     const leadId = draggedLead.id;
-    if (draggedLead.status === columnId) return; // No change
+    if (draggedLead.status === columnId) return;
 
     // Optimistic UI Update
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: columnId } : l));
     
     try {
       await crmApi.updateInquiry(leadId, { status: columnId });
-      toast.success('Lead status updated!');
+      toast.success(`Moved lead to ${COLUMNS.find(c => c.id === columnId)?.title}`);
     } catch (err) {
       toast.error('Failed to update lead status');
-      // Revert on error
-      loadLeads();
+      loadData();
     }
     setDraggedLead(null);
   };
 
+  // Convert Pending Prospect ➔ Customer
+  const handleConfirmConvert = async () => {
+    if (!convertingLead) return;
+    try {
+      const selectedPkg = packages.find(p => String(p.id) === String(selectedPkgId));
+
+      // 1. Create customer from lead info
+      const newCustomer = await crmApi.createCustomer({
+        full_name: convertingLead.prospect_name || 'Enrolled Customer',
+        phone: convertingLead.phone || '09-00000000',
+        gender: 'Female',
+        customer_code: `BBD-${Math.floor(1000 + Math.random() * 9000)}`
+      });
+
+      // 2. Link inquiry to customer
+      await crmApi.linkInquiryToCustomer(convertingLead.id, newCustomer.id);
+
+      // 3. Assign selected package if available
+      if (selectedPkg && newCustomer?.id) {
+        const today = new Date();
+        const expiresAt = new Date();
+        expiresAt.setDate(today.getDate() + (selectedPkg.duration_days || 30));
+
+        await crmApi.assignPackage(newCustomer.id, {
+          package_id: selectedPkg.id,
+          package_name: selectedPkg.name,
+          duration: `${selectedPkg.duration_days || 30} Days`,
+          meal_type: selectedPkg.meal_type || 'LUNCH, DINNER',
+          meal_count: (selectedPkg.duration_days || 30) * 2,
+          amount: selectedPkg.price || 0,
+          status: 'Active',
+          payment_status: 'Paid',
+          start_date: today.toISOString().split('T')[0],
+          expires_at: expiresAt.toISOString().split('T')[0]
+        });
+      }
+
+      // 4. Update inquiry status to converted
+      await crmApi.updateInquiry(convertingLead.id, { status: 'converted', customer_id: newCustomer.id });
+
+      toast.success(`Successfully enrolled ${convertingLead.prospect_name} into Total & Active Customers! 🎉`);
+      setConvertingLead(null);
+      
+      // Reload pipeline
+      loadData();
+
+    } catch (e) {
+      toast.error(e.message || 'Failed to convert lead to customer');
+    }
+  };
+
   const getSourceIcon = (source) => {
-    switch(source) {
+    switch((source || '').toLowerCase()) {
       case 'messenger': return '💬';
       case 'telegram': return '✈️';
       case 'website': return '🌐';
@@ -98,13 +161,65 @@ export default function LeadsPipeline() {
     }
   };
 
+  // Stats
+  const totalLeads = leads.length;
+  const hotCount = leads.filter(l => l.status === 'new').length;
+  const followUpCount = leads.filter(l => l.status === 'in_progress').length;
+  const pendingCount = leads.filter(l => l.status === 'pending').length;
+  const lostCount = leads.filter(l => l.status === 'lost').length;
+
   return (
-    <Layout title="Leads Overview" subtitle="Drag and drop leads to update their pipeline status">
+    <Layout title="Leads Overview Pipeline" subtitle="Drag and drop prospects through sales stages or convert Pending Prospects into Active Customers">
       
-      {/* Top Navbar matched from CRMDashboard */}
+      {/* Conversion Confirmation Modal */}
+      {convertingLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl p-8">
+            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4 text-emerald-400">
+              <span className="text-3xl">💳</span>
+            </div>
+            <h3 className="text-xl font-black text-white mb-1">Confirm Payment & Enroll</h3>
+            <p className="text-slate-400 text-xs mb-6">
+              This will convert <strong className="text-white">{convertingLead.prospect_name}</strong> from a Pending Prospect into a full record in <strong className="text-emerald-400">Total Customers</strong> & <strong className="text-emerald-400">Active Customers</strong>.
+            </p>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Select Package to Assign</label>
+                <select
+                  value={selectedPkgId}
+                  onChange={(e) => setSelectedPkgId(e.target.value)}
+                  className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-brand-green"
+                >
+                  {packages.map(pkg => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name} — {pkg.price ? `${pkg.price.toLocaleString()} MMK` : 'Custom Price'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConvertingLead(null)} 
+                className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmConvert} 
+                className="flex-1 px-5 py-3 rounded-xl font-black text-black bg-brand-green hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all"
+              >
+                Confirm & Enroll
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Navbar */}
       <div className="flex items-center justify-between mb-8 bg-white dark:bg-surface-800 p-4 rounded-full border border-slate-200 dark:border-white/5 shadow-lg w-full transition-colors">
-        
-        {/* Back Button & Brand */}
         <div className="flex items-center gap-4 ml-2">
           <button onClick={() => navigate('/crm')} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 hover:text-brand-green hover:bg-emerald-50 dark:hover:bg-brand-green/10 transition-colors" title="Back to Dashboard">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -124,36 +239,33 @@ export default function LeadsPipeline() {
               <Link to="/crm/inquiries" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors text-slate-400">Manage Leads (Inbox)</Link>
             </div>
           </div>
-          <Link to="/crm/customers" className="hover:text-brand-green transition-colors py-2">Customers</Link>
+          <Link to="/crm/customers" className="hover:text-brand-green transition-colors py-2">Total Customers</Link>
           <Link to="/crm/packages" className="hover:text-brand-green transition-colors py-2">Packages</Link>
           <Link to="/crm/kitchen" className="hover:text-brand-green transition-colors py-2">Kitchen</Link>
         </div>
       </div>
 
-      {/* Header Stats */}
+      {/* Header Stats matching Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl"></div>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Leads</p>
-          <p className="text-3xl font-black text-white">{totalLeads}</p>
-        </div>
-        <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl"></div>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Converted</p>
-          <p className="text-3xl font-black text-emerald-400">{convertedCount}</p>
-        </div>
-        <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-rose-500/10 rounded-full blur-xl"></div>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Lost</p>
-          <p className="text-3xl font-black text-rose-400">{lostCount}</p>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Hot Prospects</p>
+          <p className="text-3xl font-black text-blue-400">{hotCount}</p>
         </div>
         <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-xl"></div>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Avg Confidence</p>
-          <div className="flex items-end gap-1">
-            <p className="text-3xl font-black text-amber-400">{avgConfidence}</p>
-            <span className="text-amber-500 font-bold mb-1">%</span>
-          </div>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Follow-up Prospects</p>
+          <p className="text-3xl font-black text-amber-400">{followUpCount}</p>
+        </div>
+        <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl"></div>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Pending Prospects</p>
+          <p className="text-3xl font-black text-purple-400">{pendingCount}</p>
+        </div>
+        <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-rose-500/10 rounded-full blur-xl"></div>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Lost Prospects</p>
+          <p className="text-3xl font-black text-rose-400">{lostCount}</p>
         </div>
       </div>
 
@@ -161,23 +273,31 @@ export default function LeadsPipeline() {
       <div className="flex gap-6 overflow-x-auto pb-8 min-h-[600px] items-start custom-scrollbar">
         {COLUMNS.map(col => {
           const columnLeads = leads.filter(l => l.status === col.id);
+          const isHighlighted = highlightedStatus === col.id;
+
           return (
             <div 
               key={col.id} 
-              className="flex-none w-80 bg-surface-800/50 rounded-3xl p-4 border border-white/5 flex flex-col shadow-lg relative overflow-hidden"
+              className={`flex-none w-80 bg-surface-800/50 rounded-3xl p-4 border transition-all flex flex-col shadow-lg relative overflow-hidden ${
+                isHighlighted ? 'border-brand-green ring-2 ring-brand-green/30' : 'border-white/5'
+              }`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
             >
               <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${col.color}`}></div>
               <div className="flex justify-between items-center mb-4 px-2 mt-2">
-                <h3 className="font-bold text-white uppercase text-sm tracking-wider">{col.title}</h3>
-                <span className="bg-white/10 text-slate-300 text-xs font-bold px-2 py-0.5 rounded-full">
+                <h3 className="font-extrabold text-white uppercase text-xs tracking-wider flex items-center gap-2">
+                  {col.title}
+                </h3>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${col.badgeColor}`}>
                   {columnLeads.length}
                 </span>
               </div>
               
               <div className="flex-1 space-y-3 min-h-[200px]">
-                {columnLeads.map(lead => (
+                {loading ? (
+                  <div className="p-8 text-center text-xs text-slate-500">Loading prospects...</div>
+                ) : columnLeads.map(lead => (
                   <div 
                     key={lead.id}
                     draggable
@@ -187,60 +307,65 @@ export default function LeadsPipeline() {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h4 className="font-bold text-white text-sm group-hover:text-brand-green transition-colors">{lead.prospect_name || 'Unknown'}</h4>
+                        <h4 className="font-bold text-white text-sm group-hover:text-brand-green transition-colors">{lead.prospect_name || 'Unknown Prospect'}</h4>
                         <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                          {getSourceIcon(lead.source)} {lead.source}
+                          {getSourceIcon(lead.source)} {lead.source || 'Messenger'}
                         </p>
                       </div>
                       <Link 
                         to="/crm/inquiries"
-                        className="text-[10px] bg-white/5 hover:bg-brand-green/20 hover:text-brand-green text-slate-400 px-2 py-1 rounded-lg transition-colors font-bold"
+                        className="text-[10px] bg-white/5 hover:bg-brand-green/20 hover:text-brand-green text-slate-400 px-2.5 py-1 rounded-lg transition-colors font-bold"
                       >
                         Chat
                       </Link>
                     </div>
 
                     <div className="space-y-3">
-                      {/* AI Intent if exists */}
+                      {/* AI Intent if available */}
                       {lead.ai_analysis_result?.intent && (
                         <div className="bg-indigo-500/10 text-indigo-400 text-[10px] font-bold px-2 py-1 rounded-md inline-block">
                           {lead.ai_analysis_result.intent}
                         </div>
                       )}
                       
-                      {/* Confidence Bar */}
+                      {/* Purchase Confidence Bar */}
                       <div>
                         <div className="flex justify-between items-end mb-1">
                           <span className="text-[10px] text-slate-500 uppercase font-bold">Purchase Confidence</span>
-                          <span className="text-xs font-black text-white">{lead.service_interest_confidence || 0}%</span>
+                          <span className="text-xs font-black text-white">{lead.service_interest_confidence || 10}%</span>
                         </div>
                         <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
                           <div 
                             className={`h-full rounded-full ${
-                              (lead.service_interest_confidence || 0) > 75 ? 'bg-emerald-500' :
-                              (lead.service_interest_confidence || 0) > 40 ? 'bg-amber-500' : 'bg-rose-500'
+                              (lead.service_interest_confidence || 10) > 75 ? 'bg-emerald-500' :
+                              (lead.service_interest_confidence || 10) > 40 ? 'bg-amber-500' : 'bg-blue-500'
                             }`}
-                            style={{ width: `${lead.service_interest_confidence || 0}%` }}
+                            style={{ width: `${lead.service_interest_confidence || 10}%` }}
                           ></div>
                         </div>
                       </div>
 
-                      {/* Message Count */}
-                      <div className="text-[10px] text-slate-500 font-medium">
-                        {lead.inquiries_messages?.length || 0} messages total
-                      </div>
+                      {/* 1-Click Convert Button for Pending Prospects */}
+                      {col.id === 'pending' && (
+                        <button
+                          onClick={() => setConvertingLead(lead)}
+                          className="w-full mt-2 py-2 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                        >
+                          <span>💳</span> Confirm Payment & Enroll
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
                 
-                {columnLeads.length === 0 && (
-                  <div className="border-2 border-dashed border-white/5 rounded-2xl h-32 flex items-center justify-center text-slate-600 text-sm font-medium">
-                    Drop leads here
+                {!loading && columnLeads.length === 0 && (
+                  <div className="border-2 border-dashed border-white/5 rounded-2xl h-32 flex items-center justify-center text-slate-600 text-xs font-medium">
+                    Drop prospects here
                   </div>
                 )}
               </div>
             </div>
-          )
+          );
         })}
       </div>
 

@@ -11,6 +11,9 @@ export const crmApi = {
   // List all customers
   getCustomers: () => api.get('/crm/customers').then(r => r.data),
 
+  // Ask Admin AI Copilot
+  askAiAssistant: (query) => api.post('/crm/ai-assistant', { query }).then(r => r.data),
+
   // Get single customer with full details
   getCustomer: (id) => api.get(`/crm/customers/${id}`).then(r => r.data),
 

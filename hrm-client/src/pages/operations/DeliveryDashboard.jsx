@@ -22,7 +22,17 @@ const darkMapStyle = [
 export default function DeliveryDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const getBkkDate = () => {
+    const d = new Date();
+    const bkkStr = d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+    const bkkDate = new Date(bkkStr);
+    const yyyy = bkkDate.getFullYear();
+    const mm = String(bkkDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(bkkDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const [targetDate, setTargetDate] = useState(getBkkDate());
   
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',

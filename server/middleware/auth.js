@@ -23,7 +23,7 @@ export function generateToken(user) {
       employee_id: user.employee_id,
     },
     JWT_SECRET,
-    { expiresIn: '15m' } // Short-lived access token
+    { expiresIn: '2h' } // Access token: 2h is safe for internal enterprise tools
   );
 }
 

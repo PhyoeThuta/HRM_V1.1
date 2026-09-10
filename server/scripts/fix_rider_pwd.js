@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 global.WebSocket = WebSocket;
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 async function run() {
-  await supabaseAdmin.from('sys_users').update({password_hash: 'MUST_CHANGE:$2a$10$LaMHwhQRi4fH4kbTH5KQGer/4G2fHGRjN//NM3bhoG4a2BYXvQJW.'}).in('username', ['rider01', 'rider02']);
-  console.log('done fixing passwords');
+  await supabaseAdmin.from('sys_users').update({password_hash: 'MUST_CHANGE:$2a$10$LaMHwhQRi4fH4kbTH5KQGer/4G2fHGRjN//NM3bhoG4a2BYXvQJW.'}).in('username', ['rider01', 'rider02', 'CEO', 'cnx-0008', 'cnx-0005']);
+  console.log('done fixing passwords for all test roles');
 }
 run();

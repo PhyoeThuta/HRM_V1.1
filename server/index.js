@@ -1,3 +1,5 @@
+process.env.TZ = 'Asia/Bangkok';
+
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -8,7 +10,8 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 dotenv.config();
-// Trigger restart for AI Arabic bug fix
+process.env.TZ = 'Asia/Bangkok'; // Ensure Bangkok (UTC+7) timezone across all server operations
+
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
@@ -87,11 +90,23 @@ app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
 // DEBUG ROUTE REMOVED — Never expose stack traces or internal tooling in production.
 
-const limiter = rateLimit({
+// Auth-specific rate limiter: stricter, applied only to login/refresh
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500,
+  max: 20, // 20 login attempts per 15 min per IP
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  skip: (req) => req.path === '/me', // /api/auth/me is never rate-limited (it\'s read-only)
+});
+
+// General API rate limiter: generous, excludes auth routes (they have their own)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path.startsWith('/auth/'), // Auth has its own limiter
 });
 app.use('/api/', limiter);
 
@@ -101,11 +116,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
 });
 
+// Auth routes get their own rate limiter — NOT the general one
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/public', publicRouter); // /api/public/jobs, /api/public/apply
 app.use('/api/crm/analytics', analyticsRouter);
 app.use('/api/crm', crmRouter);       // Must be before orgRouter to prevent verifyToken leakage to public webhooks
 app.use('/api/telegram', telegramRouter);
-app.use('/api/auth', authRouter);
 app.use('/api/enroll', enrollRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/employees', employeesRouter);

@@ -227,8 +227,23 @@ export default function RiderApp() {
   const groupedOrders = React.useMemo(() => {
     if (!orders) return [];
 
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    const relevantOrders = orders.filter(o => o.date >= todayStr || ['ON_THE_WAY', 'PICKING_UP'].includes(o.rider_status));
+    const d = new Date();
+    const bkkStr = d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+    const bkkDate = new Date(bkkStr);
+    const yyyy = bkkDate.getFullYear();
+    const mm = String(bkkDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(bkkDate.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    const relevantOrders = orders.filter(o => {
+      // If user is Admin/Boss viewing RiderApp, show orders that have a rider assigned (or assigned to this user)
+      if (user?.role === 'boss' || user?.role === 'admin' || user?.role === 'super_admin') {
+        const isAssigned = o.rider_id || o.rider_status;
+        return isAssigned && (o.date >= todayStr || ['ON_THE_WAY', 'PICKING_UP'].includes(o.rider_status));
+      }
+      // If user is logged-in Rider, backend already filtered by req.user.id
+      return o.date >= todayStr || ['ON_THE_WAY', 'PICKING_UP'].includes(o.rider_status);
+    });
 
     const groups = {};
     relevantOrders.forEach(o => {

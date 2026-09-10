@@ -335,4 +335,194 @@ router.get('/tracking/:orderId', async (req, res) => {
   }
 });
 
+// GET /api/public/crm/welcome-dossier/:id
+router.get('/crm/welcome-dossier/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Fetch customer profile
+    const { data: customer, error: custErr } = await supabaseAdmin
+      .schema('crm')
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (custErr || !customer) {
+      return res.status(404).json({ error: 'Customer profile not found' });
+    }
+
+    // Fetch health data
+    const { data: health } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_health')
+      .select('*')
+      .eq('customer_id', id)
+      .single();
+
+    // Fetch lifestyle data
+    const { data: lifestyle } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_lifestyle')
+      .select('*')
+      .eq('customer_id', id)
+      .single();
+
+    // Fetch customer packages
+    const { data: packages } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_packages')
+      .select('*')
+      .eq('customer_id', id)
+      .order('created_at', { ascending: false });
+
+    // Fetch customer feedbacks
+    const { data: feedbacks } = await supabaseAdmin
+      .schema('crm')
+      .from('feedbacks')
+      .select('*')
+      .eq('customer_id', id)
+      .order('created_at', { ascending: false });
+
+    // Calculate total spend
+    const totalSpend = (packages || []).reduce((sum, pkg) => sum + (pkg.amount || 0), 0);
+
+    return res.json({
+      customer: {
+        id: customer.id,
+        customer_code: customer.customer_code,
+        full_name: customer.full_name,
+        facebook_name: customer.facebook_name,
+        phone: customer.phone,
+        total_spend: totalSpend
+      },
+      health: health || {},
+      lifestyle: lifestyle || {},
+      packages: packages || [],
+      feedbacks: feedbacks || []
+    });
+  } catch (e) {
+    console.error('[PUBLIC WELCOME DOSSIER ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/public/crm/monthly-review/:id
+router.get('/crm/monthly-review/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Fetch customer profile
+    const { data: customer, error: custErr } = await supabaseAdmin
+      .schema('crm')
+      .from('customers')
+      .select('id, customer_code, full_name, facebook_name, phone')
+      .eq('id', id)
+      .single();
+
+    if (custErr || !customer) {
+      return res.status(404).json({ error: 'Customer profile not found' });
+    }
+
+    // Fetch health data for starting & goal weight
+    const { data: health } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_health')
+      .select('*')
+      .eq('customer_id', id)
+      .single();
+
+    // Fetch latest assigned active/paused package
+    const { data: packages } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_packages')
+      .select('*')
+      .eq('customer_id', id)
+      .order('created_at', { ascending: false });
+
+    return res.json({
+      customer,
+      health: health || {},
+      package: packages && packages.length > 0 ? packages[0] : null
+    });
+  } catch (e) {
+    console.error('[PUBLIC GET MONTHLY REVIEW ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/public/crm/monthly-review/:id
+router.post('/crm/monthly-review/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { current_weight, active_feeling, health_improvements, feedback_comment } = req.body;
+
+    if (!current_weight) {
+      return res.status(400).json({ error: 'Current weight is required' });
+    }
+
+    // 1. Update customer_health with new current_weight
+    const { data: existingHealth } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_health')
+      .select('*')
+      .eq('customer_id', id)
+      .single();
+
+    const newWeightStr = `${current_weight} kg`;
+    if (existingHealth) {
+      await supabaseAdmin
+        .schema('crm')
+        .from('customer_health')
+        .update({ current_weight: newWeightStr, updated_at: new Date().toISOString() })
+        .eq('customer_id', id);
+    } else {
+      await supabaseAdmin
+        .schema('crm')
+        .from('customer_health')
+        .insert({ customer_id: id, current_weight: newWeightStr });
+    }
+
+    // 2. Insert feedback entry for BBD admin tracking
+    const commentStr = `[Monthly Review Milestone]\nCurrent Weight Reported: ${newWeightStr}\nFeel Active & Light: ${active_feeling || 'Yes'}\nHealth Improvements: ${health_improvements || 'None'}\nComment: ${feedback_comment || 'None'}`;
+
+    await supabaseAdmin
+      .schema('crm')
+      .from('feedbacks')
+      .insert({
+        customer_id: parseInt(id),
+        rating: 5,
+        comment: commentStr
+      });
+
+    // 3. Notify Boss & Admin
+    const { data: cust } = await supabaseAdmin
+      .schema('crm')
+      .from('customers')
+      .select('full_name')
+      .eq('id', id)
+      .single();
+
+    const custName = cust ? cust.full_name : 'Boss Customer';
+    const notiMsg = `🎉 ${custName} completed monthly review! Current weight: ${newWeightStr}. Check e-Certificate achievement!`;
+
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: 'Monthly Review Completed!',
+      message: notiMsg,
+      link_url: `/crm/customers/${id}`,
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Monthly milestone review submitted successfully!',
+      updatedWeight: newWeightStr
+    });
+  } catch (e) {
+    console.error('[PUBLIC POST MONTHLY REVIEW ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

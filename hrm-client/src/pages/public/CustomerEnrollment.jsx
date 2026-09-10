@@ -12,9 +12,10 @@ export default function CustomerEnrollment() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [formData, setFormData] = useState({});
+  const [parsedAddresses, setParsedAddresses] = useState({});
+  const [isParsingAddress, setIsParsingAddress] = useState({});
 
   useEffect(() => {
-    // Remove the forced dark mode hack to respect the user's system theme and BBD brand colors
     document.documentElement.classList.remove('dark');
     document.documentElement.removeAttribute('data-theme');
     
@@ -39,11 +40,10 @@ export default function CustomerEnrollment() {
           initialData.fb_name = data.inquiry.prospect_name;
         }
         
-        // Initialize dropdowns with first option if required and no placeholder fallback
         (data.schema || []).forEach(field => {
-            if (field.type === 'dropdown' && field.options?.length > 0 && field.required && !field.placeholder) {
-                initialData[field.id] = field.options[0];
-            }
+          if (field.type === 'dropdown' && field.options?.length > 0 && field.required && !field.placeholder) {
+            initialData[field.id] = field.options[0];
+          }
         });
         
         setFormData(initialData);
@@ -57,18 +57,70 @@ export default function CustomerEnrollment() {
     fetchForm();
   }, [token]);
 
+  const checkAndParseMapsLink = async (fieldId, value) => {
+    if (!value || typeof value !== 'string') {
+      setParsedAddresses(prev => ({ ...prev, [fieldId]: null }));
+      return;
+    }
+
+    const mapsUrlRegex = /https?:\/\/(www\.)?(google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/maps)[^\s]+/i;
+    const match = value.match(mapsUrlRegex);
+
+    if (match) {
+      const urlToParse = match[0];
+      setIsParsingAddress(prev => ({ ...prev, [fieldId]: true }));
+      try {
+        const res = await fetch('/api/enroll/parse-maps-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: urlToParse })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setParsedAddresses(prev => ({
+            ...prev,
+            [fieldId]: {
+              formatted_address: data.formatted_address,
+              lat: data.lat,
+              lng: data.lng,
+              url: urlToParse
+            }
+          }));
+        } else {
+          setParsedAddresses(prev => ({ ...prev, [fieldId]: { error: data.error || 'Unable to parse map link' } }));
+        }
+      } catch (err) {
+        setParsedAddresses(prev => ({ ...prev, [fieldId]: { error: 'Failed to contact geocoding service' } }));
+      } finally {
+        setIsParsingAddress(prev => ({ ...prev, [fieldId]: false }));
+      }
+    } else {
+      setParsedAddresses(prev => ({ ...prev, [fieldId]: null }));
+    }
+  };
+
   const handleChange = (id, value) => {
     setFormData(prev => ({ ...prev, [id]: value }));
+    if (id === 'home_address' || id === 'delivery_address') {
+      checkAndParseMapsLink(id, value);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const payload = {
+        ...formData,
+        home_address_parsed: parsedAddresses.home_address?.formatted_address || null,
+        delivery_address_parsed: parsedAddresses.delivery_address?.formatted_address || null,
+        delivery_address_url: parsedAddresses.delivery_address?.url || (formData.delivery_address?.startsWith('http') ? formData.delivery_address : null)
+      };
+
       const res = await fetch(`/api/enroll/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit enrollment');
@@ -136,14 +188,42 @@ export default function CustomerEnrollment() {
     switch (field.type) {
       case 'textarea':
         return (
-          <textarea
-            required={field.required}
-            value={formData[field.id] || ''}
-            onChange={e => handleChange(field.id, e.target.value)}
-            rows="2"
-            placeholder={field.placeholder || ''}
-            className={`${commonClasses} resize-none`}
-          />
+          <div>
+            <textarea
+              required={field.required}
+              value={formData[field.id] || ''}
+              onChange={e => handleChange(field.id, e.target.value)}
+              rows="2"
+              placeholder={field.placeholder || (field.id.includes('address') ? 'Enter text address or paste Google Maps link...' : '')}
+              className={`${commonClasses} resize-none`}
+            />
+            {isParsingAddress[field.id] && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-brand-green font-medium animate-pulse">
+                <span className="w-3 h-3 border-2 border-brand-green border-t-transparent rounded-full animate-spin"></span>
+                Detecting Google Maps Link & Fetching Address Details...
+              </div>
+            )}
+            {parsedAddresses[field.id]?.formatted_address && (
+              <div className="mt-2.5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+                <svg className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <div>
+                  <span className="font-bold block text-emerald-900 dark:text-emerald-200 mb-0.5">Detected Map Address (အသေးစိတ်လိပ်စာ):</span>
+                  <span>{parsedAddresses[field.id].formatted_address}</span>
+                </div>
+              </div>
+            )}
+            {parsedAddresses[field.id]?.error && (
+              <div className="mt-2 text-xs text-amber-500 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {parsedAddresses[field.id].error}
+              </div>
+            )}
+          </div>
         );
       case 'dropdown':
         return (
@@ -203,7 +283,6 @@ export default function CustomerEnrollment() {
     }
   };
 
-  // Group schema fields by section
   const groupedSchema = schema.reduce((acc, field) => {
     const section = field.section || '01. General';
     if (!acc[section]) acc[section] = [];
@@ -213,14 +292,9 @@ export default function CustomerEnrollment() {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-slate-50 dark:bg-surface-950 py-12 px-4 flex justify-center">
-      
-      {/* Animated Background Orbs */}
       <div className="fixed w-[500px] h-[500px] rounded-full opacity-10 animate-pulse" style={{ background: '#A3B81F', filter: 'blur(120px)', top: '-20%', left: '-10%' }} />
       <div className="fixed w-[400px] h-[400px] rounded-full opacity-10 animate-pulse" style={{ background: '#FF7700', filter: 'blur(100px)', bottom: '-10%', right: '-5%', animationDelay: '2s' }} />
-      
-      {/* Grid background */}
       <div className="fixed inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,1) 1px, transparent 1px), linear-gradient(90deg,rgba(0,0,0,1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <div className="fixed inset-0 opacity-[0.03] pointer-events-none hidden dark:block" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg,rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
       <div className="max-w-3xl w-full relative z-10">
         <div className="text-center mb-10">
@@ -234,9 +308,7 @@ export default function CustomerEnrollment() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          
           {Object.entries(groupedSchema).map(([sectionName, fields], sectionIndex) => {
-            // Accent colors based on screenshot: Yellow, Green, Orange
             const colors = ['bg-[#fbbf24]', 'bg-[#34d399]', 'bg-[#f97316]'];
             const borderColor = colors[sectionIndex % colors.length];
 
@@ -296,7 +368,6 @@ export default function CustomerEnrollment() {
               )}
             </button>
           </div>
-
         </form>
       </div>
     </div>

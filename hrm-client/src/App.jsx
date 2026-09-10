@@ -60,6 +60,9 @@ import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
 import BossKPI from './pages/BossKPI';
 import Layout from './components/layout/Layout';
+import ErrorBoundary from './components/common/ErrorBoundary';
+
+import LearnBBD from './pages/crm/LearnBBD';
 
 // CRM Pages
 import CRMDashboard from './pages/crm/CRMDashboard';
@@ -80,8 +83,20 @@ import LeadConversions from './pages/crm/LeadConversions';
 
 // Public Forms
 import CustomerEnrollment from './pages/public/CustomerEnrollment';
+import CustomerUpdateAddress from './pages/public/CustomerUpdateAddress';
 import CustomerFeedback from './pages/public/CustomerFeedback';
 import WeeklyMenuFeedback from './pages/public/WeeklyMenuFeedback';
+import CustomerWelcomeDossier from './pages/public/CustomerWelcomeDossier';
+import MonthlyMilestoneReview from './pages/public/MonthlyMilestoneReview';
+
+// Role-based redirect helper
+function RoleRedirect({ user }) {
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.must_change_password) return <Navigate to="/force-change-password" replace />;
+  if (user.role === 'employee') return <Navigate to="/portal" replace />;
+  if (user.role === 'rider') return <Navigate to="/operations/rider" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
 
 // Protected route wrapper
 function Protected({ children, allowedRoles }) {
@@ -138,12 +153,15 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/careers" element={<Careers />} />
-      <Route path="/login" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : user.role === 'rider' ? '/operations/rider' : '/dashboard')} replace /> : <Login />} />
-      <Route path="/force-change-password" element={user?.must_change_password ? <ForceChangePassword /> : <Navigate to="/" replace />} />
-
       {/* Public Routes */}
+      <Route path="/" element={user ? <RoleRedirect user={user} /> : <Navigate to="/login" replace />} />
+      <Route path="/careers" element={<Careers />} />
+      <Route path="/login" element={user ? <RoleRedirect user={user} /> : <Login />} />
+      <Route path="/force-change-password" element={<ForceChangePassword />} />
       <Route path="/enroll" element={<CustomerEnrollment />} />
+      <Route path="/update-address" element={<CustomerUpdateAddress />} />
+      <Route path="/welcome/:customer_id" element={<CustomerWelcomeDossier />} />
+      <Route path="/monthly-review/:customer_id" element={<MonthlyMilestoneReview />} />
       <Route path="/feedback/:customer_id" element={<CustomerFeedback />} />
       <Route path="/menu-feedback/:customer_id" element={<WeeklyMenuFeedback />} />
       <Route path="/daily-feedback/:customer_id" element={<DailyFeedback />} />
@@ -171,56 +189,63 @@ function AppRoutes() {
       <Route path="/payroll" element={<Protected allowedRoles={adminRoles}><Payroll /></Protected>} />
       <Route path="/recruitment" element={<Protected allowedRoles={adminRoles}><Recruitment /></Protected>} />
       <Route path="/documents" element={<Protected allowedRoles={adminRoles}><Documents /></Protected>} />
-      <Route path="/sops" element={<Protected allowedRoles={adminRoles}><SOPs /></Protected>} />
-      <Route path="/peer-voting" element={<Protected allowedRoles={adminRoles}><PeerVoting /></Protected>} />
-      <Route path="/audit-logs" element={<Protected allowedRoles={adminRoles}><AuditLogs /></Protected>} />
-      <Route path="/birthdays" element={<Protected allowedRoles={adminRoles}><Birthdays /></Protected>} />
       <Route path="/onboarding" element={<Protected allowedRoles={adminRoles}><Onboarding /></Protected>} />
       <Route path="/onboarding/:id" element={<Protected allowedRoles={adminRoles}><OnboardingDetail /></Protected>} />
       <Route path="/offboarding" element={<Protected allowedRoles={adminRoles}><Offboarding /></Protected>} />
       <Route path="/handovers" element={<Protected allowedRoles={adminRoles}><Handovers /></Protected>} />
-      <Route path="/boss" element={<Protected allowedRoles={['boss', 'admin']}><BossDashboard /></Protected>} />
-      <Route path="/boss/chat" element={<Protected allowedRoles={['boss', 'admin']}><BossChat /></Protected>} />
-      <Route path="/boss/kpi" element={<Protected allowedRoles={['boss', 'admin']}><BossKPI /></Protected>} />
-      <Route path="/boss/announcements" element={<Protected allowedRoles={['boss', 'hr_manager', 'admin']}><Announcements /></Protected>} />
-      <Route path="/boss/users" element={<Protected allowedRoles={['boss', 'hr_manager', 'admin']}><UserAccounts /></Protected>} />
-      <Route path="/finance" element={<Protected allowedRoles={['boss', 'finance', 'admin']}><FinanceDashboard /></Protected>} />
-      <Route path="/audit-logs" element={<Protected allowedRoles={['boss', 'admin']}><AuditLogs /></Protected>} />
+      <Route path="/sops" element={<Protected allowedRoles={adminRoles}><SOPs /></Protected>} />
+      <Route path="/peer-voting" element={<Protected allowedRoles={adminRoles}><PeerVoting /></Protected>} />
+      <Route path="/audit-logs" element={<Protected allowedRoles={adminRoles}><AuditLogs /></Protected>} />
+      <Route path="/birthdays" element={<Protected allowedRoles={adminRoles}><Birthdays /></Protected>} />
+      <Route path="/boss" element={<Protected allowedRoles={['boss']}><BossDashboard /></Protected>} />
+      <Route path="/boss/chat" element={<Protected allowedRoles={['boss']}><BossChat /></Protected>} />
+      <Route path="/announcements" element={<Protected allowedRoles={adminRoles}><Announcements /></Protected>} />
+      <Route path="/user-accounts" element={<Protected allowedRoles={adminRoles}><UserAccounts /></Protected>} />
+      <Route path="/finance" element={<Protected allowedRoles={['boss', 'general_manager', 'finance']}><FinanceDashboard /></Protected>} />
 
       {/* CRM Routes */}
-      <Route path="/crm" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CRMDashboard /></Protected>} />
-      <Route path="/crm/list" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><CRMListView /></Protected>} />
-      <Route path="/crm/leads-overview" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><LeadsPipeline /></Protected>} />
-      <Route path="/crm/inquiries" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Inquiries /></Protected>} />
-      <Route path="/crm/customers" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager', 'marketing_junior']}><Customers /></Protected>} />
-      <Route path="/crm/customers/new" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager']}><CustomerForm /></Protected>} />
-      <Route path="/crm/customers/:id" element={<Protected allowedRoles={['admin', 'manager', 'marketing', 'marketing_junior', 'boss']}><CustomerDetail /></Protected>} />
-      <Route path="/crm/level-settings" element={<Protected allowedRoles={['admin', 'manager', 'boss']}><LevelSettings /></Protected>} />
-      <Route path="/crm/packages" element={<Protected allowedRoles={['admin', 'manager', 'boss', 'marketing']}><Packages /></Protected>} />
-      <Route path="/crm/kitchen" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><KitchenDashboard /></Protected>} />
-      <Route path="/crm/form-builder" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><FormBuilder /></Protected>} />
-      <Route path="/crm/voices" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing', 'marketing_junior']}><CustomerVoices /></Protected>} />
-      <Route path="/crm/weekly-feedbacks" element={<Protected allowedRoles={['boss', 'admin', 'manager']}><WeeklyFeedbacks /></Protected>} />
-      <Route path="/crm/reports/sales" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager']}><SalesAnalytics /></Protected>} />
-      <Route path="/crm/reports/leads" element={<Protected allowedRoles={['boss', 'admin', 'manager', 'marketing_manager']}><LeadConversions /></Protected>} />
+      <Route path="/crm" element={<Navigate to="/crm/dashboard" replace />} />
+      <Route path="/crm/dashboard" element={<Protected allowedRoles={adminRoles}><CRMDashboard /></Protected>} />
+      <Route path="/crm/list" element={<Protected allowedRoles={adminRoles}><CRMListView /></Protected>} />
+      <Route path="/crm/feedbacks" element={<Protected allowedRoles={adminRoles}><WeeklyFeedbacks /></Protected>} />
+      <Route path="/crm/weekly-feedbacks" element={<Navigate to="/crm/feedbacks" replace />} />
+      <Route path="/crm/inquiries" element={<Protected allowedRoles={adminRoles}><Inquiries /></Protected>} />
+      <Route path="/crm/leads" element={<Protected allowedRoles={adminRoles}><LeadsPipeline /></Protected>} />
+      <Route path="/crm/leads-overview" element={<Navigate to="/crm/leads" replace />} />
+      <Route path="/crm/customers" element={<Protected allowedRoles={adminRoles}><Customers /></Protected>} />
+      <Route path="/crm/customers/new" element={<Protected allowedRoles={adminRoles}><CustomerForm /></Protected>} />
+      <Route path="/crm/customers/:id" element={<Protected allowedRoles={adminRoles}><CustomerDetail /></Protected>} />
+      <Route path="/crm/customers/:id/edit" element={<Protected allowedRoles={adminRoles}><CustomerForm /></Protected>} />
+      <Route path="/crm/levels" element={<Protected allowedRoles={adminRoles}><LevelSettings /></Protected>} />
+      <Route path="/crm/level-settings" element={<Navigate to="/crm/levels" replace />} />
+      <Route path="/crm/packages" element={<Protected allowedRoles={adminRoles}><Packages /></Protected>} />
+      <Route path="/crm/kitchen" element={<Protected allowedRoles={adminRoles}><KitchenDashboard /></Protected>} />
+      <Route path="/crm/form-builder" element={<Protected allowedRoles={adminRoles}><FormBuilder /></Protected>} />
+      <Route path="/crm/customer-voices" element={<Protected allowedRoles={adminRoles}><CustomerVoices /></Protected>} />
+      <Route path="/crm/voices" element={<Navigate to="/crm/customer-voices" replace />} />
+      <Route path="/crm/sales-analytics" element={<Protected allowedRoles={adminRoles}><SalesAnalytics /></Protected>} />
+      <Route path="/crm/reports/sales" element={<Navigate to="/crm/sales-analytics" replace />} />
+      <Route path="/crm/lead-conversions" element={<Protected allowedRoles={adminRoles}><LeadConversions /></Protected>} />
+      <Route path="/crm/reports/leads" element={<Navigate to="/crm/lead-conversions" replace />} />
+      <Route path="/crm/learn-bbd" element={<Protected allowedRoles={adminRoles}><LearnBBD /></Protected>} />
 
-      {/* Employee portal */}
+      {/* Portal Routes (Employee Self-Service) */}
       <Route path="/portal" element={<EmployeeRoute><Portal /></EmployeeRoute>} />
-      <Route path="/portal/attendance" element={<EmployeeRoute><MyAttendance /></EmployeeRoute>} />
-      <Route path="/portal/attendance/photo" element={<EmployeeRoute><CameraCheckin /></EmployeeRoute>} />
-      <Route path="/portal/qr-checkin" element={<EmployeeRoute><QRScanner /></EmployeeRoute>} />
-      <Route path="/portal/leaves" element={<EmployeeRoute><MyLeaves /></EmployeeRoute>} />
-      <Route path="/portal/payslips" element={<EmployeeRoute><MyPayslips /></EmployeeRoute>} />
-      <Route path="/portal/documents" element={<EmployeeRoute><MyDocuments /></EmployeeRoute>} />
-      <Route path="/portal/profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
-      <Route path="/portal/vote" element={<EmployeeRoute><PeerVotingForm /></EmployeeRoute>} />
+      <Route path="/portal/checkin" element={<EmployeeRoute><CameraCheckin /></EmployeeRoute>} />
+      <Route path="/portal/qr-scanner" element={<EmployeeRoute><QRScanner /></EmployeeRoute>} />
+      <Route path="/portal/voting" element={<EmployeeRoute><PeerVotingForm /></EmployeeRoute>} />
       <Route path="/portal/sops" element={<EmployeeRoute><SOPExecution /></EmployeeRoute>} />
       <Route path="/portal/exit-survey" element={<EmployeeRoute><ExitSurvey /></EmployeeRoute>} />
       <Route path="/portal/handover/outgoing" element={<EmployeeRoute><HandoverOutgoing /></EmployeeRoute>} />
       <Route path="/portal/handover/incoming" element={<EmployeeRoute><HandoverIncoming /></EmployeeRoute>} />
+      <Route path="/portal/attendance" element={<EmployeeRoute><MyAttendance /></EmployeeRoute>} />
+      <Route path="/portal/leaves" element={<EmployeeRoute><MyLeaves /></EmployeeRoute>} />
+      <Route path="/portal/payslips" element={<EmployeeRoute><MyPayslips /></EmployeeRoute>} />
+      <Route path="/portal/documents" element={<EmployeeRoute><MyDocuments /></EmployeeRoute>} />
+      <Route path="/portal/profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
+      <Route path="/boss/kpi" element={<Protected allowedRoles={['boss']}><BossKPI /></Protected>} />
 
-      {/* Default redirect */}
-      <Route path="/" element={user ? <Navigate to={user.must_change_password ? '/force-change-password' : (user.role === 'employee' ? '/portal' : '/dashboard')} replace /> : <Navigate to="/login" replace />} />
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -228,17 +253,15 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Toaster position="top-right" toastOptions={{ 
-            className: 'bg-surface-800 text-white border border-white/10 shadow-lg !rounded-xl font-medium',
-            success: { iconTheme: { primary: '#10b981', secondary: 'white' } },
-            error: { iconTheme: { primary: '#f43f5e', secondary: 'white' } }
-          }} />
-          <AppRoutes />
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Toaster position="top-right" />
+            <AppRoutes />
+          </BrowserRouter>
         </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

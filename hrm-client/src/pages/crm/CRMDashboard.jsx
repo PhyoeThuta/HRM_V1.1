@@ -4,6 +4,7 @@ import { Chart, registerables } from 'chart.js';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { crmApi } from '../../api/crm';
+import AdminAICopilotDrawer from '../../components/crm/AdminAICopilotDrawer';
 import toast from 'react-hot-toast';
 
 Chart.register(...registerables);
@@ -377,7 +378,7 @@ export default function CRMDashboard() {
               Leads <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
             <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
-              <Link to="/crm/leads-overview" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Overview Pipeline</Link>
+              <Link to="/crm/leads" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Overview Pipeline</Link>
               <Link to="/crm/inquiries" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Manage Leads (Inbox)</Link>
             </div>
           </div>
@@ -388,9 +389,8 @@ export default function CRMDashboard() {
               Customers <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
             <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
-              <Link to="/crm/customers" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">View Customers</Link>
-              <Link to="/crm/customers/new" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">New Enrollment</Link>
-              <Link to="/crm/level-settings" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Level Settings</Link>
+              <Link to="/crm/customers" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Total Customers</Link>
+              <Link to="/crm/levels" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Customer Level</Link>
             </div>
           </div>
 
@@ -410,8 +410,8 @@ export default function CRMDashboard() {
               Reports <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
             <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
-              <Link to="/crm/reports/sales" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Sales Analytics</Link>
-              <Link to="/crm/reports/leads" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Lead Conversions</Link>
+              <Link to="/crm/sales-analytics" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Sales Analytics</Link>
+              <Link to="/crm/lead-conversions" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Lead Conversions</Link>
             </div>
           </div>
 
@@ -420,10 +420,12 @@ export default function CRMDashboard() {
             <div className="flex items-center gap-1 hover:text-brand-green transition-colors">
               Settings <svg className="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
             </div>
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
+            <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-slate-100 dark:border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-left scale-95 group-hover:scale-100">
+              <Link to="/crm/learn-bbd" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5 font-medium flex items-center gap-2">📖 Learn BBD</Link>
+              <Link to="/crm/customers/new" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Admin Manual Enrollment</Link>
               <Link to="/crm/form-builder" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Form Builder</Link>
-              <Link to="/crm/voices" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Customer Voices</Link>
-              <Link to="/crm/weekly-feedbacks" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Weekly Menu Feedbacks</Link>
+              <Link to="/crm/customer-voices" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors border-b border-slate-100 dark:border-white/5">Customer Voices</Link>
+              <Link to="/crm/feedbacks" className="block px-4 py-3 hover:bg-emerald-50 dark:hover:bg-white/5 hover:text-brand-green transition-colors">Daily Menu Feedback</Link>
             </div>
           </div>
 
@@ -468,49 +470,49 @@ export default function CRMDashboard() {
           value={metrics.totalCustomers} 
           gradient="from-indigo-400 to-blue-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>}
-          to="/crm/list?segment=customers"
+          to="/crm/customers?status=all"
         />
         <StatCard 
           label="Active Customers" 
           value={metrics.activeCustomers} 
           gradient="from-purple-400 to-pink-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-          to="/crm/list?segment=active"
+          to="/crm/customers?status=active"
         />
         <StatCard 
           label="Churned Customers" 
           value={metrics.churnedCustomers} 
           gradient="from-rose-400 to-red-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM21 12h-6M15 21H3v-1a6 6 0 0112 0v1z" /></svg>}
-          to="/crm/list?segment=churned"
+          to="/crm/customers?status=inactive"
         />
         <StatCard 
           label="Hot Prospects" 
           value={metrics.hotProspects} 
           gradient="from-amber-400 to-orange-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 7 10c0-2 .5-3 1.5-4 1.5 0 2.5 1 2.5 2.5s-1.5 2.5-1.5 2.5a4.5 4.5 0 005.657 5.657z" /></svg>}
-          to="/crm/list?segment=hot"
+          to="/crm/leads-overview?status=new"
         />
         <StatCard 
           label="Follow-up Prospects" 
           value={metrics.followUpProspects} 
           gradient="from-blue-400 to-cyan-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>}
-          to="/crm/list?segment=follow_up"
+          to="/crm/leads-overview?status=in_progress"
         />
         <StatCard 
           label="Pending Prospects" 
           value={metrics.pendingProspects} 
-          gradient="from-slate-400 to-slate-500" 
+          gradient="from-purple-400 to-indigo-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-          to="/crm/list?segment=pending"
+          to="/crm/leads-overview?status=pending"
         />
         <StatCard 
           label="Lost Prospects" 
           value={metrics.lostProspects} 
-          gradient="from-stone-400 to-stone-500" 
+          gradient="from-rose-400 to-red-500" 
           icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-          to="/crm/list?segment=lost"
+          to="/crm/leads-overview?status=lost"
         />
       </div>
 
@@ -550,32 +552,48 @@ export default function CRMDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Inquiries List */}
+        {/* Recent Active Prospects List */}
         <div className="rounded-3xl bg-surface-800 border border-white/5 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-            <h3 className="font-bold text-white text-lg">Recent Hot Leads</h3>
-            <Link to="/crm/inquiries" className="text-sm font-bold text-brand-green hover:text-emerald-400">View All →</Link>
+            <h3 className="font-bold text-white text-lg">Recent Active Prospects</h3>
+            <Link to="/crm/leads-overview" className="text-xs font-bold text-brand-green hover:text-emerald-400">View All →</Link>
           </div>
           <div className="divide-y divide-white/5 h-[calc(100%-73px)] overflow-y-auto custom-scrollbar">
             {recentLeads.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-sm">No pending leads. Good job!</div>
+              <div className="p-8 text-center text-slate-400 text-sm">No active prospects. Good job!</div>
             ) : (
               recentLeads.map((lead, i) => {
-                const leadName = lead.prospect_name || lead.name || 'Unknown';
+                const leadName = lead.prospect_name || lead.name || 'Unknown Prospect';
+                const status = (lead.status || 'new').toLowerCase();
+
+                let badgeText = 'Hot Prospect';
+                let badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
+                if (status === 'pending' || status === 'payment_pending') {
+                  badgeText = 'Pending Payment';
+                  badgeClass = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                } else if (status === 'in_progress' || status === 'followup' || status === 'contacted') {
+                  badgeText = 'Follow-up';
+                  badgeClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                } else if (status === 'lost' || status === 'closed') {
+                  badgeText = 'Lost';
+                  badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                }
+
                 return (
-                <div key={i} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                <div key={i} className="p-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm shadow-md">
                       {leadName.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-white group-hover:text-brand-green transition-colors">{leadName}</p>
-                      <p className="text-xs text-slate-400">{lead.source} • {lead.service}</p>
+                      <p className="text-[11px] text-slate-400">{lead.source || 'Messenger'}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
-                      {lead.status}
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${badgeClass}`}>
+                      {badgeText}
                     </span>
                   </div>
                 </div>
@@ -687,6 +705,7 @@ export default function CRMDashboard() {
           </div>
         </div>
       </div>
+      <AdminAICopilotDrawer />
     </Layout>
   );
 }

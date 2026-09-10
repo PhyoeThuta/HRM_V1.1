@@ -96,13 +96,21 @@ export default function CustomerPackagesList({
           <div className="flex flex-col items-start md:items-end w-full md:w-auto">
             <div className="flex items-center gap-3 mb-3 w-full md:w-auto justify-between md:justify-end">
               {pkg.status === 'Paused' ? (
-                <span className="inline-block bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.1)]">PAUSED</span>
+                <span className="inline-flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.25)] animate-pulse">
+                  <span>⏸️</span> PAUSED (ရပ်နားထားသည်)
+                </span>
               ) : pkg.status === 'Expired' ? (
-                <span className="inline-block bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-1.5 rounded-full text-xs font-black">EXPIRED</span>
+                <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 px-4 py-1.5 rounded-full text-xs font-black">
+                  <span>🛑</span> EXPIRED (သက်တမ်းကုန်)
+                </span>
               ) : pkg.status === 'Upcoming' ? (
-                <span className="inline-block bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(59,130,246,0.1)]">UPCOMING / BOOKING CONFIRMED</span>
+                <span className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-500/40 text-blue-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                  <span>📅</span> UPCOMING
+                </span>
               ) : (
-                <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.1)]">ACTIVE PLAN</span>
+                <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                  <span>🟢</span> ACTIVE (လက်ရှိ ပို့ဆောင်နေဆဲ)
+                </span>
               )}
 
               <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-black border ${pkg.payment_status === 'Paid' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : pkg.payment_status === 'Partial' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
@@ -112,12 +120,12 @@ export default function CustomerPackagesList({
               {user?.role !== 'marketing_junior' && (
                 <div className="flex gap-2 w-full md:w-auto">
                   {pkg.status === 'Paused' ? (
-                    <button onClick={() => handleResumePackage(pkg.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors border border-emerald-500/30 font-bold text-sm shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                      <span>▶️</span> Resume Plan
+                    <button onClick={() => handleResumePackage(pkg.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 transition-colors border border-emerald-500/40 font-bold text-sm shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <span>▶️</span> Click to Resume (ပြန်စရန်)
                     </button>
                   ) : (
-                    <button onClick={() => handlePausePackage(pkg.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors border border-amber-500/30 font-bold text-sm shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                      <span>⏸️</span> Pause Plan
+                    <button onClick={() => handlePausePackage(pkg.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors border border-amber-500/30 font-bold text-sm">
+                      <span>⏸️</span> Click to Pause (ခဏရပ်မည်)
                     </button>
                   )}
                   <button onClick={() => openRenewPackage(pkg)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-green/20 hover:bg-brand-green/30 text-brand-green transition-colors border border-brand-green/30" title="Renew Package">

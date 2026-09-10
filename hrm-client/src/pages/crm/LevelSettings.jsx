@@ -11,7 +11,8 @@ export default function LevelSettings() {
 
   const [formData, setFormData] = useState({
     level_name: '',
-    required_spend: 0,
+    min_spend: 0,
+    max_spend: '',
     color: 'blue'
   });
 
@@ -48,12 +49,13 @@ export default function LevelSettings() {
       setEditingSetting(setting);
       setFormData({
         level_name: setting.level_name,
-        required_spend: setting.required_spend,
+        min_spend: setting.min_spend !== undefined && setting.min_spend !== null ? setting.min_spend : (setting.required_spend || 0),
+        max_spend: setting.max_spend !== undefined && setting.max_spend !== null ? setting.max_spend : '',
         color: setting.color || 'blue'
       });
     } else {
       setEditingSetting(null);
-      setFormData({ level_name: '', required_spend: 0, color: 'blue' });
+      setFormData({ level_name: '', min_spend: 0, max_spend: '', color: 'blue' });
     }
     setIsModalOpen(true);
   };
@@ -68,9 +70,16 @@ export default function LevelSettings() {
     if (!formData.level_name) {
       return toast.error('Level name is required');
     }
+    if (formData.max_spend !== '' && parseInt(formData.min_spend) > parseInt(formData.max_spend)) {
+      return toast.error('Min spend cannot be greater than max spend');
+    }
+
     saveMutation.mutate({
       id: editingSetting?.id,
-      ...formData
+      level_name: formData.level_name,
+      min_spend: parseInt(formData.min_spend || 0),
+      max_spend: formData.max_spend !== '' ? parseInt(formData.max_spend) : null,
+      color: formData.color
     });
   };
 
@@ -102,7 +111,7 @@ export default function LevelSettings() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Customer Level Settings</h1>
-            <p className="text-sm text-slate-400 mt-1">Configure automatic level upgrades based on purchase counts.</p>
+            <p className="text-sm text-slate-400 mt-1">Configure spend ranges for automatic tier classification (e.g. Gold: 6,000 - 8,000 THB).</p>
           </div>
           <button
             onClick={() => openModal()}
@@ -118,6 +127,9 @@ export default function LevelSettings() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {levelSettings?.map((setting) => {
             const colorObj = colors.find(c => c.value === setting.color) || colors[0];
+            const minStr = (setting.min_spend !== undefined && setting.min_spend !== null ? setting.min_spend : setting.required_spend || 0).toLocaleString();
+            const maxStr = setting.max_spend !== undefined && setting.max_spend !== null ? `${setting.max_spend.toLocaleString()} THB` : 'No Limit';
+
             return (
               <div key={setting.id} className="p-5 rounded-2xl border border-white/5 bg-slate-900/50 backdrop-blur-sm relative group">
                 <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -140,8 +152,10 @@ export default function LevelSettings() {
                 </div>
                 
                 <div>
-                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Target to Unlock</p>
-                  <p className="text-2xl font-bold text-white">{setting.required_spend?.toLocaleString() || 0} <span className="text-sm font-medium text-slate-400">THB</span></p>
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Spend Range Target</p>
+                  <p className="text-xl font-bold text-white">
+                    {minStr} <span className="text-xs text-slate-400">to</span> {maxStr}
+                  </p>
                 </div>
               </div>
             );
@@ -159,7 +173,7 @@ export default function LevelSettings() {
           <div className="w-full max-w-md bg-[#0f1120] border border-white/10 rounded-2xl shadow-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">
-                {editingSetting ? 'Edit Level' : 'Add New Level'}
+                {editingSetting ? 'Edit Level Range' : 'Add New Level Range'}
               </h3>
               <button onClick={closeModal} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -177,23 +191,40 @@ export default function LevelSettings() {
                   value={formData.level_name}
                   onChange={(e) => setFormData({ ...formData, level_name: e.target.value })}
                   className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-                  placeholder="e.g., Level 1, VIP"
+                  placeholder="e.g., Gold, Diamond"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Target to Unlock (THB)</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="1"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50"
-                  value={formData.required_spend}
-                  onChange={(e) => setFormData({ ...formData, required_spend: e.target.value })}
-                />
-                <p className="text-xs text-slate-500 mt-1">Total spend required to reach this level.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Min Spend (THB) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="1"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-brand-green/50 text-sm"
+                    value={formData.min_spend}
+                    onChange={(e) => setFormData({ ...formData, min_spend: e.target.value })}
+                    placeholder="e.g. 6000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Max Spend (THB)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-brand-green/50 text-sm"
+                    value={formData.max_spend}
+                    onChange={(e) => setFormData({ ...formData, max_spend: e.target.value })}
+                    placeholder="Leave empty for unlimited"
+                  />
+                </div>
               </div>
+              <p className="text-[11px] text-slate-400">
+                Example: Gold = Min 6000 to Max 8000 THB. (Leave Max empty for highest tier).
+              </p>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Badge Color</label>

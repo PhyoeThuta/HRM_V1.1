@@ -12,47 +12,85 @@ router.get('/:customer_id', async (req, res) => {
 
     if (!date) return res.status(400).json({ error: 'Date is required' });
 
-    // 1. Check if customer has an active package today
-    const { data: pkg, error: pkgErr } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_packages')
-      .select('*')
+    // 1. Query OpsHub Auto Generated Orders (operations_orders) for this customer and date
+    const { data: customerOrders } = await supabase
+      .from('operations_orders')
+      .select('id, daily_menu_id, date, delivery_status')
       .eq('customer_id', customer_id)
-      .lte('start_date', date)
-      .gte('expires_at', date)
-      .in('status', ['Active', 'Upcoming'])
-      .limit(1);
-
-    if (pkgErr) throw pkgErr;
-    if (!pkg || pkg.length === 0) {
-      return res.status(404).json({ error: 'No active package found for this date.' });
-    }
-
-    // 2. Fetch today's menus from OpsHub
-    const { data: dailyMenus, error: dmErr } = await supabase
-      .from('operations_daily_menus')
-      .select('*')
       .eq('date', date);
 
-    if (dmErr) throw dmErr;
-    if (!dailyMenus || dailyMenus.length === 0) {
-      return res.status(404).json({ error: 'No menu scheduled for today.' });
+    let enrichedMenus = [];
+    let hasOrder = customerOrders && customerOrders.length > 0;
+
+    // 2. Fetch menus linked to generated orders
+    if (hasOrder) {
+      const dailyMenuIds = customerOrders.map(o => o.daily_menu_id).filter(Boolean);
+      if (dailyMenuIds.length > 0) {
+        const { data: dailyMenus } = await supabase
+          .from('operations_daily_menus')
+          .select('*')
+          .in('id', dailyMenuIds);
+
+        const { data: menuTypes } = await supabase.from('operations_menu_types').select('*');
+        const { data: menus } = await supabase.from('operations_menus').select('*');
+
+        enrichedMenus = (dailyMenus || []).map(dm => {
+          const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
+          const enrichedTypes = types.map(mt => ({
+            ...mt,
+            menus: menus?.find(m => m.id === mt.menu_id) || null
+          }));
+          return { ...dm, menu_types: enrichedTypes };
+        });
+      }
     }
 
-    // 3. Fetch menu types and menus to enrich the response
-    const { data: menuTypes } = await supabase.from('operations_menu_types').select('*');
-    const { data: menus } = await supabase.from('operations_menus').select('*');
+    // 3. Fallback: If no order generated for this customer yet, check operations_daily_menus for date directly
+    if (enrichedMenus.length === 0) {
+      const { data: dailyMenus } = await supabase
+        .from('operations_daily_menus')
+        .select('*')
+        .eq('date', date);
 
-    const enrichedMenus = dailyMenus.map(dm => {
-      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
-      const enrichedTypes = types.map(mt => ({
-        ...mt,
-        menus: menus?.find(m => m.id === mt.menu_id) || null
-      }));
-      return { ...dm, menu_types: enrichedTypes };
-    });
+      if (dailyMenus && dailyMenus.length > 0) {
+        const { data: menuTypes } = await supabase.from('operations_menu_types').select('*');
+        const { data: menus } = await supabase.from('operations_menus').select('*');
 
-    // 4. Check if they already submitted feedback today
+        enrichedMenus = dailyMenus.map(dm => {
+          const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
+          const enrichedTypes = types.map(mt => ({
+            ...mt,
+            menus: menus?.find(m => m.id === mt.menu_id) || null
+          }));
+          return { ...dm, menu_types: enrichedTypes };
+        });
+      }
+    }
+
+    // 4. Fallback for testing catalog menus if date has no scheduled menu in OpsHub
+    if (enrichedMenus.length === 0) {
+      const { data: catalogMenus } = await supabase
+        .from('operations_menus')
+        .select('id, name_en, name_mm, code')
+        .limit(4);
+
+      if (catalogMenus && catalogMenus.length > 0) {
+        enrichedMenus = [
+          {
+            id: 'catalog_lunch',
+            meal_type: 'LUNCH',
+            menu_types: catalogMenus.slice(0, 2).map(m => ({ menus: m }))
+          },
+          ...(catalogMenus.length > 2 ? [{
+            id: 'catalog_dinner',
+            meal_type: 'DINNER',
+            menu_types: catalogMenus.slice(2, 4).map(m => ({ menus: m }))
+          }] : [])
+        ];
+      }
+    }
+
+    // 5. Check if customer already submitted feedback today
     const { data: existingFeedback } = await supabaseAdmin
       .schema('crm')
       .from('daily_feedbacks')
@@ -62,7 +100,8 @@ router.get('/:customer_id', async (req, res) => {
       .limit(1);
 
     return res.json({
-      package: pkg[0],
+      hasOrder,
+      customerOrders: customerOrders || [],
       menus: enrichedMenus,
       alreadySubmitted: existingFeedback && existingFeedback.length > 0
     });
