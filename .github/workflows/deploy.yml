@@ -95,7 +95,7 @@ jobs:
           host:     ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_USERNAME }}
           key:      ${{ secrets.GCP_SSH_KEY }}
-          source:   "docker-compose.yml"
+          source:   "docker-compose.yml,nginx/"
           target:   "/opt/bbd"
 
       - name: Deploy via SSH to GCP VM
@@ -155,20 +155,47 @@ jobs:
 
             # Wait for health check to pass (max 60s)
             echo "=== Waiting for health check ==="
+            HEALTHY=false
             for i in $(seq 1 12); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' bbd_hrm_app 2>/dev/null || echo "starting")
               echo "Health: ${STATUS} (attempt ${i}/12)"
               if [ "${STATUS}" = "healthy" ]; then
-                echo "=== Deployment successful! ==="
-                exit 0
+                HEALTHY=true
+                echo "=== Container is healthy! ==="
+                break
               fi
               sleep 5
             done
 
-            echo "=== ERROR: Container failed health check. Rolling back. ==="
-            # Rollback: find the previously running image and restart it
-            PREVIOUS_IMAGE=$(docker ps -a --filter "name=bbd_hrm_app" --format "{{.Image}}" | tail -n 2 | head -n 1 || true)
-            if [ -n "${PREVIOUS_IMAGE}" ]; then
-              IMAGE_TAG=$(echo "${PREVIOUS_IMAGE}" | cut -d: -f2) docker compose up -d --pull never
+            if [ "${HEALTHY}" = "false" ]; then
+              echo "=== ERROR: Container failed health check. Rolling back. ==="
+              PREVIOUS_IMAGE=$(docker ps -a --filter "name=bbd_hrm_app" --format "{{.Image}}" | tail -n 2 | head -n 1 || true)
+              if [ -n "${PREVIOUS_IMAGE}" ]; then
+                IMAGE_TAG=$(echo "${PREVIOUS_IMAGE}" | cut -d: -f2) docker compose up -d --pull never
+              fi
+              exit 1
             fi
-            exit 1
+
+            # ── Nginx: sync config + reload ───────────────────────────────────
+            # Always reload nginx after a successful container swap so it
+            # flushes stale upstream connections and serves the new container.
+            # Also syncs nginx/hrm.conf from the repo in case it changed.
+            NGINX_CONF_SRC="/opt/bbd/nginx/hrm.conf"
+            NGINX_CONF_DST="/etc/nginx/sites-available/hrm.duolinkmm.com"
+
+            if [ -f "${NGINX_CONF_SRC}" ]; then
+              echo "=== Syncing nginx config from repo ==="
+              sudo cp "${NGINX_CONF_SRC}" "${NGINX_CONF_DST}"
+            fi
+
+            if sudo nginx -t 2>&1; then
+              echo "=== Nginx config valid — reloading nginx ==="
+              sudo systemctl reload nginx
+              echo "=== Nginx reloaded — new container is now live ==="
+            else
+              echo "=== WARNING: nginx -t failed — skipping reload to prevent downtime ==="
+              echo "=== The app container is healthy but nginx config has an error. Fix manually. ==="
+            fi
+            # ─────────────────────────────────────────────────────────────────
+
+            echo "=== Deployment complete! Image: ${IMAGE_NAME}:${IMAGE_TAG} ==="
