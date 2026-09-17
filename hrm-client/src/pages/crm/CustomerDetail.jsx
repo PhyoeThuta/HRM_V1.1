@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 import AssignPackageForm from '../../components/crm/AssignPackageForm';
-import CustomerPackagesList from '../../components/crm/CustomerPackagesList';
+import { parseDeliverySpotPhotoAndNotes } from '../../utils/deliveryUtils';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -760,10 +760,44 @@ export default function CustomerDetail() {
                   <p className="text-lg text-white font-bold">{customer.phone || 'N/A'}</p>
                 </div>
 
-                <div className="md:col-span-2 p-5 rounded-2xl bg-brand-green/5 border border-brand-green/20">
-                  <p className="text-xs font-bold text-brand-green uppercase tracking-wider mb-1 flex items-center gap-1.5"><span>🚚</span> Special Delivery Notes</p>
-                  <p className="text-white font-medium">{customer.delivery_notes || 'None'}</p>
-                </div>
+                {(() => {
+                  const { photoUrl, cleanNotes } = parseDeliverySpotPhotoAndNotes(customer);
+                  return (
+                    <>
+                      <div className="md:col-span-2 p-5 rounded-2xl bg-brand-green/5 border border-brand-green/20 space-y-3">
+                        <p className="text-xs font-bold text-brand-green uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <span>🚚</span> Special Delivery Notes
+                        </p>
+                        <p className="text-white font-medium">{cleanNotes || 'None'}</p>
+
+                        {photoUrl && (
+                          <div className="pt-2 border-t border-white/10 flex items-center gap-4">
+                            <a 
+                              href={photoUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="group flex items-center gap-3 p-2.5 rounded-xl bg-surface-900 border border-emerald-500/30 hover:border-emerald-400 transition-all"
+                            >
+                              <img 
+                                src={photoUrl} 
+                                alt="Drop-off Spot" 
+                                className="w-14 h-14 object-cover rounded-lg border border-white/10 shrink-0 group-hover:scale-105 transition-transform bg-black/40" 
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-emerald-400 block flex items-center gap-1">
+                                  <span>📸</span> Drop-off Location Photo
+                                </span>
+                                <span className="text-[11px] text-slate-400 group-hover:text-white underline">
+                                  Click to view full image ↗
+                                </span>
+                              </div>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

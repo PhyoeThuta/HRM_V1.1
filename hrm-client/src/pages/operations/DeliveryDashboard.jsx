@@ -6,6 +6,8 @@ import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
 import { getCrmSocket } from '../../lib/crmSocket';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { parseDeliverySpotPhotoAndNotes } from '../../utils/deliveryUtils';
+import { getProofOfDeliveryPhoto } from '../../utils/podUtils';
 
 const mapContainerStyle = { width: '100%', height: '100%' };
 const defaultCenter = { lat: 18.7953, lng: 98.9620 };
@@ -18,6 +20,62 @@ const darkMapStyle = [
   { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#475569" }] },
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f172a" }] },
 ];
+
+function SpotPhotoPreview({ photoUrl, customerName }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mt-2.5">
+      <div 
+        onClick={() => setIsOpen(true)} 
+        className="flex items-center gap-3 p-2 rounded-xl bg-surface-950 border border-emerald-500/20 hover:border-emerald-400/50 cursor-pointer transition-all group"
+      >
+        <img 
+          src={photoUrl} 
+          alt="Drop-off spot" 
+          className="w-12 h-12 object-cover rounded-lg border border-white/10 shrink-0 group-hover:scale-105 transition-transform bg-black/40" 
+        />
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+            <span>📸</span> Drop-off Spot Photo
+          </span>
+          <span className="text-[11px] text-slate-400 group-hover:text-white transition-colors block mt-0.5">
+            Click to expand full image 🔍
+          </span>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fade-in"
+          onClick={() => setIsOpen(false)}
+        >
+          <div className="relative max-w-xl w-full bg-slate-900 rounded-3xl overflow-hidden border border-white/20 shadow-2xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h4 className="text-white font-black text-sm flex items-center gap-2">
+                <span>📸</span> Drop-off Location Photo {customerName ? `(${customerName})` : ''}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center hover:bg-white/20 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden bg-black max-h-[70vh] flex items-center justify-center p-1 border border-white/10">
+              <img
+                src={photoUrl}
+                alt="Full drop-off location spot"
+                className="max-w-full max-h-[70vh] object-contain rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DeliveryDashboard() {
   const queryClient = useQueryClient();
@@ -235,11 +293,30 @@ export default function DeliveryDashboard() {
             </div>
           </div>
         )}
-        {group.customer?.delivery_notes && (
-          <p className="text-emerald-400 text-xs mt-2 font-bold bg-emerald-500/10 p-2 rounded-lg inline-block">
-            Note: {group.customer.delivery_notes}
-          </p>
-        )}
+        {(() => {
+          const { photoUrl: spotPhotoUrl, cleanNotes } = parseDeliverySpotPhotoAndNotes(group.customer);
+          const podPhotoUrl = getProofOfDeliveryPhoto(group);
+          return (
+            <>
+              {cleanNotes && (
+                <p className="text-emerald-400 text-xs mt-2 font-bold bg-emerald-500/10 p-2 rounded-lg inline-block">
+                  Note: {cleanNotes}
+                </p>
+              )}
+              {spotPhotoUrl && (
+                <SpotPhotoPreview photoUrl={spotPhotoUrl} customerName={group.customer?.full_name} />
+              )}
+              {podPhotoUrl && podPhotoUrl !== spotPhotoUrl && (
+                <div className="mt-2.5">
+                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-1">
+                    📸 Proof of Delivery (Rider POD)
+                  </span>
+                  <SpotPhotoPreview photoUrl={podPhotoUrl} customerName={`${group.customer?.full_name} - Delivered Proof`} />
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Rider Assignment Section */}

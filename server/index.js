@@ -16,6 +16,7 @@ process.env.TZ = 'Asia/Bangkok'; // Ensure Bangkok (UTC+7) timezone across all s
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
 import { startDailyFeedbackCron, checkAndNotifyDailyFeedback } from './cron/daily_feedback.js';
+import { startKitchenAlertCron, checkAndSendKitchenAlert } from './cron/kitchen_alerts.js';
 import { initCrmRealtime } from './lib/crmRealtime.js';
 import { startVectorSyncCron } from './services/vectorSync.js';
 
@@ -157,6 +158,16 @@ app.post('/api/test/trigger-daily-feedback', requireAdmin, async (req, res) => {
   res.json(result);
 });
 
+app.post('/api/test/trigger-kitchen-alert', requireAdmin, async (req, res) => {
+  try {
+    const targetDate = req.body?.targetDate || null;
+    const result = await checkAndSendKitchenAlert(targetDate);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Serve React Frontend (Single-Container Deployment) ───────────
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -214,4 +225,5 @@ server.listen(PORT, () => {
   startVectorSyncCron();
   startFollowupCron();
   startDailyFeedbackCron();
+  startKitchenAlertCron(); // 05:00 AM ICT Kitchen Daily Alert (Telegram + Messenger)
 });

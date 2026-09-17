@@ -23,7 +23,7 @@ export default function Attendance() {
   const [activeTabState, setActiveTabState] = useState(localStorage.getItem('attendanceTab') || 'manual');
   const activeTab = activeTabState;
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('attendanceTab', tab); };
-  const [filter, setFilter] = useState({ name: '', date: new Date().toISOString().split('T')[0], status: 'all' });
+  const [filter, setFilter] = useState({ name: '', date: '', status: 'all' });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteMappingTarget, setDeleteMappingTarget] = useState(null);
   const [editMappingTarget, setEditMappingTarget] = useState(null);
@@ -38,7 +38,10 @@ export default function Attendance() {
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({ queryKey: ['attendance'], queryFn: () => api.get('/attendance').then(r => r.data) });
+  const { data, isLoading } = useQuery({
+    queryKey: ['attendance', filter.date],
+    queryFn: () => api.get('/attendance', { params: filter.date ? { date: filter.date } : {} }).then(r => r.data)
+  });
 
   const addMappingMutation = useMutation({
     mutationFn: (body) => api.post('/attendance/biometric/mapping', body),
@@ -356,6 +359,8 @@ export default function Attendance() {
               <div className="flex flex-wrap items-center gap-3">
                 <input value={filter.name} onChange={e => setFilter(f => ({ ...f, name: e.target.value }))} placeholder="Search employee..." className="form-input w-40" />
                 <input type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} className="form-input w-40" />
+                <button type="button" onClick={() => setFilter(f => ({ ...f, date: new Date().toISOString().split('T')[0] }))} className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filter.date === new Date().toISOString().split('T')[0] ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>Today</button>
+                <button type="button" onClick={() => setFilter(f => ({ ...f, date: '' }))} className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${!filter.date ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>All Dates</button>
                 <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))} className="form-input w-36">
                   <option value="all">All Status</option>
                   <option value="late">Late</option>

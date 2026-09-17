@@ -6,13 +6,145 @@ import { useAuth } from '../../context/AuthContext';
 import { getCrmSocket } from '../../lib/crmSocket';
 import { useJsApiLoader } from '@react-google-maps/api';
 import toast from 'react-hot-toast';
+import { parseDeliverySpotPhotoAndNotes } from '../../utils/deliveryUtils';
 
 const BANGKOK = { lat: 13.765, lng: 100.640 };
 
 // ────────────────────────────────────────────────────────────
+// Proof of Delivery Capture Modal Component
+// ────────────────────────────────────────────────────────────
+function ProofOfDeliveryModal({ group, onClose, onSubmit, isSubmitting }) {
+  const [photoData, setPhotoData] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoData(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirm = async () => {
+    if (!photoData) {
+      toast.error('ကျေးဇူးပြု၍ ပို့ဆောင်ပြီးကြောင်း အထောက်အထား ဓာတ်ပုံ ရိုက်ယူပေးပါ');
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const res = await api.post('/operations/upload-pod-photo', { image: photoData });
+      const url = res.data?.url;
+      if (!url) throw new Error('Failed to upload proof photo');
+
+      await onSubmit(group, 'DELIVERED', url);
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to upload photo');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center border-b border-white/10 pb-3">
+          <div>
+            <h3 className="text-white text-lg font-black flex items-center gap-2">
+              <span>📸</span> Proof of Delivery (POD)
+            </h3>
+            <p className="text-xs text-slate-400 font-bold mt-0.5">{group.customer?.full_name}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 text-white font-bold hover:bg-white/20 text-sm">✕</button>
+        </div>
+
+        {/* Hidden Inputs */}
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileSelect} className="hidden" />
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+
+        {photoData ? (
+          <div className="space-y-3">
+            <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500/50 bg-black aspect-video flex items-center justify-center group">
+              <img src={photoData} alt="Proof preview" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button type="button" onClick={() => cameraInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-bold border border-white/20">📷 Retake</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-bold border border-white/20">🖼️ Gallery</button>
+              </div>
+            </div>
+            <p className="text-center text-xs text-emerald-400 font-bold">✅ Photo captured! Ready to submit.</p>
+          </div>
+        ) : (
+          <div className="border-2 border-dashed border-slate-700 hover:border-emerald-500/50 rounded-2xl p-6 text-center space-y-4 bg-slate-950/50">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-2xl font-black flex items-center justify-center mx-auto">
+              📸
+            </div>
+            <div>
+              <p className="text-white font-black text-sm">ပို့ဆောင်ပြီးကြောင်း ဓာတ်ပုံရိုက်ရန်</p>
+              <p className="text-xs text-slate-400 mt-1">အဆောက်အဦး/တံခါးဝ သို့မဟုတ် ပစ္စည်းထားခဲ့သည့်နေရာကို ဓာတ်ပုံရိုက်ပေးပါ</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex-1 py-3 px-3 rounded-xl bg-emerald-500 text-black font-black text-xs hover:bg-emerald-400 active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20"
+              >
+                <span>📷</span> Phone Camera
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 py-3 px-3 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-white/10"
+              >
+                <span>🖼️</span> Gallery
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isUploading || isSubmitting}
+            className="w-1/3 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={!photoData || isUploading || isSubmitting}
+            className="w-2/3 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm hover:bg-emerald-400 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30"
+          >
+            {isUploading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <span>Upload & Complete Delivery 🎉</span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Delivery Card Component
 // ────────────────────────────────────────────────────────────
-function DeliveryCard({ group, onUpdateStatus, isPending }) {
+function DeliveryCard({ group, onUpdateStatus, isPending, onOpenPodModal }) {
   const statusConfig = {
     ASSIGNED: {
       border: 'border-amber-500/30',
@@ -38,6 +170,14 @@ function DeliveryCard({ group, onUpdateStatus, isPending }) {
       label: 'ပစ္စည်းယူနေပါပြီ',
       labelColor: 'text-orange-400',
     },
+    PICKED_UP: {
+      border: 'border-indigo-500/30',
+      bg: 'bg-indigo-500/5',
+      glow: {},
+      dot: 'bg-indigo-400',
+      label: 'Picked Up',
+      labelColor: 'text-indigo-400',
+    },
     ON_THE_WAY: {
       border: 'border-fuchsia-500/50',
       bg: 'bg-fuchsia-500/5',
@@ -47,6 +187,12 @@ function DeliveryCard({ group, onUpdateStatus, isPending }) {
       labelColor: 'text-fuchsia-400',
     },
   };
+
+  const [showSpotPhotoModal, setShowSpotPhotoModal] = useState(false);
+
+  const { photoUrl: spotPhotoUrl, cleanNotes } = React.useMemo(() => {
+    return parseDeliverySpotPhotoAndNotes(group.customer);
+  }, [group.customer]);
 
   const cfg = statusConfig[group.status] || statusConfig.ASSIGNED;
   const deliveryAddress = group.orders[0]?.custom_delivery_address || group.customer?.delivery_address || '';
@@ -99,10 +245,69 @@ function DeliveryCard({ group, onUpdateStatus, isPending }) {
           <span className="text-sky-400 text-sm font-black">{group.customer?.phone}</span>
           <span className="text-sky-600 text-xs">Tap to call</span>
         </a>
-        {group.customer?.delivery_notes && (
+        {cleanNotes && (
           <p className="text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl">
-            📝 {group.customer.delivery_notes}
+            📝 {cleanNotes}
           </p>
+        )}
+        {spotPhotoUrl && (
+          <div className="mt-2.5">
+            <div
+              onClick={() => setShowSpotPhotoModal(true)}
+              className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-900/90 border border-fuchsia-500/30 hover:border-fuchsia-400 cursor-pointer transition-all active:scale-[0.98] group"
+            >
+              <img
+                src={spotPhotoUrl}
+                alt="Drop-off spot"
+                className="w-14 h-14 object-cover rounded-xl border border-white/20 shrink-0 group-hover:scale-105 transition-transform bg-black/40"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 text-fuchsia-400 font-black text-xs">
+                  <span>📸</span>
+                  <span>Drop-off Location Photo</span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">Tap to view full drop-off spot photo</p>
+              </div>
+              <span className="text-[11px] text-fuchsia-400 font-bold px-2.5 py-1 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20">
+                View 🔍
+              </span>
+            </div>
+
+            {/* Full Screen Lightbox Modal */}
+            {showSpotPhotoModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fade-in"
+                onClick={() => setShowSpotPhotoModal(false)}
+              >
+                <div className="relative max-w-lg w-full bg-slate-900 rounded-3xl overflow-hidden border border-white/20 shadow-2xl p-4 space-y-4" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-white font-black text-sm flex items-center gap-2">
+                      <span>📸</span> Drop-off Location Photo ({group.customer?.full_name})
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowSpotPhotoModal(false)}
+                      className="w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center hover:bg-white/20 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="rounded-2xl overflow-hidden bg-black max-h-[65vh] flex items-center justify-center p-1 border border-white/10">
+                    <img
+                      src={spotPhotoUrl}
+                      alt="Full drop-off location spot"
+                      className="max-w-full max-h-[65vh] object-contain rounded-xl"
+                    />
+                  </div>
+                  {cleanNotes && (
+                    <p className="text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-center">
+                      📝 {cleanNotes}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -140,12 +345,13 @@ function DeliveryCard({ group, onUpdateStatus, isPending }) {
               🗺️ Open in Google Maps
             </a>
             <button
-              onClick={() => onUpdateStatus(group, 'DELIVERED')}
+              onClick={() => onOpenPodModal ? onOpenPodModal(group) : onUpdateStatus(group, 'DELIVERED')}
               disabled={isPending}
-              className="w-full py-4 rounded-2xl font-black text-lg text-white transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-emerald-500/30"
+              className="w-full py-4 rounded-2xl font-black text-lg text-white transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
               style={{ background: 'linear-gradient(135deg, #059669, #0d9488)' }}
             >
-              ✅ Delivered
+              <span>📸</span>
+              <span>✅ Delivered</span>
             </button>
           </>
         )}
@@ -256,10 +462,15 @@ export default function RiderApp() {
 
     return Object.values(groups).map(g => {
       let status = 'ASSIGNED';
-      if (g.orders.some(o => o.rider_status === 'ON_THE_WAY')) status = 'ON_THE_WAY';
-      else if (g.orders.some(o => o.rider_status === 'PICKING_UP')) status = 'PICKING_UP';
-      else if (g.orders.every(o => o.rider_status === 'DELIVERED')) status = 'DELIVERED';
-      else if (g.orders.every(o => ['ACCEPTED', 'ASSIGNED'].includes(o.rider_status || 'ASSIGNED'))) status = 'ASSIGNED';
+      if (g.orders.every(o => o.delivery_status === 'DELIVERED' || o.rider_status === 'DELIVERED')) {
+        status = 'DELIVERED';
+      } else if (g.orders.some(o => o.delivery_status === 'ON_THE_WAY' || o.rider_status === 'ON_THE_WAY')) {
+        status = 'ON_THE_WAY';
+      } else if (g.orders.some(o => o.delivery_status === 'PICKING_UP' || o.rider_status === 'PICKING_UP')) {
+        status = 'PICKING_UP';
+      } else {
+        status = 'ASSIGNED';
+      }
       return { ...g, status };
     });
   }, [orders]);
@@ -391,13 +602,18 @@ export default function RiderApp() {
     });
   }, [simulatorMode, isTracking, isLoaded, simDest]);
 
+  const [podModalGroup, setPodModalGroup] = useState(null);
+
   // Status update handler
-  const handleUpdateStatus = async (group, newStatus) => {
+  const handleUpdateStatus = async (group, newStatus, proofUrl = null) => {
     setIsPending(true);
     try {
       await Promise.all(
         group.orders.map(o =>
-          api.put(`/operations/orders/${o.id}/rider-status`, { status: newStatus })
+          api.put(`/operations/orders/${o.id}/rider-status`, {
+            status: newStatus,
+            proof_of_delivery_url: proofUrl
+          })
         )
       );
       queryClient.invalidateQueries(['rider-orders', user?.id]);
@@ -415,7 +631,7 @@ export default function RiderApp() {
       const msgs = {
         PICKING_UP: 'ပစ္စည်းယူရောက်ပြီ ✅',
         ON_THE_WAY: 'GPS Tracking Started! 🚀',
-        DELIVERED: 'Delivered! Great job 🎉',
+        DELIVERED: 'Proof of Delivery uploaded & Delivered! 🎉',
       };
       toast.success(msgs[newStatus] || 'Updated!');
     } catch (e) {
@@ -544,11 +760,22 @@ export default function RiderApp() {
               key={group.customer_id}
               group={group}
               onUpdateStatus={handleUpdateStatus}
+              onOpenPodModal={setPodModalGroup}
               isPending={isPending}
             />
           ))
         )}
       </div>
+
+      {/* Proof of Delivery Photo Capture Modal */}
+      {podModalGroup && (
+        <ProofOfDeliveryModal
+          group={podModalGroup}
+          onClose={() => setPodModalGroup(null)}
+          onSubmit={handleUpdateStatus}
+          isSubmitting={isPending}
+        />
+      )}
 
       {/* ── Completed Section ── */}
       {completedDeliveries.length > 0 && (

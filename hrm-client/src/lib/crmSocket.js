@@ -14,7 +14,9 @@ export function getCrmSocket() {
     return socket;
   }
 
-  socket = io({
+  const serverUrl = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8080' : '');
+
+  socket = io(serverUrl || undefined, {
     path: '/socket.io',
     withCredentials: true,
     transports: ['websocket', 'polling'],

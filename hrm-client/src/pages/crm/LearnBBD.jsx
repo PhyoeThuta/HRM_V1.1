@@ -171,6 +171,46 @@ export default function LearnBBD() {
         </div>
       </div>
 
+      {/* Kitchen Automation Section */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-black text-white tracking-tight mb-1">🍳 Kitchen Daily Auto-Alert (မနက် ၅ နာရီ Automation)</h2>
+        <p className="text-slate-400 text-xs mb-6">Operation OpsHub &gt; Kitchen Dashboard တွင် မနက် ၅ နာရီတိုင်း အလိုအလျောက် Chef / Kitchen Staff များထံ Dual-Channel Alert ပေးပို့သည့် Automation System</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-2xl mb-2">⏰</p>
+            <h4 className="font-black text-emerald-400 text-sm mb-1">Auto Trigger Schedule</h4>
+            <p className="text-xs text-slate-300">ထိုင်းစံတော်ချိန် (Asia/Bangkok UTC+7)</p>
+            <p className="text-xl font-black text-white mt-1">မနက် 05:00 AM</p>
+            <p className="text-[11px] text-slate-400 mt-1">Cron: <code className="text-emerald-400 font-mono">0 5 * * *</code></p>
+          </div>
+          <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+            <p className="text-2xl mb-2">✈️</p>
+            <h4 className="font-black text-blue-400 text-sm mb-1">Telegram Group Channel</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">Chef အဖွဲ့ Telegram Group သို့ ဟင်းပွဲ၊ Headcount နှင့် BOM Ingredients ကို HTML Format ဖြင့် Inline Button ("Finish Cooking") အပါ တပ်ဆင်ပေးပို့မည်။</p>
+            <p className="text-[11px] text-slate-400 mt-2">Env: <code className="text-blue-400 font-mono">CHEF_CHAT_ID</code></p>
+          </div>
+          <div className="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+            <p className="text-2xl mb-2">💬</p>
+            <h4 className="font-black text-indigo-400 text-sm mb-1">Facebook Messenger Channel</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">BBD Facebook Page ထံ မက်ဆေ့ဂျ် ဖြင့် opt-in ပြုလုပ်ထားသော Chef / Kitchen Staff တစ်ဦးစီ၏ Messenger ထံ Direct Broadcast ပေးပို့မည်။ (Zernio API မှတဆင့်)</p>
+            <p className="text-[11px] text-slate-400 mt-2">Env: <code className="text-indigo-400 font-mono">ZERNIO_API_KEY</code></p>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-surface-800 border border-white/5 text-xs space-y-2">
+          <p className="font-black text-white">📋 Alert တွင် ပါဝင်သော အချက်အလက်များ (Alert Content)</p>
+          <ul className="text-slate-300 space-y-1 pl-3 list-disc">
+            <li>ထိုနေ့ Lunch / Dinner Headcount (ဦးရေ)</li>
+            <li>Scheduled Daily Menus (ဟင်းပွဲ နှင့် Meal Type)</li>
+            <li>Aggregated BOM Required Ingredients (ချက်ရမည့် ကုန်ကြမ်း + အချိုးအစား)</li>
+            <li>Telegram: "✅ ချက်ပြုတ်ပြီးစီးပါပြီ (Finish Cooking)" Inline Button ပါဝင်မည်</li>
+          </ul>
+          <p className="font-bold text-amber-400 mt-2">⚠️ Admin Override: Kitchen Dashboard မှ မည်သည့်အချိန်မဆို Manual "Chef ထံ Alert ပို့မည် (Telegram & Messenger)" ကို နှိပ်၍ ချက်ချင်း ထပ်မံ ပေးပို့နိုင်ပါသည်။</p>
+          <p className="font-bold text-emerald-400 mt-1">✅ Fail-Safe: Messenger ပျက်ကွက်ပါက Telegram ကို မပျက်ကွက်အောင် Promise.allSettled() ဖြင့် Channel နှစ်ခု Isolated ထားပါသည်။</p>
+        </div>
+      </div>
+
       {/* Section 2: Complete Forms Ecosystem Section */}
       <div className="mb-8">
         <div className="flex justify-between items-end mb-6">

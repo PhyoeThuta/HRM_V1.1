@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { checkAndSendKitchenAlert } from '../cron/kitchen_alerts.js';
 
 const router = express.Router();
 
@@ -64,54 +65,15 @@ async function editTelegramMessageText(chatId, messageId, text) {
 // POST /api/telegram/send-to-chef
 router.post('/send-to-chef', async (req, res) => {
   try {
-    const { targetDate, dailyMenus, aggregatedBOM } = req.body;
-
-    if (!targetDate) {
-      return res.status(400).json({ error: 'targetDate is required' });
-    }
-
-    let message = `👨‍🍳 <b>CHEF ALERTS: Menu for ${targetDate}</b>\n\n`;
-
-    // 1. Format Daily Menus
-    if (dailyMenus && dailyMenus.length > 0) {
-      dailyMenus.forEach(dm => {
-        message += `<b>[${dm.meal_type}]</b> ${dm.with_rice ? '🍚 (with rice)' : ''}\n`;
-        if (dm.menu_types) {
-          dm.menu_types.forEach(mt => {
-            message += `• ${mt.menu.name_en} ${mt.menu.name_mm ? `(${mt.menu.name_mm})` : ''}\n`;
-          });
-        }
-        message += '\n';
-      });
-    } else {
-      message += `<i>No menus scheduled for today.</i>\n\n`;
-    }
-
-    // 2. Format Required Ingredients (BOM)
-    message += `🛒 <b>REQUIRED INGREDIENTS (BOM)</b>\n`;
-    if (aggregatedBOM && aggregatedBOM.length > 0) {
-      aggregatedBOM.forEach(bom => {
-        const bomName = bom.name_mm ? `${bom.name} (${bom.name_mm})` : bom.name;
-        message += `• ${bomName}: <b>${bom.qty.toLocaleString(undefined, {maximumFractionDigits: 2})} ${bom.uom}</b>\n`;
-      });
-    } else {
-      message += `<i>No ingredients needed today.</i>\n`;
-    }
-
-    // Prepare Inline Button
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          { text: '✅ ချက်ပြုတ်ပြီးစီးပါပြီ (Finish Cooking)', callback_data: `finish_cooking_${targetDate}` }
-        ]
-      ]
-    };
-
-    await sendTelegramMessage(CHEF_CHAT_ID, message, replyMarkup);
-
-    return res.json({ success: true, message: 'Alert sent to Chef successfully via Telegram.' });
+    const { targetDate } = req.body;
+    const result = await checkAndSendKitchenAlert(targetDate || null);
+    return res.json({ 
+      success: true, 
+      message: 'Alert sent to Chef successfully via Telegram & Messenger!',
+      result
+    });
   } catch (error) {
-    console.error('[TELEGRAM SEND TO CHEF]', error);
+    console.error('[KITCHEN DUAL ALERT ERROR]', error);
     return res.status(500).json({ error: error.message });
   }
 });

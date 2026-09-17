@@ -188,6 +188,52 @@ router.post('/parse-maps-link', async (req, res) => {
   }
 });
 
+// POST /api/enroll/upload-spot-photo - Realtime drop-off spot photo upload
+router.post('/upload-spot-photo', async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image || typeof image !== 'string') {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+
+    const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid image format. Expected base64 data URL.' });
+    }
+
+    const mimeType = match[1];
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const base64Data = match[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+    const filename = `spot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
+
+    // Attempt upload to Supabase Storage
+    try {
+      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+        .from('gallery')
+        .upload(`delivery_spots/${filename}`, buffer, {
+          contentType: mimeType,
+          upsert: true
+        });
+
+      if (!uploadErr) {
+        const { data: publicUrlData } = supabaseAdmin.storage.from('gallery').getPublicUrl(`delivery_spots/${filename}`);
+        if (publicUrlData?.publicUrl) {
+          return res.json({ success: true, url: publicUrlData.publicUrl });
+        }
+      }
+    } catch (e) {
+      console.warn('[SPOT_PHOTO_STORAGE_WARN]', e.message);
+    }
+
+    // Return original data URL as inline image fallback if storage bucket fails
+    res.json({ success: true, url: image });
+  } catch (err) {
+    console.error('[UPLOAD_SPOT_PHOTO_ERR]', err);
+    res.status(500).json({ error: 'Failed to process photo upload' });
+  }
+});
+
 // Helper: generate customer code
 async function generateCustomerCode() {
   const { data } = await supabaseAdmin
@@ -212,7 +258,7 @@ router.get('/update-address/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
 
-    let query = supabaseAdmin.schema('crm').from('customers').select('id, full_name, customer_code, address, delivery_address, delivery_notes');
+    let query = supabaseAdmin.schema('crm').from('customers').select('id, full_name, customer_code, address, delivery_address, delivery_notes, delivery_spot_photo_url');
     
     if (customerId.startsWith('BBD-') || !customerId.includes('-')) {
       query = query.eq('customer_code', customerId);
@@ -236,7 +282,7 @@ router.get('/update-address/:customerId', async (req, res) => {
 router.post('/update-address/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
-    const { delivery_address, delivery_notes, maps_url } = req.body;
+    const { delivery_address, delivery_notes, maps_url, delivery_spot_photo_url } = req.body;
 
     let query = supabaseAdmin.schema('crm').from('customers').select('id, delivery_notes');
     if (customerId.startsWith('BBD-') || !customerId.includes('-')) {
@@ -258,14 +304,32 @@ router.post('/update-address/:customerId', async (req, res) => {
       }
     }
 
-    const { error: updateErr } = await supabaseAdmin.schema('crm').from('customers')
-      .update({
-        delivery_address: delivery_address || null,
-        delivery_notes: finalNotes || null
-      })
-      .eq('id', existingCustomer.id);
+    if (delivery_spot_photo_url) {
+      const photoNote = `📸 Photo: ${delivery_spot_photo_url}`;
+      if (!finalNotes.includes(delivery_spot_photo_url)) {
+        finalNotes = finalNotes ? `${finalNotes} | ${photoNote}` : photoNote;
+      }
+    }
 
-    if (updateErr) throw updateErr;
+    const updatePayload = {
+      delivery_address: delivery_address || null,
+      delivery_notes: finalNotes || null
+    };
+
+    try {
+      if (delivery_spot_photo_url) updatePayload.delivery_spot_photo_url = delivery_spot_photo_url;
+      const { error: updateErr } = await supabaseAdmin.schema('crm').from('customers')
+        .update(updatePayload)
+        .eq('id', existingCustomer.id);
+      if (updateErr) throw updateErr;
+    } catch (e) {
+      // Fallback without delivery_spot_photo_url if column missing
+      delete updatePayload.delivery_spot_photo_url;
+      const { error: updateErr } = await supabaseAdmin.schema('crm').from('customers')
+        .update(updatePayload)
+        .eq('id', existingCustomer.id);
+      if (updateErr) throw updateErr;
+    }
 
     res.json({ success: true, message: 'Delivery address updated successfully' });
   } catch (err) {
@@ -391,30 +455,58 @@ router.post('/:token', async (req, res) => {
           ? `${formattedDeliveryNotes} | ${linkNote}` 
           : linkNote;
       }
-    
-      const { data: createdCustomer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
-        .insert({
-          full_name: formData.name || inquiry.prospect_name || 'Customer',
-          facebook_name: formData.fb_name || formData.facebook_name || inquiry.prospect_name || null,
-          age: formData.age ? parseInt(formData.age) : null,
-          gender: formData.gender || 'Unknown',
-          email: formData.email || null,
-          phone: formData.phone || inquiry.prospect_contact || null,
-          address: formData.home_address_parsed || formData.home_address || null,
-          delivery_address: formData.delivery_address_parsed || formData.delivery_address || formData.home_address || null,
-          delivery_notes: formattedDeliveryNotes || null,
-          customer_code
-        })
-        .select()
-        .single();
 
-      if (custErr) throw custErr;
+      if (formData.delivery_spot_photo_url) {
+        const photoNote = `📸 Photo: ${formData.delivery_spot_photo_url}`;
+        if (!formattedDeliveryNotes.includes(formData.delivery_spot_photo_url)) {
+          formattedDeliveryNotes = formattedDeliveryNotes
+            ? `${formattedDeliveryNotes} | ${photoNote}`
+            : photoNote;
+        }
+      }
+    
+      const custObj = {
+        full_name: formData.name || inquiry.prospect_name || 'Customer',
+        facebook_name: formData.fb_name || formData.facebook_name || inquiry.prospect_name || null,
+        age: formData.age ? parseInt(formData.age) : null,
+        gender: formData.gender || 'Unknown',
+        email: formData.email || null,
+        phone: formData.phone || inquiry.prospect_contact || null,
+        address: formData.home_address_parsed || formData.home_address || null,
+        delivery_address: formData.delivery_address_parsed || formData.delivery_address || formData.home_address || null,
+        delivery_notes: formattedDeliveryNotes || null,
+        customer_code
+      };
+
+      if (formData.delivery_spot_photo_url) {
+        custObj.delivery_spot_photo_url = formData.delivery_spot_photo_url;
+      }
+
+      let createdCustomer = null;
+      try {
+        const res = await supabaseAdmin.schema('crm').from('customers')
+          .insert(custObj)
+          .select()
+          .single();
+        if (res.error) throw res.error;
+        createdCustomer = res.data;
+      } catch (insertErr) {
+        // Fallback without delivery_spot_photo_url if column does not exist
+        delete custObj.delivery_spot_photo_url;
+        const res = await supabaseAdmin.schema('crm').from('customers')
+          .insert(custObj)
+          .select()
+          .single();
+        if (res.error) throw res.error;
+        createdCustomer = res.data;
+      }
+
       newCustomer = createdCustomer;
     } finally {
       release();
     }
 
-    // 3. Insert health record
+    // 3. Insert health record (including BBD-computed metrics from enrollment form)
     await supabaseAdmin.schema('crm').from('customer_health').insert({
       customer_id: newCustomer.id,
       current_weight: formData.current_weight ? `${formData.current_weight} kg` : null,
@@ -423,7 +515,11 @@ router.post('/:token', async (req, res) => {
       medical_condition: formData.medical_conditions || 'None',
       medicine_taking: formData.medicine_taking || 'None',
       special_requests: formData.chef_requests || 'None',
-      allergies: formData.allergies || 'None'
+      allergies: formData.allergies || 'None',
+      // BBD Smart Health Advisor metrics (computed on frontend, persisted for Nutritionist review)
+      bmi_at_enrollment: formData.bmi_at_enrollment ? parseFloat(formData.bmi_at_enrollment) : null,
+      recommended_weight_min: formData.recommended_weight_min ? parseFloat(formData.recommended_weight_min) : null,
+      recommended_weight_max: formData.recommended_weight_max ? parseFloat(formData.recommended_weight_max) : null,
     });
 
     // 4. Insert lifestyle record

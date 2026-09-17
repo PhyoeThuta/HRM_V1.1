@@ -151,17 +151,23 @@ async function calcOvertime(employee_id, check_out_time) {
 router.get('/', requireAdmin, async (req, res) => {
   try {
     const today = getBkkDateString(new Date());
-    const todayStr = `${today}T00:00:00`;
+    const targetDate = req.query.date || null;
+    let recordsQuery = supabase.from('attendance_records').select('*').order('check_in', { ascending: false });
     
-    // Convert growing tables to direct supabase calls to add date filters or limits
+    if (targetDate) {
+      recordsQuery = recordsQuery.gte('check_in', `${targetDate}T00:00:00`).lte('check_in', `${targetDate}T23:59:59`);
+    } else {
+      recordsQuery = recordsQuery.limit(500);
+    }
+
     const [employeesRes, recordsRes, bioDevicesRes, bioRegsRes, tokensRes, shiftsRes, schedulesRes, rostersRes] = await Promise.all([
       supabase.from('Employees').select('id,Full_name,employee_id,default_shift_id').eq('status', 'Active'),
-      supabase.from('attendance_records').select('*').gte('check_in', todayStr).order('check_in', { ascending: false }),
+      recordsQuery,
       supabase.from('biometric_device').select('*'),
       supabase.from('biometric_employees').select('*'),
-      supabase.from('qr_attendance_tokens').select('*').gte('created_at', todayStr).order('created_at', { ascending: false }),
+      supabase.from('qr_attendance_tokens').select('*').order('created_at', { ascending: false }).limit(100),
       supabase.from('shifts').select('*'),
-      supabase.from('employee_daily_schedules').select('*').gte('schedule_date', today),
+      supabase.from('employee_daily_schedules').select('*'),
       supabase.from('employee_rosters').select('*')
     ]);
 
