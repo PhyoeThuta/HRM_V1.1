@@ -551,20 +551,41 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Conversation ID not found for this customer.' });
     }
 
-    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-    const zernioResponse = await fetch(zernioUrl, {
+    const quickReplies = [
+      { content_type: 'text', title: '🥗 Plan ဆက်ယူမည်', payload: 'RENEW_PLAN' },
+      { content_type: 'text', title: '💬 မေးမြန်းမည်', payload: 'INQUIRE_MORE' }
+    ];
+
+    // Try standard send first (works when recipient in 24h window)
+    let zernioResponse = await fetch(zernioUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${zernioApiKey}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
       body: JSON.stringify({
         accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-        message: messageText
+        message: messageText,
+        quickReplies,
+        quick_replies: quickReplies
       })
     });
+    let zernioResult = await zernioResponse.json();
 
-    const zernioResult = await zernioResponse.json();
+    // If standard send failed, try tagged payload fallback for outside 24h window
+    if (!zernioResponse.ok || zernioResult.error) {
+      zernioResponse = await fetch(zernioUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
+        body: JSON.stringify({
+          accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+          messagingType: 'MESSAGE_TAG',
+          messageTag: 'POST_PURCHASE_UPDATE',
+          message: messageText,
+          quickReplies,
+          quick_replies: quickReplies
+        })
+      });
+      zernioResult = await zernioResponse.json();
+    }
+
     if (!zernioResponse.ok || zernioResult.error) {
       const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
       console.error('[ZERNIO SEND ERROR]', errorDetail);
@@ -1314,7 +1335,13 @@ router.post('/webhooks/zernio', async (req, res) => {
       prospectName = 'FB User ' + payload.entry[0].messaging[0].sender.id;
     }
 
-    const conversationId = payload.message?.conversationId || payload.conversationId;
+    const conversationId = 
+      payload.message?.conversationId || 
+      payload.conversationId || 
+      payload.conversation_id || 
+      payload.data?.conversationId || 
+      payload.data?.conversation_id || 
+      null;
     let inquiryId = null;
 
     // 1. Try to find existing inquiry by conversationId (most accurate for active chats)
@@ -1412,6 +1439,89 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     if (newMsg) emitInquiryMessage(inquiryId, newMsg);
 
+    // Auto-Reply with Feedback Form Link if customer tapped "Feedback ပေးရန်" or typed Feedback / Complain / တိုင်ကြား / အကြံပြု
+    const lowerText = (text || '').toLowerCase();
+    const rawPayloadStr = JSON.stringify(payload || {}).toLowerCase();
+    const isFeedbackTrigger = 
+      lowerText.includes('feedback') || 
+      lowerText.includes('တိုင်ကြား') || 
+      lowerText.includes('complain') || 
+      lowerText.includes('အကြံပြု') ||
+      rawPayloadStr.includes('complaint_feedback') ||
+      rawPayloadStr.includes('feedback') ||
+      payload.message?.quick_reply?.payload === 'COMPLAINT_FEEDBACK' ||
+      payload.postback?.payload === 'COMPLAINT_FEEDBACK';
+
+    if (isFeedbackTrigger) {
+      try {
+        const { data: currentInq } = await supabaseAdmin.schema('crm').from('inquiries').select('customer_id').eq('id', inquiryId).single();
+        const targetCustId = currentInq?.customer_id || inquiryId;
+        const frontendUrl = process.env.FRONTEND_ONBOARDING_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+        const feedbackUrl = `${frontendUrl}/feedback/${targetCustId}`;
+
+        const autoFeedbackText = `အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackUrl}`;
+
+        // Resolve conversationId if missing from current webhook payload
+        let activeConvId = conversationId;
+        if (!activeConvId && inquiryId) {
+          const { data: prevMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+            .select('metadata')
+            .eq('inquiry_id', inquiryId)
+            .not('metadata', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+          if (prevMsgs && prevMsgs.length > 0) {
+            for (const pm of prevMsgs) {
+              const cid = pm.metadata?.message?.conversationId || pm.metadata?.conversationId;
+              if (cid) { activeConvId = cid; break; }
+            }
+          }
+        }
+
+        if (activeConvId && process.env.ZERNIO_API_KEY) {
+          const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${activeConvId}/messages`;
+          // 1. Try standard message send first (valid inside 24h window)
+          let autoRes = await fetch(zernioUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}` },
+            body: JSON.stringify({
+              accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+              message: autoFeedbackText
+            })
+          });
+          let autoResult = await autoRes.json();
+
+          // 2. Fallback to tagged message send if standard send failed
+          if (!autoRes.ok || autoResult.error) {
+            await fetch(zernioUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}` },
+              body: JSON.stringify({
+                accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+                messagingType: 'MESSAGE_TAG',
+                messageTag: 'POST_PURCHASE_UPDATE',
+                message: autoFeedbackText
+              })
+            });
+          }
+        }
+
+        const { data: botMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+          .insert({
+            inquiry_id: inquiryId,
+            message_text: autoFeedbackText,
+            sender_type: 'ai_bot',
+            metadata: { auto_reply: true, conversationId }
+          })
+          .select().single();
+
+        if (botMsg) emitInquiryMessage(inquiryId, botMsg);
+      } catch (fbAutoErr) {
+        console.error('[ZERNIO AUTO FEEDBACK LINK ERROR]', fbAutoErr);
+      }
+    }
+
     setTimeout(() => triggerAIAnalysis(inquiryId, conversationId).catch(err => console.error('[CRM AI BACKGROUND ERROR]', err)), 100);
 
     return res.status(200).json({ ok: true, inquiry_id: inquiryId, message_id: newMsg?.id, created: !!createdInquiry });
@@ -1456,15 +1566,48 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
           .eq('sender_type', 'prospect')
           .not('metadata', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(1);
+          .limit(100);
 
+        let conversationId = null;
+        let prospectMeta = null;
         if (prospectMsgs && prospectMsgs.length > 0) {
-          const meta = prospectMsgs[0].metadata;
-          const conversationId = meta?.message?.conversationId || meta?.conversationId;
-          
-          if (conversationId && process.env.ZERNIO_API_KEY) {
-            const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-            const zernioResponse = await fetch(zernioUrl, {
+          for (const pm of prospectMsgs) {
+            const cid = pm.metadata?.message?.conversationId || pm.metadata?.conversationId;
+            if (cid) {
+              conversationId = cid;
+              prospectMeta = pm.metadata;
+              break;
+            }
+          }
+        }
+
+        if (conversationId && process.env.ZERNIO_API_KEY) {
+          const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+          const quickReplies = [
+            { content_type: 'text', title: '🍱 Meal ရရှိပါပြီ', payload: 'DELIVERY_RECEIVED' },
+            { content_type: 'text', title: '📝 Feedback ပေးရန်', payload: 'COMPLAINT_FEEDBACK' }
+          ];
+
+          // 1. Try standard message send first (valid when recipient in 24h window)
+          let zernioResponse = await fetch(zernioUrl, {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`,
+              'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+              accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+              message: message_text,
+              quickReplies,
+              quick_replies: quickReplies
+            })
+          });
+          let zernioResult = await zernioResponse.json();
+
+          // 2. Fallback to tagged message if standard send failed (outside 24h window)
+          if (!zernioResponse.ok || zernioResult.error) {
+            console.warn('[ZERNIO] Standard send failed, retrying with Message Tag...', zernioResult.error || zernioResult.message);
+            zernioResponse = await fetch(zernioUrl, {
               method: 'POST',
               headers: { 
                 'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`,
@@ -1472,33 +1615,47 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
               },
               body: JSON.stringify({
                 accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-                message: message_text
+                messagingType: 'MESSAGE_TAG',
+                messageTag: 'POST_PURCHASE_UPDATE',
+                message: message_text,
+                quickReplies,
+                quick_replies: quickReplies
               })
             });
-            const zernioResult = await zernioResponse.json();
-            if (!zernioResponse.ok || zernioResult.error) {
-              const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
-              console.error('[ZERNIO SEND ERROR (non-fatal)]', errorDetail);
+            zernioResult = await zernioResponse.json();
+          }
+
+          if (!zernioResponse.ok || zernioResult.error) {
+            const errorDetail = typeof zernioResult.error === 'string'
+              ? zernioResult.error 
+              : (zernioResult.error?.message || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult));
+            console.error('[ZERNIO SEND ERROR]', errorDetail);
+            throw new Error(errorDetail);
+          }
+        } else {
+          // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
+          let psid = null;
+          if (prospectMsgs && prospectMsgs.length > 0) {
+            for (const pm of prospectMsgs) {
+              const p = pm.metadata?.sender?.id || pm.metadata?.message?.sender?.id || pm.metadata?.entry?.[0]?.messaging?.[0]?.sender?.id;
+              if (p) { psid = p; break; }
             }
-          } else {
-            // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
-            let psid = meta?.sender?.id || meta?.message?.sender?.id || meta?.entry?.[0]?.messaging?.[0]?.sender?.id;
-            if (psid && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
-              const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
-              const fbResponse = await fetch(fbUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  recipient: { id: psid },
-                  message: { text: message_text },
-                  messaging_type: 'RESPONSE'
-                })
-              });
-              const fbResult = await fbResponse.json();
-              if (fbResult.error) {
-                console.error('[FB SEND ERROR]', fbResult.error);
-                throw new Error(fbResult.error.message || JSON.stringify(fbResult.error));
-              }
+          }
+          if (psid && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
+            const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
+            const fbResponse = await fetch(fbUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: { id: psid },
+                message: { text: message_text },
+                messaging_type: 'RESPONSE'
+              })
+            });
+            const fbResult = await fbResponse.json();
+            if (fbResult.error) {
+              console.error('[FB SEND ERROR]', fbResult.error);
+              throw new Error(fbResult.error.message || JSON.stringify(fbResult.error));
             }
           }
         }
@@ -1509,7 +1666,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
         const updatedMeta = { 
           ...(newMsg.metadata || {}), 
           delivery_status: 'failed', 
-          delivery_error: fbErr.message 
+          delivery_error: fbErr.message,
+          zernio_failed: true 
         };
         
         await supabaseAdmin.schema('crm').from('inquiries_messages')
@@ -1517,6 +1675,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
           .eq('id', newMsg.id);
           
         newMsg.metadata = updatedMeta;
+        emitInquiryMessage(id, newMsg);
       }
     }
 

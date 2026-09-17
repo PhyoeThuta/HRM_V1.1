@@ -412,8 +412,16 @@ export default function Inquiries() {
                   ) : (
                     messages.map((msg, idx) => {
                       const isAdmin = msg.sender_type === 'admin' || msg.sender_type === 'ai_bot';
-                      const hasImage = msg.metadata?.imageUrl;
+                      const imgUrl = msg.metadata?.imageUrl || (msg.metadata?.proof_url?.startsWith('data:image') || msg.metadata?.proof_url?.startsWith('http') ? msg.metadata.proof_url : null);
+                      const hasImage = !!imgUrl;
                       const showAvatar = !isAdmin;
+
+                      let cleanText = msg.message_text || '';
+                      if (cleanText.includes('data:image/')) {
+                        cleanText = cleanText.replace(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/g, '').trim();
+                      } else if (/^[A-Za-z0-9+/=]{50,}$/.test(cleanText.trim())) {
+                        cleanText = '';
+                      }
                       
                       return (
                         <div key={msg.id || idx} className={`flex w-full ${isAdmin ? 'justify-end' : 'justify-start'}`}>
@@ -433,16 +441,29 @@ export default function Inquiries() {
                               }`}>
                                 {hasImage && (
                                   <img 
-                                    src={msg.metadata.imageUrl} 
+                                    src={imgUrl} 
                                     alt="attachment" 
                                     className="max-w-full rounded-[14px] mb-2 object-cover max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
-                                    onClick={() => window.open(msg.metadata.imageUrl, '_blank')}
+                                    onClick={() => window.open(imgUrl, '_blank')}
                                   />
                                 )}
-                                {msg.message_text && !msg.message_text.includes('[Zernio Msg]') && !msg.message_text.startsWith('{"id":') && !msg.message_text.startsWith('{"event":') && !msg.message_text.includes('"event":"message.received"') && (
-                                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.message_text}</p>
+                                {cleanText && !cleanText.includes('[Zernio Msg]') && !cleanText.startsWith('{"id":') && !cleanText.startsWith('{"event":') && !cleanText.includes('"event":"message.received"') && (
+                                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{cleanText}</p>
                                 )}
                               </div>
+
+                              {(msg.metadata?.delivery_status === 'failed' || msg.metadata?.zernio_failed) && (
+                                <div className="text-[11px] font-bold text-rose-300 bg-rose-950/80 border border-rose-500/40 rounded-xl px-3 py-1.5 mt-0.5 flex items-start gap-1.5 shadow-md">
+                                  <span className="text-rose-400 font-extrabold text-xs">⚠️</span>
+                                  <div>
+                                    <div className="font-bold text-rose-200">Delivery Failed (Facebook Messenger)</div>
+                                    <div className="text-[10px] text-rose-300/80 font-normal leading-tight mt-0.5">
+                                      {msg.metadata.delivery_error || 'Outside 24-hour Meta messaging window'}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                               <div className={`text-[10px] text-slate-500 px-1 flex items-center gap-1.5 ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                                 <span className="uppercase font-semibold opacity-70">
                                   {msg.sender_type === 'ai_bot' ? '🤖 AI' : msg.sender_type}

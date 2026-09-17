@@ -593,10 +593,17 @@ router.get('/orders', async (req, res) => {
       const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
       let customersMap = {};
       if (customerIds.length > 0) {
-        const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-          .select('id, full_name, phone, delivery_address, delivery_notes')
-          .in('id', customerIds);
-        if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+        try {
+          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
+            .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
+            .in('id', customerIds);
+          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+        } catch (e) {
+          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
+            .select('id, full_name, phone, delivery_address, delivery_notes')
+            .in('id', customerIds);
+          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+        }
       }
 
       const enriched = orders.map(o => ({
@@ -634,11 +641,18 @@ router.get('/orders', async (req, res) => {
       const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
       let customersMap = {};
       if (customerIds.length > 0) {
-        const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers')
-          .select('id, full_name, phone, delivery_address, delivery_notes')
-          .in('id', customerIds);
-        if (cErr) console.error('[GET /orders] Error fetching customers:', cErr);
-        if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+        try {
+          const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers')
+            .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
+            .in('id', customerIds);
+          if (cErr) throw cErr;
+          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+        } catch (e) {
+          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
+            .select('id, full_name, phone, delivery_address, delivery_notes')
+            .in('id', customerIds);
+          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+        }
       }
 
       const enriched = orders.map(o => ({
@@ -853,8 +867,62 @@ router.post('/orders/auto-generate', async (req, res) => {
   }
 });
 
-async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED') {
+// POST /api/operations/upload-pod-photo - Realtime proof of delivery photo upload
+router.post('/upload-pod-photo', async (req, res) => {
   try {
+    const { image } = req.body;
+    if (!image || typeof image !== 'string') {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+
+    const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid image format. Expected base64 data URL.' });
+    }
+
+    const mimeType = match[1];
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const base64Data = match[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+    const filename = `pod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
+
+    try {
+      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+        .from('gallery')
+        .upload(`proof_of_delivery/${filename}`, buffer, {
+          contentType: mimeType,
+          upsert: true
+        });
+
+      if (!uploadErr) {
+        const { data: publicUrlData } = supabaseAdmin.storage.from('gallery').getPublicUrl(`proof_of_delivery/${filename}`);
+        if (publicUrlData?.publicUrl) {
+          return res.json({ success: true, url: publicUrlData.publicUrl });
+        }
+      }
+    } catch (e) {
+      console.warn('[POD_PHOTO_STORAGE_WARN]', e.message);
+    }
+
+    res.json({ success: true, url: image });
+  } catch (err) {
+    console.error('[UPLOAD_POD_PHOTO_ERR]', err);
+    res.status(500).json({ error: 'Failed to process proof photo upload' });
+  }
+});
+
+const lastSentZernioMap = new Map();
+
+async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED', proofUrl = null) {
+  try {
+    // Deduplicate notifications within 10s per customer per type
+    const dedupKey = `${customerId}_${type}`;
+    const nowTs = Date.now();
+    if (lastSentZernioMap.has(dedupKey) && (nowTs - lastSentZernioMap.get(dedupKey) < 5000)) {
+      console.log(`[ZERNIO] Skipping duplicate ${type} message for customer ${customerId}`);
+      return;
+    }
+
     const { data: customer } = await supabaseAdmin.schema('crm').from('customers').select('full_name, facebook_name').eq('id', customerId).single();
     if (!customer) return;
 
@@ -866,15 +934,51 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
     if (!inquiries || inquiries.length === 0) return;
 
     const inquiryIds = inquiries.map(i => i.id);
-    const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages').select('metadata').in('inquiry_id', inquiryIds).eq('sender_type', 'prospect').not('metadata', 'is', null).order('created_at', { ascending: false }).limit(1);
 
-    if (!prospectMsgs || prospectMsgs.length === 0) return;
-    const meta = prospectMsgs[0].metadata;
-    const conversationId = meta?.message?.conversationId || meta?.conversationId;
-    if (!conversationId) return;
+    let conversationId = customer.zernio_conversation_id || customer.conversation_id || null;
+
+    if (!conversationId) {
+      const { data: allMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+        .select('metadata')
+        .in('inquiry_id', inquiryIds)
+        .not('metadata', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (allMsgs && allMsgs.length > 0) {
+        for (const m of allMsgs) {
+          const meta = m.metadata;
+          const cid = meta?.message?.conversationId || meta?.conversationId || meta?.raw?.message?.conversationId || meta?.raw?.conversationId;
+          if (cid) {
+            conversationId = cid;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!conversationId) {
+      for (const inq of inquiries) {
+        const cid = inq.metadata?.conversationId || inq.metadata?.message?.conversationId;
+        if (cid) {
+          conversationId = cid;
+          break;
+        }
+      }
+    }
+
+    if (!conversationId) {
+      console.warn(`[ZERNIO] Could not find conversationId for customer ${customerId} (${customer.full_name})`);
+      return;
+    }
+
+    lastSentZernioMap.set(dedupKey, nowTs);
 
     const zernioApiKey = process.env.ZERNIO_API_KEY;
-    if (!zernioApiKey) return;
+    if (!zernioApiKey) {
+      console.warn('[ZERNIO] ZERNIO_API_KEY is not configured on environment');
+      return;
+    }
 
     let text = '';
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -884,19 +988,62 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
       text = `မင်္ဂလာပါရှင့်။ သင့် အစားအသောက်များ လာပို့နေပါပြီရှင့် 🚚\n\nဒီ Link လေးကနေတစ်ဆင့် Rider ဘယ်ရောက်နေပြီလဲဆိုတာကို Live ကြည့်လို့ရပါတယ်ရှင့် 👇\n${trackLink}`;
     } else {
       const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
-      text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ။ အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
+      text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ 📦✨\n\n`;
+      if (proofUrl) {
+        if (!proofUrl.startsWith('data:image') && (proofUrl.startsWith('http://') || proofUrl.startsWith('https://'))) {
+          text += `📸 ပို့ဆောင်ပြီးကြောင်း အထောက်အထား (Proof of Delivery Photo):\n${proofUrl}\n\n`;
+        } else {
+          text += `📸 ပို့ဆောင်ပြီးကြောင်း အထောက်အထား (Proof Photo Attached)\n\n`;
+        }
+      }
+      text += `အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက် အကြံပြုလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
     }
 
+    const quickReplies = [
+      { content_type: 'text', title: '🍱 Meal ရရှိပါပြီ', payload: 'DELIVERY_RECEIVED' },
+      { content_type: 'text', title: '📝 Feedback ပေးရန်', payload: 'COMPLAINT_FEEDBACK' }
+    ];
+
     const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-    await fetch(zernioUrl, {
+    let zRes = await fetch(zernioUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
       body: JSON.stringify({
         accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-        message: text
+        messagingType: 'MESSAGE_TAG',
+        messageTag: 'POST_PURCHASE_UPDATE',
+        message: text,
+        quickReplies,
+        quick_replies: quickReplies
       })
     });
-    console.log(`[ZERNIO] Sent delivery feedback link to customer ${customerId}`);
+
+    let zResult = null;
+    try { zResult = await zRes.json(); } catch {}
+
+    if (!zRes.ok && zResult && (zResult.platformError?.code === 100 || zResult.platformError?.code === 10)) {
+      console.warn(`[ZERNIO] Tagged send failed (${zResult.error || zResult.platformError?.subcode}). Retrying with standard payload...`);
+      zRes = await fetch(zernioUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
+        body: JSON.stringify({
+          accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+          message: text,
+          quickReplies,
+          quick_replies: quickReplies
+        })
+      });
+      try { zResult = await zRes.json(); } catch {}
+    }
+
+    const deliveryFailed = !zRes.ok;
+    const deliveryError = deliveryFailed ? (typeof zResult?.error === 'string' ? zResult.error : (zResult?.error?.message || zResult?.message || 'Zernio API Send Failed')) : null;
+
+    if (deliveryFailed) {
+      console.error(`[ZERNIO SEND FAILED] ${zRes.status}:`, zResult || 'Unknown error');
+    } else {
+      console.log(`[ZERNIO] Sent ${type} message & proof photo link to customer ${customerId} (${customer.full_name})`);
+    }
 
     // Insert locally so UI updates instantly
     const { data: newMsg } = await supabaseAdmin.schema('crm')
@@ -905,7 +1052,16 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
         inquiry_id: inquiryIds[0],
         message_text: text,
         sender_type: 'ai_bot',
-        metadata: { auto_reply: true, conversationId, delivery_alert: true }
+        metadata: { 
+          auto_reply: true, 
+          conversationId, 
+          delivery_alert: true, 
+          proof_url: proofUrl, 
+          imageUrl: proofUrl,
+          delivery_status: deliveryFailed ? 'failed' : 'sent',
+          delivery_error: deliveryError,
+          zernio_failed: deliveryFailed
+        }
       })
       .select().single();
       
@@ -913,7 +1069,6 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
 
   } catch (err) {
     console.error('[ZERNIO DELIVERY ERROR]', err.message);
-    throw err;
   }
 }
 
@@ -936,7 +1091,7 @@ router.put('/orders/:id', async (req, res) => {
 
 router.put('/orders/batch-status', async (req, res) => {
   try {
-    const { order_ids, delivery_status } = req.body;
+    const { order_ids, delivery_status, proof_of_delivery_url } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
       return res.status(400).json({ error: 'order_ids array is required' });
     }
@@ -949,21 +1104,35 @@ router.put('/orders/batch-status', async (req, res) => {
     };
     if (delivery_status === 'DELIVERED') {
       updateData.delivered_at = now;
+      if (proof_of_delivery_url) {
+        updateData.proof_of_delivery_url = proof_of_delivery_url;
+      }
     }
     
-    // Update all orders
-    const { data: updatedOrders, error: updateErr } = await supabase
-      .from('operations_orders')
-      .update(updateData)
-      .in('id', order_ids)
-      .select();
-      
-    if (updateErr) throw updateErr;
+    // Update all orders (with fallback if proof_of_delivery_url column is not present)
+    let updatedOrders = null;
+    try {
+      const resUpdate = await supabase
+        .from('operations_orders')
+        .update(updateData)
+        .in('id', order_ids)
+        .select();
+      if (resUpdate.error) throw resUpdate.error;
+      updatedOrders = resUpdate.data;
+    } catch (e) {
+      delete updateData.proof_of_delivery_url;
+      const resUpdate = await supabase
+        .from('operations_orders')
+        .update(updateData)
+        .in('id', order_ids)
+        .select();
+      if (resUpdate.error) throw resUpdate.error;
+      updatedOrders = resUpdate.data;
+    }
 
     // Process inventory deduction if DELIVERED
     if (delivery_status === 'DELIVERED' && updatedOrders && updatedOrders.length > 0) {
       for (const order of updatedOrders) {
-        // Just duplicate the single order deduction logic here for safety
         const { data: orderDetails, error: orderErr } = await supabase
           .from('operations_orders')
           .select(`
@@ -998,7 +1167,6 @@ router.put('/orders/batch-status', async (req, res) => {
             }
           });
           
-          // Acquire lock to prevent race condition during deduction
           await inventoryMutex.lock();
           try {
             for (const [itemId, deductQty] of Object.entries(deductions)) {
@@ -1031,11 +1199,32 @@ router.put('/orders/batch-status', async (req, res) => {
         }
       }
       
-      // TRIGGER ZERNIO DELIVERY ALERT
-      const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
+      // TRIGGER ZERNIO DELIVERY ALERT (Include proof of delivery photo)
+      const customerIds = [...new Set(updatedOrders.map(o => o.customer_id).filter(Boolean))];
+      if (proof_of_delivery_url) {
+        for (const cid of customerIds) {
+          try {
+            await supabaseAdmin.schema('crm').from('customers')
+              .update({ delivery_spot_photo_url: proof_of_delivery_url })
+              .eq('id', cid);
+          } catch (e) {}
+
+          try {
+            const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
+              .select('delivery_notes').eq('id', cid).single();
+            let currentNotes = cust?.delivery_notes || '';
+            if (!currentNotes.includes(proof_of_delivery_url)) {
+              const photoTag = `📸 POD: ${proof_of_delivery_url}`;
+              const newNotes = currentNotes ? `${currentNotes} | ${photoTag}` : photoTag;
+              await supabaseAdmin.schema('crm').from('customers')
+                .update({ delivery_notes: newNotes })
+                .eq('id', cid);
+            }
+          } catch (e) {}
+        }
+      }
       for (const cid of customerIds) {
-        // Run sequentially to ensure fail-fast behavior on delivery alert error
-        await sendDeliveryZernioMessage(cid, null, 'DELIVERED');
+        await sendDeliveryZernioMessage(cid, null, 'DELIVERED', proof_of_delivery_url);
       }
     } else if (delivery_status === 'ON_THE_WAY' && updatedOrders && updatedOrders.length > 0) {
       const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
@@ -1215,32 +1404,24 @@ router.put('/orders/:id/assign', async (req, res) => {
 router.put('/orders/:id/rider-status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // PICKING_UP | ON_THE_WAY | DELIVERED
+    const { status, proof_of_delivery_url } = req.body; // PICKING_UP | ON_THE_WAY | DELIVERED
     const now = new Date().toISOString();
 
     const assignmentUpdate = { status, updated_at: now };
     if (status === 'ON_THE_WAY') assignmentUpdate.picked_up_at = now;
+    if (proof_of_delivery_url) assignmentUpdate.proof_of_delivery_url = proof_of_delivery_url;
 
     try {
-      const { error: aErr } = await supabaseAdmin
+      await supabaseAdmin
         .from('operations_rider_assignments')
         .update(assignmentUpdate)
         .eq('order_id', id);
-      if (aErr) throw new Error('RiderAssignment Error: ' + JSON.stringify(aErr));
     } catch (err) {
-      throw err;
-    }
-
-    // If arrived_at column exists, try to set it too (soft fail)
-    if (status === 'PICKING_UP') {
-      try {
-        await supabaseAdmin.from('operations_rider_assignments')
-          .update({ arrived_at: now })
-          .eq('order_id', id);
-      } catch (e) {
-        console.error('Failed to update arrived_at', e);
-        throw e;
-      }
+      delete assignmentUpdate.proof_of_delivery_url;
+      await supabaseAdmin
+        .from('operations_rider_assignments')
+        .update(assignmentUpdate)
+        .eq('order_id', id);
     }
 
     // Sync delivery_status on orders table
@@ -1249,13 +1430,46 @@ router.put('/orders/:id/rider-status', async (req, res) => {
     else if (status === 'DELIVERED') delivery_status = 'DELIVERED';
 
     const orderUpdate = { delivery_status, updated_by: req.user.id, updated_at: now };
-    if (status === 'DELIVERED') orderUpdate.delivered_at = now;
+    if (status === 'DELIVERED') {
+      orderUpdate.delivered_at = now;
+      if (proof_of_delivery_url) orderUpdate.proof_of_delivery_url = proof_of_delivery_url;
+    }
     
     try {
       const { error: oErr } = await supabaseAdmin.from('operations_orders').update(orderUpdate).eq('id', id);
-      if (oErr) throw new Error('OperationsOrders Error: ' + JSON.stringify(oErr));
+      if (oErr) throw oErr;
     } catch (err) {
-      throw err;
+      delete orderUpdate.proof_of_delivery_url;
+      await supabaseAdmin.from('operations_orders').update(orderUpdate).eq('id', id);
+    }
+
+    // Fetch order's customer_id
+    const { data: order } = await supabaseAdmin.from('operations_orders').select('customer_id').eq('id', id).single();
+    
+    // Also save proof_of_delivery_url onto crm.customers.delivery_spot_photo_url & delivery_notes so it displays everywhere!
+    if (proof_of_delivery_url && order?.customer_id) {
+      try {
+        await supabaseAdmin.schema('crm').from('customers')
+          .update({ delivery_spot_photo_url: proof_of_delivery_url })
+          .eq('id', order.customer_id);
+      } catch (e) {
+        console.warn('[UPDATE_CUST_SPOT_PHOTO_WARN]', e.message);
+      }
+
+      try {
+        const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
+          .select('delivery_notes').eq('id', order.customer_id).single();
+        let currentNotes = cust?.delivery_notes || '';
+        if (!currentNotes.includes(proof_of_delivery_url)) {
+          const photoTag = `📸 POD: ${proof_of_delivery_url}`;
+          const newNotes = currentNotes ? `${currentNotes} | ${photoTag}` : photoTag;
+          await supabaseAdmin.schema('crm').from('customers')
+            .update({ delivery_notes: newNotes })
+            .eq('id', order.customer_id);
+        }
+      } catch (e) {
+        console.warn('[UPDATE_CUST_NOTES_WARN]', e.message);
+      }
     }
 
     // Notify admins in real-time via socket (so Dashboard refreshes without polling)
@@ -1263,9 +1477,8 @@ router.put('/orders/:id/rider-status', async (req, res) => {
 
     // Fire Zernio notification for ON_THE_WAY and DELIVERED
     if (status === 'ON_THE_WAY' || status === 'DELIVERED') {
-      const { data: order } = await supabaseAdmin.from('operations_orders').select('customer_id').eq('id', id).single();
       if (order?.customer_id) {
-        sendDeliveryZernioMessage(order.customer_id, id, status).catch(e => console.error('[Rider Status Zernio]', e));
+        sendDeliveryZernioMessage(order.customer_id, id, status, proof_of_delivery_url).catch(e => console.error('[Rider Status Zernio]', e));
       }
     }
 
