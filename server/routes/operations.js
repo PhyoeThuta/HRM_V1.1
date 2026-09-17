@@ -1004,14 +1004,12 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
       { content_type: 'text', title: '📝 Feedback ပေးရန်', payload: 'COMPLAINT_FEEDBACK' }
     ];
 
-    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+    // 1. Try standard message send first (valid inside 24h window)
     let zRes = await fetch(zernioUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
       body: JSON.stringify({
         accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-        messagingType: 'MESSAGE_TAG',
-        messageTag: 'POST_PURCHASE_UPDATE',
         message: text,
         quickReplies,
         quick_replies: quickReplies
@@ -1021,16 +1019,16 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
     let zResult = null;
     try { zResult = await zRes.json(); } catch {}
 
-    if (!zRes.ok && zResult && (zResult.platformError?.code === 100 || zResult.platformError?.code === 10)) {
-      console.warn(`[ZERNIO] Tagged send failed (${zResult.error || zResult.platformError?.subcode}). Retrying with standard payload...`);
+    // 2. Fallback to tagged message send if standard send failed (outside 24h window)
+    if (!zRes.ok || zResult?.error) {
       zRes = await fetch(zernioUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
         body: JSON.stringify({
           accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-          message: text,
-          quickReplies,
-          quick_replies: quickReplies
+          messagingType: 'MESSAGE_TAG',
+          messageTag: 'POST_PURCHASE_UPDATE',
+          message: text
         })
       });
       try { zResult = await zRes.json(); } catch {}

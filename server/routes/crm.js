@@ -578,9 +578,7 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
           accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
           messagingType: 'MESSAGE_TAG',
           messageTag: 'POST_PURCHASE_UPDATE',
-          message: messageText,
-          quickReplies,
-          quick_replies: quickReplies
+          message: messageText
         })
       });
       zernioResult = await zernioResponse.json();
@@ -1617,9 +1615,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
                 accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
                 messagingType: 'MESSAGE_TAG',
                 messageTag: 'POST_PURCHASE_UPDATE',
-                message: message_text,
-                quickReplies,
-                quick_replies: quickReplies
+                message: message_text
               })
             });
             zernioResult = await zernioResponse.json();
