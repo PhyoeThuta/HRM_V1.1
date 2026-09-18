@@ -60,7 +60,7 @@ export default function QRCheckIn() {
         <div 
           className="w-full rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors group"
           style={{ background: '#1c2033', border: '1px solid rgba(255,255,255,0.02)' }}
-          onClick={() => navigate('/portal/attendance/photo')}
+          onClick={() => navigate('/portal/checkin')}
         >
           <div className="flex items-center gap-4">
             <div className="text-3xl">📸</div>

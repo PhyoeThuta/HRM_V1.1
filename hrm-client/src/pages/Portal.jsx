@@ -260,6 +260,24 @@ export default function Portal() {
               </div>
             )}
 
+            {/* Quick Attendance Check-In Bar */}
+            <div className="rounded-2xl p-5 mb-6 flex flex-wrap items-center justify-between gap-4" style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(16,185,129,0.15))', border: '1px solid rgba(99,102,241,0.3)' }}>
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>⚡</span> Daily Attendance Check-In
+                </h2>
+                <p className="text-xs text-slate-300 mt-0.5">Record your arrival or departure via Selfie Photo or Office QR Code</p>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                <Link to="/portal/checkin" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-1.5">
+                  <span>📸</span> Photo Check-In
+                </Link>
+                <Link to="/portal/qr-scanner" className="text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-1.5">
+                  <span>📱</span> QR Check-In
+                </Link>
+              </div>
+            </div>
+
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <QuickStat label="Attendance Records" value={data?.att_count || 0} icon="📋" color="indigo" href="/portal/attendance" />

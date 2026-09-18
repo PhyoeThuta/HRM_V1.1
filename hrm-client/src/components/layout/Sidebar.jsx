@@ -202,8 +202,8 @@ export default function Sidebar({ isOpen, close }) {
           <>
             <NavSection title="Attendance" />
             <NavItem to="/portal/attendance" label="My Attendance" icon={ICONS.attendance} end />
-            <NavItem to="/portal/attendance/photo" label="Photo Check-In" icon={ICONS.camera} />
-            <NavItem to="/portal/qr-checkin" label="QR Check-In" icon={ICONS.qr} />
+            <NavItem to="/portal/checkin" label="Photo Check-In" icon={ICONS.camera} />
+            <NavItem to="/portal/qr-scanner" label="QR Check-In" icon={ICONS.qr} />
 
             <NavSection title="HR" />
             <NavItem to="/portal/leaves" label="My Leaves" icon={ICONS.leave} />
