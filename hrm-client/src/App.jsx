@@ -248,6 +248,7 @@ function AppRoutes() {
       <Route path="/portal/qr-scanner" element={<EmployeeRoute><QRScanner /></EmployeeRoute>} />
       <Route path="/portal/qr-checkin" element={<EmployeeRoute><QRScanner /></EmployeeRoute>} />
       <Route path="/portal/voting" element={<EmployeeRoute><PeerVotingForm /></EmployeeRoute>} />
+      <Route path="/portal/vote" element={<EmployeeRoute><PeerVotingForm /></EmployeeRoute>} />
       <Route path="/portal/sops" element={<EmployeeRoute><SOPExecution /></EmployeeRoute>} />
       <Route path="/portal/exit-survey" element={<EmployeeRoute><ExitSurvey /></EmployeeRoute>} />
       <Route path="/portal/handover/outgoing" element={<EmployeeRoute><HandoverOutgoing /></EmployeeRoute>} />

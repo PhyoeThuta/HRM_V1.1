@@ -750,9 +750,9 @@ router.get('/peer-voting', async (req, res) => {
 router.post('/peer-voting/submit', async (req, res) => {
   try {
     const { nominee_id, attendance, punctuality, sops, peer, initiative, comment } = req.body;
-    const voter_id = req.user.employee_id;
+    const voter_id = req.user.employee_id || req.user.id;
     
-    if (!voter_id) return res.status(400).json({ error: 'You must be linked to an employee profile to vote' });
+    if (!voter_id) return res.status(400).json({ error: 'Voter profile or account is required' });
     if (!nominee_id) return res.status(400).json({ error: 'Nominee required' });
     if (voter_id == nominee_id) return res.status(400).json({ error: 'You cannot vote for yourself' });
 
