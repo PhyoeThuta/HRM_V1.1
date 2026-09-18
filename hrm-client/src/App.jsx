@@ -59,6 +59,7 @@ import MyProfile from './pages/portal/MyProfile';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
 import BossKPI from './pages/BossKPI';
+import PerformanceTracker from './pages/PerformanceTracker';
 import Layout from './components/layout/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -202,10 +203,13 @@ function AppRoutes() {
       <Route path="/peer-voting" element={<Protected allowedRoles={adminRoles}><PeerVoting /></Protected>} />
       <Route path="/audit-logs" element={<Protected allowedRoles={adminRoles}><AuditLogs /></Protected>} />
       <Route path="/birthdays" element={<Protected allowedRoles={adminRoles}><Birthdays /></Protected>} />
+      <Route path="/performance" element={<Protected allowedRoles={adminRoles}><PerformanceTracker /></Protected>} />
       <Route path="/boss" element={<Protected allowedRoles={['boss']}><BossDashboard /></Protected>} />
       <Route path="/boss/chat" element={<Protected allowedRoles={['boss']}><BossChat /></Protected>} />
       <Route path="/announcements" element={<Protected allowedRoles={adminRoles}><Announcements /></Protected>} />
+      <Route path="/boss/announcements" element={<Navigate to="/announcements" replace />} />
       <Route path="/user-accounts" element={<Protected allowedRoles={adminRoles}><UserAccounts /></Protected>} />
+      <Route path="/boss/users" element={<Navigate to="/user-accounts" replace />} />
       <Route path="/finance" element={<Protected allowedRoles={['boss', 'general_manager', 'finance']}><FinanceDashboard /></Protected>} />
 
       {/* CRM Routes */}

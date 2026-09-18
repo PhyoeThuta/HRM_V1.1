@@ -45,6 +45,7 @@ import inventoryRoutes from './routes/inventory.js';
 import operationsRoutes from './routes/operations.js';
 import telegramRouter from './routes/telegram.js';
 import dailyFeedbackRouter from './routes/daily_feedback.js';
+import performanceRouter from './routes/performance.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -94,20 +95,22 @@ app.use('/uploads', express.static('uploads')); // Serve uploaded files
 // Auth-specific rate limiter: stricter, applied only to login/refresh
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 login attempts per 15 min per IP
+  max: 100, // Allow login attempts
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
-  skip: (req) => req.path === '/me', // /api/auth/me is never rate-limited (it\'s read-only)
+  skip: (req) => req.path === '/me', // /api/auth/me is never rate-limited (it's read-only)
 });
 
 // General API rate limiter: generous, excludes auth routes (they have their own)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path.startsWith('/auth/'), // Auth has its own limiter
+  validate: { trustProxy: false },
+  skip: (req) => req.path.includes('auth'), // Auth has its own limiter
 });
 app.use('/api/', limiter);
 
@@ -141,6 +144,7 @@ app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/s
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
 app.use('/api/daily-feedback', dailyFeedbackRouter);
+app.use('/api/performance', performanceRouter);
 // ── Test Endpoints (Admin-Only) ─────────────────────────────────────────────
 // These endpoints are protected by requireAdmin to prevent unauthorized Cron triggering.
 app.post('/api/test/trigger-birthdays', requireAdmin, async (req, res) => {

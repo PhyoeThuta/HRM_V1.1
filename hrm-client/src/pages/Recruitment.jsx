@@ -8,6 +8,9 @@ import toast from 'react-hot-toast';
 export default function Recruitment() {
   const [showModal, setShowModal] = useState(false);
   const [showPositionModal, setShowPositionModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkPosFilter, setBulkPosFilter] = useState('');
+  const [bulkStageFilter, setBulkStageFilter] = useState('All');
   const [activeTabState, setActiveTabState] = useState(localStorage.getItem('recruitmentTab') || 'pipeline');
   const activeTab = activeTabState;
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('recruitmentTab', tab); };
@@ -31,6 +34,16 @@ export default function Recruitment() {
   const updateMutation = useMutation({
     mutationFn: ({ id, status }) => api.put(`/recruitment/${id}`, { status }),
     onSuccess: () => qc.invalidateQueries(['recruitment']),
+  });
+
+  const bulkTalentPoolMutation = useMutation({
+    mutationFn: (body) => api.post('/recruitment/bulk-move-talent-pool', body),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['recruitment']);
+      setShowBulkModal(false);
+      toast.success(res.data.message || 'Candidates moved to Talent Pool!');
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to move candidates')
   });
 
   const deleteMutation = useMutation({
@@ -147,11 +160,19 @@ export default function Recruitment() {
           <TabButton active={activeTab === 'hired'} onClick={() => setActiveTab('hired')} icon="✅" label="Hired" activeClass="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" inactiveClass="bg-white/5 text-slate-400 hover:bg-white/10" />
           <TabButton active={activeTab === 'pool'} onClick={() => setActiveTab('pool')} icon="📁" label="Talent Pool" activeClass="bg-orange-500/20 text-orange-400 border border-orange-500/30" inactiveClass="bg-white/5 text-slate-400 hover:bg-white/10" />
         </div>
-        <div className="flex gap-3">
-          <button onClick={() => setShowPositionModal(true)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-semibold rounded-xl border border-white/10">
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            type="button"
+            onClick={() => { setBulkPosFilter(''); setBulkStageFilter('All'); setShowBulkModal(true); }}
+            className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 flex items-center gap-2 transition-all shadow-md"
+          >
+            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            <span>Move All to Talent Pool</span>
+          </button>
+          <button onClick={() => setShowPositionModal(true)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-xl border border-white/10">
             + Position
           </button>
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">
+          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">
             + Add Candidate
           </button>
         </div>
@@ -165,8 +186,20 @@ export default function Recruitment() {
           {columns.map(col => (
             <div key={col.id} className="min-w-[320px] w-[320px] flex flex-col h-[calc(100vh-320px)] bg-surface-800 border border-white/5 rounded-2xl p-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-bold text-indigo-400 tracking-wider">{col.title}</h3>
-                <span className="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-full">{col.items.length}</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-indigo-400 tracking-wider">{col.title}</h3>
+                  <span className="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-full">{col.items.length}</span>
+                </div>
+                {col.items.length > 0 && (
+                  <button
+                    type="button"
+                    title={`Move all ${col.title} candidates to Talent Pool`}
+                    onClick={() => { setBulkPosFilter(''); setBulkStageFilter(col.id); setShowBulkModal(true); }}
+                    className="text-[10px] font-bold text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 px-2 py-1 rounded-lg border border-transparent hover:border-amber-500/20 transition-all flex items-center gap-1"
+                  >
+                    <span>Move to Pool</span>
+                  </button>
+                )}
               </div>
               
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-hide">
@@ -329,6 +362,92 @@ export default function Recruitment() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* BULK MOVE TO TALENT POOL MODAL */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowBulkModal(false)} />
+          <div className="relative rounded-2xl w-full max-w-md p-6 bg-surface-850 border border-white/10 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                <h2 className="text-base font-bold text-white">Move Candidates to Talent Pool</h2>
+              </div>
+              <button onClick={() => setShowBulkModal(false)} className="text-slate-500 hover:text-white">✕</button>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Move candidates who were not selected for a position into the Talent Pool so their profiles and resumes are archived for future job opportunities.
+            </p>
+
+            {(() => {
+              let affectedCandidates = inPipeline;
+              if (bulkPosFilter) {
+                affectedCandidates = affectedCandidates.filter(c => String(c.position_id) === String(bulkPosFilter));
+              }
+              if (bulkStageFilter && bulkStageFilter !== 'All') {
+                affectedCandidates = affectedCandidates.filter(c => c.status === bulkStageFilter);
+              }
+
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">FILTER BY POSITION</label>
+                    <select
+                      value={bulkPosFilter}
+                      onChange={e => setBulkPosFilter(e.target.value)}
+                      className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="">All Job Positions</option>
+                      {positions.map(p => (
+                        <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">FILTER BY STAGE / COLUMN</label>
+                    <select
+                      value={bulkStageFilter}
+                      onChange={e => setBulkStageFilter(e.target.value)}
+                      className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="All">All Pipeline Stages (Applied, Screening, Interview, Offer)</option>
+                      <option value="Applied">Only APPLIED</option>
+                      <option value="Screening">Only SCREENING</option>
+                      <option value="Interview">Only INTERVIEW</option>
+                      <option value="Offer">Only OFFER</option>
+                    </select>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
+                    <span>Candidates to be moved:</span>
+                    <strong className="text-base font-extrabold text-white px-2 py-0.5 rounded bg-amber-500/20">{affectedCandidates.length}</strong>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkModal(false)}
+                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold rounded-xl transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={affectedCandidates.length === 0 || bulkTalentPoolMutation.isPending}
+                      onClick={() => bulkTalentPoolMutation.mutate({ position_id: bulkPosFilter, stage: bulkStageFilter })}
+                      className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                    >
+                      {bulkTalentPoolMutation.isPending ? 'Moving...' : `Move ${affectedCandidates.length} to Talent Pool`}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

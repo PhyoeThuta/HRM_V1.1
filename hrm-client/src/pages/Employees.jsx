@@ -98,6 +98,7 @@ function EmployeeModal({ open, onClose, departments, positions, managers, candid
 
 export default function Employees() {
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [flash, setFlash] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [hardDeleteTarget, setHardDeleteTarget] = useState(null);
@@ -210,12 +211,20 @@ export default function Employees() {
         </div>
         
         {isAdmin() && tab === 'active' && (
-          <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
-            style={{ background: '#4f46e5' }}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Add Employee
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="flex items-center gap-2 text-indigo-300 text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all"
+            >
+              📊 Bulk Import Salaries / IDs
+            </button>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors"
+              style={{ background: '#4f46e5' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              Add Employee
+            </button>
+          </div>
         )}
       </div>
 
@@ -389,6 +398,12 @@ export default function Employees() {
         onSave={addMutation.mutate}
       />
 
+      <BulkImportModal
+        open={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onRefresh={() => qc.invalidateQueries(['employees'])}
+      />
+
       <ConfirmDeleteModal 
         isOpen={!!deleteTarget} 
         onClose={() => setDeleteTarget(null)}
@@ -403,5 +418,79 @@ export default function Employees() {
         itemName={`${hardDeleteTarget?.Full_name} (PERMANENTLY)`}
       />
     </Layout>
+  );
+}
+
+function BulkImportModal({ open, onClose, onRefresh }) {
+  const [file, setFile] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  if (!open) return null;
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return toast.error('Please select an Excel (.xlsx/.xls) or CSV file');
+
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await api.post('/employees/bulk-import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success(res.data?.message || 'Bulk update completed successfully!');
+      setLoading(false);
+      onClose();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Import failed');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative rounded-2xl w-full max-w-lg p-6 bg-surface-850 border border-white/10">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold text-white">Bulk Update Employee Numbers & Salaries</h2>
+            <p className="text-xs text-slate-400">Upload Excel (.xlsx/.xls) or CSV file to batch write employee numbers & base salaries</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+        </div>
+
+        <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-xl mb-4 text-xs text-indigo-300">
+          <p className="font-bold mb-1">Supported Excel Headers:</p>
+          <code className="bg-black/30 px-2 py-1 rounded block text-emerald-400 font-mono">
+            Employee ID | Full Name | Salary | Email | Phone
+          </code>
+        </div>
+
+        <form onSubmit={handleUpload} className="space-y-4">
+          <div>
+            <label className="form-label text-xs">Select Excel / CSV File</label>
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              required
+              onChange={(e) => setSelectedFile(e.target.files?.[0])}
+              className="w-full text-xs text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white bg-white/5 rounded-xl">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+              {loading ? 'Uploading & Updating...' : 'Upload & Update System'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

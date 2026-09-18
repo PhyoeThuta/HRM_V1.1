@@ -1,6 +1,6 @@
 import express from 'express';
 import bcryptjs from 'bcryptjs';
-import { dbFetchOne, dbUpdate } from '../lib/supabase.js';
+import { supabase, dbFetchOne, dbUpdate } from '../lib/supabase.js';
 import { generateToken, generateRefreshToken, verifyToken, hashPassword, JWT_SECRET } from '../middleware/auth.js';
 import jwt from 'jsonwebtoken';
 
@@ -28,7 +28,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    const user = await dbFetchOne('sys_users', '*', { username });
+    const cleanUsername = String(username).trim();
+    const { data: userList, error: queryError } = await supabase
+      .from('sys_users')
+      .select('*')
+      .ilike('username', cleanUsername)
+      .limit(1);
+
+    if (queryError) {
+      console.error('[AUTH DB QUERY ERROR]', queryError);
+      return res.status(500).json({ error: `Database error: ${queryError.message}` });
+    }
+
+    const user = userList?.[0] || null;
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -82,7 +94,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (e) {
     console.error('[AUTH LOGIN]', e);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: e.message || 'Server error' });
   }
 });
 

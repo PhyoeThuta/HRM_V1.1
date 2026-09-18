@@ -22,12 +22,14 @@ function QuickStat({ label, value, icon, color, href }) {
 }
 
 export default function Portal() {
-  const { user } = useAuth();
+  const { user, isBoss } = useAuth();
   const qc = useQueryClient();
   const radarRef = useRef(null);
   const chartRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const isExecutive = user?.role === 'boss' || user?.role === 'general_manager' || isBoss();
 
   const { data, isLoading } = useQuery({
     queryKey: ['portal'],
@@ -98,58 +100,80 @@ export default function Portal() {
   };
 
   return (
-    <Layout title="Employee Portal" subtitle={`Welcome back, ${user?.full_name || 'Employee'}`}>
+    <Layout
+      title={isExecutive ? "Executive Portal" : "Employee Portal"}
+      subtitle={isExecutive ? `Welcome back, ${user?.full_name || 'Executive'}` : `Welcome back, ${user?.full_name || 'Employee'}`}
+    >
         {isLoading ? (
           <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
           <>
             {/* Welcome Banner */}
-            <div className="rounded-2xl p-6 mb-6 flex items-center gap-5" style={{ background: 'linear-gradient(to right, rgba(99,102,241,0.2), rgba(139,92,246,0.1), rgba(236,72,153,0.1))', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <div 
-                className="relative w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0 overflow-hidden group cursor-pointer"
-                onClick={() => emp?.id && fileInputRef.current?.click()}
-              >
-                {emp?.avatar_url ? (
-                  <img src={emp.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    {(user?.full_name || 'E')[0].toUpperCase()}
-                  </div>
-                )}
+            <div className="rounded-2xl p-6 mb-6 flex items-center justify-between gap-5" style={{ background: isExecutive ? 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(99,102,241,0.2), rgba(236,72,153,0.15))' : 'linear-gradient(to right, rgba(99,102,241,0.2), rgba(139,92,246,0.1), rgba(236,72,153,0.1))', border: isExecutive ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(99,102,241,0.2)' }}>
+              <div className="flex items-center gap-5">
+                <div 
+                  className="relative w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0 overflow-hidden group cursor-pointer"
+                  onClick={() => emp?.id && fileInputRef.current?.click()}
+                >
+                  {emp?.avatar_url ? (
+                    <img src={emp.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className={`w-full h-full ${isExecutive ? 'bg-gradient-to-br from-amber-500 to-indigo-600' : 'bg-gradient-to-br from-indigo-500 to-purple-600'} flex items-center justify-center font-bold text-xl`}>
+                      {(user?.full_name || 'E')[0].toUpperCase()}
+                    </div>
+                  )}
 
-                {emp?.id && (
-                  <div className={`absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isUploading ? 'opacity-100' : ''}`}>
-                    {isUploading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    )}
-                  </div>
-                )}
-                
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  accept="image/png, image/jpeg, image/gif, image/webp" 
-                  className="hidden" 
-                />
+                  {emp?.id && (
+                    <div className={`absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isUploading ? 'opacity-100' : ''}`}>
+                      {isUploading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </div>
+                  )}
+                  
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    accept="image/png, image/jpeg, image/gif, image/webp" 
+                    className="hidden" 
+                  />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white">
+                    {isExecutive ? `Welcome, ${user?.full_name || 'Executive'}` : `Hello, ${(user?.full_name || 'Employee').split(' ')[0]}`}
+                  </h2>
+                  {isExecutive ? (
+                    <p className="text-sm text-amber-300 font-semibold mt-0.5">
+                      EXECUTIVE OFFICER • {emp?.employee_id || 'EMP-BOSS'} {emp?.dept_name ? `• ${emp.dept_name}` : ''}
+                    </p>
+                  ) : emp ? (
+                    <p className="text-sm text-slate-300 mt-0.5">
+                      {[emp.employee_id, emp.dept_name, emp.pos_title]
+                        .filter(val => val && val.trim && val.trim() !== '' && val.trim() !== '—' && val.trim() !== '-')
+                        .join(' • ')}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-slate-400 mt-0.5">Your employee profile is not linked yet. Ask HR to link your account.</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-white">Hello, {(user?.full_name || 'Employee').split(' ')[0]}! 👋</h2>
-                {emp ? (
-                  <p className="text-sm text-slate-300 mt-0.5">
-                    {[emp.employee_id, emp.dept_name, emp.pos_title]
-                      .filter(val => val && val.trim && val.trim() !== '' && val.trim() !== '—' && val.trim() !== '-')
-                      .join(' • ')}
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-400 mt-0.5">Your employee profile is not linked yet. Ask HR to link your account.</p>
-                )}
-              </div>
+
+              {isExecutive && (
+                <div className="hidden md:flex items-center gap-3">
+                  <Link to="/boss" className="px-4 py-2 rounded-xl text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all">
+                    Boss Overview
+                  </Link>
+                  <Link to="/performance" className="px-4 py-2 rounded-xl text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 transition-all">
+                    Performance Tracker
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Leave handover banner — same style as offboarding */}
@@ -285,7 +309,7 @@ export default function Portal() {
                       );
                     })}
                   </div>
-                ) : <p className="text-slate-500 text-sm text-center py-4">No leave balance data. Contact HR.</p>}
+                ) : <p className="text-slate-500 text-sm text-center py-4">{isExecutive ? "Executive Officer — Exempt from standard leave limits." : "No leave balance data. Contact HR."}</p>}
                 <a href="/portal/leaves" className="block mt-4 text-center text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Request leave →</a>
               </div>
 

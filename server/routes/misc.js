@@ -11,9 +11,118 @@ import {
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import PDFDocument from 'pdfkit';
 
 const router = express.Router();
 router.use(verifyToken);
+
+async function generateOfficialDocumentPDF({ doc_type, title, empName, empId, newPosition, newDepartment, newSalary, effectiveDate, description }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const filename = `doc_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`;
+      const publicDir = path.join(process.cwd(), '../hrm-client/public/generated_docs');
+      if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+
+      const filePath = path.join(publicDir, filename);
+      const writeStream = fs.createWriteStream(filePath);
+
+      doc.pipe(writeStream);
+
+      // Header Banner
+      const isWarning = (doc_type || '').toLowerCase().includes('warning') || (title || '').toLowerCase().includes('warning');
+      const headerColor = isWarning ? '#9f1239' : '#1e1b4b';
+
+      doc.rect(0, 0, 595.28, 90).fill(headerColor);
+      doc.fillColor('#ffffff').fontSize(20).font('Helvetica-Bold').text((doc_type || 'OFFICIAL LETTER').toUpperCase(), 50, 32);
+      doc.fontSize(9).font('Helvetica').fillColor('#e0e7ff').text('HUMAN RESOURCES & TALENT MANAGEMENT DIVISION', 50, 58);
+
+      // Metadata
+      doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold');
+      doc.text('DATE:', 50, 110);
+      doc.font('Helvetica').text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 100, 110);
+
+      doc.font('Helvetica-Bold').text('REF NO:', 350, 110);
+      doc.font('Helvetica').text(`HR/${(doc_type || 'DOC').replace(/\s+/g, '_').toUpperCase()}/${Date.now().toString().slice(-6)}`, 410, 110);
+
+      doc.font('Helvetica-Bold').text('TO:', 50, 130);
+      doc.font('Helvetica').text(`${empName || 'Employee'} (${empId || 'N/A'})`, 100, 130);
+
+      doc.font('Helvetica-Bold').text('SUBJECT:', 50, 150);
+      doc.font('Helvetica-Bold').fillColor(isWarning ? '#be123c' : '#4338ca').text((title || 'Official Notice').toUpperCase(), 115, 150);
+
+      doc.moveTo(50, 172).lineTo(545, 172).strokeColor('#cbd5e1').lineWidth(1).stroke();
+
+      // Body text
+      doc.moveDown(2);
+      doc.fillColor('#334155').fontSize(11).font('Helvetica');
+      doc.text(`Dear ${empName || 'Employee'},`, 50, 190);
+
+      doc.text(
+        description || `This official communication confirms your details and employment adjustments with our organization. Please review the highlighted specifications below.`,
+        50,
+        210,
+        { align: 'justify', lineGap: 4 }
+      );
+
+      // Details Box
+      const boxY = 270;
+      doc.roundedRect(50, boxY, 495, 120, 8).fillAndStroke('#f8fafc', '#cbd5e1');
+
+      let currentY = boxY + 15;
+      if (newPosition) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('POSITION TITLE:', 70, currentY);
+        doc.font('Helvetica').fillColor('#4338ca').text(newPosition, 210, currentY);
+        currentY += 22;
+      }
+      if (newDepartment) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('DEPARTMENT:', 70, currentY);
+        doc.font('Helvetica').fillColor('#334155').text(newDepartment, 210, currentY);
+        currentY += 22;
+      }
+      if (newSalary) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('NEW BASE SALARY:', 70, currentY);
+        doc.font('Helvetica-Bold').fillColor('#15803d').text(`$${Number(newSalary).toLocaleString()} USD / Month`, 210, currentY);
+        currentY += 22;
+      }
+      if (effectiveDate) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('EFFECTIVE DATE:', 70, currentY);
+        doc.font('Helvetica').fillColor('#334155').text(effectiveDate, 210, currentY);
+      }
+
+      // Closing
+      doc.fillColor('#334155').fontSize(11).font('Helvetica');
+      doc.text('We appreciate your dedication and commitment to company excellence.', 50, boxY + 145);
+
+      // Signatures
+      const sigY = 580;
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b');
+      doc.text('EXECUTIVE / BOSS E-SIGNATURE', 50, sigY);
+      doc.font('Helvetica-Oblique').fillColor('#64748b').fontSize(9).text('(Pending Executive Approval)', 50, sigY + 14);
+      doc.rect(50, sigY + 30, 220, 45).dash(4, { space: 4 }).strokeColor('#cbd5e1').stroke();
+      doc.undash();
+
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b');
+      doc.text('HR MANAGER AUTHORIZATION', 325, sigY);
+      doc.font('Helvetica-Oblique').fillColor('#64748b').fontSize(9).text('(Pending HR Seal)', 325, sigY + 14);
+      doc.rect(325, sigY + 30, 220, 45).dash(4, { space: 4 }).strokeColor('#cbd5e1').stroke();
+      doc.undash();
+
+      // Footer
+      doc.rect(0, 780, 595.28, 60).fill('#f1f5f9');
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica').text('Confidential - Corporate HR Internal Document', 50, 795, { align: 'center' });
+
+      doc.end();
+
+      writeStream.on('finish', () => {
+        resolve(`/generated_docs/${filename}`);
+      });
+      writeStream.on('error', reject);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 // Multer config for SOP video uploads to Supabase
 const storage = multer.memoryStorage();
@@ -781,17 +890,387 @@ router.put('/boss/announcements/:id/publish', requireAdmin, async (req, res) => 
 // GET /api/documents
 router.get('/documents', async (req, res) => {
   try {
-    const [docs, employees] = await Promise.all([
-      dbFetch('employee_documents', '*', {}, { order: 'created_at', ascending: false }),
-      dbFetch('Employees', 'id,Full_name,employee_id'),
-    ]);
+    let docs = [];
+    let requests = [];
+    let employees = [];
+
+    try {
+      docs = await dbFetch('employee_documents', '*', {}, { order: 'created_at', ascending: false });
+    } catch (e) {
+      console.error('Error fetching employee_documents:', e.message);
+    }
+
+    try {
+      requests = await dbFetch('doc_approval_requests', '*', {}, { order: 'created_at', ascending: false });
+    } catch (e) {
+      console.warn('doc_approval_requests table missing or error, checking fallback on employee_documents:', e.message);
+      // Fallback: Filter docs that have pending/approval status
+      requests = docs.filter(d => d.status && d.status !== 'COMPLETED_AND_ISSUED');
+    }
+
+    try {
+      const [empList, depts, positions] = await Promise.all([
+        dbFetch('Employees', 'id,Full_name,employee_id,position_id,Dept_id'),
+        dbFetch('Departments', 'id,Department_name'),
+        dbFetch('positions', 'id,title'),
+      ]);
+      const deptMap = Object.fromEntries((depts || []).map(d => [d.id, d.Department_name]));
+      const posMap = Object.fromEntries((positions || []).map(p => [p.id, p.title]));
+      employees = (empList || []).map(e => ({
+        ...e,
+        Position: posMap[e.position_id] || 'Staff',
+        Department: deptMap[e.Dept_id] || 'General',
+      }));
+    } catch (e) {
+      console.error('Error fetching Employees:', e.message);
+    }
+
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+
     docs.forEach(d => {
       const emp = empMap[d.employee_id] || {};
-      d.employee_name = emp.Full_name || '—';
+      d.employee_name = emp.Full_name || 'General Blank Template';
     });
-    return res.json({ documents: docs, employees });
-  } catch (e) { return res.status(500).json({ error: e.message }); }
+
+    requests.forEach(r => {
+      const emp = empMap[r.employee_id] || {};
+      r.employee_name = emp.Full_name || 'General Blank Template';
+    });
+
+    return res.json({ documents: docs, requests, employees });
+  } catch (e) { 
+    return res.status(500).json({ error: e.message }); 
+  }
+});
+
+// POST /api/documents
+router.post('/documents', requireAdmin, async (req, res) => {
+  try {
+    const { title, category, file_url, description, employee_id } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
+    const doc = await dbInsert('employee_documents', {
+      title,
+      category: category || 'General',
+      file_url: file_url || '/sample_promotion_letter.pdf',
+      description: description || '',
+      employee_id: (employee_id && employee_id !== 'GENERAL') ? employee_id : null,
+      uploaded_by_user_id: req.user.id,
+      created_at: new Date().toISOString(),
+    });
+
+    return res.json({ success: true, document: doc });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/documents/request-approval (HR -> Boss Request)
+router.post('/documents/request-approval', requireAdmin, async (req, res) => {
+  try {
+    const { title, category, doc_type, description, file_url, employee_id, effective_date, new_position, new_department, new_salary } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'Document Title is required' });
+    }
+
+    // Lookup employee name & details or use General Bulk Template
+    let empName = 'General Blank Template (Bulk Use)';
+    let empIdStr = 'BULK-TEMPLATE';
+    let targetEmpId = null;
+
+    if (employee_id && employee_id !== 'GENERAL' && employee_id !== 'BULK') {
+      const emp = await dbFetchOne('Employees', '*', { id: employee_id });
+      if (emp) {
+        empName = emp.Full_name;
+        empIdStr = emp.employee_id;
+        targetEmpId = emp.id;
+      }
+    }
+
+    let finalFileUrl = (file_url || '').trim();
+    if (!finalFileUrl) {
+      // Auto-generate official PDF letter with dynamic fillable blanks merged
+      try {
+        finalFileUrl = await generateOfficialDocumentPDF({
+          doc_type,
+          title,
+          empName,
+          empId: empIdStr,
+          newPosition: new_position,
+          newDepartment: new_department,
+          newSalary: new_salary,
+          effectiveDate: effective_date,
+          description
+        });
+      } catch (pdfErr) {
+        console.error('PDF auto generation failed:', pdfErr);
+        finalFileUrl = '/sample_promotion_letter.pdf';
+      }
+    }
+
+    const payload = {
+      employee_id: targetEmpId,
+      title,
+      doc_type: doc_type || category || 'Official Letter',
+      category: category || 'General',
+      description: description || '',
+      file_url: finalFileUrl,
+      effective_date: effective_date || new Date().toISOString().split('T')[0],
+      status: 'PENDING_BOSS',
+      requested_by_user_id: req.user.id,
+      created_at: new Date().toISOString(),
+    };
+
+    let createdRequest;
+    try {
+      createdRequest = await dbInsert('doc_approval_requests', payload);
+    } catch (err) {
+      // Fallback: If doc_approval_requests table does not exist in Supabase, insert into employee_documents with status PENDING_BOSS
+      createdRequest = await dbInsert('employee_documents', {
+        ...payload,
+        status: 'PENDING_BOSS'
+      });
+    }
+
+    // Notify Boss
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: `📄 New Document Approval Requested`,
+      message: `HR requested approval for "${title}" (${empName}).`,
+      link_url: '/documents',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'CREATE_REQUEST',
+      module: 'Document Vault',
+      details: `Requested approval for document "${title}" targeting ${empName}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, request: createdRequest });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/documents/boss-sign/:id (Boss E-Signature & Approval)
+router.post('/documents/boss-sign/:id', async (req, res) => {
+  try {
+    const { action, boss_signature, rejection_reason } = req.body;
+    const reqId = req.params.id;
+
+    let targetReq;
+    let isApprovalTable = true;
+    try {
+      targetReq = await dbFetchOne('doc_approval_requests', '*', { id: reqId });
+    } catch (e) {
+      isApprovalTable = false;
+      targetReq = await dbFetchOne('employee_documents', '*', { id: reqId });
+    }
+
+    if (!targetReq) {
+      return res.status(404).json({ error: 'Document request not found' });
+    }
+
+    if (action === 'REJECT') {
+      const updateData = {
+        status: 'REJECTED_BY_BOSS',
+        rejection_reason: rejection_reason || 'Rejected by Executive',
+      };
+      if (isApprovalTable) {
+        await dbUpdate('doc_approval_requests', reqId, updateData);
+      } else {
+        await dbUpdate('employee_documents', reqId, updateData);
+      }
+
+      await dbInsert('system_notifications', {
+        recipient_role: 'hr_manager',
+        title: `❌ Document Request Rejected`,
+        message: `Boss rejected document "${targetReq.title}". Reason: ${rejection_reason || 'None provided'}`,
+        link_url: '/documents',
+        is_read: false,
+        created_at: new Date().toISOString()
+      });
+
+      return res.json({ success: true, status: 'REJECTED_BY_BOSS' });
+    }
+
+    // APPROVE
+    const updateData = {
+      status: 'APPROVED_BY_BOSS',
+      boss_signature: boss_signature || 'Executive Approved & Signed',
+      boss_signed_at: new Date().toISOString(),
+    };
+
+    if (isApprovalTable) {
+      await dbUpdate('doc_approval_requests', reqId, updateData);
+    } else {
+      await dbUpdate('employee_documents', reqId, updateData);
+    }
+
+    // Notify HR
+    await dbInsert('system_notifications', {
+      recipient_role: 'hr_manager',
+      title: `✅ Document Approved by Boss`,
+      message: `Boss signed "${targetReq.title}". Final HR signature required to issue to employee.`,
+      link_url: '/documents',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'BOSS_SIGN',
+      module: 'Document Vault',
+      details: `Boss signed and approved document request "${targetReq.title}"`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, status: 'APPROVED_BY_BOSS' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/documents/hr-sign/:id (HR Final Signature & Publish to Employee Vault)
+router.post('/documents/hr-sign/:id', requireAdmin, async (req, res) => {
+  try {
+    const { hr_signature } = req.body;
+    const reqId = req.params.id;
+
+    let targetReq;
+    let isApprovalTable = true;
+    try {
+      targetReq = await dbFetchOne('doc_approval_requests', '*', { id: reqId });
+    } catch (e) {
+      isApprovalTable = false;
+      targetReq = await dbFetchOne('employee_documents', '*', { id: reqId });
+    }
+
+    if (!targetReq) {
+      return res.status(404).json({ error: 'Document request not found' });
+    }
+
+    const hrSignTime = new Date().toISOString();
+
+    // 1. Mark request as completed
+    const updateReqData = {
+      status: 'COMPLETED_AND_ISSUED',
+      hr_signature: hr_signature || 'HR Authorized & Signed',
+      hr_signed_at: hrSignTime,
+    };
+
+    if (isApprovalTable) {
+      await dbUpdate('doc_approval_requests', reqId, updateReqData);
+
+      // 2. Publish to employee_documents table
+      await dbInsert('employee_documents', {
+        title: targetReq.title,
+        category: targetReq.category || 'General',
+        description: targetReq.description || '',
+        file_url: targetReq.file_url || '',
+        employee_id: targetReq.employee_id,
+        boss_signature: targetReq.boss_signature || 'Signed',
+        boss_signed_at: targetReq.boss_signed_at,
+        hr_signature: hr_signature || 'Signed',
+        hr_signed_at: hrSignTime,
+        status: 'COMPLETED_AND_ISSUED',
+        created_at: new Date().toISOString(),
+      });
+    } else {
+      await dbUpdate('employee_documents', reqId, updateReqData);
+    }
+
+    // 3. Notify Employee
+    if (targetReq.employee_id) {
+      const user = await dbFetchOne('sys_users', 'id', { employee_id: targetReq.employee_id });
+      if (user) {
+        await dbInsert('system_notifications', {
+          recipient_user_id: user.id,
+          title: `📄 Official Document Issued: ${targetReq.title}`,
+          message: `Your official ${targetReq.category || 'document'} "${targetReq.title}" has been approved, signed, and published to your Document Vault.`,
+          link_url: '/portal/documents',
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // 4. Auto-log Career Timeline Event
+      try {
+        const titleLower = (targetReq.title || '').toLowerCase();
+        const categoryLower = (targetReq.category || '').toLowerCase();
+
+        let eventType = 'OTHER';
+        if (titleLower.includes('promotion') || categoryLower.includes('promotion')) {
+          eventType = 'PROMOTION';
+        } else if (titleLower.includes('warning') || titleLower.includes('disciplinary') || categoryLower.includes('warning')) {
+          eventType = 'WARNING';
+        } else if (titleLower.includes('commendation') || titleLower.includes('award') || titleLower.includes('appreciation')) {
+          eventType = 'COMMENDATION';
+        } else if (titleLower.includes('transfer')) {
+          eventType = 'DEPARTMENT_TRANSFER';
+        }
+
+        await dbInsert('employee_career_timeline', {
+          employee_id: targetReq.employee_id,
+          event_type: eventType,
+          title: `Official Document Issued: ${targetReq.title}`,
+          description: targetReq.description || `Official document "${targetReq.title}" approved and signed by Executive & HR.`,
+          effective_date: targetReq.effective_date || new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+        });
+      } catch (timelineErr) {
+        console.warn('Auto timeline update on document issue failed:', timelineErr.message);
+      }
+    }
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'HR_FINAL_SIGN',
+      module: 'Document Vault',
+      details: `HR finalized and issued document "${targetReq.title}"`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, status: 'COMPLETED_AND_ISSUED' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/documents/request/:id
+router.delete('/documents/request/:id', requireAdmin, async (req, res) => {
+  try {
+    try {
+      await dbDelete('doc_approval_requests', req.params.id);
+    } catch (e) {
+      await dbDelete('employee_documents', req.params.id);
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/documents/:id
+router.delete('/documents/:id', requireAdmin, async (req, res) => {
+  try {
+    await dbDelete('employee_documents', req.params.id);
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'DELETE',
+      module: 'Document Vault',
+      details: `Deleted document ID: ${req.params.id}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;
+

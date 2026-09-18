@@ -143,7 +143,9 @@ export default function EmployeeProfile() {
   if (isLoading) return <Layout title="Employee Profile"><div className="p-8 text-slate-400">Loading profile...</div></Layout>;
   if (!data?.emp) return <Layout title="Not Found"><div className="p-8 text-rose-400">Employee not found.</div></Layout>;
 
-  const { emp, attendance_records, leave_balances, kpi_records, vote_stats, total_paid } = data;
+  const { emp, attendance_records, leave_balances, kpi_records, vote_stats, total_paid, career_timeline } = data;
+
+  const refetch = () => qc.invalidateQueries(['employee', id]);
 
   return (
     <Layout title={`Profile: ${emp.Full_name}`} subtitle={`Employee ID: ${emp.employee_id}`}>
@@ -245,6 +247,9 @@ export default function EmployeeProfile() {
         {/* Right Col: Details */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* Career Timeline Section */}
+          <CareerTimelineSection employeeId={id} timeline={career_timeline} refetch={refetch} />
+
           {/* Attendance Overview */}
           <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Recent Attendance</h3>
@@ -322,5 +327,227 @@ export default function EmployeeProfile() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [formData, setFormData] = useState({
+    event_type: 'PROMOTION',
+    title: '',
+    description: '',
+    previous_position: '',
+    new_position: '',
+    previous_salary: '',
+    new_salary: '',
+    effective_date: new Date().toISOString().split('T')[0],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (body) => api.post(`/employees/${employeeId}/timeline`, body),
+    onSuccess: () => {
+      toast.success('Career milestone added successfully!');
+      setShowAddModal(false);
+      setFormData({
+        event_type: 'PROMOTION',
+        title: '',
+        description: '',
+        previous_position: '',
+        new_position: '',
+        previous_salary: '',
+        new_salary: '',
+        effective_date: new Date().toISOString().split('T')[0],
+      });
+      if (refetch) refetch();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error || 'Failed to add milestone');
+    }
+  });
+
+  const EVENT_TYPE_STYLES = {
+    HIRED: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Hired / Onboarded' },
+    PROMOTION: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30', label: 'Promotion' },
+    SALARY_RAISE: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Salary Raise' },
+    DEPARTMENT_TRANSFER: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Department Transfer' },
+    COMMENDATION: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', label: 'Commendation / Award' },
+    WARNING: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30', label: 'Disciplinary Warning' },
+    OTHER: { bg: 'bg-slate-500/10', text: 'text-slate-300', border: 'border-slate-500/30', label: 'Milestone' },
+  };
+
+  return (
+    <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-widest">Career Timeline (ရာထူး/လစာ ပြောင်းလဲမှု မှတ်တမ်း)</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Historical record of promotions, salary revisions, and official milestones</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+        >
+          + Add Milestone
+        </button>
+      </div>
+
+      {!timeline.length ? (
+        <p className="text-slate-500 text-sm py-4 text-center">No career timeline milestones recorded yet.</p>
+      ) : (
+        <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-white/10">
+          {timeline.map((evt) => {
+            const style = EVENT_TYPE_STYLES[evt.event_type] || EVENT_TYPE_STYLES.OTHER;
+            return (
+              <div key={evt.id} className="relative group">
+                <div className={`absolute -left-[23px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-surface-800 ${style.bg.replace('/10', '')} shadow-md`} />
+                <div className="p-4 rounded-xl border border-white/5 bg-surface-850 hover:bg-white/[0.03] transition-colors">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}`}>
+                      {style.label}
+                    </span>
+                    <span className="text-xs font-mono text-slate-400">{evt.effective_date?.slice(0, 10)}</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-white mt-1">{evt.title}</h4>
+                  {evt.description && <p className="text-xs text-slate-400 mt-1">{evt.description}</p>}
+
+                  {(evt.previous_position || evt.new_position) && (
+                    <div className="mt-2 text-xs font-mono text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg inline-block">
+                      Position: <span className="text-slate-400">{evt.previous_position || '—'}</span> ➔ <span className="text-indigo-400 font-semibold">{evt.new_position || '—'}</span>
+                    </div>
+                  )}
+
+                  {(evt.previous_salary !== null || evt.new_salary !== null) && (
+                    <div className="mt-2 text-xs font-mono text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg inline-block ml-2">
+                      Salary: <span className="text-slate-400">${Number(evt.previous_salary || 0).toLocaleString()}</span> ➔ <span className="text-emerald-400 font-semibold">${Number(evt.new_salary || 0).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-surface-850 border border-white/10 rounded-2xl p-6 w-full max-w-lg">
+            <h3 className="text-base font-bold text-white mb-4">Add Career Milestone</h3>
+            <form onSubmit={(e) => { e.preventDefault(); addMutation.mutate(formData); }} className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Event Type</label>
+                <select
+                  value={formData.event_type}
+                  onChange={(e) => setFormData({ ...formData, event_type: e.target.value })}
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="PROMOTION">Promotion</option>
+                  <option value="SALARY_RAISE">Salary Raise</option>
+                  <option value="DEPARTMENT_TRANSFER">Department Transfer</option>
+                  <option value="COMMENDATION">Commendation / Award</option>
+                  <option value="WARNING">Disciplinary Warning</option>
+                  <option value="OTHER">Other Milestone</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Milestone Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Promoted to Senior Developer"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Description / Notes</label>
+                <textarea
+                  rows="2"
+                  placeholder="Additional context or official letter summary..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Previous Position</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Junior Dev"
+                    value={formData.previous_position}
+                    onChange={(e) => setFormData({ ...formData, previous_position: e.target.value })}
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">New Position</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Senior Dev"
+                    value={formData.new_position}
+                    onChange={(e) => setFormData({ ...formData, new_position: e.target.value })}
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Previous Salary ($)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 3000"
+                    value={formData.previous_salary}
+                    onChange={(e) => setFormData({ ...formData, previous_salary: e.target.value })}
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">New Salary ($)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 4500"
+                    value={formData.new_salary}
+                    onChange={(e) => setFormData({ ...formData, new_salary: e.target.value })}
+                    className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Effective Date</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.effective_date}
+                  onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })}
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addMutation.isLoading}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50"
+                >
+                  {addMutation.isLoading ? 'Saving...' : 'Save Milestone'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

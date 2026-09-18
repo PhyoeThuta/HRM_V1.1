@@ -114,7 +114,7 @@ export default function Login() {
           <div className="mt-6 pt-5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
             <p className="text-xs text-slate-500 text-center mb-3">Access Levels</p>
             <div className="grid grid-cols-2 gap-2">
-              {[['Boss', '👑', 'amber'], ['HR Manager', '🧑‍💼', 'indigo'], ['General Manager', '🏢', 'cyan'], ['Employee', '👤', 'slate']].map(([role, icon]) => (
+              {[['Boss', '', 'amber'], ['HR Manager', '', 'indigo'], ['General Manager', '', 'cyan'], ['Employee', '', 'slate']].map(([role, icon]) => (
                 <div key={role} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
                   <span className="text-base">{icon}</span>
                   <span className="text-xs text-slate-400">{role}</span>

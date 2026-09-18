@@ -96,7 +96,7 @@ export default function UserAccounts() {
     }
   };
 
-  const roleEmoji = { boss: '👑 Boss', manager: '🧑‍💼 Manager', hr_manager: '🤝 HR Manager', finance: '💰 Finance', admin: '⚙️ Admin', employee: '👤 Employee', rider: '🏍️ Delivery Rider' };
+  const roleEmoji = { boss: 'Boss', manager: 'Manager', hr_manager: 'HR Manager', finance: 'Finance', admin: 'Admin', employee: 'Employee', rider: 'Delivery Rider' };
   
   const filteredUsers = (users || []).filter(u => 
     (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||

@@ -138,6 +138,14 @@ router.get('/:id', async (req, res) => {
     const voteAvg = voteCount > 0 ? Math.round((voteTotal / voteCount) * 10) / 10 : 0;
     const totalPaid = payrolls.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + parseFloat(p.net_salary || 0), 0);
 
+    // Fetch Career Timeline
+    let careerTimeline = [];
+    try {
+      careerTimeline = await dbFetch('employee_career_timeline', '*', { employee_id: req.params.id }, { order: 'effective_date', ascending: false });
+    } catch (e) {
+      console.warn('employee_career_timeline error:', e.message);
+    }
+
     return res.json({
       emp,
       attendance_records: attRecs,
@@ -148,7 +156,56 @@ router.get('/:id', async (req, res) => {
       kpi_records: kpis,
       vote_stats: { votes: voteCount, total: voteTotal, avg: voteAvg },
       onboarding,
+      career_timeline: careerTimeline,
     });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/employees/:id/timeline
+router.get('/:id/timeline', async (req, res) => {
+  try {
+    let items = [];
+    try {
+      items = await dbFetch('employee_career_timeline', '*', { employee_id: req.params.id }, { order: 'effective_date', ascending: false });
+    } catch (e) {
+      items = [];
+    }
+    return res.json({ timeline: items });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/employees/:id/timeline
+router.post('/:id/timeline', requireAdmin, async (req, res) => {
+  try {
+    const { event_type, title, description, previous_position, new_position, previous_salary, new_salary, effective_date, document_id } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
+    const payload = {
+      employee_id: req.params.id,
+      event_type: event_type || 'OTHER',
+      title,
+      description: description || '',
+      previous_position: previous_position || null,
+      new_position: new_position || null,
+      previous_salary: previous_salary ? parseFloat(previous_salary) : null,
+      new_salary: new_salary ? parseFloat(new_salary) : null,
+      effective_date: effective_date || new Date().toISOString().split('T')[0],
+      document_id: document_id || null,
+      created_at: new Date().toISOString(),
+    };
+
+    let item;
+    try {
+      item = await dbInsert('employee_career_timeline', payload);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to insert career timeline event: ' + e.message });
+    }
+
+    return res.json({ success: true, event: item });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -183,6 +240,29 @@ router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) 
     }
     
     const result = resultData?.[0];
+
+    // Auto-create initial Career Timeline event (HIRED)
+    if (result && result.id) {
+      try {
+        let posTitle = null;
+        if (d.position_id) {
+          const pos = await dbFetchOne('positions', 'title', { id: d.position_id });
+          if (pos) posTitle = pos.title;
+        }
+        await dbInsert('employee_career_timeline', {
+          employee_id: result.id,
+          event_type: 'HIRED',
+          title: `Joined Company as ${posTitle || 'Employee'}`,
+          description: `Employment started with initial base salary of $${d.salary || 0}`,
+          new_position: posTitle,
+          new_salary: d.salary ? parseFloat(d.salary) : null,
+          effective_date: d.hire_date || new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+        });
+      } catch (timelineErr) {
+        console.warn('Auto timeline creation failed on hire:', timelineErr.message);
+      }
+    }
 
     // Audit log
     await dbInsert('sys_audit_logs', {
@@ -228,19 +308,85 @@ router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) 
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const d = req.body;
-    const ok = await dbUpdate('Employees', req.params.id, {
+    const empId = req.params.id;
+
+    // Fetch existing record to detect position/salary/dept changes
+    const oldEmp = await dbFetchOne('Employees', '*', { id: empId });
+
+    const newSalary = d.salary ? parseFloat(d.salary) : null;
+    const newPosId = d.position_id || null;
+    const newDeptId = d.Dept_id || null;
+
+    const ok = await dbUpdate('Employees', empId, {
       employee_id: d.employee_id, Full_name: d.Full_name, email: d.email || null, phone: d.phone || null,
-      Dept_id: d.Dept_id || null, position_id: d.position_id || null,
+      Dept_id: newDeptId, position_id: newPosId,
       Manager_id: d.Manager_id || null,
       hire_date: d.hire_date || null, date_of_birth: d.date_of_birth || null,
       national_id: d.national_id || null, address: d.address || null,
       employment_type: d.employment_type || 'Full-Time',
       status: d.status || 'Active',
-      salary: d.salary ? parseFloat(d.salary) : null,
-      salary: d.salary ? parseFloat(d.salary) : null,
+      salary: newSalary,
       updated_at: new Date().toISOString(),
     });
     if (!ok) return res.status(500).json({ error: 'Update failed' });
+
+    // Update sys_user username if employee_id changed
+    if (d.employee_id && oldEmp && d.employee_id !== oldEmp.employee_id) {
+      try {
+        const sysUser = await dbFetchOne('sys_users', 'id', { employee_id: empId });
+        if (sysUser) {
+          await dbUpdate('sys_users', sysUser.id, { username: d.employee_id.toLowerCase() });
+        }
+      } catch (usrErr) {
+        console.warn('Syncing sys_users username on employee_id edit failed:', usrErr.message);
+      }
+    }
+
+    // Detect Career Timeline events
+    if (oldEmp) {
+      try {
+        const positions = await dbFetch('positions', 'id,title');
+        const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
+
+        const oldPosTitle = posMap[oldEmp.position_id] || oldEmp.Position || 'Previous Role';
+        const newPosTitle = posMap[newPosId] || 'New Role';
+
+        // 1. Position change (Promotion / Role Update)
+        if (oldEmp.position_id && newPosId && oldEmp.position_id !== newPosId) {
+          await dbInsert('employee_career_timeline', {
+            employee_id: empId,
+            event_type: 'PROMOTION',
+            title: `Role Changed: ${oldPosTitle} ➔ ${newPosTitle}`,
+            description: `Position title updated from ${oldPosTitle} to ${newPosTitle}.`,
+            previous_position: oldPosTitle,
+            new_position: newPosTitle,
+            previous_salary: oldEmp.salary ? parseFloat(oldEmp.salary) : null,
+            new_salary: newSalary,
+            effective_date: new Date().toISOString().split('T')[0],
+            created_at: new Date().toISOString(),
+          });
+        }
+
+        // 2. Salary change (Salary Raise / Revision)
+        const oldSal = oldEmp.salary ? parseFloat(oldEmp.salary) : 0;
+        if (newSalary && oldSal !== newSalary) {
+          const diff = newSalary - oldSal;
+          const isRaise = diff > 0;
+          await dbInsert('employee_career_timeline', {
+            employee_id: empId,
+            event_type: isRaise ? 'SALARY_RAISE' : 'OTHER',
+            title: isRaise ? `Salary Increased by $${diff.toLocaleString()}` : `Salary Adjusted to $${newSalary.toLocaleString()}`,
+            description: `Base salary changed from $${oldSal.toLocaleString()} to $${newSalary.toLocaleString()}.`,
+            previous_salary: oldSal,
+            new_salary: newSalary,
+            effective_date: new Date().toISOString().split('T')[0],
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch (timelineErr) {
+        console.warn('Auto career timeline update failed:', timelineErr.message);
+      }
+    }
 
     // Audit log
     await dbInsert('sys_audit_logs', {
@@ -253,6 +399,134 @@ router.put('/:id', requireAdmin, async (req, res) => {
     }).catch(console.error);
 
     return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/employees/bulk-import (Bulk Upload/Update Employee Numbers & Base Salaries via JSON or Excel/CSV)
+router.post('/bulk-import', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    let rows = [];
+    if (req.file) {
+      const wb = (await import('xlsx')).default.read(req.file.buffer, { type: 'buffer' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      rows = (await import('xlsx')).default.utils.sheet_to_json(sheet);
+    } else if (Array.isArray(req.body.employees)) {
+      rows = req.body.employees;
+    } else {
+      return res.status(400).json({ error: 'No Excel file or employee payload provided.' });
+    }
+
+    if (!rows.length) return res.status(400).json({ error: 'Payload or Excel sheet is empty.' });
+
+    let updatedCount = 0;
+    let createdCount = 0;
+    const errors = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const empId = String(row.employee_id || row['Employee ID'] || row['EmployeeID'] || row.id || '').trim();
+      const name = String(row.Full_name || row['Full Name'] || row.name || row['Name'] || '').trim();
+      const salaryVal = row.salary !== undefined ? row.salary : (row['Salary'] !== undefined ? row['Salary'] : row['Base Salary']);
+      const parsedSalary = salaryVal !== undefined && salaryVal !== '' && !isNaN(salaryVal) ? parseFloat(salaryVal) : null;
+      const email = row.email || row['Email'] || null;
+      const phone = row.phone || row['Phone'] || null;
+      const dbId = row.db_id || row.id;
+
+      if (!empId && !name && !dbId) continue;
+
+      try {
+        let existing = null;
+        if (dbId) existing = await dbFetchOne('Employees', '*', { id: dbId });
+        if (!existing && empId) existing = await dbFetchOne('Employees', '*', { employee_id: empId });
+
+        if (existing) {
+          // UPDATE
+          const newEmpId = empId || existing.employee_id;
+          const oldSal = existing.salary ? parseFloat(existing.salary) : 0;
+          const updateObj = {
+            employee_id: newEmpId,
+            updated_at: new Date().toISOString()
+          };
+          if (name) updateObj.Full_name = name;
+          if (parsedSalary !== null) updateObj.salary = parsedSalary;
+          if (email) updateObj.email = email;
+          if (phone) updateObj.phone = phone;
+
+          await dbUpdate('Employees', existing.id, updateObj);
+
+          if (newEmpId && newEmpId !== existing.employee_id) {
+            const sysUser = await dbFetchOne('sys_users', 'id', { employee_id: existing.id });
+            if (sysUser) {
+              await dbUpdate('sys_users', sysUser.id, { username: newEmpId.toLowerCase() });
+            }
+          }
+
+          if (parsedSalary !== null && oldSal !== parsedSalary) {
+            const diff = parsedSalary - oldSal;
+            await dbInsert('employee_career_timeline', {
+              employee_id: existing.id,
+              event_type: diff > 0 ? 'SALARY_RAISE' : 'OTHER',
+              title: diff > 0 ? `Salary Increased by $${diff.toLocaleString()}` : `Salary Adjusted to $${parsedSalary.toLocaleString()}`,
+              description: `Bulk update: Base salary changed from $${oldSal.toLocaleString()} to $${parsedSalary.toLocaleString()}`,
+              previous_salary: oldSal,
+              new_salary: parsedSalary,
+              effective_date: new Date().toISOString().split('T')[0],
+              created_at: new Date().toISOString(),
+            }).catch(console.error);
+          }
+
+          updatedCount++;
+        } else {
+          // CREATE
+          if (!name || !empId) {
+            errors.push(`Row ${i + 1}: Name and Employee ID are required for new records.`);
+            continue;
+          }
+          const { data: createdData } = await supabase.from('Employees').insert({
+            employee_id: empId,
+            Full_name: name,
+            salary: parsedSalary,
+            email, phone,
+            created_at: new Date().toISOString(),
+          }).select();
+
+          const created = createdData?.[0];
+          if (created) {
+            await dbInsert('sys_users', {
+              username: empId.toLowerCase(),
+              password_hash: 'MUST_CHANGE:' + hashPassword('123456'),
+              role: 'employee',
+              employee_id: created.id,
+              full_name: name,
+            }).catch(console.error);
+
+            await dbInsert('employee_career_timeline', {
+              employee_id: created.id,
+              event_type: 'HIRED',
+              title: `Joined Company`,
+              description: `Bulk imported with base salary $${parsedSalary || 0}`,
+              new_salary: parsedSalary,
+              effective_date: new Date().toISOString().split('T')[0],
+              created_at: new Date().toISOString(),
+            }).catch(console.error);
+
+            createdCount++;
+          }
+        }
+      } catch (err) {
+        errors.push(`Row ${i + 1} error: ${err.message}`);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Bulk update completed! Updated: ${updatedCount}, Created: ${createdCount}`,
+      updatedCount,
+      createdCount,
+      errors
+    });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
