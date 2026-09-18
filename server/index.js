@@ -53,34 +53,52 @@ const PORT = process.env.PORT || 8080;
 
 // ── Security & Middleware ──────────────────────────────────────
 app.set('trust proxy', 1); // Trust the first proxy to get real client IPs
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "https://*.supabase.co"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:", "https://*.supabase.co"],
+      mediaSrc: ["'self'", "data:", "blob:", "https:"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+    },
+  },
+}));
+
+const defaultAllowedOrigins = [
+  'https://hrm.duolinkmm.com',
+  'http://hrm.duolinkmm.com',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8080'
+];
 
 app.use(cors({
   origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    let allowedOrigins = defaultAllowedOrigins;
     if (process.env.ALLOWED_ORIGINS) {
-      const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
+      const customOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
+      allowedOrigins = Array.from(new Set([...allowedOrigins, ...customOrigins]));
     }
     
-    // Fallback if ALLOWED_ORIGINS is missing
-    if (process.env.NODE_ENV === 'production') {
-      console.error('CRITICAL WARNING: ALLOWED_ORIGINS is not set in production. Blocking cross-origin request.');
-      return callback(new Error('Not allowed by CORS'));
-    } else {
-      // Development fallback
-      const devOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
-      if (!origin || devOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
+    if (allowedOrigins.includes(origin) || origin.includes('duolinkmm.com') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
     }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 }));
 
 app.use(express.json({ limit: '50mb' })); // Increased for video
