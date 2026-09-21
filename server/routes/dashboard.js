@@ -1,6 +1,6 @@
 import express from 'express';
-import { dbFetch } from '../lib/supabase.js';
-import { verifyToken } from '../middleware/auth.js';
+import { dbFetch } from '../shared/db/index.js';
+import { verifyToken } from '../shared/auth/index.js';
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router.get('/', verifyToken, async (req, res) => {
     const user = req.user;
     const role = user?.role || '';
 
-    const { supabase } = await import('../lib/supabase.js');
+    const { supabase } = await import('../shared/db/index.js');
 
     const [
       employeesRes,
