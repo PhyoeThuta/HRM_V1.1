@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { inventoryModule } from '../modules/inventory/index.js';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHEF_CHAT_ID = process.env.CHEF_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
@@ -168,9 +169,7 @@ async function aggregateKitchenData(targetDate) {
     .from('operations_recipes')
     .select('*');
 
-  const { data: inventoryItems } = await supabaseAdmin
-    .from('inventory_items')
-    .select('*');
+  const inventoryItems = await inventoryModule.getItems();
 
   // 2. Fetch headcount from today's orders
   const { data: todayOrders } = await supabaseAdmin

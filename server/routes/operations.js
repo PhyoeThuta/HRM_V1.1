@@ -1,32 +1,9 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../lib/supabase.js';
+import { inventoryModule } from '../modules/inventory/index.js';
 
 // Simple in-memory Mutex to prevent race conditions during inventory deduction
-class Mutex {
-  constructor() {
-    this.queue = [];
-    this.locked = false;
-  }
-  async lock() {
-    return new Promise(resolve => {
-      if (this.locked) {
-        this.queue.push(resolve);
-      } else {
-        this.locked = true;
-        resolve();
-      }
-    });
-  }
-  unlock() {
-    if (this.queue.length > 0) {
-      const next = this.queue.shift();
-      next();
-    } else {
-      this.locked = false;
-    }
-  }
-}
-const inventoryMutex = new Mutex();
+// REMOVED: Now using central inventoryModule.deductStockForBOM which coordinates concurrency.
 
 import { verifyToken, requireOperations } from '../middleware/auth.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../lib/crmRealtime.js';
@@ -109,7 +86,7 @@ router.get('/menus', async (req, res) => {
     if (error) throw error;
 
     const { data: recipes } = await supabase.from('operations_recipes').select('*');
-    const { data: items } = await supabase.from('inventory_items').select('id, name_eng, unit_of_measure, item_code');
+    const items = await inventoryModule.getItemsBasicInfo();
 
     const enriched = menus.map(m => {
       const menuRecipes = recipes?.filter(r => r.menu_id === m.id) || [];
@@ -252,19 +229,8 @@ router.post('/import-costing', upload.single('file'), async (req, res) => {
 
       // 2. Insert/Update Ingredients & Recipes
       for (const ing of menu.ingredients) {
-        const { data: existingItem } = await supabaseAdmin.from('inventory_items').select('id').eq('name_eng', ing.name).limit(1);
-        let itemId;
-        if (existingItem && existingItem.length > 0) {
-          itemId = existingItem[0].id;
-        } else {
-          const { data: newItem } = await supabaseAdmin.from('inventory_items').insert({
-            name_eng: ing.name,
-            category: 'RECIPE_INGREDIENT',
-            unit_of_measure: ing.uom
-          }).select('id');
-          itemId = newItem[0].id;
-          itemsCreated++;
-        }
+        const { id: itemId, created } = await inventoryModule.getOrCreateItemForCosting(ing.name, ing.uom);
+        if (created) itemsCreated++;
 
         // Add Recipe
         await supabaseAdmin.from('operations_recipes').insert({
@@ -392,8 +358,7 @@ router.post('/recalculate-bom', async (req, res) => {
     const { data: recipes, error: rErr } = await supabase.from('operations_recipes').select('*');
     if (rErr) throw rErr;
     
-    const { data: balances, error: bErr } = await supabase.from('inventory_balances').select('item_id, one_unit_cost');
-    if (bErr) throw bErr;
+    const balances = await inventoryModule.getBalancesCosts();
     
     // Create lookup map for costs
     const costMap = new Map();
@@ -1165,35 +1130,7 @@ router.put('/orders/batch-status', async (req, res) => {
             }
           });
           
-          await inventoryMutex.lock();
-          try {
-            for (const [itemId, deductQty] of Object.entries(deductions)) {
-              const { data: balData, error: balErr } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
-              if (balErr || !balData) {
-                console.error(`[BOM DEDUCTION ERROR] Missing balance for item ${itemId}`);
-                throw new Error(`Missing inventory balance for item ${itemId}`);
-              }
-              
-              const { error: txErr } = await supabase.from('inventory_transactions').insert({
-                item_id: itemId,
-                transaction_type: 'USAGE_OUT',
-                quantity_change: deductQty,
-                reference_type: 'ORDER_BATCH',
-                reference_id: order.id,
-                created_by: req.user.id
-              });
-              if (txErr) throw txErr;
-
-              const { error: updErr } = await supabase.from('inventory_balances').update({
-                current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
-                updated_by: req.user.id,
-                updated_at: now
-              }).eq('id', balData.id);
-              if (updErr) throw updErr;
-            }
-          } finally {
-            inventoryMutex.unlock();
-          }
+          await inventoryModule.deductStockForBOM(deductions, `BATCH-${order.id}`, req.user.id);
         }
       }
       
@@ -1300,36 +1237,7 @@ router.put('/orders/:id/status', async (req, res) => {
           }
         });
         
-        // Acquire lock to prevent race condition during deduction
-        await inventoryMutex.lock();
-        try {
-          for (const [itemId, deductQty] of Object.entries(deductions)) {
-            const { data: balData, error: balErr } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
-            if (balErr || !balData) {
-              console.error(`[BOM DEDUCTION ERROR] Missing balance for item ${itemId}`);
-              throw new Error(`Missing inventory balance for item ${itemId}`);
-            }
-            
-            const { error: txErr } = await supabase.from('inventory_transactions').insert({
-              item_id: itemId,
-              transaction_type: 'USAGE_OUT',
-              quantity_change: deductQty,
-              reference_type: 'ORDER',
-              reference_id: id,
-              created_by: req.user.id
-            });
-            if (txErr) throw txErr;
-
-            const { error: updErr } = await supabase.from('inventory_balances').update({
-              current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
-              updated_by: req.user.id,
-              updated_at: now
-            }).eq('id', balData.id);
-            if (updErr) throw updErr;
-          }
-        } finally {
-          inventoryMutex.unlock();
-        }
+        await inventoryModule.deductStockForBOM(deductions, id, req.user.id);
       }
       
       // TRIGGER ZERNIO DELIVERY ALERT FOR SINGLE ORDER
