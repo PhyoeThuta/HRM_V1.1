@@ -71,6 +71,15 @@ export const crmModule = {
   // 10. Automated Lifecycles
   async markInactiveProspectsAsLost(daysInactive) {
     return crmService.markInactiveProspectsAsLost(daysInactive);
+  },
+  async getFormReminderCandidates(hours) {
+    return crmService.getFormReminderCandidates(hours);
+  },
+  async logFormReminderAttempt(inquiryId, messageText) {
+    return crmService.logFormReminderAttempt(inquiryId, messageText);
+  },
+  async markFormReminderCooldown(inquiryId) {
+    return crmService.markFormReminderCooldown(inquiryId);
   }
 };
 

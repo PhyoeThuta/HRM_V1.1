@@ -499,3 +499,54 @@ export async function bulkUpdateInquiriesLost(ids) {
     .update({ status: 'lost', updated_at: new Date().toISOString() })
     .in('id', ids);
 }
+
+export async function getFormSentInquiriesBefore(dateStr) {
+  const { data, error } = await supabaseAdmin.schema('crm')
+    .from('inquiries')
+    .select('id, prospect_name, onboarding_token, updated_at')
+    .eq('onboarding_status', 'form_sent')
+    .lt('updated_at', dateStr);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getLatestProspectConversationId(inquiryId) {
+  const { data, error } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+    .select('metadata')
+    .eq('inquiry_id', inquiryId)
+    .eq('sender_type', 'prospect')
+    .not('metadata', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+    
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+  
+  const meta = data[0].metadata;
+  return meta?.message?.conversationId || meta?.conversationId || null;
+}
+
+export async function insertInquiryReminderMessage(inquiryId, messageText) {
+  const { data, error } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+    .insert({ 
+      inquiry_id: inquiryId, 
+      message_text: messageText, 
+      sender_type: 'ai_bot', 
+      metadata: { is_reminder: true } 
+    })
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+}
+
+export async function updateInquiryUpdatedAt(inquiryId) {
+  const { error } = await supabaseAdmin.schema('crm')
+    .from('inquiries')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', inquiryId);
+    
+  if (error) throw error;
+  return true;
+}

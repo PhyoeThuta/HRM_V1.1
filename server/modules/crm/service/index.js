@@ -956,3 +956,32 @@ export async function markInactiveProspectsAsLost(daysInactive = 3) {
 
   return inquiryIds.length;
 }
+
+export async function getFormReminderCandidates(hours = 24) {
+  const threshold = new Date();
+  threshold.setHours(threshold.getHours() - hours);
+  
+  const inquiries = await crmRepo.getFormSentInquiriesBefore(threshold.toISOString());
+  
+  const candidates = [];
+  for (const inq of inquiries) {
+    const conversationId = await crmRepo.getLatestProspectConversationId(inq.id);
+    if (conversationId) {
+      candidates.push({
+        id: inq.id,
+        prospect_name: inq.prospect_name,
+        onboarding_token: inq.onboarding_token,
+        conversation_id: conversationId
+      });
+    }
+  }
+  return candidates;
+}
+
+export async function logFormReminderAttempt(inquiryId, messageText) {
+  return await crmRepo.insertInquiryReminderMessage(inquiryId, messageText);
+}
+
+export async function markFormReminderCooldown(inquiryId) {
+  return await crmRepo.updateInquiryUpdatedAt(inquiryId);
+}

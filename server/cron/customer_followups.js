@@ -208,16 +208,8 @@ export async function checkAndNotifyFollowups() {
 
 export async function checkAndNotifyFormReminders() {
   try {
-    const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
+    const inquiries = await crmModule.getFormReminderCandidates(24);
 
-    const { data: inquiries, error } = await supabaseAdmin.schema('crm')
-      .from('inquiries')
-      .select('id, prospect_name, onboarding_token, updated_at')
-      .eq('onboarding_status', 'form_sent')
-      .lt('updated_at', yesterday.toISOString());
-
-    if (error) throw error;
     if (!inquiries || inquiries.length === 0) return { checked: 0, notified: 0 };
 
     let notifiedCount = 0;
@@ -229,47 +221,25 @@ export async function checkAndNotifyFormReminders() {
       const messageText = `မင်္ဂလာပါ ${inq.prospect_name} ရှင်၊ မနေ့က ပို့ထားတဲ့ ဖောင်လေး ဖြည့်ဖို့ ကျန်နေသေးလို့ပါရှင်။ \n\nအောက်က လင့်ခ်လေးကို နှိပ်ပြီး အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော် ✨\n${link}`;
 
       // Insert message into DB to track it
-      const { data: newMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-        .insert({ 
-          inquiry_id: inq.id, 
-          message_text: messageText, 
-          sender_type: 'ai_bot', 
-          metadata: { is_reminder: true } 
-        })
-        .select()
-        .single();
+      const newMsg = await crmModule.logFormReminderAttempt(inq.id, messageText);
 
       if (newMsg && zernioApiKey) {
-        // Find conversation ID
-        const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-          .select('metadata')
-          .eq('inquiry_id', inq.id)
-          .eq('sender_type', 'prospect')
-          .not('metadata', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (prospectMsgs && prospectMsgs.length > 0) {
-          const meta = prospectMsgs[0].metadata;
-          const conversationId = meta?.message?.conversationId || meta?.conversationId;
-          
-          if (conversationId) {
-            try {
-              await fetch(`https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`, {
-                method: 'POST',
-                headers: { 
-                  'Authorization': `Bearer ${zernioApiKey}`,
-                  'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify({ accountId: zernioAccountId, message: messageText })
-              });
-              notifiedCount++;
-              
-              // Update inquiry updated_at to prevent spamming every minute if cron runs often
-              await supabaseAdmin.schema('crm').from('inquiries').update({ updated_at: new Date().toISOString() }).eq('id', inq.id);
-            } catch (e) {
-              console.error('[ZERNIO REMINDER ERROR]', e);
-            }
+        if (inq.conversation_id) {
+          try {
+            await fetch(`https://zernio.com/api/v1/inbox/conversations/${inq.conversation_id}/messages`, {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${zernioApiKey}`,
+                'Content-Type': 'application/json' 
+              },
+              body: JSON.stringify({ accountId: zernioAccountId, message: messageText })
+            });
+            notifiedCount++;
+            
+            // Update inquiry updated_at to prevent spamming every minute if cron runs often
+            await crmModule.markFormReminderCooldown(inq.id);
+          } catch (e) {
+            console.error('[ZERNIO REMINDER ERROR]', e);
           }
         }
       }
