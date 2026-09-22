@@ -368,28 +368,12 @@ router.post('/crm/churn-exit', async (req, res) => {
     const { customer_id, reason_category, comments, would_recommend } = req.body;
     if (!customer_id) return res.status(400).json({ error: 'Missing customer ID' });
 
-    const commentText = `[CHURN_EXIT][${reason_category || 'General'}]\nReason: ${reason_category || 'Not specified'}\nComments: ${comments || 'None'}\nWould Recommend: ${would_recommend ? 'Yes' : 'No'}`;
-
-    const { data, error } = await supabaseAdmin.schema('crm').from('feedbacks')
-      .insert({
-        customer_id: parseInt(customer_id),
-        rating: 1,
-        comment: commentText,
-        type: 'churn_survey',
-        status: 'open'
-      })
-      .select().single();
-
-    if (error) throw error;
-
-    // Also update customer status to churned if not already
-    await supabaseAdmin.schema('crm').from('customers')
-      .update({ status: 'churned', updated_at: new Date().toISOString() })
-      .eq('id', customer_id);
-
-    // Notify Boss & Admin
-    const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
-    const custName = cust ? cust.full_name : 'Customer';
+    const { feedback: data, customerName: custName } = await crmModule.submitChurnExit({
+      customerId: customer_id,
+      reasonCategory: reason_category,
+      comments: comments,
+      wouldRecommend: would_recommend
+    });
 
     await dbInsert('system_notifications', {
       recipient_role: 'boss',

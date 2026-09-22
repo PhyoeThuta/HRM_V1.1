@@ -91,6 +91,11 @@ export const crmModule = {
   },
   async updateCustomerAddressProfile(customerIdOrCode, payload) {
     return crmService.updateCustomerAddressProfile(customerIdOrCode, payload);
+  },
+
+  // 12. Public Form Submissions
+  async submitChurnExit(payload) {
+    return crmService.submitChurnExit(payload);
   }
 };
 

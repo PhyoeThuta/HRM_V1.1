@@ -603,3 +603,31 @@ export async function updateCustomerAddress(id, payload) {
     }
   }
 }
+
+export async function processChurnExit(customerId, commentText) {
+  // 1. Insert Feedback
+  const { data: feedback, error } = await supabaseAdmin.schema('crm').from('feedbacks')
+    .insert({
+      customer_id: parseInt(customerId),
+      rating: 1,
+      comment: commentText,
+      type: 'churn_survey',
+      status: 'open'
+    })
+    .select().single();
+  
+  if (error) throw error;
+
+  // 2. Update Customer Status
+  await supabaseAdmin.schema('crm').from('customers')
+    .update({ status: 'churned', updated_at: new Date().toISOString() })
+    .eq('id', customerId);
+
+  // 3. Get Customer Name for Notification
+  const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
+    .select('full_name')
+    .eq('id', customerId)
+    .single();
+
+  return { feedback, customerName: cust ? cust.full_name : 'Customer' };
+}

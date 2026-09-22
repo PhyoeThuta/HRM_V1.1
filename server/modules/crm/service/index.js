@@ -1099,3 +1099,15 @@ export async function updateCustomerAddressProfile(customerIdOrCode, payload) {
   await crmRepo.updateCustomerAddress(existingCustomer.id, updatePayload);
   return true;
 }
+
+export async function submitChurnExit(payload) {
+  const { customerId, reasonCategory, comments, wouldRecommend } = payload;
+  
+  if (!customerId) {
+    throw new Error('Missing customer ID');
+  }
+
+  const commentText = `[CHURN_EXIT][${reasonCategory || 'General'}]\nReason: ${reasonCategory || 'Not specified'}\nComments: ${comments || 'None'}\nWould Recommend: ${wouldRecommend ? 'Yes' : 'No'}`;
+  
+  return crmRepo.processChurnExit(customerId, commentText);
+}
