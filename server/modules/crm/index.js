@@ -96,6 +96,9 @@ export const crmModule = {
   // 12. Public Form Submissions
   async submitChurnExit(payload) {
     return crmService.submitChurnExit(payload);
+  },
+  async submitReferral(payload) {
+    return crmService.submitReferral(payload);
   }
 };
 

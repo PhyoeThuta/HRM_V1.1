@@ -631,3 +631,28 @@ export async function processChurnExit(customerId, commentText) {
 
   return { feedback, customerName: cust ? cust.full_name : 'Customer' };
 }
+
+export async function processReferral(referrerCustomerId, referredName, referredPhone, note) {
+  let referrerName = 'Existing Customer';
+  if (referrerCustomerId) {
+    const { data: refCust } = await supabaseAdmin.schema('crm').from('customers')
+      .select('full_name')
+      .eq('id', referrerCustomerId)
+      .single();
+    if (refCust) referrerName = refCust.full_name;
+  }
+
+  const { data: inquiry, error } = await supabaseAdmin.schema('crm').from('inquiries')
+    .insert({
+      prospect_name: referredName,
+      contact_phone: referredPhone,
+      source: 'Referral',
+      status: 'new',
+      requirements: `[REFERRAL] Referred by Customer ${referrerName} (ID: ${referrerCustomerId || 'N/A'}). Note: ${note || 'None'}`
+    })
+    .select().single();
+
+  if (error) throw error;
+
+  return { inquiry, referrerName };
+}

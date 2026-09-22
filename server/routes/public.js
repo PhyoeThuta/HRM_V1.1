@@ -398,24 +398,12 @@ router.post('/crm/referral', async (req, res) => {
       return res.status(400).json({ error: 'Friend\'s name and phone number are required' });
     }
 
-    let referrerName = 'Existing Customer';
-    if (referrer_customer_id) {
-      const { data: refCust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', referrer_customer_id).single();
-      if (refCust) referrerName = refCust.full_name;
-    }
-
-    // Insert inquiry into crm.inquiries as new lead
-    const { data: inquiry, error } = await supabaseAdmin.schema('crm').from('inquiries')
-      .insert({
-        prospect_name: referred_name,
-        contact_phone: referred_phone,
-        source: 'Referral',
-        status: 'new',
-        requirements: `[REFERRAL] Referred by Customer ${referrerName} (ID: ${referrer_customer_id || 'N/A'}). Note: ${note || 'None'}`
-      })
-      .select().single();
-
-    if (error) throw error;
+    const { inquiry, referrerName } = await crmModule.submitReferral({
+      referrerCustomerId: referrer_customer_id,
+      referredName: referred_name,
+      referredPhone: referred_phone,
+      note
+    });
 
     // Notify Boss
     await dbInsert('system_notifications', {

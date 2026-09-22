@@ -1111,3 +1111,8 @@ export async function submitChurnExit(payload) {
   
   return crmRepo.processChurnExit(customerId, commentText);
 }
+
+export async function submitReferral(payload) {
+  const { referrerCustomerId, referredName, referredPhone, note } = payload;
+  return crmRepo.processReferral(referrerCustomerId, referredName, referredPhone, note);
+}
