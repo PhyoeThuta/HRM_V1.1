@@ -2,6 +2,7 @@ import express from 'express';
 import { dbFetch, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin, requireFinance } from '../middleware/auth.js';
 import { calculatePayroll } from './payroll_engine.js';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -9,10 +10,9 @@ router.use(verifyToken);
 // GET /api/payroll
 router.get('/', requireAdmin, async (req, res) => {
   try {
-    const [payrolls, employees, positions, kpis] = await Promise.all([
+    const [payrolls, { employees, positions }, kpis] = await Promise.all([
       dbFetch('payrolls', '*', {}, { order: 'month', ascending: false }),
-      dbFetch('Employees', 'id,Full_name,employee_id,position_id'),
-      dbFetch('positions', 'id,title'),
+      hrmModule.getEmployeesForPayroll(),
       dbFetch('kpis', '*', {}, { order: 'created_at', ascending: false })
     ]);
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
