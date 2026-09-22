@@ -330,3 +330,19 @@ export async function uploadPodPhoto(req, res) {
     return res.status(500).json({ error: 'Failed to process proof photo upload' });
   }
 }
+
+// ==========================================
+// ORDER STATUS
+// ==========================================
+
+export async function updateOrderStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { delivery_status } = req.body;
+    
+    const result = await opsService.updateOrderStatus(id, delivery_status, req.user.id);
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}

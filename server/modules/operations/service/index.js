@@ -1,6 +1,7 @@
 import * as opsRepo from '../repository/index.js';
 import { inventoryModule } from '../../inventory/index.js';
 import { supabase, supabaseAdmin } from '../../../lib/supabase.js';
+import { emitInquiryMessage } from '../../../lib/crmRealtime.js';
 
 // ==========================================
 // MENUS
@@ -488,6 +489,220 @@ export async function uploadPodPhoto(imageStr) {
     console.warn('[POD_PHOTO_STORAGE_WARN]', e.message);
   }
 
-  // Fallback to original image if storage fails (mirrors legacy behavior)
+// Fallback to original image if storage fails (mirrors legacy behavior)
   return { success: true, url: imageStr };
+}
+
+// ==========================================
+// ZERNIO NOTIFICATIONS (Legacy Extraction)
+// ==========================================
+
+const lastSentZernioMap = new Map();
+
+export async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED', proofUrl = null) {
+  try {
+    // Deduplicate notifications within 10s per customer per type
+    const dedupKey = `${customerId}_${type}`;
+    const nowTs = Date.now();
+    if (lastSentZernioMap.has(dedupKey) && (nowTs - lastSentZernioMap.get(dedupKey) < 5000)) {
+      console.log(`[ZERNIO] Skipping duplicate ${type} message for customer ${customerId}`);
+      return;
+    }
+
+    const { data: customer } = await supabaseAdmin.schema('crm').from('customers').select('full_name, facebook_name').eq('id', customerId).single();
+    if (!customer) return;
+
+    let { data: inquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', customerId);
+    if ((!inquiries || inquiries.length === 0) && customer.facebook_name) {
+      const { data: fbInquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').ilike('prospect_name', customer.facebook_name);
+      if (fbInquiries && fbInquiries.length > 0) inquiries = fbInquiries;
+    }
+    if (!inquiries || inquiries.length === 0) return;
+
+    const inquiryIds = inquiries.map(i => i.id);
+
+    let conversationId = customer.zernio_conversation_id || customer.conversation_id || null;
+
+    if (!conversationId) {
+      const { data: allMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+        .select('metadata')
+        .in('inquiry_id', inquiryIds)
+        .not('metadata', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (allMsgs && allMsgs.length > 0) {
+        for (const m of allMsgs) {
+          const meta = m.metadata;
+          const cid = meta?.message?.conversationId || meta?.conversationId || meta?.raw?.message?.conversationId || meta?.raw?.conversationId;
+          if (cid) {
+            conversationId = cid;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!conversationId) {
+      for (const inq of inquiries) {
+        const cid = inq.metadata?.conversationId || inq.metadata?.message?.conversationId;
+        if (cid) {
+          conversationId = cid;
+          break;
+        }
+      }
+    }
+
+    if (!conversationId) {
+      console.warn(`[ZERNIO] Could not find conversationId for customer ${customerId} (${customer.full_name})`);
+      return;
+    }
+
+    lastSentZernioMap.set(dedupKey, nowTs);
+
+    const zernioApiKey = process.env.ZERNIO_API_KEY;
+    if (!zernioApiKey) {
+      console.warn('[ZERNIO] ZERNIO_API_KEY is not configured on environment');
+      return;
+    }
+
+    let text = '';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    if (type === 'ON_THE_WAY') {
+      const trackLink = `${frontendUrl}/track/${orderId || customerId}`;
+      text = `မင်္ဂလာပါရှင့်။ သင့် အစားအသောက်များ လာပို့နေပါပြီရှင့် 🚚\n\nဒီ Link လေးကနေတစ်ဆင့် Rider ဘယ်ရောက်နေပြီလဲဆိုတာကို Live ကြည့်လို့ရပါတယ်ရှင့် 👇\n${trackLink}`;
+    } else {
+      const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
+      text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ 📦✨\n\n`;
+      if (proofUrl) {
+        if (!proofUrl.startsWith('data:image') && (proofUrl.startsWith('http://') || proofUrl.startsWith('https://'))) {
+          text += `📸 ပို့ဆောင်ပြီးကြောင်း အထောက်အထား (Proof of Delivery Photo):\n${proofUrl}\n\n`;
+        } else {
+          text += `📸 ပို့ဆောင်ပြီးကြောင်း အထောက်အထား (Proof Photo Attached)\n\n`;
+        }
+      }
+      text += `အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက် အကြံပြုလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
+    }
+
+    const quickReplies = [
+      { content_type: 'text', title: '🍱 Meal ရရှိပါပြီ', payload: 'DELIVERY_RECEIVED' },
+      { content_type: 'text', title: '📝 Feedback ပေးရန်', payload: 'COMPLAINT_FEEDBACK' }
+    ];
+
+    // 1. Try standard message send first (valid inside 24h window)
+    const zernioUrl = `https://hub.zernio.com/api/bot/${process.env.ZERNIO_BOT_ID || '6a4cd5599d9472faaea1c251'}/message`;
+    let zRes = await fetch(zernioUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
+      body: JSON.stringify({
+        accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+        message: text,
+        quickReplies,
+        quick_replies: quickReplies
+      })
+    });
+
+    let zResult = null;
+    try { zResult = await zRes.json(); } catch {}
+
+    // 2. Fallback to tagged message send if standard send failed (outside 24h window)
+    if (!zRes.ok || zResult?.error) {
+      zRes = await fetch(zernioUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
+        body: JSON.stringify({
+          accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+          messagingType: 'MESSAGE_TAG',
+          messageTag: 'POST_PURCHASE_UPDATE',
+          message: text
+        })
+      });
+      try { zResult = await zRes.json(); } catch {}
+    }
+
+    const deliveryFailed = !zRes.ok;
+    const deliveryError = deliveryFailed ? (typeof zResult?.error === 'string' ? zResult.error : (zResult?.error?.message || zResult?.message || 'Zernio API Send Failed')) : null;
+
+    if (deliveryFailed) {
+      console.error(`[ZERNIO SEND FAILED] ${zRes.status}:`, zResult || 'Unknown error');
+    } else {
+      console.log(`[ZERNIO] Sent ${type} message & proof photo link to customer ${customerId} (${customer.full_name})`);
+    }
+
+    // Insert locally so UI updates instantly
+    const { data: newMsg } = await supabaseAdmin.schema('crm')
+      .from('inquiries_messages')
+      .insert({
+        inquiry_id: inquiryIds[0],
+        message_text: text,
+        sender_type: 'ai_bot',
+        metadata: { 
+          auto_reply: true, 
+          conversationId, 
+          delivery_alert: true, 
+          proof_url: proofUrl, 
+          imageUrl: proofUrl,
+          delivery_status: deliveryFailed ? 'failed' : 'sent',
+          delivery_error: deliveryError,
+          zernio_failed: deliveryFailed
+        }
+      })
+      .select().single();
+      
+    if (newMsg) emitInquiryMessage(inquiryIds[0], newMsg);
+
+  } catch (err) {
+    console.error('[ZERNIO DELIVERY ERROR]', err.message);
+  }
+}
+
+// ==========================================
+// ORDER STATUS
+// ==========================================
+
+export async function updateOrderStatus(orderId, deliveryStatus, userId) {
+  const now = new Date().toISOString();
+  
+  const updateData = {
+    delivery_status: deliveryStatus,
+    updated_by: userId,
+    updated_at: now
+  };
+  
+  if (deliveryStatus === 'DELIVERED') {
+    updateData.delivered_at = now;
+  }
+  
+  const result = await opsRepo.updateOrderAndReturn(orderId, updateData);
+  
+  if (deliveryStatus === 'DELIVERED' && result) {
+    const orderDetails = await opsRepo.getOrderBOMDetails(orderId);
+      
+    if (orderDetails && orderDetails.operations_daily_menus) {
+      const orderCount = orderDetails.count || 1;
+      const deductions = {}; 
+      
+      orderDetails.operations_daily_menus.operations_menu_types.forEach(mt => {
+        if (mt.operations_menus && mt.operations_menus.operations_recipes) {
+          mt.operations_menus.operations_recipes.forEach(r => {
+            if (r.inventory_item_id && r.quantity) {
+              deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.quantity * orderCount);
+            }
+          });
+        }
+      });
+      
+      await inventoryModule.deductStockForBOM(deductions, orderId, userId);
+    }
+    
+    // TRIGGER ZERNIO DELIVERY ALERT FOR SINGLE ORDER
+    if (result && result.customer_id) {
+      await sendDeliveryZernioMessage(result.customer_id, result.id, 'DELIVERED');
+    }
+  } else if (deliveryStatus === 'ON_THE_WAY' && result && result.customer_id) {
+    await sendDeliveryZernioMessage(result.customer_id, result.id, 'ON_THE_WAY');
+  }
+  
+  return result;
 }

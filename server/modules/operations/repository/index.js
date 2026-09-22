@@ -248,3 +248,42 @@ export async function insertRiderAssignment(insertData) {
     .insert(insertData);
   if (error) throw error;
 }
+
+// ==========================================
+// ORDER STATUS & BOM
+// ==========================================
+
+export async function updateOrderAndReturn(id, updateData) {
+  const clean = Object.fromEntries(
+    Object.entries(updateData).filter(([, v]) => v !== undefined)
+  );
+  const { data: result, error } = await supabase.from('operations_orders').update(clean).eq('id', id).select();
+  if (error) {
+    console.error(`[OPS UPDATE] orders:`, error.message);
+    throw error;
+  }
+  return result?.[0] || null;
+}
+
+export async function getOrderBOMDetails(id) {
+  const { data: orderDetails, error: orderErr } = await supabase
+    .from('operations_orders')
+    .select(`
+      count,
+      operations_daily_menus (
+        operations_menu_types (
+          operations_menus (
+            operations_recipes (inventory_item_id, quantity)
+          )
+        )
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (orderErr) {
+    console.error('[BOM DEDUCTION ERROR] Could not fetch order details:', orderErr);
+    throw new Error('Failed to fetch order details for BOM deduction');
+  }
+  return orderDetails;
+}
