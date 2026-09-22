@@ -766,6 +766,54 @@ export async function completeOnboarding(token, formData) {
   return newCustomer;
 }
 
+export async function enrollPublicCustomer(formData) {
+  let newCustomer = null;
+  const release = await customerCreationMutex.acquire();
+  try {
+    const customer_code = await generateCustomerCode();
+
+    const custObj = {
+      full_name: formData.full_name,
+      facebook_name: formData.facebook_name || null,
+      age: formData.age ? parseInt(formData.age) : null,
+      gender: formData.gender || null,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      address: formData.address || null,
+      delivery_address: formData.delivery_address || null,
+      delivery_notes: formData.delivery_notes || null,
+      customer_code
+    };
+
+    newCustomer = await crmRepo.insertCustomerFallback(custObj);
+  } finally {
+    release();
+  }
+
+  const healthObj = {
+    customer_id: newCustomer.id,
+    current_weight: formData.current_weight ? `${formData.current_weight} kg` : null,
+    goal_weight: formData.goal_weight ? `${formData.goal_weight} kg` : null,
+    height: formData.height ? `${formData.height} cm` : null,
+    time_frame: formData.time_frame || null,
+    medical_condition: formData.medical_condition || 'None',
+    other_condition: formData.other_condition || 'None',
+    medicine_taking: formData.medicine_taking || 'None',
+    special_requests: formData.special_requests || 'None',
+  };
+  await crmRepo.insertCustomerHealth(healthObj);
+
+  const lifestyleObj = {
+    customer_id: newCustomer.id,
+    food_restriction: formData.food_restriction || 'None',
+    activity_level: formData.activity_level || 'Sedentary',
+    fasting_willingness: formData.fasting_willingness || 'No'
+  };
+  await crmRepo.insertCustomerLifestyle(lifestyleObj);
+
+  return newCustomer;
+}
+
 export async function logCustomerWeight(customerId, currentWeightKg) {
   const existingHealth = await crmRepo.getCustomerHealth(customerId);
   const newWeightStr = `${currentWeightKg} kg`;

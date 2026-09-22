@@ -60,6 +60,9 @@ export const crmModule = {
   },
   async submitCustomerMonthlyReview(customerId, reviewData) {
     return crmService.submitCustomerMonthlyReview(customerId, reviewData);
+  },
+  async enrollPublicCustomer(formData) {
+    return crmService.enrollPublicCustomer(formData);
   }
 };
 

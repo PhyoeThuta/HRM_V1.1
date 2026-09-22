@@ -4,24 +4,6 @@ import { supabaseAdmin } from '../lib/supabase.js';
 
 const router = express.Router();
 
-// Simple Mutex to prevent duplicate customer codes during concurrent enrollments
-class Mutex {
-  constructor() { this._queue = []; this._locked = false; }
-  async acquire() {
-    return new Promise(resolve => {
-      this._queue.push(resolve);
-      this._dispatch();
-    });
-  }
-  _dispatch() {
-    if (this._locked || this._queue.length === 0) return;
-    this._locked = true;
-    const resolve = this._queue.shift();
-    resolve(() => { this._locked = false; this._dispatch(); });
-  }
-}
-const enrollMutex = new Mutex();
-
 // LRU Cache for Geocoding requests to prevent rate-limiting and redundant external calls
 const geocodeCache = new Map();
 const GEOCODE_CACHE_TTL = 1000 * 60 * 60; // 1 hour TTL
@@ -234,25 +216,6 @@ router.post('/upload-spot-photo', async (req, res) => {
     res.status(500).json({ error: 'Failed to process photo upload' });
   }
 });
-
-// Helper: generate customer code
-async function generateCustomerCode() {
-  const { data } = await supabaseAdmin
-    .schema('crm')
-    .from('customers')
-    .select('customer_code')
-    .order('id', { ascending: false })
-    .limit(1);
-    
-  let num = 1;
-  if (data && data.length > 0 && data[0].customer_code) {
-    const match = data[0].customer_code.match(/\d+$/);
-    if (match) {
-      num = parseInt(match[0], 10) + 1;
-    }
-  }
-  return `BBD-${String(num).padStart(3, '0')}`;
-}
 
 // GET /api/enroll/update-address/:customerId - Fetch customer basic info for public update address form
 router.get('/update-address/:customerId', async (req, res) => {

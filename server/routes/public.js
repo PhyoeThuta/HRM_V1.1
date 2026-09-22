@@ -130,63 +130,14 @@ router.post('/apply', upload.single('resume'), async (req, res) => {
   }
 });
 
-// Helper for generating code
-async function generateCustomerCode() {
-  const { data } = await supabaseAdmin
-    .schema('crm')
-    .from('customers')
-    .select('customer_code')
-    .order('id', { ascending: false })
-    .limit(1);
-    
-  let num = 1;
-  if (data && data.length > 0 && data[0].customer_code) {
-    const match = data[0].customer_code.match(/\d+$/);
-    if (match) {
-      num = parseInt(match[0], 10) + 1;
-    }
-  }
-  return `BBD-${String(num).padStart(3, '0')}`;
-}
-
 // POST /api/public/crm/enroll
 router.post('/crm/enroll', async (req, res) => {
   try {
-    const {
-      full_name, facebook_name, age, gender, email, phone, address, delivery_address, delivery_notes,
-      food_restriction, activity_level, fasting_willingness,
-      current_weight, goal_weight, height, time_frame,
-      medical_condition, other_condition, medicine_taking, special_requests
-    } = req.body;
+    const { full_name, phone } = req.body;
 
     if (!full_name || !phone) return res.status(400).json({ error: 'Name and phone are required' });
 
-    const customer_code = await generateCustomerCode();
-
-    const { data: customer, error: custErr } = await supabaseAdmin.schema('crm').from('customers')
-      .insert({ full_name, facebook_name, age: age ? parseInt(age) : null, gender, email, phone, address, delivery_address, delivery_notes, customer_code })
-      .select().single();
-
-    if (custErr) throw custErr;
-
-    await supabaseAdmin.schema('crm').from('customer_health').insert({
-      customer_id: customer.id,
-      current_weight: current_weight ? `${current_weight} kg` : null,
-      goal_weight: goal_weight ? `${goal_weight} kg` : null,
-      height: height ? `${height} cm` : null,
-      time_frame,
-      medical_condition: medical_condition || 'None',
-      other_condition: other_condition || 'None',
-      medicine_taking: medicine_taking || 'None',
-      special_requests: special_requests || 'None',
-    });
-
-    await supabaseAdmin.schema('crm').from('customer_lifestyle').insert({
-      customer_id: customer.id,
-      food_restriction: food_restriction || 'None',
-      activity_level: activity_level || 'Sedentary',
-      fasting_willingness: fasting_willingness || 'No',
-    });
+    const customer = await crmModule.enrollPublicCustomer(req.body);
 
     const notiMsg = `New customer enrollment via Messenger: ${full_name} (${phone})`;
     await dbInsert('system_notifications', {
