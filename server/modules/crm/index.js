@@ -102,6 +102,9 @@ export const crmModule = {
   },
   async submitPublicFeedback(payload) {
     return crmService.submitPublicFeedback(payload);
+  },
+  async submitMenuFeedback(payload) {
+    return crmService.submitMenuFeedback(payload);
   }
 };
 

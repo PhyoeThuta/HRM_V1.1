@@ -1126,3 +1126,13 @@ export async function submitPublicFeedback(payload) {
   const result = await crmRepo.processPublicFeedback(parsedCustomerId, finalRating, commentText);
   return { ...result, finalRating };
 }
+
+export async function submitMenuFeedback(payload) {
+  const { customerId, weekName, ratingsJson, bestPick, worstPick, comment } = payload;
+  const parsedCustomerId = parseInt(customerId);
+  const finalBestPick = bestPick || null;
+  const finalWorstPick = worstPick || null;
+  const finalComment = comment || null;
+
+  return crmRepo.processMenuFeedback(parsedCustomerId, weekName, ratingsJson, finalBestPick, finalWorstPick, finalComment);
+}

@@ -220,22 +220,16 @@ router.post('/crm/menu-feedback', async (req, res) => {
     
     if (!customer_id || !week_name) return res.status(400).json({ error: 'Missing customer or week info' });
 
-    const { data, error } = await supabaseAdmin.from('crm_menu_feedbacks')
-      .insert({
-        customer_id: parseInt(customer_id),
-        week_name,
-        ratings_json,
-        best_pick: best_pick || null,
-        worst_pick: worst_pick || null,
-        comment: comment || null
-      })
-      .select().single();
-      
-    if (error) throw error;
+    const { feedback: data, customerName: custName } = await crmModule.submitMenuFeedback({
+      customerId: customer_id,
+      weekName: week_name,
+      ratingsJson: ratings_json,
+      bestPick: best_pick,
+      worstPick: worst_pick,
+      comment
+    });
     
     // Notify boss
-    const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
-    const custName = cust ? cust.full_name : 'Customer';
     
     await dbInsert('system_notifications', {
       recipient_role: 'boss',

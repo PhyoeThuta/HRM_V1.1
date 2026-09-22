@@ -669,3 +669,23 @@ export async function processPublicFeedback(customerId, finalRating, comment) {
 
   return { feedback, customerName };
 }
+
+export async function processMenuFeedback(customerId, weekName, ratingsJson, bestPick, worstPick, comment) {
+  const { data: feedback, error } = await supabaseAdmin.from('crm_menu_feedbacks')
+    .insert({
+      customer_id: customerId,
+      week_name: weekName,
+      ratings_json: ratingsJson,
+      best_pick: bestPick,
+      worst_pick: worstPick,
+      comment: comment
+    })
+    .select().single();
+      
+  if (error) throw error;
+  
+  const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customerId).single();
+  const customerName = cust ? cust.full_name : 'Customer';
+
+  return { feedback, customerName };
+}
