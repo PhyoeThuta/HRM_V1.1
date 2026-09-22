@@ -180,3 +180,42 @@ export async function deleteMenuTypesByDailyMenuId(dailyMenuId) {
   const { error } = await supabase.from('operations_menu_types').delete().eq('daily_menus_id', dailyMenuId);
   if (error) throw error;
 }
+
+// ==========================================
+// AUTO-GENERATE ORDERS SPECIFIC
+// ==========================================
+
+export async function getDailyMenusByDate(date) {
+  const { data, error } = await supabase.from('operations_daily_menus').select('*').eq('date', date);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getMenuPlansByDate(date) {
+  const { data, error } = await supabase.from('operations_menu_plans').select('*').eq('date', date);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getCatalogMenusLimitTwo() {
+  const { data, error } = await supabase.from('operations_menus').select('id').limit(2);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createDailyMenusBulk(menus) {
+  const { data, error } = await supabase.from('operations_daily_menus').insert(menus).select();
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getOrdersSummaryByDate(date) {
+  const { data, error } = await supabase.from('operations_orders').select('customer_id, daily_menu_id').eq('date', date);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function bulkInsertOrders(orders) {
+  const { error } = await supabase.from('operations_orders').insert(orders);
+  if (error) throw error;
+}

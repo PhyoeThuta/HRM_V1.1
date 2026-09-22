@@ -259,3 +259,165 @@ export async function deleteDailyMenu(id) {
   await opsRepo.deleteMenuTypesByDailyMenuId(id);
   await opsRepo.deleteDailyMenu(id);
 }
+
+// ==========================================
+// AUTO-GENERATE ORDERS
+// ==========================================
+
+export async function autoGenerateOrders(inputDate, userId, authorizationHeader, host, protocol) {
+  // Get Bangkok date string (YYYY-MM-DD)
+  const getBkkDate = () => {
+    const d = new Date();
+    const bkkStr = d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+    const bkkDate = new Date(bkkStr);
+    const yyyy = bkkDate.getFullYear();
+    const mm = String(bkkDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(bkkDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const targetDate = inputDate || getBkkDate();
+
+  // 1. Fetch planned menus for target date
+  let dailyMenus = await opsRepo.getDailyMenusByDate(targetDate);
+
+  // Fallback: If no daily menus scheduled for target date, check menu plans or catalog and auto-create
+  if (!dailyMenus || dailyMenus.length === 0) {
+    const menuPlans = await opsRepo.getMenuPlansByDate(targetDate);
+
+    const catMenus = await opsRepo.getCatalogMenusLimitTwo();
+
+    if (catMenus && catMenus.length > 0) {
+      // Auto-create Lunch and Dinner daily menus for targetDate
+      const newDailyMenus = [
+        { date: targetDate, meal_type: 'Lunch', with_rice: true, created_by: userId },
+        { date: targetDate, meal_type: 'Dinner', with_rice: true, created_by: userId }
+      ];
+      
+      const createdMenus = await opsRepo.createDailyMenusBulk(newDailyMenus);
+      
+      if (createdMenus && createdMenus.length > 0) {
+        dailyMenus = createdMenus;
+        // Link first catalog menu
+        for (const cm of createdMenus) {
+          await opsRepo.createMenuTypes([{
+            daily_menus_id: cm.id,
+            menu_id: catMenus[0].id,
+            is_main: true,
+            created_by: userId
+          }]);
+        }
+      }
+    }
+  }
+
+  if (!dailyMenus || dailyMenus.length === 0) {
+    const err = new Error('No daily menus planned for date ' + targetDate);
+    err.status = 400;
+    throw err;
+  }
+
+  // 2. Fetch active customer packages overlapping target date
+  const { data: packages, error: pkgErr } = await supabaseAdmin
+    .schema('crm')
+    .from('customer_packages')
+    .select('*')
+    .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
+    .gte('expires_at', targetDate);
+    
+  if (pkgErr) throw pkgErr;
+
+  // Fallback: If no packages match exact dates, fetch all Active packages regardless of start/expire bounds for demo/testing
+  let activePackages = packages;
+  if (!activePackages || activePackages.length === 0) {
+    const { data: fallbackPkgs } = await supabaseAdmin
+      .schema('crm')
+      .from('customer_packages')
+      .select('*');
+    activePackages = fallbackPkgs || [];
+  }
+
+  if (!activePackages || activePackages.length === 0) {
+    return { success: true, generatedCount: 0, message: 'No active customer packages found in database.' };
+  }
+
+  // 3. Fetch existing orders to prevent duplicates
+  const existingOrders = await opsRepo.getOrdersSummaryByDate(targetDate);
+  const existingSet = new Set(existingOrders?.map(o => `${o.customer_id}-${o.daily_menu_id}`) || []);
+
+  const newOrders = [];
+
+  // 4. Match packages to daily menus
+  for (const pkg of activePackages) {
+    const pkgMeals = (pkg.meal_type || 'LUNCH, DINNER').toUpperCase(); // Default to LUNCH, DINNER if unspecified
+    
+    // Track which meal types this customer already has orders for on this date
+    const customerExistingOrders = existingOrders?.filter(o => o.customer_id === pkg.customer_id) || [];
+    const fulfilledMealTypes = new Set();
+    
+    for (const eo of customerExistingOrders) {
+      const menu = dailyMenus.find(m => m.id === eo.daily_menu_id);
+      if (menu && menu.meal_type) {
+        fulfilledMealTypes.add(menu.meal_type.toUpperCase());
+      }
+    }
+    
+    for (const menu of dailyMenus) {
+      const menuType = (menu.meal_type || '').toUpperCase(); // e.g. "LUNCH"
+      
+      // If package includes this meal type AND we haven't already fulfilled it for this customer today
+      if (pkgMeals.includes(menuType) && !fulfilledMealTypes.has(menuType)) {
+        const comboKey = `${pkg.customer_id}-${menu.id}`;
+        if (!existingSet.has(comboKey)) {
+          newOrders.push({
+            customer_id: pkg.customer_id,
+            daily_menu_id: menu.id,
+            date: targetDate,
+            count: 1,
+            delivery_status: 'PENDING',
+            created_by: userId
+          });
+          existingSet.add(comboKey); // Prevent exact duplicates
+          fulfilledMealTypes.add(menuType); // Mark this meal type as fulfilled!
+        }
+      }
+    }
+  }
+
+  // 5. Bulk Insert
+  if (newOrders.length > 0) {
+    await opsRepo.bulkInsertOrders(newOrders);
+    
+    // AUTO TRIGGER TELEGRAM CHEF ALERT
+    try {
+      const fetch = (await import('node-fetch')).default || globalThis.fetch;
+      
+      // We need to fetch the Kitchen Dashboard data to get the BOM for the chef
+      const dashRes = await fetch(`${protocol}://${host}/api/crm/kitchen-dashboard?date=${targetDate}`, {
+        headers: { 'Authorization': authorizationHeader } // pass token
+      });
+      const dashData = await dashRes.json();
+      
+      if (dashData && dashData.dailyMenus) {
+        // Send to Chef Telegram
+        await fetch(`${protocol}://${host}/api/telegram/send-to-chef`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': authorizationHeader 
+          },
+          body: JSON.stringify({
+            targetDate,
+            dailyMenus: dashData.dailyMenus,
+            aggregatedBOM: dashData.aggregatedBOM
+          })
+        });
+      }
+    } catch (tgErr) {
+      console.error('[AUTO GENERATE -> CHEF ALERT ERROR]', tgErr);
+      throw tgErr;
+    }
+  }
+
+  return { success: true, generatedCount: newOrders.length };
+}

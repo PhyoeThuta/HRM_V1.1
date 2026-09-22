@@ -275,3 +275,25 @@ export async function deleteDailyMenu(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+// ==========================================
+// AUTO-GENERATE ORDERS
+// ==========================================
+
+export async function autoGenerateOrders(req, res) {
+  try {
+    const date = req.body.date;
+    const userId = req.user.id;
+    const authorizationHeader = req.headers.authorization;
+    const host = req.get('host');
+    const protocol = req.protocol || 'http';
+    
+    const result = await opsService.autoGenerateOrders(date, userId, authorizationHeader, host, protocol);
+    return res.json(result);
+  } catch (e) {
+    if (e.status === 400) {
+      return res.status(400).json({ error: e.message });
+    }
+    return res.status(500).json({ error: e.message });
+  }
+}
