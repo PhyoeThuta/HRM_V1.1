@@ -346,3 +346,16 @@ export async function updateOrderStatus(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+export async function updateRiderStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status, proof_of_delivery_url } = req.body;
+    
+    const result = await opsService.updateRiderStatus(id, status, proof_of_delivery_url, req.user.id);
+    return res.json(result);
+  } catch (e) {
+    console.error('[Rider Status Error]:', e);
+    return res.status(500).json({ error: e.message || e });
+  }
+}

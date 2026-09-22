@@ -287,3 +287,59 @@ export async function getOrderBOMDetails(id) {
   }
   return orderDetails;
 }
+
+// ==========================================
+// RIDER STATUS METHODS
+// ==========================================
+
+export async function updateRiderAssignmentWithFallback(orderId, assignmentUpdate) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('operations_rider_assignments')
+      .update(assignmentUpdate)
+      .eq('order_id', orderId);
+    if (error) throw error;
+  } catch (err) {
+    if (assignmentUpdate.proof_of_delivery_url) {
+      delete assignmentUpdate.proof_of_delivery_url;
+      const { error } = await supabaseAdmin
+        .from('operations_rider_assignments')
+        .update(assignmentUpdate)
+        .eq('order_id', orderId);
+      if (error) throw error;
+    } else {
+      throw err;
+    }
+  }
+}
+
+export async function updateOrderDeliveryStatus(orderId, orderUpdate) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('operations_orders')
+      .update(orderUpdate)
+      .eq('id', orderId);
+    if (error) throw error;
+  } catch (err) {
+    if (orderUpdate.proof_of_delivery_url) {
+      delete orderUpdate.proof_of_delivery_url;
+      const { error } = await supabaseAdmin
+        .from('operations_orders')
+        .update(orderUpdate)
+        .eq('id', orderId);
+      if (error) throw error;
+    } else {
+      throw err;
+    }
+  }
+}
+
+export async function getOrderCustomerId(orderId) {
+  const { data, error } = await supabaseAdmin
+    .from('operations_orders')
+    .select('customer_id')
+    .eq('id', orderId)
+    .single();
+  if (error) throw error;
+  return data;
+}

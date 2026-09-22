@@ -1,7 +1,7 @@
 import * as opsRepo from '../repository/index.js';
 import { inventoryModule } from '../../inventory/index.js';
 import { supabase, supabaseAdmin } from '../../../lib/supabase.js';
-import { emitInquiryMessage } from '../../../lib/crmRealtime.js';
+import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
 
 // ==========================================
 // MENUS
@@ -655,6 +655,69 @@ export async function sendDeliveryZernioMessage(customerId, orderId, type = 'DEL
   } catch (err) {
     console.error('[ZERNIO DELIVERY ERROR]', err.message);
   }
+}
+
+// ==========================================
+// RIDER STATUS
+// ==========================================
+
+export async function updateRiderStatus(id, status, proofUrl, userId) {
+  const now = new Date().toISOString();
+
+  const assignmentUpdate = { status, updated_at: now };
+  if (status === 'ON_THE_WAY') assignmentUpdate.picked_up_at = now;
+  if (proofUrl) assignmentUpdate.proof_of_delivery_url = proofUrl;
+
+  await opsRepo.updateRiderAssignmentWithFallback(id, assignmentUpdate);
+
+  let delivery_status = 'PENDING';
+  if (status === 'ON_THE_WAY') delivery_status = 'ON_THE_WAY';
+  else if (status === 'DELIVERED') delivery_status = 'DELIVERED';
+
+  const orderUpdate = { delivery_status, updated_by: userId, updated_at: now };
+  if (status === 'DELIVERED') {
+    orderUpdate.delivered_at = now;
+    if (proofUrl) orderUpdate.proof_of_delivery_url = proofUrl;
+  }
+  
+  await opsRepo.updateOrderDeliveryStatus(id, orderUpdate);
+
+  const order = await opsRepo.getOrderCustomerId(id);
+  
+  if (proofUrl && order?.customer_id) {
+    try {
+      await supabaseAdmin.schema('crm').from('customers')
+        .update({ delivery_spot_photo_url: proofUrl })
+        .eq('id', order.customer_id);
+    } catch (e) {
+      console.warn('[UPDATE_CUST_SPOT_PHOTO_WARN]', e.message);
+    }
+
+    try {
+      const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
+        .select('delivery_notes').eq('id', order.customer_id).single();
+      let currentNotes = cust?.delivery_notes || '';
+      if (!currentNotes.includes(proofUrl)) {
+        const photoTag = `📸 POD: ${proofUrl}`;
+        const newNotes = currentNotes ? `${currentNotes} | ${photoTag}` : photoTag;
+        await supabaseAdmin.schema('crm').from('customers')
+          .update({ delivery_notes: newNotes })
+          .eq('id', order.customer_id);
+      }
+    } catch (e) {
+      console.warn('[UPDATE_CUST_NOTES_WARN]', e.message);
+    }
+  }
+
+  emitOrderStatusUpdate(id, delivery_status, userId);
+
+  if (status === 'ON_THE_WAY' || status === 'DELIVERED') {
+    if (order?.customer_id) {
+      sendDeliveryZernioMessage(order.customer_id, id, status, proofUrl).catch(e => console.error('[Rider Status Zernio]', e));
+    }
+  }
+  
+  return { success: true };
 }
 
 // ==========================================
