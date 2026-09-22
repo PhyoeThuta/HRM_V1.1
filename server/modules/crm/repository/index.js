@@ -656,3 +656,16 @@ export async function processReferral(referrerCustomerId, referredName, referred
 
   return { inquiry, referrerName };
 }
+
+export async function processPublicFeedback(customerId, finalRating, comment) {
+  const { data: feedback, error } = await supabaseAdmin.schema('crm').from('feedbacks')
+    .insert({ customer_id: customerId, rating: finalRating, comment: comment })
+    .select().single();
+      
+  if (error) throw error;
+  
+  const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customerId).single();
+  const customerName = cust ? cust.full_name : 'Customer';
+
+  return { feedback, customerName };
+}

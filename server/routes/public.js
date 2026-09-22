@@ -169,18 +169,13 @@ router.post('/crm/feedback', async (req, res) => {
     
     if (!customer_id) return res.status(400).json({ error: 'Missing customer ID' });
 
-    const finalRating = rating !== null && rating !== undefined ? parseInt(rating) : null;
-
-    const { data, error } = await supabaseAdmin.schema('crm').from('feedbacks')
-      .insert({ customer_id: parseInt(customer_id), rating: finalRating, comment: comment || '' })
-      .select().single();
-      
-    if (error) throw error;
+    const { feedback: data, customerName: custName, finalRating } = await crmModule.submitPublicFeedback({
+      customerId: customer_id,
+      rating,
+      comment
+    });
     
     // Notify boss
-    const { data: cust } = await supabaseAdmin.schema('crm').from('customers').select('full_name').eq('id', customer_id).single();
-    const custName = cust ? cust.full_name : 'Customer';
-    
     const notiMsg = finalRating !== null 
       ? `${custName} submitted a ${finalRating}-star feedback.` 
       : `${custName} submitted a new request or complaint.`;

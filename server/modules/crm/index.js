@@ -99,6 +99,9 @@ export const crmModule = {
   },
   async submitReferral(payload) {
     return crmService.submitReferral(payload);
+  },
+  async submitPublicFeedback(payload) {
+    return crmService.submitPublicFeedback(payload);
   }
 };
 

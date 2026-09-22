@@ -1116,3 +1116,13 @@ export async function submitReferral(payload) {
   const { referrerCustomerId, referredName, referredPhone, note } = payload;
   return crmRepo.processReferral(referrerCustomerId, referredName, referredPhone, note);
 }
+
+export async function submitPublicFeedback(payload) {
+  const { customerId, rating, comment } = payload;
+  const parsedCustomerId = parseInt(customerId);
+  const finalRating = rating !== null && rating !== undefined ? parseInt(rating) : null;
+  const commentText = comment || '';
+
+  const result = await crmRepo.processPublicFeedback(parsedCustomerId, finalRating, commentText);
+  return { ...result, finalRating };
+}
