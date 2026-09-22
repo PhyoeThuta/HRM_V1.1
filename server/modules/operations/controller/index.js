@@ -177,3 +177,101 @@ export async function createSkipDay(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+// ==========================================
+// RIDERS
+// ==========================================
+
+export async function getRiders(req, res) {
+  try {
+    const data = await opsService.getActiveRiders();
+    return res.json(data);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ==========================================
+// ORDERS (Basic CRUD)
+// ==========================================
+
+export async function getOrders(req, res) {
+  try {
+    const enriched = await opsService.getEnrichedOrders(req.user);
+    return res.json(enriched);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+export async function createOrder(req, res) {
+  try {
+    const result = await opsService.createOrder(req.body, req.user.id);
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+export async function updateOrder(req, res) {
+  try {
+    const { custom_delivery_address } = req.body;
+    const result = await opsService.updateOrderCustomAddress(req.params.id, custom_delivery_address, req.user.id);
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+export async function deleteOrder(req, res) {
+  try {
+    await opsService.deleteOrder(req.params.id);
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ==========================================
+// DAILY MENUS
+// ==========================================
+
+export async function getDailyMenus(req, res) {
+  try {
+    const enriched = await opsService.getEnrichedDailyMenus();
+    return res.json(enriched);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+export async function createDailyMenu(req, res) {
+  try {
+    const { date, meal_type, with_rice, menu_types } = req.body;
+    const result = await opsService.createDailyMenu({ date, meal_type, with_rice }, menu_types, req.user.id);
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+export async function updateDailyMenu(req, res) {
+  try {
+    const { id } = req.params;
+    const { date, meal_type, with_rice, menu_types } = req.body;
+    const dailyMenu = await opsService.updateDailyMenu(id, { date, meal_type, with_rice }, menu_types, req.user.id);
+    return res.json({ success: true, dailyMenu });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+export async function deleteDailyMenu(req, res) {
+  try {
+    const { id } = req.params;
+    await opsService.deleteDailyMenu(id);
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}

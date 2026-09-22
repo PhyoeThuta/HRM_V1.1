@@ -79,3 +79,104 @@ export async function createSkipDay(data) {
   if (error) throw error;
   return result;
 }
+
+// ==========================================
+// ORDERS (Basic CRUD)
+// ==========================================
+
+export async function createOrder(data) {
+  const { data: result, error } = await supabase.from('operations_orders').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function updateOrderCustomAddress(id, data) {
+  // Uses supabaseAdmin as per legacy route behavior
+  const { data: result, error } = await supabaseAdmin.from('operations_orders').update(data).eq('id', id).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function deleteOrder(id) {
+  const { error } = await supabase.from('operations_orders').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function getAllOrders() {
+  const { data, error } = await supabase.from('operations_orders').select('*').order('date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getOrdersByIds(ids) {
+  if (!ids || ids.length === 0) return [];
+  const { data, error } = await supabase.from('operations_orders').select('*').in('id', ids).order('date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getRiderAssignmentsByRiderId(riderId) {
+  const { data, error } = await supabase.from('operations_rider_assignments').select('order_id, status, picked_up_at').eq('rider_id', riderId);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getRiderAssignmentsByOrderIds(orderIds) {
+  if (!orderIds || orderIds.length === 0) return [];
+  const { data, error } = await supabase.from('operations_rider_assignments').select('order_id, rider_id, status').in('order_id', orderIds);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getAllDailyMenusWithoutLimit() {
+  const { data, error } = await supabase.from('operations_daily_menus').select('*');
+  if (error) throw error;
+  return data || [];
+}
+
+// ==========================================
+// DAILY MENUS & MENU TYPES
+// ==========================================
+
+export async function getRecentDailyMenus() {
+  const { data, error } = await supabase
+    .from('operations_daily_menus')
+    .select('*')
+    .order('date', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return data;
+}
+
+export async function getAllMenuTypes() {
+  const { data, error } = await supabase.from('operations_menu_types').select('*');
+  if (error) throw error;
+  return data;
+}
+
+export async function createDailyMenu(data) {
+  const { data: result, error } = await supabase.from('operations_daily_menus').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function updateDailyMenu(id, data) {
+  const { data: result, error } = await supabase.from('operations_daily_menus').update(data).eq('id', id).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function deleteDailyMenu(id) {
+  const { error } = await supabase.from('operations_daily_menus').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function createMenuTypes(typesToInsert) {
+  const { error } = await supabase.from('operations_menu_types').insert(typesToInsert);
+  if (error) throw error;
+}
+
+export async function deleteMenuTypesByDailyMenuId(dailyMenuId) {
+  const { error } = await supabase.from('operations_menu_types').delete().eq('daily_menus_id', dailyMenuId);
+  if (error) throw error;
+}

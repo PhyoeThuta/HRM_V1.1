@@ -254,227 +254,19 @@ router.delete('/recipes/:id', opsController.deleteRecipe);
 // DAILY MENUS & MENU TYPES
 // ==========================================
 
-router.get('/daily-menus', async (req, res) => {
-  try {
-    const { data: dailyMenus, error } = await supabase
-      .from('operations_daily_menus')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(30);
-    
-    if (error) throw error;
-
-    const { data: menuTypes } = await supabase.from('operations_menu_types').select('*');
-    const { data: menus } = await supabase.from('operations_menus').select('*');
-
-    const enriched = dailyMenus.map(dm => {
-      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
-      const enrichedTypes = types.map(mt => ({
-        ...mt,
-        menus: menus?.find(m => m.id === mt.menu_id) || null
-      }));
-      return { ...dm, menu_types: enrichedTypes };
-    });
-
-    return res.json(enriched);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/daily-menus', async (req, res) => {
-  try {
-    const { date, meal_type, with_rice, menu_types } = req.body;
-    
-    const dailyMenu = await opsInsert('daily_menus', {
-      date, meal_type, with_rice, created_by: req.user.id
-    });
-    
-    if (menu_types && menu_types.length > 0) {
-      const typesToInsert = menu_types.map(mt => ({
-        daily_menus_id: dailyMenu.id,
-        menu_id: mt.menu_id,
-        is_main: mt.is_main || false,
-        created_by: req.user.id
-      }));
-      await supabase.from('operations_menu_types').insert(typesToInsert);
-    }
-    
-    return res.json(dailyMenu);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.put('/daily-menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { date, meal_type, with_rice, menu_types } = req.body;
-    
-    // Update daily menu
-    const dailyMenu = await opsUpdate('daily_menus', id, {
-      date, meal_type, with_rice, updated_by: req.user.id, updated_at: new Date().toISOString()
-    });
-    
-    if (menu_types) {
-      // Clear existing menu types for this daily menu
-      await supabase.from('operations_menu_types').delete().eq('daily_menus_id', id);
-      
-      if (menu_types.length > 0) {
-        const typesToInsert = menu_types.map(mt => ({
-          daily_menus_id: id,
-          menu_id: mt.menu_id,
-          is_main: mt.is_main || false,
-          created_by: req.user.id
-        }));
-        await supabase.from('operations_menu_types').insert(typesToInsert);
-      }
-    }
-    
-    return res.json({ success: true, dailyMenu });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/daily-menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    // Delete menu types first (unless there is cascade delete, but it's safer to delete here)
-    await supabase.from('operations_menu_types').delete().eq('daily_menus_id', id);
-    // Delete the daily menu
-    await opsDelete('daily_menus', id);
-    
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/daily-menus', opsController.getDailyMenus);
+router.post('/daily-menus', opsController.createDailyMenu);
+router.put('/daily-menus/:id', opsController.updateDailyMenu);
+router.delete('/daily-menus/:id', opsController.deleteDailyMenu);
 
 // ==========================================
 // ORDERS
 // ==========================================
 
-router.get('/orders', async (req, res) => {
-  try {
-    const isRider = req.user.role === 'rider';
-
-    let orders = [];
-
-    if (isRider) {
-      // ── RIDER VIEW: only show orders assigned to this rider ──
-      const { data: assignments, error: aErr } = await supabase
-        .from('operations_rider_assignments')
-        .select('order_id, status, picked_up_at')
-        .eq('rider_id', req.user.id);
-
-      if (aErr) throw aErr;
-      if (!assignments || assignments.length === 0) return res.json([]);
-
-      const assignedOrderIds = assignments.map(a => a.order_id);
-      const assignmentsMap = Object.fromEntries(assignments.map(a => [a.order_id, a]));
-
-      const { data: fetchedOrders, error } = await supabase
-        .from('operations_orders')
-        .select('*')
-        .in('id', assignedOrderIds)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      orders = fetchedOrders || [];
-
-      const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
-      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
-      let customersMap = {};
-      if (customerIds.length > 0) {
-        try {
-          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-            .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
-            .in('id', customerIds);
-          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
-        } catch (e) {
-          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-            .select('id, full_name, phone, delivery_address, delivery_notes')
-            .in('id', customerIds);
-          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
-        }
-      }
-
-      const enriched = orders.map(o => ({
-        ...o,
-        daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
-        customer: customersMap[o.customer_id] || { full_name: 'Unknown' },
-        rider_id: assignmentsMap[o.id]?.rider_id || req.user.id,
-        rider_status: o.delivery_status === 'DELIVERED' ? 'DELIVERED' : (assignmentsMap[o.id]?.status || 'ASSIGNED'),
-      }));
-
-      return res.json(enriched);
-
-    } else {
-      // ── ADMIN VIEW: all orders + include assignment info ──
-      const { data: fetchedOrders, error } = await supabase
-        .from('operations_orders')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      orders = fetchedOrders || [];
-
-      // Fetch all assignments for these orders
-      const orderIds = orders.map(o => o.id);
-      let assignmentsMap = {};
-      if (orderIds.length > 0) {
-        const { data: assignments } = await supabase
-          .from('operations_rider_assignments')
-          .select('order_id, rider_id, status')
-          .in('order_id', orderIds);
-        if (assignments) assignmentsMap = Object.fromEntries(assignments.map(a => [a.order_id, a]));
-      }
-
-      const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
-      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
-      let customersMap = {};
-      if (customerIds.length > 0) {
-        try {
-          const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers')
-            .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
-            .in('id', customerIds);
-          if (cErr) throw cErr;
-          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
-        } catch (e) {
-          const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-            .select('id, full_name, phone, delivery_address, delivery_notes')
-            .in('id', customerIds);
-          if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
-        }
-      }
-
-      const enriched = orders.map(o => ({
-        ...o,
-        daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
-        customer: customersMap[o.customer_id] || { full_name: 'Unknown (Please restart backend server)' },
-        rider_id: assignmentsMap[o.id]?.rider_id || null,
-        rider_status: assignmentsMap[o.id]?.status || null,
-      }));
-
-      return res.json(enriched);
-    }
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/orders', opsController.getOrders);
 
 
-router.post('/orders', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('orders', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/orders', opsController.createOrder);
 
 router.post('/orders/auto-generate', async (req, res) => {
   try {
@@ -864,22 +656,7 @@ async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED'
   }
 }
 
-router.put('/orders/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { custom_delivery_address } = req.body;
-    const { data, error } = await supabaseAdmin.from('operations_orders')
-      .update({ custom_delivery_address, updated_by: req.user.id, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/orders/:id', opsController.updateOrder);
 
 router.put('/orders/batch-status', async (req, res) => {
   try {
@@ -1003,15 +780,7 @@ router.put('/orders/batch-status', async (req, res) => {
   }
 });
 
-router.delete('/orders/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await opsDelete('orders', id);
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/orders/:id', opsController.deleteOrder);
 
 router.put('/orders/:id/status', async (req, res) => {
   try {
@@ -1087,20 +856,7 @@ router.put('/orders/:id/status', async (req, res) => {
 // RIDERS (for admin assignment dropdown)
 // ==========================================
 
-router.get('/riders', async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('sys_users')
-      .select('id, full_name, username')
-      .eq('role', 'rider')
-      .eq('is_active', true)
-      .order('full_name');
-    if (error) throw error;
-    return res.json(data || []);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/riders', opsController.getRiders);
 
 // Admin assigns order to a rider
 router.put('/orders/:id/assign', async (req, res) => {
