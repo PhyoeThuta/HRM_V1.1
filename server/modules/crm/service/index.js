@@ -829,6 +829,24 @@ export async function findInquiriesByName(customerId, facebookName) {
   return crmRepo.getInquiryIdsByCustomerOrFacebook(customerId, facebookName);
 }
 
+export async function getChefMessengerConversationIds() {
+  const conversationIds = new Set();
+  try {
+    const chefInquiries = await crmRepo.getChefInquiries();
+    if (chefInquiries && chefInquiries.length > 0) {
+      const inqIds = chefInquiries.map(i => i.id);
+      const msgs = await crmRepo.getInquiryMessagesMetadata(inqIds);
+      (msgs || []).forEach(m => {
+        const cid = m.metadata?.conversationId || m.metadata?.message?.conversationId;
+        if (cid) conversationIds.add(cid);
+      });
+    }
+  } catch (err) {
+    console.warn('[CRM SERVICE] Chef messenger lookup soft-fail:', err.message);
+  }
+  return Array.from(conversationIds);
+}
+
 export async function getActiveCustomerPackage(customerId) {
   return crmRepo.getActiveCustomerPackage(customerId);
 }

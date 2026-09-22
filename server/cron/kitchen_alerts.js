@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { inventoryModule } from '../modules/inventory/index.js';
+import { crmModule } from '../modules/crm/index.js';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHEF_CHAT_ID = process.env.CHEF_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
@@ -71,24 +72,8 @@ async function sendMessengerKitchenBroadcast(messageText) {
 
     // Source 2: Auto-discover from crm.inquiries where prospect is Phyoe Thuta or tagged chef
     try {
-      const { data: chefInquiries } = await supabaseAdmin.schema('crm')
-        .from('inquiries')
-        .select('id, prospect_name')
-        .or('prospect_name.ilike.%Phyoe Thuta%,prospect_name.ilike.%chef%,notes.ilike.%chef%');
-
-      if (chefInquiries && chefInquiries.length > 0) {
-        const inqIds = chefInquiries.map(i => i.id);
-        const { data: msgs } = await supabaseAdmin.schema('crm')
-          .from('inquiries_messages')
-          .select('metadata')
-          .in('inquiry_id', inqIds)
-          .not('metadata', 'is', null);
-
-        (msgs || []).forEach(m => {
-          const cid = m.metadata?.conversationId || m.metadata?.message?.conversationId;
-          if (cid) conversationIds.add(cid);
-        });
-      }
+      const chefCids = await crmModule.getChefMessengerConversationIds();
+      chefCids.forEach(cid => conversationIds.add(cid));
     } catch (inqErr) {
       console.warn('[KITCHEN ALERT] Inquiry lookup warning:', inqErr.message);
     }
@@ -188,11 +173,7 @@ async function aggregateKitchenData(targetDate) {
     });
   } else {
     // Fallback from active packages
-    const { data: packages } = await supabaseAdmin.schema('crm')
-      .from('customer_packages')
-      .select('meal_type')
-      .or('status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid')
-      .gte('expires_at', targetDate);
+    const packages = await crmModule.getActivePackagesForDate(targetDate);
 
     (packages || []).forEach(pkg => {
       const mtype = (pkg.meal_type || '').toLowerCase();

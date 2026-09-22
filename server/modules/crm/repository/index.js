@@ -296,6 +296,24 @@ export async function getInquiryIdsByCustomerOrFacebook(customerId, facebookName
   return inquiries?.map(i => i.id) || [];
 }
 
+export async function getChefInquiries() {
+  const { data } = await supabaseAdmin.schema('crm')
+    .from('inquiries')
+    .select('id, prospect_name')
+    .or('prospect_name.ilike.%Phyoe Thuta%,prospect_name.ilike.%chef%,notes.ilike.%chef%');
+  return data || [];
+}
+
+export async function getInquiryMessagesMetadata(inquiryIds) {
+  if (!inquiryIds || inquiryIds.length === 0) return [];
+  const { data } = await supabaseAdmin.schema('crm')
+    .from('inquiries_messages')
+    .select('metadata')
+    .in('inquiry_id', inquiryIds)
+    .not('metadata', 'is', null);
+  return data || [];
+}
+
 export async function getCustomerHealth(customerId) {
   const { data } = await supabaseAdmin.schema('crm').from('customer_health')
     .select('*')

@@ -50,6 +50,9 @@ export const crmModule = {
   async getActivePackagesForDate(targetDate) {
     return crmService.getActivePackagesForDate(targetDate);
   },
+  async getChefMessengerConversationIds() {
+    return crmService.getChefMessengerConversationIds();
+  },
 
   // 9. Public Customer Portal
   async getCustomerWelcomeDossier(customerId) {
