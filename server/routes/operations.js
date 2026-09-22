@@ -72,71 +72,17 @@ async function opsDelete(table, id, idCol = 'id') {
   return true;
 }
 
+import * as opsController from '../modules/operations/controller/index.js';
+
 // ==========================================
 // MENUS
 // ==========================================
 
-router.get('/menus', async (req, res) => {
-  try {
-    const { data: menus, error } = await supabase
-      .from('operations_menus')
-      .select('*')
-      .order('name_en', { ascending: true });
-    
-    if (error) throw error;
+router.get('/menus', opsController.getMenus);
 
-    const { data: recipes } = await supabase.from('operations_recipes').select('*');
-    const items = await inventoryModule.getItemsBasicInfo();
-
-    const enriched = menus.map(m => {
-      const menuRecipes = recipes?.filter(r => r.menu_id === m.id) || [];
-      const enrichedRecipes = menuRecipes.map(r => ({
-        ...r,
-        inventory_items: items?.find(i => i.id === r.inventory_item_id) || null
-      }));
-      return { ...m, recipes: enrichedRecipes };
-    });
-
-    return res.json(enriched);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/menus', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('menus', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.put('/menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-    data.updated_by = req.user.id;
-    data.updated_at = new Date().toISOString();
-    
-    const result = await opsUpdate('menus', id, data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await opsDelete('menus', id);
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/menus', opsController.createMenu);
+router.put('/menus/:id', opsController.updateMenu);
+router.delete('/menus/:id', opsController.deleteMenu);
 
 // ==========================================
 // DYNAMIC COSTING & IMPORT
@@ -249,108 +195,8 @@ router.post('/import-costing', upload.single('file'), async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
-router.get('/menu-plans', async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin.from('operations_menu_plans').select('*').order('date', { ascending: true });
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/import-menu-plan', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    // Use header: "A" to force keys to be "A", "B", "C" etc. This prevents column shifting if Column A is empty.
-    const rows = xlsx.utils.sheet_to_json(sheet, { header: "A" });
-
-    let count = 0;
-    for (let r = 0; r < rows.length; r++) {
-      const row = rows[r];
-      if (!row) continue;
-
-      let dateRaw = row['B']; // Date is in Column B
-      if (!dateRaw || String(dateRaw).trim().toLowerCase() === 'date' || String(dateRaw).trim() === '') continue;
-      
-      let parsedDate;
-      if (typeof dateRaw === 'number') {
-         // Excel serial date
-         parsedDate = new Date((dateRaw - (25567 + 2)) * 86400 * 1000);
-      } else {
-         // Fix string dates like "1-Jun-26" -> node might parse as 2001 instead of 2026.
-         // Or timezone issues.
-         const strDate = String(dateRaw);
-         if (strDate.includes('-')) {
-             const parts = strDate.split('-');
-             if (parts.length === 3) {
-                 const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-                 const monthMap = {'Jan':'01', 'Feb':'02', 'Mar':'03', 'Apr':'04', 'May':'05', 'Jun':'06', 'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10', 'Nov':'11', 'Dec':'12'};
-                 const monthStr = parts[1].substring(0, 3);
-                 const month = monthMap[monthStr] || '01';
-                 const day = parts[0].padStart(2, '0');
-                 parsedDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // use midday UTC to avoid TZ issues
-             } else {
-                 parsedDate = new Date(strDate);
-             }
-         } else {
-             parsedDate = new Date(strDate);
-         }
-      }
-
-      if (isNaN(parsedDate.getTime())) continue; // Skip invalid dates
-
-      const formattedDate = parsedDate.toISOString().split('T')[0];
-      
-      // Look at the next row for night dishes (assuming 2 rows per day)
-      const nextRow = (r + 1 < rows.length) ? rows[r+1] : {};
-
-      const mainDish1 = row['E'] ? String(row['E']).trim() : null; // Column E
-      const mainDish2 = nextRow['E'] ? String(nextRow['E']).trim() : null;
-      
-      const sideDish1 = row['F'] ? String(row['F']).trim() : null; // Column F
-      const sideDish2 = nextRow['F'] ? String(nextRow['F']).trim() : null;
-      
-      const dessert = row['G'] ? String(row['G']).trim() : null; // Column G
-      const soup = row['H'] ? String(row['H']).trim() : null; // Column H
-      
-      let hasRice = null;
-      if (row['I']) hasRice = String(row['I']).trim();
-      else if (nextRow['I']) hasRice = String(nextRow['I']).trim();
-
-      const { error } = await supabaseAdmin.from('operations_menu_plans')
-        .upsert({
-          date: formattedDate,
-          main_dish_1: mainDish1,
-          main_dish_2: mainDish2,
-          side_dish_1: sideDish1,
-          side_dish_2: sideDish2,
-          soup,
-          dessert,
-          has_rice: hasRice
-        }, { onConflict: 'date' });
-
-      if (error) {
-        console.error('Menu Plan Upsert Error for date:', formattedDate, error);
-      } else {
-        count++;
-      }
-    }
-
-    if (count === 0) {
-       return res.status(400).json({ error: 'No valid dates found in the file. Ensure the Date is in Column B.' });
-    }
-
-    res.json({ success: true, count });
-  } catch (err) {
-    console.error('[IMPORT MENU PLAN ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/menu-plans', opsController.getMenuPlans);
+router.post('/import-menu-plan', upload.single('file'), opsController.importMenuPlan);
 
 router.post('/recalculate-bom', async (req, res) => {
   try {
@@ -401,25 +247,8 @@ router.post('/recalculate-bom', async (req, res) => {
 // RECIPES
 // ==========================================
 
-router.post('/recipes', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('recipes', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/recipes/:id', async (req, res) => {
-  try {
-    await opsDelete('recipes', req.params.id);
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/recipes', opsController.createRecipe);
+router.delete('/recipes/:id', opsController.deleteRecipe);
 
 // ==========================================
 // DAILY MENUS & MENU TYPES
@@ -1399,23 +1228,6 @@ router.put('/orders/:id/rider-status', async (req, res) => {
 // SKIP DAYS
 // ==========================================
 
-router.get('/skip-days', async (req, res) => {
-  try {
-    const skips = await opsFetch('skip_days');
-    return res.json(skips);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/skip-days', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('skip_days', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/skip-days', opsController.getSkipDays);
+router.post('/skip-days', opsController.createSkipDay);
 export default router;
