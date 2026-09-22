@@ -827,6 +827,47 @@ export async function importCostingExcel(buffer) {
 }
 
 // ==========================================
+// BOM RECALCULATION
+// ==========================================
+
+export async function recalculateAllBom() {
+  const recipes = await opsRepo.getAllRecipes();
+  
+  const balances = await inventoryModule.getBalancesCosts();
+  
+  // Create lookup map for costs
+  const costMap = new Map();
+  for (const b of balances) {
+    costMap.set(b.item_id, b.one_unit_cost || 0);
+  }
+  
+  // Group by menu_id and sum up
+  const menuBom = new Map();
+  for (const r of recipes) {
+    const cost = costMap.get(r.inventory_item_id) || 0;
+    const total = cost * (r.qty || 0);
+    
+    if (!menuBom.has(r.menu_id)) menuBom.set(r.menu_id, 0);
+    menuBom.set(r.menu_id, menuBom.get(r.menu_id) + total);
+  }
+  
+  // Group by totalBom to minimize DB calls
+  const groups = {};
+  for (const [menuId, totalBom] of menuBom.entries()) {
+    const roundedBom = totalBom.toFixed(2); // Group by 2 decimal places
+    if (!groups[roundedBom]) groups[roundedBom] = [];
+    groups[roundedBom].push(menuId);
+  }
+  
+  // Update menus in bulk per unique BOM value
+  for (const [bom, ids] of Object.entries(groups)) {
+    await opsRepo.bulkUpdateMenuBom(bom, ids);
+  }
+  
+  return { success: true, updated: menuBom.size };
+}
+
+// ==========================================
 // ORDER STATUS
 // ==========================================
 

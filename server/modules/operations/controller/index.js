@@ -371,3 +371,12 @@ export async function importCostingExcel(req, res) {
     return res.status(500).json({ error: err.message });
   }
 }
+
+export async function recalculateAllBom(req, res) {
+  try {
+    const result = await opsService.recalculateAllBom();
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}

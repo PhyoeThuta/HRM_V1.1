@@ -384,3 +384,14 @@ export async function insertRecipeAdmin(recipeData) {
     .from('operations_recipes')
     .insert(recipeData);
 }
+
+// ==========================================
+// BOM RECALCULATION
+// ==========================================
+
+export async function bulkUpdateMenuBom(bomValue, menuIds) {
+  const { error } = await supabase.from('operations_menus')
+    .update({ total_bill_of_materials: parseFloat(bomValue) })
+    .in('id', menuIds);
+  if (error) throw error;
+}

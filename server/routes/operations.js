@@ -93,50 +93,7 @@ router.post('/import-costing', upload.single('file'), opsController.importCostin
 router.get('/menu-plans', opsController.getMenuPlans);
 router.post('/import-menu-plan', upload.single('file'), opsController.importMenuPlan);
 
-router.post('/recalculate-bom', async (req, res) => {
-  try {
-    // Fetch all recipes with their current inventory cost
-    const { data: recipes, error: rErr } = await supabase.from('operations_recipes').select('*');
-    if (rErr) throw rErr;
-    
-    const balances = await inventoryModule.getBalancesCosts();
-    
-    // Create lookup map for costs
-    const costMap = new Map();
-    for (const b of balances) {
-      costMap.set(b.item_id, b.one_unit_cost || 0);
-    }
-    
-    // Group by menu_id and sum up
-    const menuBom = new Map();
-    for (const r of recipes) {
-      const cost = costMap.get(r.inventory_item_id) || 0;
-      const total = cost * (r.qty || 0);
-      
-      if (!menuBom.has(r.menu_id)) menuBom.set(r.menu_id, 0);
-      menuBom.set(r.menu_id, menuBom.get(r.menu_id) + total);
-    }
-    
-    // Group by totalBom to minimize DB calls
-    const groups = {};
-    for (const [menuId, totalBom] of menuBom.entries()) {
-      const roundedBom = totalBom.toFixed(2); // Group by 2 decimal places
-      if (!groups[roundedBom]) groups[roundedBom] = [];
-      groups[roundedBom].push(menuId);
-    }
-    
-    // Update menus in bulk per unique BOM value
-    for (const [bom, ids] of Object.entries(groups)) {
-      await supabase.from('operations_menus')
-        .update({ total_bill_of_materials: parseFloat(bom) })
-        .in('id', ids);
-    }
-    
-    return res.json({ success: true, updated: menuBom.size });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/recalculate-bom', opsController.recalculateAllBom);
 
 // ==========================================
 // RECIPES
