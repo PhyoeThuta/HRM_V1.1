@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { checkAndSendKitchenAlert } from '../cron/kitchen_alerts.js';
+import { crmModule } from '../modules/crm/index.js';
 
 const router = express.Router();
 
@@ -153,21 +154,11 @@ router.post('/webhook', (req, res, next) => {
 
           let customersMap = {};
           if (customerIds.length > 0) {
-            const { data: custs } = await supabaseAdmin.schema('crm')
-              .from('customers')
-              .select(`
-                *,
-                customer_health ( allergies, medical_condition, special_requests ),
-                customer_lifestyle ( food_restriction )
-              `)
-              .in('id', customerIds);
+            const custs = await crmModule.getCustomersWithHealthAndLifestyle(customerIds);
             if (custs) customersMap = Object.fromEntries(custs.map(c => [c.id, c]));
           }
 
-          const { data: packages } = await supabaseAdmin.schema('crm')
-            .from('customer_packages')
-            .select('*')
-            .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`);
+          const packages = await crmModule.getActivePackagesForCustomers(customerIds);
 
           const pkgMap = Object.fromEntries((packages || []).map(p => [p.customer_id, p]));
 
@@ -213,10 +204,7 @@ router.post('/webhook', (req, res, next) => {
 
               // Deduct meal count if package exists
               if (pkg && pkg.meal_count > 0) {
-                await supabaseAdmin.schema('crm')
-                  .from('customer_packages')
-                  .update({ meal_count: pkg.meal_count - 1 })
-                  .eq('id', pkg.id);
+                await crmModule.deductPackageMealCount(pkg.id, pkg.meal_count);
               }
             }
           } else {

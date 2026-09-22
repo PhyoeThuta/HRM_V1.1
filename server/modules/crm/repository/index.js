@@ -1,0 +1,400 @@
+import { supabaseAdmin } from '../../../lib/supabase.js';
+
+export async function getAllLevelSettings() {
+  return supabaseAdmin
+    .schema('crm')
+    .from('level_settings')
+    .select('*')
+    .order('required_spend', { ascending: true });
+}
+
+export async function createLevelSetting(payload) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('level_settings')
+    .insert(payload)
+    .select()
+    .single();
+}
+
+export async function updateLevelSetting(id, payload) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('level_settings')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+}
+
+export async function deleteLevelSetting(id) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('level_settings')
+    .delete()
+    .eq('id', id);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// PACKAGES (MASTER CATALOG)
+// ──────────────────────────────────────────────────────────────────
+
+export async function getAllPackages() {
+  return supabaseAdmin
+    .schema('crm')
+    .from('packages')
+    .select('*')
+    .order('created_at', { ascending: true });
+}
+
+export async function createPackage(payload) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('packages')
+    .insert(payload)
+    .select()
+    .single();
+}
+
+export async function updatePackage(id, payload) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('packages')
+    .update(payload)
+    .eq('id', id);
+}
+
+export async function deletePackage(id) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('packages')
+    .delete()
+    .eq('id', id);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// FORM SETTINGS
+// ──────────────────────────────────────────────────────────────────
+
+export async function getFormSettings(formName) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('form_settings')
+    .select('*')
+    .eq('form_name', formName)
+    .single();
+}
+
+export async function upsertFormSettings(payload) {
+  return supabaseAdmin
+    .schema('crm')
+    .from('form_settings')
+    .upsert(payload, { onConflict: 'form_name' })
+    .select()
+    .single();
+}
+
+// ──────────────────────────────────────────────────────────────────
+// FEEDBACKS
+// ──────────────────────────────────────────────────────────────────
+
+export async function getAllFeedbacks() {
+  return supabaseAdmin.schema('crm')
+    .from('feedbacks')
+    .select('*, customers(*)')
+    .order('created_at', { ascending: false });
+}
+
+export async function deleteFeedback(id) {
+  return supabaseAdmin.schema('crm')
+    .from('feedbacks')
+    .delete()
+    .eq('id', id);
+}
+
+export async function getDailyFeedbacks() {
+  return supabaseAdmin.schema('crm')
+    .from('daily_feedbacks')
+    .select('*, customers(id, full_name, phone, status)')
+    .order('created_at', { ascending: false });
+}
+
+export async function getFeedbackComment(id) {
+  return supabaseAdmin.schema('crm')
+    .from('feedbacks')
+    .select('comment')
+    .eq('id', id)
+    .single();
+}
+
+export async function updateFeedbackComment(id, comment) {
+  return supabaseAdmin.schema('crm')
+    .from('feedbacks')
+    .update({ comment })
+    .eq('id', id);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// DASHBOARDS / SEGMENTS
+// ──────────────────────────────────────────────────────────────────
+
+export async function getActiveCustomerPackagesForDeduct() {
+  return supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .select('id, meal_count')
+    .eq('status', 'Active')
+    .gt('meal_count', 0);
+}
+
+export async function bulkUpdatePackageMealCount(ids, mealCount) {
+  return supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .update({ meal_count: mealCount })
+    .in('id', ids);
+}
+
+export async function getActivePackagesWithCustomerInfo(targetDate) {
+  return supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .select(`
+      *,
+      customers:customer_id ( 
+        full_name, phone, address, delivery_address, delivery_notes,
+        customer_health ( allergies, medical_condition, special_requests ),
+        customer_lifestyle ( food_restriction )
+      )
+    `)
+    .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
+    .gte('expires_at', targetDate);
+}
+
+export async function getAllPackagesWithCustomerInfo() {
+  return supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .select(`
+      *,
+      customers:customer_id ( 
+        full_name, phone, address, delivery_address, delivery_notes,
+        customer_health ( allergies, medical_condition, special_requests ),
+        customer_lifestyle ( food_restriction )
+      )
+    `);
+}
+
+export async function getDashboardMetrics(today, thirtyDaysLater, thisMonthStart, sevenMonthsAgoStr) {
+  return Promise.all([
+    supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
+    supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, amount, payment_status'),
+    supabaseAdmin.schema('crm').from('inquiries').select('id, status, notes, updated_at, customer_id'),
+    supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
+    supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Upcoming'),
+    supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
+    supabaseAdmin.schema('crm').from('inquiries').select('*').is('customer_id', null).neq('status', 'converted').order('created_at', { ascending: false }).limit(6),
+    supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
+    supabaseAdmin.schema('crm').from('inquiries').select('source'),
+    supabaseAdmin.schema('crm').from('feedbacks').select('*, customers!inner(full_name)').order('created_at', { ascending: false }).limit(30),
+  ]);
+}
+
+export async function getSegmentRevenue() {
+  return supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, phone, customer_code)').eq('payment_status', 'Paid').order('created_at', { ascending: false });
+}
+
+export async function getSegmentCustomers() {
+  return supabaseAdmin.schema('crm').from('customers').select('*').order('created_at', { ascending: false });
+}
+
+export async function getSegmentActivePackages() {
+  return supabaseAdmin.schema('crm').from('customer_packages')
+    .select('*, customers!inner(full_name, phone, customer_code)')
+    .in('status', ['Active', 'Paused', 'Upcoming'])
+    .order('expires_at', { ascending: false });
+}
+
+export async function getSegmentAllPackagesForChurn() {
+  return supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, customers!inner(*)');
+}
+
+export async function getSegmentInquiriesByStatus(status) {
+  return supabaseAdmin.schema('crm').from('inquiries').select('*').eq('status', status).order('created_at', { ascending: false });
+}
+
+export async function getSegmentInquiriesFollowUp() {
+  return supabaseAdmin.schema('crm').from('inquiries').select('*')
+    .is('customer_id', null)
+    .not('status', 'eq', 'converted')
+    .not('status', 'eq', 'hot')
+    .not('status', 'eq', 'pending')
+    .not('status', 'eq', 'lost')
+    .order('created_at', { ascending: false });
+}
+
+
+// ──────────────────────────────────────────────────────────────────
+// PUBLIC CAPABILITY REPOSITORY ACCESS
+// ──────────────────────────────────────────────────────────────────
+
+export async function getCustomerDeliveryInfo(customerIds) {
+  try {
+    const { data: customers, error } = await supabaseAdmin.schema('crm').from('customers')
+      .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
+      .in('id', customerIds);
+    if (error) throw error;
+    return customers || [];
+  } catch (e) {
+    // Fallback if delivery_spot_photo_url column is missing
+    const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
+      .select('id, full_name, phone, delivery_address, delivery_notes')
+      .in('id', customerIds);
+    return customers || [];
+  }
+}
+
+export async function getCustomerDeliveryNotes(customerId) {
+  const { data } = await supabaseAdmin.schema('crm').from('customers')
+    .select('delivery_notes')
+    .eq('id', customerId)
+    .single();
+  return data?.delivery_notes || '';
+}
+
+export async function updateCustomerDeliveryPhotoAndNotes(customerId, proofUrl, newNotes) {
+  await supabaseAdmin.schema('crm').from('customers')
+    .update({ 
+      delivery_spot_photo_url: proofUrl,
+      delivery_notes: newNotes
+    })
+    .eq('id', customerId);
+}
+
+export async function updateCustomerDeliveryNotes(customerId, notes) {
+  await supabaseAdmin.schema('crm').from('customers')
+    .update({ delivery_notes: notes })
+    .eq('id', customerId);
+}
+
+export async function getInquiryIdsByCustomerOrFacebook(customerId, facebookName) {
+  let { data: inquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', customerId);
+  if ((!inquiries || inquiries.length === 0) && facebookName) {
+    const { data: fbInquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').ilike('prospect_name', facebookName);
+    if (fbInquiries && fbInquiries.length > 0) inquiries = fbInquiries;
+  }
+  return inquiries?.map(i => i.id) || [];
+}
+
+export async function getCustomerHealth(customerId) {
+  const { data } = await supabaseAdmin.schema('crm').from('customer_health')
+    .select('*')
+    .eq('customer_id', customerId)
+    .single();
+  return data;
+}
+
+export async function updateCustomerWeight(customerId, weightStr) {
+  await supabaseAdmin.schema('crm').from('customer_health')
+    .update({ current_weight: weightStr, updated_at: new Date() })
+    .eq('customer_id', customerId);
+}
+
+export async function insertCustomerWeight(customerId, weightStr) {
+  await supabaseAdmin.schema('crm').from('customer_health')
+    .insert({ customer_id: customerId, current_weight: weightStr });
+}
+
+export async function getActiveCustomerPackage(customerId) {
+  const { data } = await supabaseAdmin.schema('crm').from('customer_packages')
+    .select('id, name, expires_at, status, meal_count, remaining_days')
+    .eq('customer_id', customerId)
+    .in('status', ['Active', 'Paused', 'Upcoming'])
+    .order('expires_at', { ascending: false })
+    .limit(1)
+    .single();
+  return data;
+}
+
+export async function getInquiryByToken(token) {
+  const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
+    .select('*')
+    .eq('onboarding_token', token)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function insertCustomerFallback(custObj) {
+  try {
+    const res = await supabaseAdmin.schema('crm').from('customers')
+      .insert(custObj)
+      .select()
+      .single();
+    if (res.error) throw res.error;
+    return res.data;
+  } catch (e) {
+    delete custObj.delivery_spot_photo_url;
+    const res = await supabaseAdmin.schema('crm').from('customers')
+      .insert(custObj)
+      .select()
+      .single();
+    if (res.error) throw res.error;
+    return res.data;
+  }
+}
+
+export async function insertCustomerHealth(healthObj) {
+  await supabaseAdmin.schema('crm').from('customer_health').insert(healthObj);
+}
+
+export async function insertCustomerLifestyle(lifestyleObj) {
+  await supabaseAdmin.schema('crm').from('customer_lifestyle').insert(lifestyleObj);
+}
+
+export async function updateInquiryStatus(inquiryId, customerId) {
+  await supabaseAdmin.schema('crm').from('inquiries')
+    .update({ 
+      onboarding_status: 'completed',
+      customer_id: customerId,
+      status: 'converted'
+    })
+    .eq('id', inquiryId);
+}
+
+export async function getPackageDefinition(packageId) {
+  const { data } = await supabaseAdmin.schema('crm').from('packages').select('*').eq('id', packageId).single();
+  return data;
+}
+
+export async function insertCustomerPackage(pkgObj) {
+  await supabaseAdmin.schema('crm').from('customer_packages').insert(pkgObj);
+}
+
+
+
+export async function getCustomersWithHealthAndLifestyle(customerIds) {
+  if (!customerIds || customerIds.length === 0) return [];
+  const { data } = await supabaseAdmin.schema('crm')
+    .from('customers')
+    .select(`
+      *,
+      customer_health ( allergies, medical_condition, special_requests ),
+      customer_lifestyle ( food_restriction )
+    `)
+    .in('id', customerIds);
+  return data || [];
+}
+
+export async function getActivePackagesForCustomers(customerIds) {
+  if (!customerIds || customerIds.length === 0) return [];
+  const { data } = await supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .select('*')
+    .in('customer_id', customerIds)
+    .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`);
+  return data || [];
+}
+
+export async function deductPackageMealCount(packageId, currentCount) {
+  await supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .update({ meal_count: currentCount - 1 })
+    .eq('id', packageId);
+}

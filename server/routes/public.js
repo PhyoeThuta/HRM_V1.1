@@ -461,27 +461,8 @@ router.post('/crm/monthly-review/:id', async (req, res) => {
       return res.status(400).json({ error: 'Current weight is required' });
     }
 
-    // 1. Update customer_health with new current_weight
-    const { data: existingHealth } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_health')
-      .select('*')
-      .eq('customer_id', id)
-      .single();
-
-    const newWeightStr = `${current_weight} kg`;
-    if (existingHealth) {
-      await supabaseAdmin
-        .schema('crm')
-        .from('customer_health')
-        .update({ current_weight: newWeightStr, updated_at: new Date().toISOString() })
-        .eq('customer_id', id);
-    } else {
-      await supabaseAdmin
-        .schema('crm')
-        .from('customer_health')
-        .insert({ customer_id: id, current_weight: newWeightStr });
-    }
+    // 1. Update customer_health with new current_weight via CRM module
+    await crmModule.logCustomerWeight(id, current_weight);
 
     // 2. Insert feedback entry for BBD admin tracking
     const commentStr = `[Monthly Review Milestone]\nCurrent Weight Reported: ${newWeightStr}\nFeel Active & Light: ${active_feeling || 'Yes'}\nHealth Improvements: ${health_improvements || 'None'}\nComment: ${feedback_comment || 'None'}`;

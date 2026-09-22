@@ -1,4 +1,5 @@
 import express from 'express';
+import { crmModule } from '../modules/crm/index.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 
 const router = express.Router();
@@ -427,182 +428,19 @@ router.post('/:token', async (req, res) => {
     const { token } = req.params;
     const formData = req.body;
 
-    // 1. Validate Token
-    const { data: inquiry, error: inqErr } = await supabaseAdmin.schema('crm').from('inquiries')
-      .select('*')
-      .eq('onboarding_token', token)
-      .single();
+    const newCustomer = await crmModule.completeOnboarding(token, formData);
 
-    if (inqErr || !inquiry) {
-      return res.status(404).json({ error: 'Invalid or expired token' });
-    }
-
-    if (inquiry.onboarding_status === 'completed') {
-      return res.status(400).json({ error: 'Form already submitted' });
-    }
-
-    // 2. Create Customer Profile — inside mutex to prevent duplicate BBD codes
-    const release = await enrollMutex.acquire();
-    let newCustomer;
-    try {
-      const customer_code = await generateCustomerCode();
-
-      let formattedDeliveryNotes = formData.delivery_notes || '';
-      if (formData.delivery_address_url || (formData.delivery_address && formData.delivery_address.startsWith('http'))) {
-        const rawMapUrl = formData.delivery_address_url || formData.delivery_address;
-        const linkNote = `📍 Maps Link: ${rawMapUrl}`;
-        formattedDeliveryNotes = formattedDeliveryNotes 
-          ? `${formattedDeliveryNotes} | ${linkNote}` 
-          : linkNote;
-      }
-
-      if (formData.delivery_spot_photo_url) {
-        const photoNote = `📸 Photo: ${formData.delivery_spot_photo_url}`;
-        if (!formattedDeliveryNotes.includes(formData.delivery_spot_photo_url)) {
-          formattedDeliveryNotes = formattedDeliveryNotes
-            ? `${formattedDeliveryNotes} | ${photoNote}`
-            : photoNote;
-        }
-      }
-    
-      const custObj = {
-        full_name: formData.name || inquiry.prospect_name || 'Customer',
-        facebook_name: formData.fb_name || formData.facebook_name || inquiry.prospect_name || null,
-        age: formData.age ? parseInt(formData.age) : null,
-        gender: formData.gender || 'Unknown',
-        email: formData.email || null,
-        phone: formData.phone || inquiry.prospect_contact || null,
-        address: formData.home_address_parsed || formData.home_address || null,
-        delivery_address: formData.delivery_address_parsed || formData.delivery_address || formData.home_address || null,
-        delivery_notes: formattedDeliveryNotes || null,
-        customer_code
-      };
-
-      if (formData.delivery_spot_photo_url) {
-        custObj.delivery_spot_photo_url = formData.delivery_spot_photo_url;
-      }
-
-      let createdCustomer = null;
-      try {
-        const res = await supabaseAdmin.schema('crm').from('customers')
-          .insert(custObj)
-          .select()
-          .single();
-        if (res.error) throw res.error;
-        createdCustomer = res.data;
-      } catch (insertErr) {
-        // Fallback without delivery_spot_photo_url if column does not exist
-        delete custObj.delivery_spot_photo_url;
-        const res = await supabaseAdmin.schema('crm').from('customers')
-          .insert(custObj)
-          .select()
-          .single();
-        if (res.error) throw res.error;
-        createdCustomer = res.data;
-      }
-
-      newCustomer = createdCustomer;
-    } finally {
-      release();
-    }
-
-    // 3. Insert health record (including BBD-computed metrics from enrollment form)
-    await supabaseAdmin.schema('crm').from('customer_health').insert({
-      customer_id: newCustomer.id,
-      current_weight: formData.current_weight ? `${formData.current_weight} kg` : null,
-      goal_weight: formData.goal_weight ? `${formData.goal_weight} kg` : null,
-      height: formData.height ? `${formData.height} cm` : null,
-      medical_condition: formData.medical_conditions || 'None',
-      medicine_taking: formData.medicine_taking || 'None',
-      special_requests: formData.chef_requests || 'None',
-      allergies: formData.allergies || 'None',
-      // BBD Smart Health Advisor metrics (computed on frontend, persisted for Nutritionist review)
-      bmi_at_enrollment: formData.bmi_at_enrollment ? parseFloat(formData.bmi_at_enrollment) : null,
-      recommended_weight_min: formData.recommended_weight_min ? parseFloat(formData.recommended_weight_min) : null,
-      recommended_weight_max: formData.recommended_weight_max ? parseFloat(formData.recommended_weight_max) : null,
+    return res.status(201).json({ 
+      success: true, 
+      message: 'Onboarding completed successfully',
+      customer_id: newCustomer.id 
     });
-
-    // 4. Insert lifestyle record
-    await supabaseAdmin.schema('crm').from('customer_lifestyle').insert({
-      customer_id: newCustomer.id,
-      food_restriction: formData.allergies || 'None',
-      activity_level: formData.activity_level || 'Sedentary',
-      fasting_willingness: formData.fasting_willingness || 'No'
-    });
-
-    // 5. Update Inquiry Status
-    await supabaseAdmin.schema('crm').from('inquiries')
-      .update({ 
-        onboarding_status: 'completed',
-        customer_id: newCustomer.id,
-        status: 'converted'
-      })
-      .eq('id', inquiry.id);
-
-    // 6. Auto Assign the selected package
-    let selectedPackage = null;
-    if (formData.package_id) {
-      const { data: pkgData } = await supabaseAdmin.schema('crm').from('packages').select('*').eq('id', formData.package_id).single();
-      if (pkgData) selectedPackage = pkgData;
+  } catch (error) {
+    console.error('[ENROLL POST ERROR]', error);
+    if (error.message === 'Invalid or expired token.') {
+      return res.status(404).json({ error: error.message });
     }
-    if (!selectedPackage && inquiry.selected_package) {
-      selectedPackage = inquiry.selected_package;
-    }
-
-    if (selectedPackage) {
-      const pkg = selectedPackage;
-      let durationDays = 30;
-      if (pkg.duration) {
-        const durStr = String(pkg.duration).toLowerCase();
-        const num = parseInt(durStr) || 1;
-        if (durStr.includes('week') || durStr.includes('wk')) durationDays = num * 7;
-        else if (durStr.includes('month') || durStr.includes('mo')) durationDays = num * 30;
-        else if (durStr.includes('year') || durStr.includes('yr')) durationDays = num * 365;
-        else if (durStr.includes('day')) durationDays = num;
-        else durationDays = num;
-      }
-      
-      const startDate = formData.start_date ? new Date(formData.start_date) : new Date();
-      if (!formData.start_date) {
-        startDate.setDate(startDate.getDate() + 1);
-      }
-      startDate.setHours(0, 0, 0, 0);
-      
-      const expiresAt = new Date(startDate);
-      expiresAt.setDate(startDate.getDate() + durationDays);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const packageStatus = startDate > today ? 'Upcoming' : 'Active';
-
-      const mealType = pkg.meal_type || 'Lunch & Dinner';
-      let mealsPerDay = 1;
-      if (mealType.toLowerCase().includes('lunch') && mealType.toLowerCase().includes('dinner')) mealsPerDay = 2;
-      if (mealType.toLowerCase().includes('breakfast') && mealType.toLowerCase().includes('lunch') && mealType.toLowerCase().includes('dinner')) mealsPerDay = 3;
-      
-      const calculatedMealCount = pkg.meal_count || (durationDays * mealsPerDay);
-
-      await supabaseAdmin.schema('crm').from('customer_packages')
-        .insert({ 
-          customer_id: newCustomer.id, 
-          name: pkg.name || 'BBD Plan', 
-          duration: `${durationDays} days`, 
-          meal_type: mealType, 
-          meal_count: calculatedMealCount, 
-          start_date: startDate.toISOString(), 
-          expires_at: expiresAt.toISOString(), 
-          payment_status: 'Paid', 
-          status: packageStatus, 
-          amount: pkg.price || 0 
-        });
-    }
-    
-    res.json({ success: true, customer_id: newCustomer.id });
-
-  } catch (err) {
-    console.error('[ENROLL POST ERROR]', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Failed to process enrollment' });
   }
 });
 

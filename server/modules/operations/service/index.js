@@ -1,6 +1,7 @@
 import * as opsRepo from '../repository/index.js';
 import { inventoryModule } from '../../inventory/index.js';
-import { supabase, supabaseAdmin } from '../../../lib/supabase.js';
+import { supabaseAdmin } from '../../../lib/supabase.js';
+import { crmModule } from '../../crm/index.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
 import xlsx from 'xlsx';
 
@@ -110,16 +111,12 @@ async function getCustomersMapForOrders(orderList) {
   let customersMap = {};
   if (customerIds.length > 0) {
     try {
-      const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers')
-        .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
-        .in('id', customerIds);
-      if (cErr) throw cErr;
-      if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+      const customers = await crmModule.getCustomerDeliveryInfo(customerIds);
+      if (customers && customers.length > 0) {
+        customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+      }
     } catch (e) {
-      const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-        .select('id, full_name, phone, delivery_address, delivery_notes')
-        .in('id', customerIds);
-      if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
+      console.error('[OPS_GET_DELIVERY_INFO_ERROR]', e.message);
     }
   }
   return customersMap;
@@ -510,19 +507,16 @@ export async function sendDeliveryZernioMessage(customerId, orderId, type = 'DEL
       return;
     }
 
-    const { data: customer } = await supabaseAdmin.schema('crm').from('customers').select('full_name, facebook_name').eq('id', customerId).single();
-    if (!customer) return;
+    const customer = await crmModule.getCustomerDeliveryInfo([customerId]);
+    if (!customer || customer.length === 0) return;
+    const custData = customer[0];
 
-    let { data: inquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', customerId);
-    if ((!inquiries || inquiries.length === 0) && customer.facebook_name) {
-      const { data: fbInquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').ilike('prospect_name', customer.facebook_name);
-      if (fbInquiries && fbInquiries.length > 0) inquiries = fbInquiries;
-    }
-    if (!inquiries || inquiries.length === 0) return;
+    const inquiryIds = await crmModule.findInquiriesByName(customerId, custData.facebook_name);
+    if (!inquiryIds || inquiryIds.length === 0) return;
 
-    const inquiryIds = inquiries.map(i => i.id);
+    
 
-    let conversationId = customer.zernio_conversation_id || customer.conversation_id || null;
+    let conversationId = custData.zernio_conversation_id || custData.conversation_id || null;
 
     if (!conversationId) {
       const { data: allMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
@@ -687,26 +681,9 @@ export async function updateRiderStatus(id, status, proofUrl, userId) {
   
   if (proofUrl && order?.customer_id) {
     try {
-      await supabaseAdmin.schema('crm').from('customers')
-        .update({ delivery_spot_photo_url: proofUrl })
-        .eq('id', order.customer_id);
+      await crmModule.updateDeliveryProof(order.customer_id, proofUrl);
     } catch (e) {
-      console.warn('[UPDATE_CUST_SPOT_PHOTO_WARN]', e.message);
-    }
-
-    try {
-      const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
-        .select('delivery_notes').eq('id', order.customer_id).single();
-      let currentNotes = cust?.delivery_notes || '';
-      if (!currentNotes.includes(proofUrl)) {
-        const photoTag = `📸 POD: ${proofUrl}`;
-        const newNotes = currentNotes ? `${currentNotes} | ${photoTag}` : photoTag;
-        await supabaseAdmin.schema('crm').from('customers')
-          .update({ delivery_notes: newNotes })
-          .eq('id', order.customer_id);
-      }
-    } catch (e) {
-      console.warn('[UPDATE_CUST_NOTES_WARN]', e.message);
+      console.warn('[UPDATE_CUST_DELIVERY_PROOF_WARN]', e.message);
     }
   }
 
