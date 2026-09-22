@@ -13,6 +13,7 @@ import path from 'path';
 import fs from 'fs';
 import PDFDocument from 'pdfkit';
 import { payrollModule } from '../modules/payroll/index.js';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -199,11 +200,11 @@ router.get('/portal', async (req, res) => {
 
     const [emp, attRecs, leaveReqs, payslips, votes, leaveBals, announcements, leaveTypes, qr_token_records, shifts, schedules, rosters] = await Promise.all([
       dbFetchOne('Employees', '*', { id: empId }),
-      dbFetch('attendance_records', '*', { employee_id: empId }, { order: 'check_in', ascending: false }),
-      dbFetch('Leave_Request', '*', { employee_id: empId }, { order: 'created_at', ascending: false }),
+      hrmModule.getAttendanceHistory(empId),
+      hrmModule.getEmployeeLeaveRequests(empId),
       payrollModule.getEmployeePayrolls(empId, false),
       dbFetch('peer_voting_records', '*', { nominee_id: empId }),
-      dbFetch('Leave_balances', '*', { employee_id: empId }),
+      hrmModule.getEmployeeLeaveBalances(empId),
       dbFetch('announcements', '*'),
       dbFetch('Leave_type', '*'),
       dbFetch('qr_attendance_tokens', '*', { employee_id: empId, used: false }, { order: 'created_at', ascending: false, limit: 1 }),

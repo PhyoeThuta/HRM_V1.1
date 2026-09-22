@@ -1,9 +1,22 @@
 import { employeeService } from './service/employeeService.js';
 import { compensationService } from './service/compensationService.js';
+import { attendanceService } from './service/attendanceService.js';
+import { leaveService } from './service/leaveService.js';
 
 export const hrmModule = {
   createEmployee: employeeService.createEmployee,
   updateEmployee: employeeService.updateEmployee,
   getEmployeeCompensationContext: compensationService.getEmployeeCompensationContext,
   getEmployeesForPayroll: compensationService.getEmployeesForPayroll,
+  
+  // Attendance Boundaries
+  getAttendanceSummaryForPayroll: attendanceService.getAttendanceSummaryForPayroll,
+  getAttendanceHistory: attendanceService.getAttendanceHistory,
+  
+  // Leave Boundaries
+  getEmployeeLeaveBalances: leaveService.getEmployeeLeaveBalances,
+  getActiveLeaves: leaveService.getActiveLeaves,
+  getEmployeeLeaveRequests: leaveService.getEmployeeLeaveRequests,
+  getAllLeaveRequests: leaveService.getAllLeaveRequests,
+  getLeaveBalancesForAll: leaveService.getLeaveBalancesForAll
 };

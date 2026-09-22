@@ -1,245 +1,17 @@
 import express from 'express';
-import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete, supabase } from '../lib/supabase.js';
-import crypto from 'crypto';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
-
-function getBkkDateString(dateInput) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(dateInput));
-}
+import { attendanceService } from '../modules/hrm/service/attendanceService.js';
+import { dbInsert } from '../lib/supabase.js';
 
 const router = express.Router();
 router.use(verifyToken);
 
-async function checkIsLate(employee_id, check_in_time, claimed_shift_id = null) {
-  try {
-    const dt = new Date(check_in_time);
-    const todayStr = getBkkDateString(dt);
-
-    let activeShiftId = claimed_shift_id;
-
-    if (!activeShiftId) {
-      const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
-        employee_id: employee_id,
-        schedule_date: todayStr,
-        is_off_day: false
-      });
-      if (dailySchedule && dailySchedule.shift_id) {
-        activeShiftId = dailySchedule.shift_id;
-      }
-
-      if (!activeShiftId) {
-        const rosters = await dbFetch('employee_rosters', '*', { employee_id });
-        for (const r of rosters) {
-          if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
-            activeShiftId = r.shift_id;
-            break;
-          }
-        }
-      }
-
-      if (!activeShiftId) {
-        const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
-        if (emp && emp.default_shift_id) {
-          activeShiftId = emp.default_shift_id;
-        }
-      }
-    }
-
-    // 3. Calculate Cutoff
-    if (activeShiftId) {
-      const shift = await dbFetchOne('shifts', '*', { id: activeShiftId });
-      if (shift) {
-        const [hours, minutes, seconds] = shift.start_time.split(':');
-        const graceMins = shift.grace_period_minutes || 15;
-        
-        // Use a clean date matching todayStr in local time to avoid UTC mixing
-        const cutoffDt = new Date(`${todayStr}T${hours}:${minutes}:${seconds || '00'}+07:00`);
-        cutoffDt.setMinutes(cutoffDt.getMinutes() + graceMins);
-        
-        return dt > cutoffDt;
-      }
-    }
-
-    // Fallback: 9:15 AM in Myanmar Time (UTC+6:30)
-    // We convert the check_in_time to MM Time, then check if it's past 9:15 AM
-    const myanmarFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Yangon',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    const parts = myanmarFormatter.formatToParts(dt);
-    const mmHour = parseInt(parts.find(p => p.type === 'hour').value);
-    const mmMin = parseInt(parts.find(p => p.type === 'minute').value);
-    
-    if (mmHour > 9) return true;
-    if (mmHour === 9 && mmMin > 15) return true;
-    return false;
-  } catch (e) {
-    console.error('[checkIsLate error]', e);
-    throw e;
-  }
-}
-
-async function calcOvertime(employee_id, check_out_time) {
-  try {
-    const dt = new Date(check_out_time);
-    const todayStr = getBkkDateString(dt);
-
-    // 0. Check if there is an APPROVED overtime request for this date
-    const otRequest = await dbFetchOne('overtime_requests', 'id', {
-      employee_id: employee_id,
-      ot_date: todayStr,
-      status: 'Approved'
-    });
-
-    // If no approved OT request exists, return 0
-    if (!otRequest) {
-      return 0;
-    }
-
-    // 1. Check Daily Schedule (New System)
-    let activeShiftId = null;
-    const dailySchedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
-      employee_id: employee_id,
-      schedule_date: todayStr,
-      is_off_day: false
-    });
-    if (dailySchedule && dailySchedule.shift_id) {
-      activeShiftId = dailySchedule.shift_id;
-    }
-
-    // 2. Check Legacy Roster if no daily schedule
-    if (!activeShiftId) {
-      const rosters = await dbFetch('employee_rosters', '*', { employee_id });
-      for (const r of rosters) {
-        if (r.start_date <= todayStr && (!r.end_date || r.end_date >= todayStr)) {
-          activeShiftId = r.shift_id;
-          break;
-        }
-      }
-    }
-
-    if (!activeShiftId) {
-      const emp = await dbFetchOne('Employees', 'default_shift_id', { id: employee_id });
-      if (emp && emp.default_shift_id) activeShiftId = emp.default_shift_id;
-    }
-
-    if (activeShiftId) {
-      const shift = await dbFetchOne('shifts', '*', { id: activeShiftId });
-      if (shift && shift.end_time) {
-        const [hours, minutes, seconds] = shift.end_time.split(':');
-        const endDt = new Date(`${todayStr}T${hours}:${minutes}:${seconds || '00'}+07:00`);
-
-        const diffMs = dt - endDt;
-        if (diffMs > 0) {
-          const diffHours = diffMs / 3600000;
-          if (diffHours >= 1) { // Only count if >= 1 hour
-            return Math.round(diffHours * 10) / 10;
-          }
-        }
-      }
-    }
-    return 0;
-  } catch (e) {
-    console.error('[calcOvertime error]', e);
-    throw e;
-  }
-}
-
 // GET /api/attendance
 router.get('/', requireAdmin, async (req, res) => {
   try {
-    const today = getBkkDateString(new Date());
     const targetDate = req.query.date || null;
-    let recordsQuery = supabase.from('attendance_records').select('*').order('check_in', { ascending: false });
-    
-    if (targetDate) {
-      recordsQuery = recordsQuery.gte('check_in', `${targetDate}T00:00:00`).lte('check_in', `${targetDate}T23:59:59`);
-    } else {
-      recordsQuery = recordsQuery.limit(500);
-    }
-
-    const [employeesRes, recordsRes, bioDevicesRes, bioRegsRes, tokensRes, shiftsRes, schedulesRes, rostersRes] = await Promise.all([
-      supabase.from('Employees').select('id,Full_name,employee_id,default_shift_id').eq('status', 'Active'),
-      recordsQuery,
-      supabase.from('biometric_device').select('*'),
-      supabase.from('biometric_employees').select('*'),
-      supabase.from('qr_attendance_tokens').select('*').order('created_at', { ascending: false }).limit(100),
-      supabase.from('shifts').select('*'),
-      supabase.from('employee_daily_schedules').select('*'),
-      supabase.from('employee_rosters').select('*')
-    ]);
-
-    const employees = employeesRes.data || [];
-    const records = recordsRes.data || [];
-    const bioDevices = bioDevicesRes.data || [];
-    const bioRegs = bioRegsRes.data || [];
-    const tokens = tokensRes.data || [];
-    const shifts = shiftsRes.data || [];
-    const schedules = schedulesRes.data || [];
-    const rosters = rostersRes.data || [];
-
-    const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
-
-    // Enrich records
-    const enriched = records.map(r => {
-      const emp = empMap[r.employee_id] || {};
-      let workHours = null;
-      let isEarlyLeave = false;
-      if (r.check_in && r.check_out) {
-        try {
-          workHours = Math.max(0, Math.round(((new Date(r.check_out) - new Date(r.check_in)) / 3600000) * 100) / 100);
-          
-          let activeShiftId = r.claimed_shift_id;
-          const dt = new Date(r.check_in);
-          const rTodayStr = getBkkDateString(dt);
-          
-          if (!activeShiftId) {
-            const dailySchedule = schedules.find(s => s.employee_id === r.employee_id && s.schedule_date === rTodayStr && !s.is_off_day);
-            if (dailySchedule) activeShiftId = dailySchedule.shift_id;
-          }
-          if (!activeShiftId) {
-            const matchingRoster = rosters.find(ro => ro.employee_id === r.employee_id && ro.start_date <= rTodayStr && (!ro.end_date || ro.end_date >= rTodayStr));
-            if (matchingRoster) activeShiftId = matchingRoster.shift_id;
-          }
-          if (!activeShiftId) {
-            activeShiftId = emp.default_shift_id;
-          }
-
-          if (activeShiftId) {
-            const shift = shifts.find(s => s.id === activeShiftId);
-            if (shift && shift.end_time) {
-              const [hours, minutes, seconds] = shift.end_time.split(':');
-              const endDt = new Date(`${rTodayStr}T${hours}:${minutes}:${seconds || '00'}+07:00`);
-              if (new Date(r.check_out) < endDt) {
-                isEarlyLeave = true;
-              }
-            }
-          }
-        } catch { }
-      }
-      return { ...r, Full_name: emp.Full_name || '—', employee_code: emp.employee_id || '—', work_hours_calc: workHours, is_early_leave: isEarlyLeave };
-    });
-
-    bioRegs.forEach(reg => { reg.Full_name = (empMap[reg.employee_id] || {}).Full_name || '—'; });
-    tokens.forEach(t => {
-      const emp = empMap[t.employee_id] || {};
-      t.Full_name = emp.Full_name || '—';
-      t.emp_code = emp.employee_id || '—';
-    });
-
-    const statsPresent = enriched.filter(r => String(r.check_in || '').startsWith(today)).length;
-    const statsLate = enriched.filter(r => r.is_late && String(r.check_in || '').startsWith(today)).length;
-    const statsInOffice = enriched.filter(r => String(r.check_in || '').startsWith(today) && !r.check_out).length;
-
-    return res.json({
-      records: enriched, employees,
-      biometric_devices: bioDevices, biometric_registrations: bioRegs,
-      active_tokens: tokens,
-      stats: { present: statsPresent, late: statsLate, in_office: statsInOffice, total: records.length },
-      today: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-    });
+    const result = await attendanceService.getAttendance(targetDate);
+    return res.json(result);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -248,54 +20,9 @@ router.get('/', requireAdmin, async (req, res) => {
 // POST /api/attendance
 router.post('/', async (req, res) => {
   try {
-    const d = req.body;
-    const now = new Date().toISOString();
-    const ci = d.check_in || now;
-    if (d.check_out && ci && new Date(d.check_out) < new Date(ci)) {
-      return res.status(400).json({ error: 'Check-out time cannot be before check-in time' });
-    }
-    // CRITICAL: Trust Boundary - override body employee_id with authenticated user's ID
     const employee_id = req.user.employee_id;
     if (!employee_id) return res.status(403).json({ error: 'No employee ID associated with this account' });
-
-    // Determine shift for today (dynamic schedule overrides static default)
-    const today = new Date().toISOString().split('T')[0];
-    // Try to fetch a schedule for this employee and date
-    const schedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
-      employee_id: employee_id,
-      schedule_date: today,
-      is_off_day: false
-    });
-    const shiftId = schedule?.shift_id || null; // may be null if off day or no schedule
-    let isLate = false;
-    let shiftAppStatus = 'Approved';
-    let claimedId = null;
-    let specialReason = null;
-
-    if (d.claimed_shift_id === 'special') {
-      isLate = false; // Cannot determine late for special shifts until HR reviews
-      shiftAppStatus = 'Pending';
-      specialReason = d.special_shift_reason || 'No reason provided';
-    } else if (d.claimed_shift_id) {
-      claimedId = d.claimed_shift_id; // Keep as string (UUID)
-      isLate = await checkIsLate(employee_id, ci, claimedId);
-      shiftAppStatus = 'Pending';
-    } else {
-      isLate = await checkIsLate(employee_id, ci);
-    }
-
-    const result = await dbInsert('attendance_records', {
-      employee_id: employee_id,
-      check_in: ci,
-      check_out: d.check_out || null,
-      overtime_hours: d.overtime_hours ? parseFloat(d.overtime_hours) : (d.check_out ? await calcOvertime(d.employee_id, d.check_out) : 0),
-      attendance_method: d.attendance_method || 'Manual',
-      is_late: isLate,
-      claimed_shift_id: claimedId,
-      shift_approval_status: shiftAppStatus,
-      special_shift_reason: specialReason,
-      created_at: now,
-    });
+    const result = await attendanceService.manualCheckIn(req.body, employee_id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Manual attendance check-in for employee ID: ${employee_id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: !!result, record: result });
   } catch (e) {
@@ -306,11 +33,7 @@ router.post('/', async (req, res) => {
 // POST /api/attendance/:id/checkout
 router.post('/:id/checkout', async (req, res) => {
   try {
-    const now = new Date().toISOString();
-    const record = await dbFetchOne('attendance_records', '*', { id: req.params.id });
-    const overtime_hours = record ? await calcOvertime(record.employee_id, now) : 0;
-
-    await dbUpdate('attendance_records', req.params.id, { check_out: now, overtime_hours });
+    await attendanceService.manualCheckOut(req.params.id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Manual check-out for attendance record ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
@@ -321,7 +44,7 @@ router.post('/:id/checkout', async (req, res) => {
 // DELETE /api/attendance/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    await dbDelete('attendance_records', req.params.id);
+    await attendanceService.deleteAttendance(req.params.id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted attendance record ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
@@ -334,17 +57,7 @@ router.post('/generate-qr', requireAdmin, async (req, res) => {
   try {
     const { employee_id, expires_in_minutes = 60 } = req.body;
     if (!employee_id) return res.status(400).json({ error: 'employee_id required' });
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires_at = new Date(Date.now() + expires_in_minutes * 60000).toISOString();
-
-    await dbInsert('qr_attendance_tokens', {
-      employee_id,
-      token,
-      expires_at,
-      used: false
-    });
-
+    const token = await attendanceService.generateQr(employee_id, expires_in_minutes);
     return res.json({ success: true, token });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -356,46 +69,20 @@ router.post('/scan', async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required' });
-
-    const qrData = await dbFetchOne('qr_attendance_tokens', '*', { token });
-    if (!qrData) return res.status(400).json({ error: 'Invalid token' });
-    if (qrData.used) return res.status(400).json({ error: 'Token already used' });
-    if (new Date(qrData.expires_at) < new Date()) return res.status(400).json({ error: 'Token expired' });
-
-    await dbUpdate('qr_attendance_tokens', qrData.id, { used: true });
-
-    const now = new Date().toISOString();
-    const today = now.split('T')[0];
-
-    const openRecords = await dbFetch('attendance_records', '*', { employee_id: qrData.employee_id }, { order: 'check_in', ascending: false, limit: 10 });
-    const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
-
-    // Prevent double-scanning duplicates within 2 minutes
-    const latestRecord = openRecords[0];
-    if (latestRecord) {
-      const lastActionTime = new Date(latestRecord.check_out || latestRecord.check_in);
-      if (new Date(now) - lastActionTime < 2 * 60 * 1000) {
-        return res.status(429).json({ error: 'Please wait at least 2 minutes between scans to prevent duplicates.' });
-      }
-    }
-
-    if (todayOpen) {
-      const overtime_hours = await calcOvertime(qrData.employee_id, now);
-      await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
-      await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `QR check-out for employee ID: ${qrData.employee_id}`, ip_address: req.ip || '0.0.0.0' });
-      return res.json({ success: true, message: 'QR Check-out successful' });
+    const result = await attendanceService.scanQr(token);
+    
+    if (result.message.includes('Check-out')) {
+      await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `QR check-out for employee ID: ${result.employee_id}`, ip_address: req.ip || '0.0.0.0' });
     } else {
-      await dbInsert('attendance_records', {
-        employee_id: qrData.employee_id,
-        check_in: now,
-        attendance_method: 'QR',
-        is_late: await checkIsLate(qrData.employee_id, now)
-      });
-      await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `QR check-in for employee ID: ${qrData.employee_id}`, ip_address: req.ip || '0.0.0.0' });
-      return res.json({ success: true, message: 'QR Check-in successful' });
+      await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `QR check-in for employee ID: ${result.employee_id}`, ip_address: req.ip || '0.0.0.0' });
     }
+    
+    return res.json({ success: true, message: result.message });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    if (e.message.includes('duplicate')) {
+      return res.status(429).json({ error: e.message });
+    }
+    return res.status(400).json({ error: e.message });
   }
 });
 
@@ -404,110 +91,29 @@ router.post('/photo-checkin', async (req, res) => {
   try {
     const { employee_id, photo_base64, claimed_shift_id, special_shift_reason } = req.body;
     if (!employee_id || !photo_base64) return res.status(400).json({ error: 'employee_id and photo required' });
-
-    const now = new Date().toISOString();
-    const today = now.split('T')[0];
-
-    const openRecords = await dbFetch('attendance_records', '*', { employee_id }, { order: 'check_in', ascending: false, limit: 10 });
-    const todayRecords = openRecords.filter(r => r.check_in && r.check_in.startsWith(today));
-    const todayOpen = todayRecords.find(r => !r.check_out);
-    const todayCompleted = todayRecords.find(r => r.check_out);
-
-    // Prevent double-clicking/network queue duplicates within 2 minutes
-    const latestRecord = openRecords[0];
-    if (latestRecord) {
-      const lastActionTime = new Date(latestRecord.check_out || latestRecord.check_in);
-      if (new Date(now) - lastActionTime < 2 * 60 * 1000) {
-        return res.status(429).json({ error: 'Please wait at least 2 minutes between check-ins to prevent duplicates.' });
-      }
-    }
-
-    if (todayOpen) {
-      const overtime_hours = await calcOvertime(employee_id, now);
-      await dbUpdate('attendance_records', todayOpen.id, { check_out: now, overtime_hours });
-      return res.json({ success: true, message: 'Photo Check-out successful' });
-    } else if (todayCompleted) {
-      return res.status(400).json({ error: 'Attendance already completed for today.' });
-    } else {
-      let isLate = false;
-      let shiftAppStatus = 'Approved';
-      let claimedId = null;
-      let specialReason = null;
-      
-      if (claimed_shift_id === 'special') {
-        isLate = false;
-        shiftAppStatus = 'Pending';
-        specialReason = special_shift_reason || 'No reason provided';
-      } else if (claimed_shift_id) {
-        claimedId = claimed_shift_id;
-        isLate = await checkIsLate(employee_id, now, claimedId);
-        shiftAppStatus = 'Pending';
-      } else {
-        isLate = await checkIsLate(employee_id, now);
-      }
-
-      await dbInsert('attendance_records', {
-        employee_id,
-        check_in: now,
-        attendance_method: 'Photo',
-        is_late: isLate,
-        claimed_shift_id: claimedId,
-        shift_approval_status: shiftAppStatus,
-        special_shift_reason: specialReason,
-      });
-      return res.json({ success: true, message: 'Photo Check-in successful' });
-    }
+    const result = await attendanceService.photoCheckin(employee_id, claimed_shift_id, special_shift_reason);
+    return res.json(result);
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    if (e.message.includes('duplicate')) {
+      return res.status(429).json({ error: e.message });
+    }
+    return res.status(400).json({ error: e.message });
   }
 });
 
 // POST /api/attendance/biometric/sync
-// Publicly accessible for hardware sync (using api_key)
 router.post('/biometric/sync', async (req, res) => {
   try {
-    const { api_key, records } = req.body; // records: [{ fingerprint_id, timestamp, device_id }]
+    const { api_key, records } = req.body;
     const expectedKey = process.env.BIOMETRIC_API_KEY;
     if (!expectedKey) {
       console.error('FATAL ERROR: BIOMETRIC_API_KEY environment variable is missing.');
       return res.status(500).json({ error: 'Server configuration error' });
     }
-
     if (api_key !== expectedKey) return res.status(401).json({ error: 'Unauthorized API Key' });
     if (!records || !Array.isArray(records)) return res.status(400).json({ error: 'Invalid records format' });
 
-    let synced = 0;
-    for (const r of records) {
-      // Find employee by fingerprint_id
-      const bioEmp = await dbFetchOne('biometric_employees', '*', { biometric_id: r.fingerprint_id });
-      if (!bioEmp) continue; // Unknown fingerprint
-
-      const empId = bioEmp.employee_id;
-      const logTime = r.timestamp;
-
-      // Check for exact duplicate raw time to prevent multiple inserts
-      const existingLog = await dbFetchOne('biometric_logs', 'id', { employee_id: empId, raw_time: logTime });
-      if (existingLog) continue;
-
-      // Insert to biometric_logs
-      await dbInsert('biometric_logs', {
-        device_id: r.device_id || bioEmp.device_id,
-        employee_id: empId,
-        raw_time: logTime
-      });
-
-      // Insert to attendance_records
-      await dbInsert('attendance_records', {
-        employee_id: empId,
-        check_in: logTime,
-        attendance_method: 'Biometric',
-        is_late: await checkIsLate(empId, logTime),
-        created_at: new Date().toISOString()
-      });
-
-      synced++;
-    }
-
+    const synced = await attendanceService.biometricSync(records);
     return res.json({ success: true, synced_count: synced });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -519,7 +125,7 @@ router.post('/biometric/device', requireAdmin, async (req, res) => {
   try {
     const { device_name, ip_address, port, location } = req.body;
     if (!device_name) return res.status(400).json({ error: 'device_name required' });
-    const newDevice = await dbInsert('biometric_device', { device_name, ip_address, port, location });
+    const newDevice = await attendanceService.createBiometricDevice({ device_name, ip_address, port, location });
     return res.json({ success: true, device: newDevice });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -529,8 +135,7 @@ router.post('/biometric/device', requireAdmin, async (req, res) => {
 // DELETE /api/attendance/biometric/device/:id
 router.delete('/biometric/device/:id', async (req, res) => {
   try {
-    const { error } = await supabase.from('biometric_device').delete().eq('id', req.params.id);
-    if (error) throw error;
+    await attendanceService.deleteBiometricDevice(req.params.id);
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -542,7 +147,7 @@ router.post('/biometric/mapping', requireAdmin, async (req, res) => {
   try {
     const { employee_id, device_id, biometric_id } = req.body;
     if (!employee_id || !biometric_id) return res.status(400).json({ error: 'employee_id and biometric_id required' });
-    const newMapping = await dbInsert('biometric_employees', { employee_id, device_id, biometric_id });
+    const newMapping = await attendanceService.createBiometricMapping({ employee_id, device_id, biometric_id });
     if (!newMapping) return res.status(500).json({ error: 'Failed to insert mapping' });
     return res.json({ success: true, mapping: newMapping });
   } catch (e) {
@@ -554,8 +159,7 @@ router.post('/biometric/mapping', requireAdmin, async (req, res) => {
 router.put('/biometric/mapping/:id', requireAdmin, async (req, res) => {
   try {
     const { employee_id, device_id, biometric_id } = req.body;
-    const ok = await dbUpdate('biometric_employees', req.params.id, { employee_id, device_id, biometric_id });
-    if (!ok) return res.status(500).json({ error: 'Failed to update mapping' });
+    await attendanceService.updateBiometricMapping(req.params.id, { employee_id, device_id, biometric_id });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -565,8 +169,7 @@ router.put('/biometric/mapping/:id', requireAdmin, async (req, res) => {
 // DELETE /api/attendance/biometric/mapping/:id
 router.delete('/biometric/mapping/:id', async (req, res) => {
   try {
-    const { error } = await supabase.from('biometric_employees').delete().eq('id', req.params.id);
-    if (error) throw error;
+    await attendanceService.deleteBiometricMapping(req.params.id);
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -576,40 +179,8 @@ router.delete('/biometric/mapping/:id', async (req, res) => {
 // GET /api/attendance/available-shifts
 router.get('/available-shifts', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const emp = await dbFetchOne('Employees', 'id, Dept_id', { id: req.user.employee_id });
-
-    // Get default assigned shift for today
-    const schedule = await dbFetchOne('employee_daily_schedules', 'shift_id', {
-      employee_id: req.user.employee_id,
-      schedule_date: today,
-      is_off_day: false
-    });
-    let defaultShiftId = schedule?.shift_id || null;
-
-    if (!defaultShiftId) {
-      const rosters = await dbFetch('employee_rosters', '*', { employee_id: req.user.employee_id });
-      for (const r of rosters) {
-        if (r.start_date <= today && (!r.end_date || r.end_date >= today)) {
-          defaultShiftId = r.shift_id;
-          break;
-        }
-      }
-    }
-    if (!defaultShiftId) {
-      const empFull = await dbFetchOne('Employees', 'default_shift_id', { id: req.user.employee_id });
-      defaultShiftId = empFull?.default_shift_id || null;
-    }
-
-    // Get all shifts and filter by department (if applicable)
-    const allShifts = await dbFetch('shifts', '*', {}, { order: 'shift_name' });
-    const myShifts = allShifts.filter(s => {
-      // If no department restriction, allow it
-      if (!s.allowed_departments || s.allowed_departments.length === 0) return true;
-      return s.allowed_departments.includes(emp?.Dept_id);
-    });
-
-    return res.json({ success: true, default_shift_id: defaultShiftId, allowed_shifts: myShifts });
+    const result = await attendanceService.getAvailableShifts(req.user.employee_id);
+    return res.json({ success: true, default_shift_id: result.default_shift_id, allowed_shifts: result.allowed_shifts });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -618,29 +189,7 @@ router.get('/available-shifts', async (req, res) => {
 // PUT /api/attendance/approvals/:id
 router.put('/approvals/:id', requireAdmin, async (req, res) => {
   try {
-    const { shift_approval_status, override_shift_id, special_shift_reason } = req.body;
-    const updates = { shift_approval_status };
-
-    if (override_shift_id) {
-      updates.claimed_shift_id = override_shift_id;
-      updates.special_shift_reason = null; 
-    } else if (special_shift_reason) {
-      updates.claimed_shift_id = 'special';
-      updates.special_shift_reason = special_shift_reason;
-    }
-
-    // Fetch record to recalculate late status
-    const record = await dbFetchOne('attendance_records', '*', { id: req.params.id });
-    if (record) {
-      const finalShiftId = override_shift_id || record.claimed_shift_id;
-      if (finalShiftId && finalShiftId !== 'special') {
-        updates.is_late = await checkIsLate(record.employee_id, record.check_in, finalShiftId);
-      } else {
-        updates.is_late = false;
-      }
-    }
-
-    await dbUpdate('attendance_records', req.params.id, updates);
+    await attendanceService.updateApproval(req.params.id, req.body);
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -649,37 +198,26 @@ router.put('/approvals/:id', requireAdmin, async (req, res) => {
 
 // --- Rosters & Shifts API ---
 
-
 // GET schedules for a date range
 router.get('/schedules', async (req, res) => {
   try {
     const { start, end } = req.query; // expect YYYY-MM-DD
     if (!start || !end) return res.status(400).json({ error: 'start and end query params required' });
-    const { data: schedules, error } = await supabase
-      .from('employee_daily_schedules')
-      .select('*')
-      .gte('schedule_date', start)
-      .lte('schedule_date', end)
-      .order('schedule_date', { ascending: true });
-
-    if (error) throw error;
-    return res.json({ success: true, schedules: schedules || [] });
+    const schedules = await attendanceService.getSchedules(start, end);
+    return res.json({ success: true, schedules });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 });
 
-// POST bulk upsert schedules (array of {employee_id, schedule_date, shift_id, is_off_day})
+// POST bulk upsert schedules
 router.post('/schedules', requireAdmin, async (req, res) => {
   try {
     const entries = req.body; // expect array
     if (!Array.isArray(entries)) return res.status(400).json({ error: 'Array of schedules required' });
-    // Use Supabase upsert with conflict on employee_id + schedule_date
-    const { error, data } = await supabase.from('employee_daily_schedules')
-      .upsert(entries, { onConflict: ['employee_id', 'schedule_date'] });
-    if (error) throw error;
+    const schedules = await attendanceService.upsertSchedules(entries);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Bulk updated ${entries.length} daily schedules`, ip_address: req.ip || '0.0.0.0' });
-    return res.json({ success: true, schedules: data });
+    return res.json({ success: true, schedules });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -688,8 +226,7 @@ router.post('/schedules', requireAdmin, async (req, res) => {
 // DELETE schedule by id
 router.delete('/schedules/:id', requireAdmin, async (req, res) => {
   try {
-    const { error } = await supabase.from('employee_daily_schedules').delete().eq('id', req.params.id);
-    if (error) throw error;
+    await attendanceService.deleteSchedule(req.params.id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted daily schedule ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
@@ -699,7 +236,7 @@ router.delete('/schedules/:id', requireAdmin, async (req, res) => {
 
 router.get('/shifts', async (req, res) => {
   try {
-    const shifts = await dbFetch('shifts', '*', {}, { order: 'shift_name' });
+    const shifts = await attendanceService.getShifts();
     return res.json({ success: true, shifts });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -710,7 +247,7 @@ router.post('/shifts', requireAdmin, async (req, res) => {
   try {
     const { shift_name, start_time, end_time, grace_period_minutes } = req.body;
     if (!shift_name || !start_time || !end_time) return res.status(400).json({ error: 'Missing required fields' });
-    const shift = await dbInsert('shifts', { shift_name, start_time, end_time, grace_period_minutes: grace_period_minutes || 15 });
+    const shift = await attendanceService.createShift({ shift_name, start_time, end_time, grace_period_minutes: grace_period_minutes || 15 });
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Created new shift: ${shift_name}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, shift });
   } catch (e) {
@@ -721,7 +258,7 @@ router.post('/shifts', requireAdmin, async (req, res) => {
 router.put('/shifts/:id', requireAdmin, async (req, res) => {
   try {
     const { shift_name, start_time, end_time, grace_period_minutes } = req.body;
-    const shift = await dbUpdate('shifts', req.params.id, { shift_name, start_time, end_time, grace_period_minutes });
+    const shift = await attendanceService.updateShift(req.params.id, { shift_name, start_time, end_time, grace_period_minutes });
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'UPDATE', module: 'Attendance', details: `Updated shift ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, shift });
   } catch (e) {
@@ -731,8 +268,7 @@ router.put('/shifts/:id', requireAdmin, async (req, res) => {
 
 router.delete('/shifts/:id', requireAdmin, async (req, res) => {
   try {
-    const { error } = await supabase.from('shifts').delete().eq('id', req.params.id);
-    if (error) throw error;
+    await attendanceService.deleteShift(req.params.id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted shift ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
@@ -740,10 +276,9 @@ router.delete('/shifts/:id', requireAdmin, async (req, res) => {
   }
 });
 
-
 router.get('/rosters', async (req, res) => {
   try {
-    const rosters = await dbFetch('employee_rosters');
+    const rosters = await attendanceService.getRosters();
     return res.json({ success: true, rosters });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -756,9 +291,7 @@ router.post('/rosters', requireAdmin, async (req, res) => {
     if (!employee_id || !shift_id || !start_date) {
       return res.status(400).json({ error: 'employee_id, shift_id, and start_date are required' });
     }
-    const result = await dbInsert('employee_rosters', {
-      employee_id, shift_id, start_date, end_date: end_date || null
-    });
+    const result = await attendanceService.createRoster({ employee_id, shift_id, start_date, end_date: end_date || null });
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Created roster for employee ID: ${employee_id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true, roster: result });
   } catch (e) {
@@ -768,7 +301,7 @@ router.post('/rosters', requireAdmin, async (req, res) => {
 
 router.delete('/rosters/:id', requireAdmin, async (req, res) => {
   try {
-    await dbDelete('employee_rosters', req.params.id);
+    await attendanceService.deleteRoster(req.params.id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'DELETE', module: 'Attendance', details: `Deleted roster ID: ${req.params.id}`, ip_address: req.ip || '0.0.0.0' });
     return res.json({ success: true });
   } catch (e) {
@@ -780,8 +313,7 @@ router.post('/default-shift', requireAdmin, async (req, res) => {
   try {
     const { employee_id, shift_id } = req.body;
     if (!employee_id) return res.status(400).json({ error: 'employee_id is required' });
-
-    await dbUpdate('Employees', employee_id, { default_shift_id: shift_id || null });
+    await attendanceService.updateDefaultShift(employee_id, shift_id);
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });

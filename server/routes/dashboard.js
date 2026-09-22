@@ -2,6 +2,7 @@ import express from 'express';
 import { dbFetch } from '../shared/db/index.js';
 import { verifyToken } from '../shared/auth/index.js';
 import { payrollModule } from '../modules/payroll/index.js';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 
@@ -16,8 +17,8 @@ router.get('/', verifyToken, async (req, res) => {
 
     const [
       employeesRes,
-      attendanceRes,
-      leaveReqsRes,
+      attendanceData,
+      leaveReqsData,
       offboardingRes,
       onboardingRes,
       candidatesRes,
@@ -25,8 +26,8 @@ router.get('/', verifyToken, async (req, res) => {
       announcementsRes
     ] = await Promise.all([
       supabase.from('Employees').select('id,employee_id,Full_name,status,Dept_id'),
-      supabase.from('attendance_records').select('id,employee_id,check_in,check_out,is_late').gte('check_in', `${today}T00:00:00`),
-      supabase.from('Leave_Request').select('id,status'),
+      hrmModule.getAttendanceSummaryForPayroll(today),
+      hrmModule.getAllLeaveRequests(),
       supabase.from('corporate_offboarding').select('id,settlement_status'),
       supabase.from('employee_onboarding').select('id,status'),
       supabase.from('recruitment_candidates').select('id,status'),
@@ -35,8 +36,8 @@ router.get('/', verifyToken, async (req, res) => {
     ]);
 
     const employees = employeesRes.data || [];
-    const attendance = attendanceRes.data || [];
-    const leaveReqs = leaveReqsRes.data || [];
+    const attendance = attendanceData || [];
+    const leaveReqs = leaveReqsData || [];
     const offboarding = offboardingRes.data || [];
     const onboarding = onboardingRes.data || [];
     const candidates = candidatesRes.data || [];

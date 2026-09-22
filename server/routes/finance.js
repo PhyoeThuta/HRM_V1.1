@@ -2,6 +2,7 @@ import express from 'express';
 import { dbFetch } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 import { payrollModule } from '../modules/payroll/index.js';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -21,7 +22,7 @@ router.get('/dashboard', async (req, res) => {
     
     const payrolls = await payrollModule.getFinancePayrolls();
     const depts = await dbFetch('Departments', 'id');
-    const leaves = await dbFetch('Leave_Request', 'id, status', { status: 'Approved' });
+    const leaves = await hrmModule.getActiveLeaves();
     
     // Aggregation logic
     const headcount = activeEmployees.length;

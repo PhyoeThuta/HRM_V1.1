@@ -8,6 +8,7 @@ import bcryptjs from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -36,7 +37,8 @@ router.get('/overview', async (req, res) => {
   try {
     const employees = await dbFetch('Employees', 'id', { status: 'Active' });
     const positions = await dbFetch('positions', 'id, title');
-    const leaveRequests = await dbFetch('Leave_Request', 'id, status', { status: 'Pending' });
+    const allLeaves = await hrmModule.getAllLeaveRequests();
+    const leaveRequests = allLeaves.filter(l => l.status === 'Pending');
     
     // In a real scenario we would aggregate payroll, here we mock some basic stats
     const total_employees = employees.length;
@@ -124,7 +126,7 @@ router.post('/chat', async (req, res) => {
     ] = await Promise.all([
       dbFetch('Employees', 'id, Full_name, status, Dept_id', { status: 'Active' }),
       dbFetch('boss_kpi_assignments', 'id, title, status, employee_id'),
-      dbFetch('Leave_Request', 'id, employee_id, status, total_days', {}, { order: 'created_at', ascending: false })
+      hrmModule.getAllLeaveRequests()
     ]);
 
     let contextStr = `BASIC HR OVERVIEW:\nActive Employees: ${employees.length}\n`;
