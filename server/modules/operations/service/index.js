@@ -1,6 +1,6 @@
 import * as opsRepo from '../repository/index.js';
 import { inventoryModule } from '../../inventory/index.js';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { supabase, supabaseAdmin } from '../../../lib/supabase.js';
 
 // ==========================================
 // MENUS
@@ -420,4 +420,74 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
   }
 
   return { success: true, generatedCount: newOrders.length };
+}
+
+// ==========================================
+// RIDER ASSIGNMENT
+// ==========================================
+
+export async function assignRiderToOrder(orderId, riderId) {
+  const existing = await opsRepo.getRiderAssignmentByOrderId(orderId);
+
+  if (existing) {
+    await opsRepo.updateRiderAssignment(orderId, {
+      rider_id: riderId || null,
+      status: riderId ? 'ASSIGNED' : null,
+      updated_at: new Date().toISOString()
+    });
+  } else if (riderId) {
+    await opsRepo.insertRiderAssignment({
+      order_id: orderId,
+      rider_id: riderId,
+      status: 'ASSIGNED'
+    });
+  }
+
+  return { success: true };
+}
+
+// ==========================================
+// POD PHOTO UPLOAD
+// ==========================================
+
+export async function uploadPodPhoto(imageStr) {
+  if (!imageStr || typeof imageStr !== 'string') {
+    const err = new Error('Image data is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const match = imageStr.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!match) {
+    const err = new Error('Invalid image format. Expected base64 data URL.');
+    err.status = 400;
+    throw err;
+  }
+
+  const mimeType = match[1];
+  const ext = mimeType.split('/')[1] || 'jpg';
+  const base64Data = match[2];
+  const buffer = Buffer.from(base64Data, 'base64');
+  const filename = `pod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
+
+  try {
+    const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+      .from('gallery')
+      .upload(`proof_of_delivery/${filename}`, buffer, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (!uploadErr) {
+      const { data: publicUrlData } = supabaseAdmin.storage.from('gallery').getPublicUrl(`proof_of_delivery/${filename}`);
+      if (publicUrlData?.publicUrl) {
+        return { success: true, url: publicUrlData.publicUrl };
+      }
+    }
+  } catch (e) {
+    console.warn('[POD_PHOTO_STORAGE_WARN]', e.message);
+  }
+
+  // Fallback to original image if storage fails (mirrors legacy behavior)
+  return { success: true, url: imageStr };
 }

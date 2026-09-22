@@ -297,3 +297,36 @@ export async function autoGenerateOrders(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+// ==========================================
+// RIDER ASSIGNMENT
+// ==========================================
+
+export async function assignRiderToOrder(req, res) {
+  try {
+    const { id } = req.params;
+    const { rider_id } = req.body;
+    
+    const result = await opsService.assignRiderToOrder(id, rider_id);
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ==========================================
+// POD PHOTO UPLOAD
+// ==========================================
+
+export async function uploadPodPhoto(req, res) {
+  try {
+    const result = await opsService.uploadPodPhoto(req.body.image);
+    return res.json(result);
+  } catch (e) {
+    if (e.status === 400 || e.message === 'Image data is required' || e.message.includes('Invalid image format')) {
+      return res.status(400).json({ error: e.message });
+    }
+    console.error('[UPLOAD_POD_PHOTO_ERR]', e);
+    return res.status(500).json({ error: 'Failed to process proof photo upload' });
+  }
+}

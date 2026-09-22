@@ -271,48 +271,7 @@ router.post('/orders', opsController.createOrder);
 router.post('/orders/auto-generate', opsController.autoGenerateOrders);
 
 // POST /api/operations/upload-pod-photo - Realtime proof of delivery photo upload
-router.post('/upload-pod-photo', async (req, res) => {
-  try {
-    const { image } = req.body;
-    if (!image || typeof image !== 'string') {
-      return res.status(400).json({ error: 'Image data is required' });
-    }
-
-    const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
-    if (!match) {
-      return res.status(400).json({ error: 'Invalid image format. Expected base64 data URL.' });
-    }
-
-    const mimeType = match[1];
-    const ext = mimeType.split('/')[1] || 'jpg';
-    const base64Data = match[2];
-    const buffer = Buffer.from(base64Data, 'base64');
-    const filename = `pod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
-
-    try {
-      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
-        .from('gallery')
-        .upload(`proof_of_delivery/${filename}`, buffer, {
-          contentType: mimeType,
-          upsert: true
-        });
-
-      if (!uploadErr) {
-        const { data: publicUrlData } = supabaseAdmin.storage.from('gallery').getPublicUrl(`proof_of_delivery/${filename}`);
-        if (publicUrlData?.publicUrl) {
-          return res.json({ success: true, url: publicUrlData.publicUrl });
-        }
-      }
-    } catch (e) {
-      console.warn('[POD_PHOTO_STORAGE_WARN]', e.message);
-    }
-
-    res.json({ success: true, url: image });
-  } catch (err) {
-    console.error('[UPLOAD_POD_PHOTO_ERR]', err);
-    res.status(500).json({ error: 'Failed to process proof photo upload' });
-  }
-});
+router.post('/upload-pod-photo', opsController.uploadPodPhoto);
 
 const lastSentZernioMap = new Map();
 
@@ -676,36 +635,7 @@ router.put('/orders/:id/status', async (req, res) => {
 router.get('/riders', opsController.getRiders);
 
 // Admin assigns order to a rider
-router.put('/orders/:id/assign', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rider_id } = req.body;
-
-    // Upsert into rider_assignments
-    const { data: existing } = await supabase
-      .from('operations_rider_assignments')
-      .select('id')
-      .eq('order_id', id)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await supabase
-        .from('operations_rider_assignments')
-        .update({ rider_id: rider_id || null, status: rider_id ? 'ASSIGNED' : null, updated_at: new Date().toISOString() })
-        .eq('order_id', id);
-      if (error) throw error;
-    } else if (rider_id) {
-      const { error } = await supabase
-        .from('operations_rider_assignments')
-        .insert({ order_id: id, rider_id, status: 'ASSIGNED' });
-      if (error) throw error;
-    }
-
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/orders/:id/assign', opsController.assignRiderToOrder);
 
 // Rider updates their own delivery status
 // Flow: ASSIGNED → PICKING_UP → ON_THE_WAY → DELIVERED

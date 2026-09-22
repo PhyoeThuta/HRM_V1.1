@@ -219,3 +219,32 @@ export async function bulkInsertOrders(orders) {
   const { error } = await supabase.from('operations_orders').insert(orders);
   if (error) throw error;
 }
+
+// ==========================================
+// RIDER ASSIGNMENT
+// ==========================================
+
+export async function getRiderAssignmentByOrderId(orderId) {
+  const { data, error } = await supabase
+    .from('operations_rider_assignments')
+    .select('id')
+    .eq('order_id', orderId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateRiderAssignment(orderId, updateData) {
+  const { error } = await supabase
+    .from('operations_rider_assignments')
+    .update(updateData)
+    .eq('order_id', orderId);
+  if (error) throw error;
+}
+
+export async function insertRiderAssignment(insertData) {
+  const { error } = await supabase
+    .from('operations_rider_assignments')
+    .insert(insertData);
+  if (error) throw error;
+}
