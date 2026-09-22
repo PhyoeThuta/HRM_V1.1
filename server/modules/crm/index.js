@@ -66,6 +66,11 @@ export const crmModule = {
   },
   async enrollPublicCustomer(formData) {
     return crmService.enrollPublicCustomer(formData);
+  },
+
+  // 10. Automated Lifecycles
+  async markInactiveProspectsAsLost(daysInactive) {
+    return crmService.markInactiveProspectsAsLost(daysInactive);
   }
 };
 

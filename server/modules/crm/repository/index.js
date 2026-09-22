@@ -480,3 +480,22 @@ export async function deductPackageMealCount(packageId, currentCount) {
     .update({ meal_count: currentCount - 1 })
     .eq('id', packageId);
 }
+
+export async function getInactiveInquiries(dateThreshold) {
+  const { data, error } = await supabaseAdmin.schema('crm')
+    .from('inquiries')
+    .select('id')
+    .not('status', 'eq', 'converted')
+    .not('status', 'ilike', 'lost')
+    .lt('updated_at', dateThreshold);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function bulkUpdateInquiriesLost(ids) {
+  if (!ids || ids.length === 0) return;
+  await supabaseAdmin.schema('crm')
+    .from('inquiries')
+    .update({ status: 'lost', updated_at: new Date().toISOString() })
+    .in('id', ids);
+}

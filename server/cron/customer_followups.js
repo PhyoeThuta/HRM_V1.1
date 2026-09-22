@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabase.js';
 import fetch from 'node-fetch';
+import { crmModule } from '../modules/crm/index.js';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.CHEF_CHAT_ID || process.env.TELEGRAM_CHAT_ID; // Fallback to Chef/General chat ID if Admin ID is not set
@@ -283,25 +284,7 @@ export async function checkAndNotifyFormReminders() {
 
 export async function autoMarkLostProspects() {
   try {
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-    // Find inquiries that are NOT 'converted' and NOT 'lost', whose updated_at is older than 3 days ago.
-    const { data: inquiries, error } = await supabaseAdmin.schema('crm')
-      .from('inquiries')
-      .select('id, prospect_name, status')
-      .not('status', 'eq', 'converted')
-      .not('status', 'ilike', 'lost')
-      .lt('updated_at', threeDaysAgo.toISOString());
-
-    if (error) throw error;
-    if (!inquiries || inquiries.length === 0) return { marked: 0 };
-
-    let markedCount = 0;
-    for (const inq of inquiries) {
-      await supabaseAdmin.schema('crm').from('inquiries').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', inq.id);
-      markedCount++;
-    }
+    const markedCount = await crmModule.markInactiveProspectsAsLost(3);
 
     console.log(`[CRON] Auto-marked ${markedCount} prospects as Lost due to 3 days of inactivity.`);
     return { marked: markedCount };

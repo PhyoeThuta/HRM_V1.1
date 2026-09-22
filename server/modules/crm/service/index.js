@@ -941,3 +941,18 @@ export async function submitCustomerMonthlyReview(customerId, reviewData) {
     customerName: customer ? customer.full_name : 'Customer'
   };
 }
+
+export async function markInactiveProspectsAsLost(daysInactive = 3) {
+  const thresholdDate = new Date();
+  thresholdDate.setDate(thresholdDate.getDate() - daysInactive);
+
+  const inquiries = await crmRepo.getInactiveInquiries(thresholdDate.toISOString());
+  if (!inquiries || inquiries.length === 0) {
+    return 0;
+  }
+
+  const inquiryIds = inquiries.map(inq => inq.id);
+  await crmRepo.bulkUpdateInquiriesLost(inquiryIds);
+
+  return inquiryIds.length;
+}
