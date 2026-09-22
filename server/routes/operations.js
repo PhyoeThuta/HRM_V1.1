@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../lib/supabase.js';
 import { inventoryModule } from '../modules/inventory/index.js';
+import { crmModule } from '../modules/crm/index.js';
 
 // Simple in-memory Mutex to prevent race conditions during inventory deduction
 // REMOVED: Now using central inventoryModule.deductStockForBOM which coordinates concurrency.
@@ -216,23 +217,10 @@ router.put('/orders/batch-status', async (req, res) => {
       if (proof_of_delivery_url) {
         for (const cid of customerIds) {
           try {
-            await supabaseAdmin.schema('crm').from('customers')
-              .update({ delivery_spot_photo_url: proof_of_delivery_url })
-              .eq('id', cid);
-          } catch (e) {}
-
-          try {
-            const { data: cust } = await supabaseAdmin.schema('crm').from('customers')
-              .select('delivery_notes').eq('id', cid).single();
-            let currentNotes = cust?.delivery_notes || '';
-            if (!currentNotes.includes(proof_of_delivery_url)) {
-              const photoTag = `📸 POD: ${proof_of_delivery_url}`;
-              const newNotes = currentNotes ? `${currentNotes} | ${photoTag}` : photoTag;
-              await supabaseAdmin.schema('crm').from('customers')
-                .update({ delivery_notes: newNotes })
-                .eq('id', cid);
-            }
-          } catch (e) {}
+            await crmModule.updateDeliveryProof(cid, proof_of_delivery_url);
+          } catch (e) {
+            console.warn('[DELIVERY_PROOF_UPDATE_ERR]', e.message);
+          }
         }
       }
       for (const cid of customerIds) {
