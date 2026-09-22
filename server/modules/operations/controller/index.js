@@ -359,3 +359,15 @@ export async function updateRiderStatus(req, res) {
     return res.status(500).json({ error: e.message || e });
   }
 }
+
+export async function importCostingExcel(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const result = await opsService.importCostingExcel(req.file.buffer);
+    return res.json(result);
+  } catch (err) {
+    console.error('[IMPORT COSTING]', err);
+    return res.status(500).json({ error: err.message });
+  }
+}

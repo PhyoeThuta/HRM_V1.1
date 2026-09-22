@@ -343,3 +343,44 @@ export async function getOrderCustomerId(orderId) {
   if (error) throw error;
   return data;
 }
+
+// ==========================================
+// IMPORT COSTING METHODS
+// ==========================================
+
+export async function getMenuIdByNameEnAdmin(nameEn) {
+  const { data } = await supabaseAdmin
+    .from('operations_menus')
+    .select('id')
+    .eq('name_en', nameEn)
+    .limit(1);
+  return data;
+}
+
+export async function updateMenuAdmin(id, menuData) {
+  await supabaseAdmin
+    .from('operations_menus')
+    .update(menuData)
+    .eq('id', id);
+}
+
+export async function insertMenuAdmin(menuData) {
+  const { data } = await supabaseAdmin
+    .from('operations_menus')
+    .insert(menuData)
+    .select('id');
+  return data;
+}
+
+export async function deleteRecipesByMenuIdAdmin(menuId) {
+  await supabaseAdmin
+    .from('operations_recipes')
+    .delete()
+    .eq('menu_id', menuId);
+}
+
+export async function insertRecipeAdmin(recipeData) {
+  await supabaseAdmin
+    .from('operations_recipes')
+    .insert(recipeData);
+}

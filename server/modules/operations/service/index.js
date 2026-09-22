@@ -2,6 +2,7 @@ import * as opsRepo from '../repository/index.js';
 import { inventoryModule } from '../../inventory/index.js';
 import { supabase, supabaseAdmin } from '../../../lib/supabase.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
+import xlsx from 'xlsx';
 
 // ==========================================
 // MENUS
@@ -718,6 +719,111 @@ export async function updateRiderStatus(id, status, proofUrl, userId) {
   }
   
   return { success: true };
+}
+
+// ==========================================
+// IMPORT COSTING
+// ==========================================
+
+export async function importCostingExcel(buffer) {
+  const wb = xlsx.read(buffer, { type: 'buffer' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+  const parsedMenus = [];
+  let currentMenu = null;
+
+  for (let r = 0; r < data.length; r++) {
+    const row = data[r];
+    if (!row || !row[0]) continue;
+
+    const titleRaw = row[0].toString().trim();
+    const match = titleRaw.match(/^([A-Z\s]+[0-9]{3,4})\s*-\s*([^\(]+)(?:\((.+)\))?/);
+    
+    if (match) {
+      if (currentMenu) parsedMenus.push(currentMenu);
+      currentMenu = {
+        code: match[1].trim(),
+        name_en: match[2].trim(),
+        name_mm: match[3] ? match[3].trim() : '',
+        sales_prices: 0,
+        ingredients: []
+      };
+      continue;
+    }
+
+    if (currentMenu && titleRaw.toLowerCase().includes('sales prices')) {
+      const priceMatch = titleRaw.match(/[\d.]+/);
+      if (priceMatch) currentMenu.sales_prices = parseFloat(priceMatch[0]);
+      continue;
+    }
+
+    if (currentMenu && titleRaw.toLowerCase() === 'description') {
+      continue;
+    }
+    
+    if (currentMenu && titleRaw.toLowerCase().includes('total bill of materials')) {
+      continue;
+    }
+
+    if (currentMenu && row[2] !== undefined && row[3] !== undefined) {
+      currentMenu.ingredients.push({
+        name: titleRaw,
+        qty: parseFloat(row[2]) || 0,
+        uom: row[3].toString().trim().toLowerCase()
+      });
+    }
+  }
+  
+  if (currentMenu) parsedMenus.push(currentMenu);
+
+  let menusCreated = 0;
+  let itemsCreated = 0;
+  let recipesCreated = 0;
+
+  for (const menu of parsedMenus) {
+    // 1. Insert/Update Menu
+    const existingMenu = await opsRepo.getMenuIdByNameEnAdmin(menu.name_en);
+    let menuId;
+    if (existingMenu && existingMenu.length > 0) {
+      menuId = existingMenu[0].id;
+      await opsRepo.updateMenuAdmin(menuId, {
+        code: menu.code,
+        name_mm: menu.name_mm,
+        sales_prices: menu.sales_prices,
+        updated_at: new Date().toISOString()
+      });
+    } else {
+      const newMenu = await opsRepo.insertMenuAdmin({
+        code: menu.code,
+        name_en: menu.name_en,
+        name_mm: menu.name_mm,
+        sales_prices: menu.sales_prices
+      });
+      menuId = newMenu[0].id;
+      menusCreated++;
+    }
+
+    // Clear existing recipes for this menu so we don't duplicate
+    await opsRepo.deleteRecipesByMenuIdAdmin(menuId);
+
+    // 2. Insert/Update Ingredients & Recipes
+    for (const ing of menu.ingredients) {
+      const { id: itemId, created } = await inventoryModule.getOrCreateItemForCosting(ing.name, ing.uom);
+      if (created) itemsCreated++;
+
+      // Add Recipe
+      await opsRepo.insertRecipeAdmin({
+        menu_id: menuId,
+        inventory_item_id: itemId,
+        quantity: ing.qty,
+        unit_of_measure: ing.uom
+      });
+      recipesCreated++;
+    }
+  }
+
+  return { success: true, menusCreated, itemsCreated, recipesCreated, parsedMenusCount: parsedMenus.length };
 }
 
 // ==========================================
