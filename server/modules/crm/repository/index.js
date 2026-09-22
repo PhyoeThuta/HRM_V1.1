@@ -550,3 +550,56 @@ export async function updateInquiryUpdatedAt(inquiryId) {
   if (error) throw error;
   return true;
 }
+
+export async function getEnrollmentInquiryByToken(token) {
+  const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
+    .select('*')
+    .eq('onboarding_token', token)
+    .single();
+  return { data, error };
+}
+
+export async function getFormSchema(formName) {
+  const { data } = await supabaseAdmin.schema('crm').from('form_settings')
+    .select('schema')
+    .eq('form_name', formName)
+    .single();
+  return data;
+}
+
+export async function getPackagesList() {
+  const { data } = await supabaseAdmin.schema('crm').from('packages')
+    .select('*')
+    .order('price', { ascending: true });
+  return data;
+}
+
+export async function getCustomerByCodeOrId(identifier) {
+  let query = supabaseAdmin.schema('crm').from('customers')
+    .select('id, full_name, customer_code, address, delivery_address, delivery_notes, delivery_spot_photo_url');
+  if (identifier.startsWith('BBD-') || !identifier.includes('-')) {
+    query = query.eq('customer_code', identifier);
+  } else {
+    query = query.eq('id', identifier);
+  }
+  return await query.single();
+}
+
+export async function updateCustomerAddress(id, payload) {
+  try {
+    const { error } = await supabaseAdmin.schema('crm').from('customers')
+      .update(payload)
+      .eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    if (payload.delivery_spot_photo_url !== undefined) {
+      delete payload.delivery_spot_photo_url;
+      const { error } = await supabaseAdmin.schema('crm').from('customers')
+        .update(payload)
+        .eq('id', id);
+      if (error) throw error;
+    } else {
+      throw e;
+    }
+  }
+}

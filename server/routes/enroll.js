@@ -221,22 +221,14 @@ router.post('/upload-spot-photo', async (req, res) => {
 router.get('/update-address/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
-
-    let query = supabaseAdmin.schema('crm').from('customers').select('id, full_name, customer_code, address, delivery_address, delivery_notes, delivery_spot_photo_url');
     
-    if (customerId.startsWith('BBD-') || !customerId.includes('-')) {
-      query = query.eq('customer_code', customerId);
-    } else {
-      query = query.eq('id', customerId);
-    }
-
-    const { data: customer, error } = await query.single();
-    if (error || !customer) {
-      return res.status(404).json({ error: 'Customer profile not found' });
-    }
+    const customer = await crmModule.getCustomerAddressProfile(customerId);
 
     res.json({ success: true, customer });
   } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
     console.error('[UPDATE_ADDRESS_GET_ERR]', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -246,57 +238,14 @@ router.get('/update-address/:customerId', async (req, res) => {
 router.post('/update-address/:customerId', async (req, res) => {
   try {
     const { customerId } = req.params;
-    const { delivery_address, delivery_notes, maps_url, delivery_spot_photo_url } = req.body;
-
-    let query = supabaseAdmin.schema('crm').from('customers').select('id, delivery_notes');
-    if (customerId.startsWith('BBD-') || !customerId.includes('-')) {
-      query = query.eq('customer_code', customerId);
-    } else {
-      query = query.eq('id', customerId);
-    }
-
-    const { data: existingCustomer, error: findErr } = await query.single();
-    if (findErr || !existingCustomer) {
-      return res.status(404).json({ error: 'Customer profile not found' });
-    }
-
-    let finalNotes = delivery_notes || existingCustomer.delivery_notes || '';
-    if (maps_url) {
-      const linkNote = `📍 Maps Link: ${maps_url}`;
-      if (!finalNotes.includes(maps_url)) {
-        finalNotes = finalNotes ? `${finalNotes} | ${linkNote}` : linkNote;
-      }
-    }
-
-    if (delivery_spot_photo_url) {
-      const photoNote = `📸 Photo: ${delivery_spot_photo_url}`;
-      if (!finalNotes.includes(delivery_spot_photo_url)) {
-        finalNotes = finalNotes ? `${finalNotes} | ${photoNote}` : photoNote;
-      }
-    }
-
-    const updatePayload = {
-      delivery_address: delivery_address || null,
-      delivery_notes: finalNotes || null
-    };
-
-    try {
-      if (delivery_spot_photo_url) updatePayload.delivery_spot_photo_url = delivery_spot_photo_url;
-      const { error: updateErr } = await supabaseAdmin.schema('crm').from('customers')
-        .update(updatePayload)
-        .eq('id', existingCustomer.id);
-      if (updateErr) throw updateErr;
-    } catch (e) {
-      // Fallback without delivery_spot_photo_url if column missing
-      delete updatePayload.delivery_spot_photo_url;
-      const { error: updateErr } = await supabaseAdmin.schema('crm').from('customers')
-        .update(updatePayload)
-        .eq('id', existingCustomer.id);
-      if (updateErr) throw updateErr;
-    }
+    
+    await crmModule.updateCustomerAddressProfile(customerId, req.body);
 
     res.json({ success: true, message: 'Delivery address updated successfully' });
   } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
     console.error('[UPDATE_ADDRESS_POST_ERR]', err);
     res.status(500).json({ error: 'Failed to update delivery address' });
   }
@@ -307,81 +256,18 @@ router.get('/:token', async (req, res) => {
   try {
     const { token } = req.params;
     
-    // 1. Get Inquiry
-    const { data: inquiry, error: inqErr } = await supabaseAdmin.schema('crm').from('inquiries')
-      .select('*')
-      .eq('onboarding_token', token)
-      .single();
-
-    if (inqErr || !inquiry) {
-      return res.status(404).json({ error: 'Invalid or expired token' });
-    }
-
-    if (inquiry.onboarding_status === 'completed') {
-      return res.status(400).json({ error: 'Form already submitted', completed: true });
-    }
-
-    // 2. Get Form Schema
-    const { data: formSettings } = await supabaseAdmin.schema('crm').from('form_settings')
-      .select('schema')
-      .eq('form_name', 'enrollment')
-      .single();
-
-    const defaultSchema = [
-      // Basic Info
-      { id: 'name', type: 'text', label: 'Full Name', required: true, section: '01. Basic Information', width: 'half', placeholder: 'e.g. Aung Aung' },
-      { id: 'fb_name', type: 'text', label: 'Facebook Name', required: true, section: '01. Basic Information', width: 'half', placeholder: 'Auto-filled', readonly: true },
-      { id: 'age', type: 'number', label: 'Age', required: true, section: '01. Basic Information', width: 'third', placeholder: 'e.g. 28' },
-      { id: 'gender', type: 'dropdown', label: 'Gender', required: true, options: ['Male', 'Female', 'Other'], section: '01. Basic Information', width: 'third' },
-      { id: 'phone', type: 'text', label: 'Phone Number', required: true, section: '01. Basic Information', width: 'third', placeholder: 'e.g. 09123456789' },
-      { id: 'package_id', type: 'dropdown', label: 'Select Package', required: true, section: '01. Basic Information', width: 'half' },
-      { id: 'start_date', type: 'date', label: 'Desired Start Date', required: true, section: '01. Basic Information', width: 'half' },
-      { id: 'home_address', type: 'textarea', label: 'Home Address', required: false, section: '01. Basic Information', width: 'full', placeholder: 'Home address' },
-      { id: 'delivery_address', type: 'textarea', label: 'Delivery Address', required: true, section: '01. Basic Information', width: 'full', placeholder: 'Full address for meal delivery' },
-      { id: 'delivery_notes', type: 'text', label: 'Delivery Notes (Optional)', required: false, section: '01. Basic Information', width: 'full', placeholder: 'e.g. Leave at security gate, call when arrived' },
-
-      // Physical & Health Profile
-      { id: 'current_weight', type: 'number', label: 'Current Weight (kg)', required: true, section: '02. Physical & Health Profile', width: 'third' },
-      { id: 'goal_weight', type: 'number', label: 'Goal Weight (kg)', required: true, section: '02. Physical & Health Profile', width: 'third' },
-      { id: 'height', type: 'number', label: 'Height (cm)', required: true, section: '02. Physical & Health Profile', width: 'third' },
-      { id: 'medical_conditions', type: 'text', label: 'Medical Conditions', required: false, section: '02. Physical & Health Profile', width: 'half', placeholder: 'e.g. Diabetes, Hypertension' },
-      { id: 'medicine_taking', type: 'text', label: 'Medicine Taking', required: false, section: '02. Physical & Health Profile', width: 'half', placeholder: 'List any medications' },
-
-      // Lifestyle & Diet Prep
-      { id: 'allergies', type: 'text', label: 'Food Restrictions / Allergies', required: false, section: '03. Lifestyle & Diet Prep', width: 'half', placeholder: 'e.g. No Pork, Seafood allergy' },
-      { id: 'chef_requests', type: 'text', label: 'Special Chef Requests', required: false, section: '03. Lifestyle & Diet Prep', width: 'half', placeholder: 'e.g. Less salty, no spicy' },
-      { id: 'activity_level', type: 'dropdown', label: 'Activity Level', required: false, options: ['Sedentary (Little to no exercise)', 'Lightly active', 'Moderately active', 'Very active'], section: '03. Lifestyle & Diet Prep', width: 'half' },
-      { id: 'fasting_willingness', type: 'dropdown', label: 'Fasting Willingness', required: false, options: ['No, prefer regular meals', 'Yes, 16:8 fasting', 'Yes, 14:10 fasting'], section: '03. Lifestyle & Diet Prep', width: 'half' }
-    ];
-
-    let finalSchema = formSettings?.schema?.length > 0 ? formSettings.schema : defaultSchema;
-
-    // Fetch packages
-    const { data: packages } = await supabaseAdmin.schema('crm').from('packages').select('*').order('price', { ascending: true });
-    if (packages && packages.length > 0) {
-      const packageOptions = packages.map(p => ({ label: `${p.name} - ${p.duration} days`, value: p.id, pkg_data: p }));
-      finalSchema = finalSchema.map(field => {
-        if (field.id === 'package_id') {
-          return { ...field, type: 'dropdown', options: packageOptions };
-        }
-        return field;
-      });
-    }
-
-    res.json({
-      inquiry: {
-        id: inquiry.id,
-        prospect_name: inquiry.prospect_name,
-        service_interest: inquiry.service_interest,
-        package: inquiry.selected_package
-      },
-      packages: packages || [],
-      schema: finalSchema
-    });
-
+    const context = await crmModule.getEnrollmentFormContext(token);
+    res.json(context);
+    
   } catch (err) {
-    console.error('[ENROLL GET ERROR]', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.status === 400 && err.completed) {
+      return res.status(400).json({ error: err.message, completed: true });
+    }
+    console.error('[ENROLL_GET_ERR]', err);
+    res.status(500).json({ error: 'Failed to load enrollment form' });
   }
 });
 

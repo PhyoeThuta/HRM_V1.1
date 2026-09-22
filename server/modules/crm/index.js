@@ -80,6 +80,17 @@ export const crmModule = {
   },
   async markFormReminderCooldown(inquiryId) {
     return crmService.markFormReminderCooldown(inquiryId);
+  },
+  
+  // 11. Customer Enrollment UI Context
+  async getEnrollmentFormContext(token) {
+    return crmService.getEnrollmentFormContext(token);
+  },
+  async getCustomerAddressProfile(customerIdOrCode) {
+    return crmService.getCustomerAddressProfile(customerIdOrCode);
+  },
+  async updateCustomerAddressProfile(customerIdOrCode, payload) {
+    return crmService.updateCustomerAddressProfile(customerIdOrCode, payload);
   }
 };
 

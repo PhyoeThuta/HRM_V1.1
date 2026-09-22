@@ -985,3 +985,117 @@ export async function logFormReminderAttempt(inquiryId, messageText) {
 export async function markFormReminderCooldown(inquiryId) {
   return await crmRepo.updateInquiryUpdatedAt(inquiryId);
 }
+
+export async function getEnrollmentFormContext(token) {
+  const { data: inquiry, error: inqErr } = await crmRepo.getEnrollmentInquiryByToken(token);
+  if (inqErr || !inquiry) {
+    const err = new Error('Invalid or expired token');
+    err.status = 404;
+    throw err;
+  }
+
+  if (inquiry.onboarding_status === 'completed') {
+    const err = new Error('Form already submitted');
+    err.status = 400;
+    err.completed = true;
+    throw err;
+  }
+
+  const formSettings = await crmRepo.getFormSchema('enrollment');
+  const defaultSchema = [
+    // Basic Info
+    { id: 'name', type: 'text', label: 'Full Name', required: true, section: '01. Basic Information', width: 'half', placeholder: 'e.g. Aung Aung' },
+    { id: 'fb_name', type: 'text', label: 'Facebook Name', required: true, section: '01. Basic Information', width: 'half', placeholder: 'Auto-filled', readonly: true },
+    { id: 'age', type: 'number', label: 'Age', required: true, section: '01. Basic Information', width: 'third', placeholder: 'e.g. 28' },
+    { id: 'gender', type: 'dropdown', label: 'Gender', required: true, options: ['Male', 'Female', 'Other'], section: '01. Basic Information', width: 'third' },
+    { id: 'phone', type: 'text', label: 'Phone Number', required: true, section: '01. Basic Information', width: 'third', placeholder: 'e.g. 09123456789' },
+    { id: 'package_id', type: 'dropdown', label: 'Select Package', required: true, section: '01. Basic Information', width: 'half' },
+    { id: 'start_date', type: 'date', label: 'Desired Start Date', required: true, section: '01. Basic Information', width: 'half' },
+    { id: 'home_address', type: 'textarea', label: 'Home Address', required: false, section: '01. Basic Information', width: 'full', placeholder: 'Home address' },
+    { id: 'delivery_address', type: 'textarea', label: 'Delivery Address', required: true, section: '01. Basic Information', width: 'full', placeholder: 'Full address for meal delivery' },
+    { id: 'delivery_notes', type: 'text', label: 'Delivery Notes (Optional)', required: false, section: '01. Basic Information', width: 'full', placeholder: 'e.g. Leave at security gate, call when arrived' },
+
+    // Physical & Health Profile
+    { id: 'current_weight', type: 'number', label: 'Current Weight (kg)', required: true, section: '02. Physical & Health Profile', width: 'third' },
+    { id: 'goal_weight', type: 'number', label: 'Goal Weight (kg)', required: true, section: '02. Physical & Health Profile', width: 'third' },
+    { id: 'height', type: 'number', label: 'Height (cm)', required: true, section: '02. Physical & Health Profile', width: 'third' },
+    { id: 'medical_conditions', type: 'text', label: 'Medical Conditions', required: false, section: '02. Physical & Health Profile', width: 'half', placeholder: 'e.g. Diabetes, Hypertension' },
+    { id: 'medicine_taking', type: 'text', label: 'Medicine Taking', required: false, section: '02. Physical & Health Profile', width: 'half', placeholder: 'List any medications' },
+
+    // Lifestyle & Diet Prep
+    { id: 'allergies', type: 'text', label: 'Food Restrictions / Allergies', required: false, section: '03. Lifestyle & Diet Prep', width: 'half', placeholder: 'e.g. No Pork, Seafood allergy' },
+    { id: 'chef_requests', type: 'text', label: 'Special Chef Requests', required: false, section: '03. Lifestyle & Diet Prep', width: 'half', placeholder: 'e.g. Less salty, no spicy' },
+    { id: 'activity_level', type: 'dropdown', label: 'Activity Level', required: false, options: ['Sedentary (Little to no exercise)', 'Lightly active', 'Moderately active', 'Very active'], section: '03. Lifestyle & Diet Prep', width: 'half' },
+    { id: 'fasting_willingness', type: 'dropdown', label: 'Fasting Willingness', required: false, options: ['No, prefer regular meals', 'Yes, 16:8 fasting', 'Yes, 14:10 fasting'], section: '03. Lifestyle & Diet Prep', width: 'half' }
+  ];
+
+  let finalSchema = formSettings?.schema?.length > 0 ? formSettings.schema : defaultSchema;
+
+  const packages = await crmRepo.getPackagesList();
+  if (packages && packages.length > 0) {
+    const packageOptions = packages.map(p => ({ label: `${p.name} - ${p.duration} days`, value: p.id, pkg_data: p }));
+    finalSchema = finalSchema.map(field => {
+      if (field.id === 'package_id') {
+        return { ...field, type: 'dropdown', options: packageOptions };
+      }
+      return field;
+    });
+  }
+
+  return {
+    inquiry: {
+      id: inquiry.id,
+      prospect_name: inquiry.prospect_name,
+      service_interest: inquiry.service_interest,
+      package: inquiry.selected_package
+    },
+    packages: packages || [],
+    schema: finalSchema
+  };
+}
+
+export async function getCustomerAddressProfile(customerIdOrCode) {
+  const customer = await crmRepo.getCustomerByCodeOrId(customerIdOrCode);
+  if (!customer) {
+    const err = new Error('Customer profile not found');
+    err.status = 404;
+    throw err;
+  }
+  return customer;
+}
+
+export async function updateCustomerAddressProfile(customerIdOrCode, payload) {
+  const existingCustomer = await crmRepo.getCustomerByCodeOrId(customerIdOrCode);
+  if (!existingCustomer) {
+    const err = new Error('Customer profile not found');
+    err.status = 404;
+    throw err;
+  }
+
+  let finalNotes = payload.delivery_notes || existingCustomer.delivery_notes || '';
+  if (payload.maps_url) {
+    const linkNote = `📍 Maps Link: ${payload.maps_url}`;
+    if (!finalNotes.includes(payload.maps_url)) {
+      finalNotes = finalNotes ? `${finalNotes} | ${linkNote}` : linkNote;
+    }
+  }
+
+  if (payload.delivery_spot_photo_url) {
+    const photoNote = `📸 Photo: ${payload.delivery_spot_photo_url}`;
+    if (!finalNotes.includes(payload.delivery_spot_photo_url)) {
+      finalNotes = finalNotes ? `${finalNotes} | ${photoNote}` : photoNote;
+    }
+  }
+
+  const updatePayload = {
+    delivery_address: payload.delivery_address || null,
+    delivery_notes: finalNotes || null
+  };
+
+  if (payload.delivery_spot_photo_url) {
+    updatePayload.delivery_spot_photo_url = payload.delivery_spot_photo_url;
+  }
+
+  await crmRepo.updateCustomerAddress(existingCustomer.id, updatePayload);
+  return true;
+}
