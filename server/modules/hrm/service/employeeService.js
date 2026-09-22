@@ -1,5 +1,8 @@
 import { supabase, dbFetchOne, dbInsert, dbUpdate, dbDelete, dbFetch } from '../../../lib/supabase.js';
 import { identityModule } from '../../identity/index.js';
+import { attendanceService } from './attendanceService.js';
+import { leaveService } from './leaveService.js';
+import { payrollModule } from '../../payroll/index.js';
 
 export const employeeService = {
   createEmployee: async (d, reqUser) => {
@@ -161,5 +164,67 @@ export const employeeService = {
     }).catch(console.error);
 
     return true;
+  },
+
+  getEmployeeProfile: async (empId) => {
+    const emp = await dbFetchOne('Employees', '*', { id: empId });
+    if (!emp) return null;
+
+    const [depts, positions, allEmps, kpis, votes, onboarding, careerTimeline] = await Promise.all([
+      dbFetch('Departments', 'id,Department_name'),
+      dbFetch('positions', 'id,title'),
+      dbFetch('Employees', 'id,Full_name'),
+      dbFetch('kpis', '*', { employee_id: empId }),
+      dbFetch('peer_voting_records', '*', { nominee_id: empId }),
+      dbFetchOne('employee_onboarding', '*', { employee_id: empId }),
+      dbFetch('employee_career_timeline', '*', { employee_id: empId }, { order: 'effective_date', ascending: false }).catch(() => [])
+    ]);
+
+    const attRecs = await attendanceService.getAttendanceHistory(empId);
+    const leaveBals = await leaveService.getEmployeeLeaveBalances(empId);
+    const leaveReqs = await leaveService.getEmployeeLeaveRequests(empId);
+    const payrolls = await payrollModule.getEmployeePayrolls(empId, true);
+
+    const deptMap = Object.fromEntries(depts.map(d => [d.id, d.Department_name]));
+    const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
+    const mgrMap = Object.fromEntries(allEmps.map(e => [e.id, e.Full_name]));
+
+    emp.dept_name = deptMap[emp.Dept_id] || '—';
+    emp.pos_title = posMap[emp.position_id] || '—';
+    emp.manager_name = mgrMap[emp.Manager_id] || null;
+
+    const leaveTypes = await dbFetch('Leave_type', 'id,type_name');
+    const ltMap = Object.fromEntries(leaveTypes.map(lt => [lt.id, lt.type_name]));
+
+    leaveBals.forEach(b => { b.type_name = ltMap[b.leave_type_id] || '—'; });
+    leaveReqs.forEach(r => { r.type_name = ltMap[r.leave_type_id] || '—'; });
+
+    // Work hours calc
+    attRecs.forEach(r => {
+      if (r.check_in && r.check_out) {
+        try {
+          const diff = (new Date(r.check_out) - new Date(r.check_in)) / 3600000;
+          r.work_hours_calc = Math.max(0, Math.round(diff * 100) / 100);
+        } catch { r.work_hours_calc = 0; }
+      } else { r.work_hours_calc = null; }
+    });
+
+    const voteCount = votes.length;
+    const voteTotal = votes.reduce((s, v) => s + parseInt(v.score || 0), 0);
+    const voteAvg = voteCount > 0 ? Math.round((voteTotal / voteCount) * 10) / 10 : 0;
+    const totalPaid = payrolls.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + parseFloat(p.net_salary || 0), 0);
+
+    return {
+      emp,
+      attendance_records: attRecs,
+      leave_balances: leaveBals,
+      leave_requests: leaveReqs,
+      payroll_records: payrolls,
+      total_paid: totalPaid,
+      kpi_records: kpis,
+      vote_stats: { votes: voteCount, total: voteTotal, avg: voteAvg },
+      onboarding,
+      career_timeline: careerTimeline,
+    };
   }
 };

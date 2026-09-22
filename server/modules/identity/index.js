@@ -42,5 +42,41 @@ export const identityModule = {
       console.warn('Syncing sys_users username on employee_id edit failed:', e.message);
       return false;
     }
+  },
+
+  deactivateAccountForEmployee: async (employeeId) => {
+    try {
+      const sysUser = await dbFetchOne('sys_users', 'id', { employee_id: employeeId });
+      if (sysUser) await dbUpdate('sys_users', sysUser.id, { is_active: false });
+      return true;
+    } catch (e) {
+      console.error('Failed to deactivate sys_user:', e);
+      throw e;
+    }
+  },
+
+  reactivateAccountForEmployee: async (employeeId) => {
+    try {
+      const sysUser = await dbFetchOne('sys_users', 'id', { employee_id: employeeId });
+      if (sysUser) await dbUpdate('sys_users', sysUser.id, { is_active: true });
+      return true;
+    } catch (e) {
+      console.error('Failed to reactivate sys_user:', e);
+      throw e;
+    }
+  },
+
+  deleteAccountForEmployee: async (employeeId) => {
+    try {
+      const { supabase } = await import('../../lib/supabase.js');
+      const { error } = await supabase.from('sys_users').delete().eq('employee_id', employeeId);
+      if (error && error.code !== '42P01' && error.code !== 'PGRST205') { 
+        console.error(`Error deleting from sys_users:`, error);
+        throw new Error(`Cannot delete: referenced in sys_users`);
+      }
+      return true;
+    } catch (e) {
+      throw e;
+    }
   }
 };

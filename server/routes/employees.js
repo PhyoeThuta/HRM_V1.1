@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase.js';
 import multer from 'multer';
 import { hrmModule } from '../modules/hrm/index.js';
 import { payrollModule } from '../modules/payroll/index.js';
+import { identityModule } from '../modules/identity/index.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
@@ -96,70 +97,9 @@ router.get('/form-data', async (req, res) => {
 // GET /api/employees/:id
 router.get('/:id', async (req, res) => {
   try {
-    const emp = await dbFetchOne('Employees', '*', { id: req.params.id });
-    if (!emp) return res.status(404).json({ error: 'Employee not found' });
-
-    const [depts, positions, allEmps, leaveBals, leaveTypes, leaveReqs, attRecs, payrolls, kpis, votes, onboarding] = await Promise.all([
-      dbFetch('Departments', 'id,Department_name'),
-      dbFetch('positions', 'id,title'),
-      dbFetch('Employees', 'id,Full_name'),
-      dbFetch('Leave_balances', '*', { employee_id: req.params.id }),
-      dbFetch('Leave_type', 'id,type_name'),
-      dbFetch('Leave_Request', '*', { employee_id: req.params.id }),
-      dbFetch('attendance_records', '*', { employee_id: req.params.id }, { order: 'check_in', ascending: false }),
-      payrollModule.getEmployeePayrolls(req.params.id, true),
-      dbFetch('kpis', '*', { employee_id: req.params.id }),
-      dbFetch('peer_voting_records', '*', { nominee_id: req.params.id }),
-      dbFetchOne('employee_onboarding', '*', { employee_id: req.params.id }),
-    ]);
-
-    const deptMap = Object.fromEntries(depts.map(d => [d.id, d.Department_name]));
-    const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
-    const mgrMap = Object.fromEntries(allEmps.map(e => [e.id, e.Full_name]));
-    const ltMap = Object.fromEntries(leaveTypes.map(lt => [lt.id, lt.type_name]));
-
-    emp.dept_name = deptMap[emp.Dept_id] || '—';
-    emp.pos_title = posMap[emp.position_id] || '—';
-    emp.manager_name = mgrMap[emp.Manager_id] || null;
-
-    leaveBals.forEach(b => { b.type_name = ltMap[b.leave_type_id] || '—'; });
-    leaveReqs.forEach(r => { r.type_name = ltMap[r.leave_type_id] || '—'; });
-
-    // Work hours calc
-    attRecs.forEach(r => {
-      if (r.check_in && r.check_out) {
-        try {
-          const diff = (new Date(r.check_out) - new Date(r.check_in)) / 3600000;
-          r.work_hours_calc = Math.max(0, Math.round(diff * 100) / 100);
-        } catch { r.work_hours_calc = 0; }
-      } else { r.work_hours_calc = null; }
-    });
-
-    const voteCount = votes.length;
-    const voteTotal = votes.reduce((s, v) => s + parseInt(v.score || 0), 0);
-    const voteAvg = voteCount > 0 ? Math.round((voteTotal / voteCount) * 10) / 10 : 0;
-    const totalPaid = payrolls.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + parseFloat(p.net_salary || 0), 0);
-
-    // Fetch Career Timeline
-    let careerTimeline = [];
-    try {
-      careerTimeline = await dbFetch('employee_career_timeline', '*', { employee_id: req.params.id }, { order: 'effective_date', ascending: false });
-    } catch (e) {
-      console.warn('employee_career_timeline error:', e.message);
-    }
-
-    return res.json({
-      emp,
-      attendance_records: attRecs,
-      leave_balances: leaveBals,
-      leave_requests: leaveReqs,
-      payroll_records: payrolls,
-      total_paid: totalPaid,
-      kpi_records: kpis,
-      vote_stats: { votes: voteCount, total: voteTotal, avg: voteAvg },
-      onboarding,
-      career_timeline: careerTimeline,
-    });
+    const profile = await hrmModule.getEmployeeProfile(req.params.id);
+    if (!profile) return res.status(404).json({ error: 'Employee not found' });
+    return res.json(profile);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -290,13 +230,12 @@ router.post('/bulk-import', requireAdmin, upload.single('file'), async (req, res
 
           const created = createdData?.[0];
           if (created) {
-            await dbInsert('sys_users', {
-              username: empId.toLowerCase(),
-              password_hash: 'MUST_CHANGE:' + hashPassword('123456'),
-              role: 'employee',
-              employee_id: created.id,
-              full_name: name,
-            }).catch(console.error);
+            await identityModule.provisionAccountForEmployee(
+              created.id,
+              empId,
+              name,
+              null
+            ).catch(console.error);
 
             await dbInsert('employee_career_timeline', {
               employee_id: created.id,
@@ -380,9 +319,8 @@ router.post('/:id/avatar', upload.single('avatar'), async (req, res) => {
 // DELETE /api/employees/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    // Check if sys_user exists
-    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
-    if (user) await dbUpdate('sys_users', user.id, { is_active: false });
+    // Deactivate sys_user via Identity Module
+    await identityModule.deactivateAccountForEmployee(req.params.id);
 
     // Soft delete employee
     await dbUpdate('Employees', req.params.id, { status: 'Inactive', deleted_at: new Date().toISOString() });
@@ -408,9 +346,8 @@ router.put('/:id/restore', requireAdmin, async (req, res) => {
   try {
     await dbUpdate('Employees', req.params.id, { status: 'Active', deleted_at: null });
     
-    // Reactivate sys_user if exists
-    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
-    if (user) await dbUpdate('sys_users', user.id, { is_active: true });
+    // Reactivate sys_user via Identity Module
+    await identityModule.reactivateAccountForEmployee(req.params.id);
 
     // Audit log
     await dbInsert('sys_audit_logs', {
@@ -443,7 +380,7 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     };
 
     // Delete all related records across modules first to prevent foreign key errors
-    await cascade('sys_users');
+    await identityModule.deleteAccountForEmployee(eid);
     await cascade('Leave_balances');
     await cascade('Leave_Request');
     await cascade('attendance_records');

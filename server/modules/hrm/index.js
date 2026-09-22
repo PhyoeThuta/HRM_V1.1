@@ -6,6 +6,7 @@ import { leaveService } from './service/leaveService.js';
 export const hrmModule = {
   createEmployee: employeeService.createEmployee,
   updateEmployee: employeeService.updateEmployee,
+  getEmployeeProfile: employeeService.getEmployeeProfile,
   getEmployeeCompensationContext: compensationService.getEmployeeCompensationContext,
   getEmployeesForPayroll: compensationService.getEmployeesForPayroll,
   
