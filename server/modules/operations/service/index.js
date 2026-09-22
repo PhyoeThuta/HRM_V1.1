@@ -4,8 +4,6 @@ import { supabaseAdmin } from '../../../lib/supabase.js';
 import { crmModule } from '../../crm/index.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
 import xlsx from 'xlsx';
-
-// ==========================================
 // MENUS
 // ==========================================
 
@@ -316,24 +314,12 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
     throw err;
   }
 
-  // 2. Fetch active customer packages overlapping target date
-  const { data: packages, error: pkgErr } = await supabaseAdmin
-    .schema('crm')
-    .from('customer_packages')
-    .select('*')
-    .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
-    .gte('expires_at', targetDate);
-    
-  if (pkgErr) throw pkgErr;
-
-  // Fallback: If no packages match exact dates, fetch all Active packages regardless of start/expire bounds for demo/testing
-  let activePackages = packages;
-  if (!activePackages || activePackages.length === 0) {
-    const { data: fallbackPkgs } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_packages')
-      .select('*');
-    activePackages = fallbackPkgs || [];
+  // 2. Fetch active customer packages overlapping target date via CRM boundary
+  let activePackages = [];
+  try {
+    activePackages = await crmModule.getActivePackagesForDate(targetDate);
+  } catch (pkgErr) {
+    throw pkgErr;
   }
 
   if (!activePackages || activePackages.length === 0) {

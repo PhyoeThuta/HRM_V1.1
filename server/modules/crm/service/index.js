@@ -796,3 +796,17 @@ export async function getActivePackagesForCustomers(customerIds) {
 export async function deductPackageMealCount(packageId, currentCount) {
   return crmRepo.deductPackageMealCount(packageId, currentCount);
 }
+
+export async function getActivePackagesForDate(targetDate) {
+  const { data: packages, error: pkgErr } = await crmRepo.getCustomerPackagesGteExpiresAt(targetDate);
+  if (pkgErr) throw pkgErr;
+
+  // Fallback: If no packages match exact dates, fetch all Active packages regardless of start/expire bounds for demo/testing
+  let activePackages = packages;
+  if (!activePackages || activePackages.length === 0) {
+    const { data: fallbackPkgs } = await crmRepo.getAllCustomerPackages();
+    activePackages = fallbackPkgs || [];
+  }
+
+  return activePackages;
+}

@@ -135,8 +135,22 @@ export async function updateFeedbackComment(id, comment) {
 }
 
 // ──────────────────────────────────────────────────────────────────
-// DASHBOARDS / SEGMENTS
+// CUSTOMER PACKAGES (OPERATIONS CAPABILITIES)
 // ──────────────────────────────────────────────────────────────────
+
+export async function getCustomerPackagesGteExpiresAt(targetDate) {
+  return supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .select('*')
+    .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
+    .gte('expires_at', targetDate);
+}
+
+export async function getAllCustomerPackages() {
+  return supabaseAdmin.schema('crm')
+    .from('customer_packages')
+    .select('*');
+}
 
 export async function getActiveCustomerPackagesForDeduct() {
   return supabaseAdmin.schema('crm')

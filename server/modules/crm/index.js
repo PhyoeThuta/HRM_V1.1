@@ -33,10 +33,9 @@ export const crmModule = {
   // 6. Get Active Customer Package (Telegram)
   async getActiveCustomerPackage(customerId) {
     return crmService.getActiveCustomerPackage(customerId);
-  }
+  },
 
-
-,  // 7. Telegram Delivery Generation
+  // 7. Telegram Delivery Generation
   async getCustomersWithHealthAndLifestyle(customerIds) {
     return crmService.getCustomersWithHealthAndLifestyle(customerIds);
   },
@@ -45,6 +44,11 @@ export const crmModule = {
   },
   async deductPackageMealCount(packageId, currentCount) {
     return crmService.deductPackageMealCount(packageId, currentCount);
+  },
+
+  // 8. Operations Menu Planning
+  async getActivePackagesForDate(targetDate) {
+    return crmService.getActivePackagesForDate(targetDate);
   }
 };
 
