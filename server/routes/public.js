@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { dbFetch, dbInsert, supabase, supabaseAdmin } from '../lib/supabase.js';
+import { crmModule } from '../modules/crm/index.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
@@ -340,67 +341,15 @@ router.get('/crm/welcome-dossier/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Fetch customer profile
-    const { data: customer, error: custErr } = await supabaseAdmin
-      .schema('crm')
-      .from('customers')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (custErr || !customer) {
-      return res.status(404).json({ error: 'Customer profile not found' });
+    try {
+      const dossier = await crmModule.getCustomerWelcomeDossier(id);
+      return res.json(dossier);
+    } catch (err) {
+      if (err.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Customer profile not found' });
+      }
+      throw err;
     }
-
-    // Fetch health data
-    const { data: health } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_health')
-      .select('*')
-      .eq('customer_id', id)
-      .single();
-
-    // Fetch lifestyle data
-    const { data: lifestyle } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_lifestyle')
-      .select('*')
-      .eq('customer_id', id)
-      .single();
-
-    // Fetch customer packages
-    const { data: packages } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_packages')
-      .select('*')
-      .eq('customer_id', id)
-      .order('created_at', { ascending: false });
-
-    // Fetch customer feedbacks
-    const { data: feedbacks } = await supabaseAdmin
-      .schema('crm')
-      .from('feedbacks')
-      .select('*')
-      .eq('customer_id', id)
-      .order('created_at', { ascending: false });
-
-    // Calculate total spend
-    const totalSpend = (packages || []).reduce((sum, pkg) => sum + (pkg.amount || 0), 0);
-
-    return res.json({
-      customer: {
-        id: customer.id,
-        customer_code: customer.customer_code,
-        full_name: customer.full_name,
-        facebook_name: customer.facebook_name,
-        phone: customer.phone,
-        total_spend: totalSpend
-      },
-      health: health || {},
-      lifestyle: lifestyle || {},
-      packages: packages || [],
-      feedbacks: feedbacks || []
-    });
   } catch (e) {
     console.error('[PUBLIC WELCOME DOSSIER ERROR]', e);
     return res.status(500).json({ error: e.message });
@@ -412,39 +361,15 @@ router.get('/crm/monthly-review/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Fetch customer profile
-    const { data: customer, error: custErr } = await supabaseAdmin
-      .schema('crm')
-      .from('customers')
-      .select('id, customer_code, full_name, facebook_name, phone')
-      .eq('id', id)
-      .single();
-
-    if (custErr || !customer) {
-      return res.status(404).json({ error: 'Customer profile not found' });
+    try {
+      const reviewData = await crmModule.getCustomerMonthlyReview(id);
+      return res.json(reviewData);
+    } catch (err) {
+      if (err.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Customer profile not found' });
+      }
+      throw err;
     }
-
-    // Fetch health data for starting & goal weight
-    const { data: health } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_health')
-      .select('*')
-      .eq('customer_id', id)
-      .single();
-
-    // Fetch latest assigned active/paused package
-    const { data: packages } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_packages')
-      .select('*')
-      .eq('customer_id', id)
-      .order('created_at', { ascending: false });
-
-    return res.json({
-      customer,
-      health: health || {},
-      package: packages && packages.length > 0 ? packages[0] : null
-    });
   } catch (e) {
     console.error('[PUBLIC GET MONTHLY REVIEW ERROR]', e);
     return res.status(500).json({ error: e.message });
@@ -455,37 +380,17 @@ router.get('/crm/monthly-review/:id', async (req, res) => {
 router.post('/crm/monthly-review/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { current_weight, active_feeling, health_improvements, feedback_comment } = req.body;
+    const { current_weight } = req.body;
 
     if (!current_weight) {
       return res.status(400).json({ error: 'Current weight is required' });
     }
 
-    // 1. Update customer_health with new current_weight via CRM module
-    await crmModule.logCustomerWeight(id, current_weight);
+    // Submit via CRM module
+    const result = await crmModule.submitCustomerMonthlyReview(id, req.body);
 
-    // 2. Insert feedback entry for BBD admin tracking
-    const commentStr = `[Monthly Review Milestone]\nCurrent Weight Reported: ${newWeightStr}\nFeel Active & Light: ${active_feeling || 'Yes'}\nHealth Improvements: ${health_improvements || 'None'}\nComment: ${feedback_comment || 'None'}`;
-
-    await supabaseAdmin
-      .schema('crm')
-      .from('feedbacks')
-      .insert({
-        customer_id: parseInt(id),
-        rating: 5,
-        comment: commentStr
-      });
-
-    // 3. Notify Boss & Admin
-    const { data: cust } = await supabaseAdmin
-      .schema('crm')
-      .from('customers')
-      .select('full_name')
-      .eq('id', id)
-      .single();
-
-    const custName = cust ? cust.full_name : 'Boss Customer';
-    const notiMsg = `🎉 ${custName} completed monthly review! Current weight: ${newWeightStr}. Check e-Certificate achievement!`;
+    // Notify Boss & Admin
+    const notiMsg = `🎉 ${result.customerName} completed monthly review! Current weight: ${result.updatedWeight}. Check e-Certificate achievement!`;
 
     await dbInsert('system_notifications', {
       recipient_role: 'boss',
@@ -497,8 +402,8 @@ router.post('/crm/monthly-review/:id', async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Monthly milestone review submitted successfully!',
-      updatedWeight: newWeightStr
+      message: result.message,
+      updatedWeight: result.updatedWeight
     });
   } catch (e) {
     console.error('[PUBLIC POST MONTHLY REVIEW ERROR]', e);

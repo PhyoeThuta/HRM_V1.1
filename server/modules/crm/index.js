@@ -49,6 +49,17 @@ export const crmModule = {
   // 8. Operations Menu Planning
   async getActivePackagesForDate(targetDate) {
     return crmService.getActivePackagesForDate(targetDate);
+  },
+
+  // 9. Public Customer Portal
+  async getCustomerWelcomeDossier(customerId) {
+    return crmService.getCustomerWelcomeDossier(customerId);
+  },
+  async getCustomerMonthlyReview(customerId) {
+    return crmService.getCustomerMonthlyReview(customerId);
+  },
+  async submitCustomerMonthlyReview(customerId, reviewData) {
+    return crmService.submitCustomerMonthlyReview(customerId, reviewData);
   }
 };
 

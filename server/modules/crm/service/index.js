@@ -801,7 +801,6 @@ export async function getActivePackagesForDate(targetDate) {
   const { data: packages, error: pkgErr } = await crmRepo.getCustomerPackagesGteExpiresAt(targetDate);
   if (pkgErr) throw pkgErr;
 
-  // Fallback: If no packages match exact dates, fetch all Active packages regardless of start/expire bounds for demo/testing
   let activePackages = packages;
   if (!activePackages || activePackages.length === 0) {
     const { data: fallbackPkgs } = await crmRepo.getAllCustomerPackages();
@@ -809,4 +808,70 @@ export async function getActivePackagesForDate(targetDate) {
   }
 
   return activePackages;
+}
+
+export async function getCustomerWelcomeDossier(customerId) {
+  const customer = await crmRepo.getCustomerProfileBase(customerId);
+  const health = await crmRepo.getCustomerHealth(customerId);
+  const lifestyle = await crmRepo.getCustomerLifestyle(customerId);
+  const packages = await crmRepo.getCustomerPackagesAll(customerId);
+  const feedbacks = await crmRepo.getCustomerFeedbacks(customerId);
+
+  const totalSpend = (packages || []).reduce((sum, pkg) => sum + (pkg.amount || 0), 0);
+
+  return {
+    customer: {
+      id: customer.id,
+      customer_code: customer.customer_code,
+      full_name: customer.full_name,
+      facebook_name: customer.facebook_name,
+      phone: customer.phone,
+      total_spend: totalSpend
+    },
+    health: health || {},
+    lifestyle: lifestyle || {},
+    packages: packages || [],
+    feedbacks: feedbacks || []
+  };
+}
+
+export async function getCustomerMonthlyReview(customerId) {
+  const customer = await crmRepo.getCustomerProfileBase(customerId);
+  const health = await crmRepo.getCustomerHealth(customerId);
+  const packages = await crmRepo.getCustomerPackagesAll(customerId);
+
+  return {
+    customer: {
+      id: customer.id,
+      customer_code: customer.customer_code,
+      full_name: customer.full_name,
+      facebook_name: customer.facebook_name,
+      phone: customer.phone
+    },
+    health: health || {},
+    package: packages && packages.length > 0 ? packages[0] : null
+  };
+}
+
+export async function submitCustomerMonthlyReview(customerId, reviewData) {
+  const { current_weight, active_feeling, health_improvements, feedback_comment } = reviewData;
+
+  // 1. Update customer_health with new current_weight via CRM module
+  await logCustomerWeight(customerId, current_weight);
+
+  // 2. Insert feedback entry
+  const newWeightStr = `${current_weight} kg`;
+  const commentStr = `[Monthly Review Milestone]\nCurrent Weight Reported: ${newWeightStr}\nFeel Active & Light: ${active_feeling || 'Yes'}\nHealth Improvements: ${health_improvements || 'None'}\nComment: ${feedback_comment || 'None'}`;
+
+  await crmRepo.insertFeedback(customerId, 5, commentStr);
+
+  // 3. Return updated data for caller (router) to handle notifications
+  const customer = await crmRepo.getCustomerProfileBase(customerId);
+  
+  return {
+    success: true,
+    message: 'Monthly milestone review submitted successfully!',
+    updatedWeight: newWeightStr,
+    customerName: customer ? customer.full_name : 'Customer'
+  };
 }

@@ -304,6 +304,56 @@ export async function getCustomerHealth(customerId) {
   return data;
 }
 
+export async function getCustomerLifestyle(customerId) {
+  const { data } = await supabaseAdmin.schema('crm').from('customer_lifestyle')
+    .select('*')
+    .eq('customer_id', customerId)
+    .single();
+  return data;
+}
+
+export async function getCustomerProfileBase(customerId) {
+  const { data, error } = await supabaseAdmin.schema('crm').from('customers')
+    .select('*')
+    .eq('id', customerId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getCustomerPackagesAll(customerId) {
+  const { data } = await supabaseAdmin.schema('crm').from('customer_packages')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+export async function getCustomerFeedbacks(customerId) {
+  const { data } = await supabaseAdmin.schema('crm').from('feedbacks')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+export async function insertFeedback(customerId, rating, comment, type = null, status = null) {
+  const payload = {
+    customer_id: parseInt(customerId),
+    rating: rating !== null ? parseInt(rating) : null,
+    comment
+  };
+  if (type) payload.type = type;
+  if (status) payload.status = status;
+
+  const { data, error } = await supabaseAdmin.schema('crm').from('feedbacks')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function updateCustomerWeight(customerId, weightStr) {
   await supabaseAdmin.schema('crm').from('customer_health')
     .update({ current_weight: weightStr, updated_at: new Date() })
