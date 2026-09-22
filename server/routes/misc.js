@@ -12,6 +12,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import PDFDocument from 'pdfkit';
+import { payrollModule } from '../modules/payroll/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -200,7 +201,7 @@ router.get('/portal', async (req, res) => {
       dbFetchOne('Employees', '*', { id: empId }),
       dbFetch('attendance_records', '*', { employee_id: empId }, { order: 'check_in', ascending: false }),
       dbFetch('Leave_Request', '*', { employee_id: empId }, { order: 'created_at', ascending: false }),
-      dbFetch('payrolls', '*', { employee_id: empId }, { order: 'month', ascending: false }),
+      payrollModule.getEmployeePayrolls(empId, false),
       dbFetch('peer_voting_records', '*', { nominee_id: empId }),
       dbFetch('Leave_balances', '*', { employee_id: empId }),
       dbFetch('announcements', '*'),
@@ -1272,5 +1273,97 @@ router.delete('/documents/:id', requireAdmin, async (req, res) => {
   }
 });
 
-export default router;
+// ─── PEER VOTING ──────────────────────────────────────────────────────────────
 
+// GET /api/peer-voting — Admin: get all votes with voter/nominee names
+router.get('/peer-voting', async (req, res) => {
+  try {
+    const { data: votes, error } = await supabase
+      .from('peer_votes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      // Table might not exist yet — return empty gracefully
+      if (error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        return res.json({ votes: [] });
+      }
+      throw error;
+    }
+
+    // Enrich with names
+    const empList = await dbFetch('Employees', 'id,Full_name,employee_id');
+    const empMap = Object.fromEntries(empList.map(e => [e.id, e]));
+
+    const enriched = (votes || []).map(v => ({
+      ...v,
+      voter_name:   empMap[v.voter_id]?.Full_name   || v.voter_id   || '—',
+      nominee_name: empMap[v.nominee_id]?.Full_name || v.nominee_id || '—',
+    }));
+
+    return res.json({ votes: enriched });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/peer-voting/submit — Employee submits a peer vote
+router.post('/peer-voting/submit', async (req, res) => {
+  try {
+    const { nominee_id, attendance, punctuality, sops, peer, initiative, comment } = req.body;
+    const voter_id = req.user.employee_id;
+
+    if (!nominee_id) return res.status(400).json({ error: 'Please select a colleague to evaluate.' });
+    if (voter_id === nominee_id) return res.status(400).json({ error: 'You cannot vote for yourself.' });
+
+    // Calculate average score (1–5)
+    const scores = [attendance, punctuality, sops, peer, initiative].map(Number).filter(n => !isNaN(n));
+    const avg_score = scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : 3;
+
+    // Check for existing vote this month (one vote per peer per month)
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { data: existing } = await supabase
+      .from('peer_votes')
+      .select('id')
+      .eq('voter_id', voter_id)
+      .eq('nominee_id', nominee_id)
+      .gte('created_at', monthStart)
+      .lte('created_at', monthEnd)
+      .single();
+
+    if (existing) {
+      return res.status(409).json({ error: 'You have already submitted a peer vote for this colleague this month.' });
+    }
+
+    const voteData = {
+      voter_id,
+      nominee_id,
+      score: avg_score,
+      attendance_score: Number(attendance) || 3,
+      punctuality_score: Number(punctuality) || 3,
+      sop_score: Number(sops) || 3,
+      peer_score: Number(peer) || 3,
+      initiative_score: Number(initiative) || 3,
+      comment: comment || null,
+      created_at: new Date().toISOString(),
+    };
+
+    const { data: vote, error } = await supabase.from('peer_votes').insert([voteData]).select().single();
+    if (error) {
+      // If table doesn't exist, auto-create and retry
+      if (error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        return res.status(503).json({ error: 'Peer voting table not set up yet. Please contact your administrator to run the database migration.' });
+      }
+      throw error;
+    }
+
+    return res.json({ success: true, vote });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+export default router;

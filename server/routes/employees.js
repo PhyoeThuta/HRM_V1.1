@@ -6,6 +6,7 @@ import { createEmployeeSchema } from '../schemas/index.js';
 import { supabase } from '../lib/supabase.js';
 import multer from 'multer';
 import { hrmModule } from '../modules/hrm/index.js';
+import { payrollModule } from '../modules/payroll/index.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
@@ -106,7 +107,7 @@ router.get('/:id', async (req, res) => {
       dbFetch('Leave_type', 'id,type_name'),
       dbFetch('Leave_Request', '*', { employee_id: req.params.id }),
       dbFetch('attendance_records', '*', { employee_id: req.params.id }, { order: 'check_in', ascending: false }),
-      dbFetch('payrolls', '*', { employee_id: req.params.id }, { order: 'month', ascending: true }),
+      payrollModule.getEmployeePayrolls(req.params.id, true),
       dbFetch('kpis', '*', { employee_id: req.params.id }),
       dbFetch('peer_voting_records', '*', { nominee_id: req.params.id }),
       dbFetchOne('employee_onboarding', '*', { employee_id: req.params.id }),

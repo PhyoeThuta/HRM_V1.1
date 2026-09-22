@@ -1,6 +1,7 @@
 import express from 'express';
 import { dbFetch } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { payrollModule } from '../modules/payroll/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -18,7 +19,7 @@ router.get('/dashboard', async (req, res) => {
     const employees = await dbFetch('Employees', 'id, salary, status');
     const activeEmployees = employees.filter(e => e.status === 'Active');
     
-    const payrolls = await dbFetch('payrolls', 'id, total_amount, month', {}, { order: 'month', ascending: false });
+    const payrolls = await payrollModule.getFinancePayrolls();
     const depts = await dbFetch('Departments', 'id');
     const leaves = await dbFetch('Leave_Request', 'id, status', { status: 'Approved' });
     
@@ -39,14 +40,15 @@ router.get('/dashboard', async (req, res) => {
       
       currentMonthPayroll = payrolls
         .filter(p => p.month === currentMonth)
-        .reduce((sum, p) => sum + parseFloat(p.total_amount || 0), 0);
+        .reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
         
       if (previousMonth) {
         previousMonthPayroll = payrolls
           .filter(p => p.month === previousMonth)
-          .reduce((sum, p) => sum + parseFloat(p.total_amount || 0), 0);
+          .reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
       }
     }
+
 
     const variance = previousMonthPayroll > 0 
       ? ((currentMonthPayroll - previousMonthPayroll) / previousMonthPayroll) * 100 

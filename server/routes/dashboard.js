@@ -1,6 +1,7 @@
 import express from 'express';
 import { dbFetch } from '../shared/db/index.js';
 import { verifyToken } from '../shared/auth/index.js';
+import { payrollModule } from '../modules/payroll/index.js';
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.get('/', verifyToken, async (req, res) => {
       supabase.from('corporate_offboarding').select('id,settlement_status'),
       supabase.from('employee_onboarding').select('id,status'),
       supabase.from('recruitment_candidates').select('id,status'),
-      supabase.from('payrolls').select('id,payment_status,net_salary').eq('payment_status', 'Paid'),
+      payrollModule.getPaidPayrolls(),
       supabase.from('announcements').select('*'),
     ]);
 
@@ -39,7 +40,7 @@ router.get('/', verifyToken, async (req, res) => {
     const offboarding = offboardingRes.data || [];
     const onboarding = onboardingRes.data || [];
     const candidates = candidatesRes.data || [];
-    const payrolls = payrollsRes.data || [];
+    const payrolls = payrollsRes;
     const rawAnnouncements = announcementsRes.data || [];
 
     const totalStaff = employees.length;
