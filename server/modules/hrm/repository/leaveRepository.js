@@ -60,10 +60,6 @@ export const leaveRepository = {
     return data || [];
   },
 
-  getCorporateOffboarding: async () => {
-    return await dbFetch('corporate_offboarding', 'employee_id,id,last_working_date');
-  },
-
   createNotification: async (data) => {
     return await dbInsert('system_notifications', data);
   }

@@ -25,5 +25,6 @@ export const lifecycleModule = {
   markKnowledgeTransferComplete: lifecycleService.markKnowledgeTransferComplete,
   linkHandover: lifecycleService.linkHandover,
   getActiveOffboardingWarning: lifecycleService.getActiveOffboardingWarning,
-  getOffboardingById: lifecycleService.getOffboardingById
+  getOffboardingById: lifecycleService.getOffboardingById,
+  getLastWorkingDate: lifecycleService.getLastWorkingDate
 };

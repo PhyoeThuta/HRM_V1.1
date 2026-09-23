@@ -12,12 +12,11 @@ export const leaveService = {
     const reqFilter = isAdmin ? {} : { employee_id: employeeId };
     const balFilter = isAdmin ? {} : { employee_id: employeeId };
 
-    const [requests, leaveTypes, employees, balances, offboardingRecords] = await Promise.all([
+    const [requests, leaveTypes, employees, balances] = await Promise.all([
       leaveRepository.getLeaveRequests(reqFilter, { order: 'created_at', ascending: false }),
       leaveRepository.getLeaveTypes(),
       dbFetch('Employees', 'id,Full_name,employee_id', { status: 'Active' }),
-      leaveRepository.getLeaveBalances(balFilter),
-      leaveRepository.getCorporateOffboarding(),
+      leaveRepository.getLeaveBalances(balFilter)
     ]);
 
     const ltMap = Object.fromEntries(leaveTypes.map(t => [t.id, t.type_name]));
@@ -36,7 +35,7 @@ export const leaveService = {
       handoverMap = Object.fromEntries(handovers.map(h => [h.id, h]));
     }
 
-    const offboardingByEmp = Object.fromEntries(offboardingRecords.map(o => [o.employee_id, o]));
+    const { lifecycleModule } = await import('../../lifecycle/index.js');
 
     for (const r of requests) {
       r.type_name = ltMap[r.leave_type_id] || '—';
@@ -44,7 +43,8 @@ export const leaveService = {
       r.employee_name = emp.Full_name || '—';
       r.employee_code = emp.employee_id || '—';
       await enrichLeaveWithHandoverFlags(r, handoverMap);
-      const ob = offboardingByEmp[r.employee_id];
+      
+      const ob = await lifecycleModule.getLastWorkingDate(r.employee_id);
       r.employee_in_offboarding = !!ob;
       if (ob) {
         r.offboarding_warning =

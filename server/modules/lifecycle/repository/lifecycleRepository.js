@@ -58,6 +58,10 @@ export const lifecycleRepository = {
   getAllOffboardings: async () => {
     return await dbFetch('corporate_offboarding', '*', {}, { order: 'created_at', ascending: false });
   },
+
+  getCorporateOffboarding: async () => {
+    return await dbFetch('corporate_offboarding', 'employee_id,id,last_working_date');
+  },
   
   getOffboardingById: async (id) => {
     return await dbFetchOne('corporate_offboarding', '*', { id });

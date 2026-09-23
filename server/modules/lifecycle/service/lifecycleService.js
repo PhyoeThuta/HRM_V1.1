@@ -436,5 +436,12 @@ export const lifecycleService = {
         }
       }
     }
+  },
+
+  getLastWorkingDate: async (employeeId) => {
+    if (!employeeId) return null;
+    const records = await lifecycleRepository.getCorporateOffboarding();
+    const ob = records.find(r => r.employee_id === employeeId);
+    return ob || null;
   }
 };
