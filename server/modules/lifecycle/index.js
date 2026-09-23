@@ -22,4 +22,8 @@ export const lifecycleModule = {
   saveExitInterview: lifecycleService.saveExitInterview,
   getExitSurvey: lifecycleService.getExitSurvey,
   submitExitSurvey: lifecycleService.submitExitSurvey,
+  markKnowledgeTransferComplete: lifecycleService.markKnowledgeTransferComplete,
+  linkHandover: lifecycleService.linkHandover,
+  getActiveOffboardingWarning: lifecycleService.getActiveOffboardingWarning,
+  getOffboardingById: lifecycleService.getOffboardingById
 };

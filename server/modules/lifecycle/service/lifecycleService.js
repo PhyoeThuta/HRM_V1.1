@@ -350,6 +350,30 @@ export const lifecycleService = {
     return { ob, ei };
   },
 
+  linkHandover: async (offboardingId, handoverId) => {
+    return await lifecycleRepository.updateOffboarding(offboardingId, {
+      handover_id: handoverId,
+      handover_required: true,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  getActiveOffboardingWarning: async (employeeId) => {
+    if (!employeeId) return null;
+    const ob = await lifecycleRepository.getOffboardingByEmployeeId(employeeId);
+    if (!ob) return null;
+    return {
+      code: 'employee_in_offboarding',
+      message: 'This employee has an active offboarding case. Leave and offboarding will run in parallel — continue tracking laptop return, NDA, exit interview, and settlement on Offboarding.',
+      offboarding_id: ob.id,
+      last_working_date: ob.last_working_date || null,
+    };
+  },
+
+  getOffboardingById: async (id) => {
+    return await lifecycleRepository.getOffboardingById(id);
+  },
+
   submitExitSurvey: async (employeeId, data) => {
     if (!employeeId) throw new Error('No employee profile');
     
@@ -377,6 +401,40 @@ export const lifecycleService = {
       await lifecycleRepository.updateExitInterview(ei.id, dataObj);
     } else {
       await lifecycleRepository.createExitInterview(dataObj);
+    }
+  },
+
+  markKnowledgeTransferComplete: async (offboardingId, options = {}) => {
+    if (!offboardingId) return;
+
+    const { isWaived, reason, userId } = options;
+
+    const updateData = {
+      knowledge_transfer: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (isWaived) {
+      updateData.handover_required = false;
+      updateData.handover_waived_reason = reason;
+      updateData.handover_waived_by = userId;
+    }
+
+    await lifecycleRepository.updateOffboarding(offboardingId, updateData);
+
+    const tasks = await lifecycleRepository.getTasksByOffboardingId(offboardingId);
+    for (const t of tasks) {
+      if (
+        t.category === 'Knowledge Transfer' ||
+        (t.task_name && (t.task_name.includes('Knowledge Transfer') || t.task_name.includes('Handover')))
+      ) {
+        if (t.status !== 'Completed') {
+          await lifecycleRepository.updateTask(t.id, {
+            status: 'Completed',
+            completed_at: new Date().toISOString(),
+          });
+        }
+      }
     }
   }
 };

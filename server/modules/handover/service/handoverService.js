@@ -397,26 +397,9 @@ export async function syncKnowledgeTransferFromHandover(handoverId) {
   if (!handover || !handover.offboarding_id) return;
 
   if (handover.status === 'completed' || handover.status === 'waived') {
-    // Cross-domain logic for offboarding
-    await dbUpdate('corporate_offboarding', handover.offboarding_id, {
-      knowledge_transfer: true,
-      updated_at: new Date().toISOString(),
-    });
-
-    const ktTasks = await dbFetch('offboarding_case_tasks', 'id,task_name,category,status', { offboarding_id: handover.offboarding_id });
-    for (const t of ktTasks) {
-      if (
-        t.category === 'Knowledge Transfer' ||
-        (t.task_name && (t.task_name.includes('Knowledge Transfer') || t.task_name.includes('Handover')))
-      ) {
-        if (t.status !== 'Completed') {
-          await dbUpdate('offboarding_case_tasks', t.id, {
-            status: 'Completed',
-            completed_at: new Date().toISOString(),
-          });
-        }
-      }
-    }
+    // Cross-domain logic for offboarding via Module capability
+    const { lifecycleModule } = await import('../../lifecycle/index.js');
+    await lifecycleModule.markKnowledgeTransferComplete(handover.offboarding_id);
   }
 }
 
@@ -439,27 +422,17 @@ export async function createHandoverForOffboarding(offboarding, createdByUserId)
 
   await seedHandoverItems(handover.id, DEFAULT_HANDOVER_ITEMS);
 
-  // Cross-domain logic
-  await dbUpdate('corporate_offboarding', offboarding.id, {
-    handover_id: handover.id,
-    handover_required: true,
-    updated_at: new Date().toISOString(),
-  });
+  // Cross-domain logic via Module capability
+  const { lifecycleModule } = await import('../../lifecycle/index.js');
+  await lifecycleModule.linkHandover(offboarding.id, handover.id);
 
   return handover;
 }
 
 export async function getOffboardingWarningForEmployee(employeeId) {
   if (!employeeId) return null;
-  const ob = await dbFetchOne('corporate_offboarding', 'id,last_working_date', { employee_id: employeeId });
-  if (!ob) return null;
-  return {
-    code: 'employee_in_offboarding',
-    message:
-      'This employee has an active offboarding case. Leave and offboarding will run in parallel — continue tracking laptop return, NDA, exit interview, and settlement on Offboarding.',
-    offboarding_id: ob.id,
-    last_working_date: ob.last_working_date || null,
-  };
+  const { lifecycleModule } = await import('../../lifecycle/index.js');
+  return await lifecycleModule.getActiveOffboardingWarning(employeeId);
 }
 
 export async function createHandoverForLongLeave(leave, { successorEmployeeId, createdByUserId }) {
@@ -766,7 +739,8 @@ export async function getActiveIncoming(employeeId) {
 }
 
 export async function getHandoverForOffboarding(offboardingId) {
-  const ob = await dbFetchOne('corporate_offboarding', '*', { id: offboardingId });
+  const { lifecycleModule } = await import('../../lifecycle/index.js');
+  const ob = await lifecycleModule.getOffboardingById(offboardingId);
   if (!ob) return { error: 'Offboarding not found' };
 
   let handoverId = ob.handover_id;
@@ -781,7 +755,8 @@ export async function getHandoverForOffboarding(offboardingId) {
 }
 
 export async function backfillOffboardingHandover(req, offboardingId) {
-  const ob = await dbFetchOne('corporate_offboarding', '*', { id: offboardingId });
+  const { lifecycleModule } = await import('../../lifecycle/index.js');
+  const ob = await lifecycleModule.getOffboardingById(offboardingId);
   if (!ob) return { error: 'Offboarding not found' };
   if (ob.handover_id) {
     return await getHandoverDetailSecured(req, ob.handover_id);
@@ -1013,12 +988,11 @@ export async function waiveHandover(req, handoverId, reason) {
   });
 
   if (handover.offboarding_id) {
-    await dbUpdate('corporate_offboarding', handover.offboarding_id, {
-      handover_required: false,
-      handover_waived_reason: reason.trim(),
-      handover_waived_by: req.user?.id,
-      knowledge_transfer: true,
-      updated_at: new Date().toISOString(),
+    const { lifecycleModule } = await import('../../lifecycle/index.js');
+    await lifecycleModule.markKnowledgeTransferComplete(handover.offboarding_id, {
+      isWaived: true,
+      reason: reason.trim(),
+      userId: req.user?.id,
     });
   }
 
