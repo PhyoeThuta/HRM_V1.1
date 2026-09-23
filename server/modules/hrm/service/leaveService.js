@@ -161,5 +161,19 @@ export const leaveService = {
     return await leaveRepository.getLeaveBalances({});
   },
 
-  createNotification: async (data) => leaveRepository.createNotification(data)
+  createNotification: async (data) => leaveRepository.createNotification(data),
+
+  linkCoverageHandover: async (leaveId, handoverId) => {
+    if (!leaveId) return;
+    return await leaveRepository.updateLeaveRequest(leaveId, {
+      coverage_handover_id: handoverId
+    });
+  },
+
+  linkReturnHandover: async (leaveId, handoverId) => {
+    if (!leaveId) return;
+    return await leaveRepository.updateLeaveRequest(leaveId, {
+      return_handover_id: handoverId
+    });
+  }
 };

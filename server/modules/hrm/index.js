@@ -21,3 +21,8 @@ export const hrmModule = {
   getAllLeaveRequests: leaveService.getAllLeaveRequests,
   getLeaveBalancesForAll: leaveService.getLeaveBalancesForAll
 };
+
+export const leaveModule = {
+  linkCoverageHandover: leaveService.linkCoverageHandover,
+  linkReturnHandover: leaveService.linkReturnHandover
+};

@@ -474,10 +474,9 @@ export async function createHandoverForLongLeave(leave, { successorEmployeeId, c
 
   await seedHandoverItems(handover.id, LONG_LEAVE_COVERAGE_ITEMS);
 
-  // Cross-domain logic
-  await dbUpdate('Leave_Request', leave.id, {
-    coverage_handover_id: handover.id,
-  });
+  // Cross-domain logic via Module capability
+  const { leaveModule } = await import('../../hrm/index.js');
+  await leaveModule.linkCoverageHandover(leave.id, handover.id);
 
   const acting = await dbFetchOne('Employees', 'Full_name', { id: successorEmployeeId });
   const actingName = acting?.Full_name || 'colleague';
@@ -543,7 +542,8 @@ export async function createReturnHandover(parentHandover, createdByUserId) {
   await seedHandoverItems(handover.id, LONG_LEAVE_RETURN_ITEMS);
 
   if (leave) {
-    await dbUpdate('Leave_Request', leave.id, { return_handover_id: handover.id });
+    const { leaveModule } = await import('../../hrm/index.js');
+    await leaveModule.linkReturnHandover(leave.id, handover.id);
   }
 
   await notifyUser(
