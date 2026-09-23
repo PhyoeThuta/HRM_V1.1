@@ -53,16 +53,16 @@ export default function Onboarding() {
 
           {/* New Hires Alert Grid */}
           {newHires.length > 0 && (
-            <div className="rounded-2xl p-6 bg-indigo-950/20 border border-indigo-500/20">
+            <div className="rounded-2xl p-6 bg-surface-850 border border-white/5">
               <div className="flex items-center gap-2 mb-4">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white text-xs font-bold">!</span>
+                <span className="flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-bold" style={{ background: '#A3B81F' }}>!</span>
                 <h3 className="text-sm font-bold text-white">{newHires.length} New Hire(s) Without Onboarding</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {newHires.map(emp => (
-                  <div key={emp.id} className="flex items-center justify-between rounded-xl p-4 transition-all hover:bg-white/5 bg-surface-850 border border-white/5">
+                  <div key={emp.id} className="flex items-center justify-between rounded-xl p-4 transition-all hover:bg-white/5 bg-surface-800 border border-white/5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-sm font-bold text-white shadow-lg">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-slate-300 shadow-lg border border-white/5" style={{ background: 'var(--bg-950, #080b14)' }}>
                         {(emp.Full_name || '?')[0].toUpperCase()}
                       </div>
                       <div>
@@ -73,8 +73,10 @@ export default function Onboarding() {
                     <button 
                       onClick={() => handleStart(emp.id)}
                       disabled={addMutation.isPending}
-                      className="text-xs font-semibold px-4 py-2 rounded-lg text-indigo-300 hover:bg-indigo-500/20 transition-colors"
-                      style={{ background: 'rgba(99,102,241,0.1)' }}
+                      className="text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                      style={{ color: '#A3B81F', background: 'rgba(163,184,31,0.1)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(163,184,31,0.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(163,184,31,0.1)'}
                     >
                       Start
                     </button>
@@ -90,16 +92,16 @@ export default function Onboarding() {
               <p className="text-slate-400 text-sm">No active onboarding processes. Add employees to get started.</p>
             ) : (
               onboarding.map(ob => {
-                const getStatusColor = (status) => {
-                  if (status === 'Completed') return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-                  if (status === 'Pre-boarding') return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-                  return 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20';
+                const getStatusStyle = (status) => {
+                  if (status === 'Completed') return { color: '#829319', background: 'rgba(130, 147, 25, 0.1)', borderColor: 'rgba(130, 147, 25, 0.2)' };
+                  if (status === 'Pre-boarding') return { color: '#FF7700', background: 'rgba(255, 119, 0, 0.1)', borderColor: 'rgba(255, 119, 0, 0.2)' };
+                  return { color: '#A3B81F', background: 'rgba(163, 184, 31, 0.1)', borderColor: 'rgba(163, 184, 31, 0.2)' };
                 };
                 
-                const getAvatarColor = (status) => {
-                  if (status === 'Completed') return 'from-emerald-500 to-teal-500';
-                  if (status === 'Pre-boarding') return 'from-amber-500 to-orange-500';
-                  return 'from-indigo-500 to-purple-500';
+                const getAvatarStyle = (status) => {
+                  if (status === 'Completed') return { background: '#829319', color: '#fff' };
+                  if (status === 'Pre-boarding') return { background: '#FF7700', color: '#fff' };
+                  return { background: '#A3B81F', color: '#fff' };
                 };
 
                 return (
@@ -108,7 +110,7 @@ export default function Onboarding() {
                       
                       {/* Left: Employee Info */}
                       <div className="flex items-center gap-4 min-w-[250px]">
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getAvatarColor(ob.status)} flex items-center justify-center text-lg font-bold text-white shadow-lg`}>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-lg" style={getAvatarStyle(ob.status)}>
                           {(ob.employee_name || '?')[0].toUpperCase()}
                         </div>
                         <div>
@@ -126,16 +128,19 @@ export default function Onboarding() {
                             <span className="text-2xl font-bold text-white">{ob.completion_pct}%</span>
                             <span className="text-xs font-medium text-slate-400">{ob.tasks_done}/{ob.tasks_total} tasks</span>
                           </div>
-                          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                          <div className="h-2 w-full rounded-full overflow-hidden border border-white/5" style={{ background: 'var(--bg-950, #080b14)' }}>
                             <div 
-                              className={`h-full rounded-full transition-all duration-1000 ${ob.status === 'Pre-boarding' ? 'bg-amber-400' : 'bg-emerald-500'}`}
-                              style={{ width: `${Math.max(ob.completion_pct, 5)}%` }} // 5% minimum so it's visible even at 0%
+                              className="h-full rounded-full transition-all duration-1000"
+                              style={{ 
+                                width: `${Math.max(ob.completion_pct, 5)}%`,
+                                background: ob.status === 'Pre-boarding' ? '#FF7700' : (ob.status === 'Completed' ? '#829319' : '#A3B81F') 
+                              }}
                             />
                           </div>
                         </div>
                         
                         <div className="hidden sm:block">
-                          <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${getStatusColor(ob.status)}`}>
+                          <span className="text-xs font-bold px-3 py-1.5 rounded-full border" style={getStatusStyle(ob.status)}>
                             {ob.status}
                           </span>
                         </div>
@@ -145,8 +150,10 @@ export default function Onboarding() {
                       <div className="min-w-[140px] flex justify-end">
                         <button 
                           onClick={() => navigate(`/onboarding/${ob.id}`)}
-                          className="w-full md:w-auto text-sm font-semibold text-white px-6 py-2.5 rounded-xl transition-all hover:bg-indigo-500 whitespace-nowrap"
-                          style={{ background: '#4f46e5' }}
+                          className="w-full md:w-auto text-sm font-semibold text-white px-6 py-2.5 rounded-xl transition-all whitespace-nowrap shadow-sm"
+                          style={{ background: '#A3B81F' }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#829319'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = '#A3B81F'}
                         >
                           View Tasks →
                         </button>

@@ -310,12 +310,12 @@ export default function TopBar({ title, subtitle, toggleSidebar }) {
         {/* Theme Toggle */}
         <button id="theme-toggle" onClick={toggleTheme} title="Toggle dark/light mode">
           <span id="theme-icon">{theme === 'light' ? '☀️' : '🌙'}</span>
-          <span id="theme-label">{theme === 'light' ? 'Dark' : 'Dark'}</span>
+          <span id="theme-label">{theme === 'light' ? 'Light' : 'Dark'}</span>
           <div className="toggle-track"><div className="toggle-thumb" /></div>
         </button>
 
         {/* Logout Button */}
-        <button onClick={handleLogout} className="px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-bold rounded-full transition-colors border border-rose-500/20 ml-1">
+        <button onClick={handleLogout} className="px-4 py-1.5 border border-white/10 hover:bg-white/5 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-full transition-colors ml-1">
           Logout
         </button>
 
