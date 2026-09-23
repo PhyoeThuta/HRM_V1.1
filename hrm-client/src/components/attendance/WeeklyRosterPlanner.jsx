@@ -88,7 +88,7 @@ export default function WeeklyRosterPlanner() {
           </thead>
           <tbody className="divide-y divide-slate-700/50">
             {employees.map(emp => (
-              <tr key={emp.id} className="hover:bg-slate-800/30 transition-colors">
+              <tr key={emp.id} className="hover:bg-white/5 transition-colors">
                 <td className="p-2 font-medium text-white">{emp.Full_name}</td>
                 {days.map(date => {
                   const key = `${emp.id}-${date}`;

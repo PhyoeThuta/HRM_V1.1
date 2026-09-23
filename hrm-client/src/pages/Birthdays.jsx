@@ -49,8 +49,8 @@ export default function Birthdays() {
               onClick={() => setSelectedMonth(index + 1)}
               className={`snap-center px-6 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300 ease-out ${
                 selectedMonth === index + 1
-                  ? 'bg-gradient-to-r from-pink-500 to-amber-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)] scale-105'
-                  : 'bg-[#1e2235] text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'
+                  ? 'bg-brand-orange text-white shadow-[0_0_20px_rgba(255,119,0,0.4)] scale-105'
+                  : 'bg-surface-850 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5'
               }`}
             >
               {month}
@@ -62,7 +62,7 @@ export default function Birthdays() {
       <div className="pb-12">
         {isLoading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center">
-            <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mb-4" />
+            <div className="w-12 h-12 border-4 border-brand-orange/30 border-t-brand-orange rounded-full animate-spin mb-4" />
             <p className="text-slate-400 font-medium tracking-wider animate-pulse">Loading Birthdays...</p>
           </div>
         ) : (
@@ -75,21 +75,21 @@ export default function Birthdays() {
             {filteredBirthdays.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredBirthdays.map((b, i) => (
-                  <div key={i} className="rounded-3xl p-6 text-center relative overflow-hidden group backdrop-blur-xl bg-[#1a1e2f] border border-white/5 hover:border-pink-500/30 transition-all duration-500 cursor-default shadow-xl">
+                  <div key={i} className="rounded-3xl p-6 text-center relative overflow-hidden group backdrop-blur-xl bg-surface-800 border border-white/5 hover:border-brand-orange/30 transition-all duration-500 cursor-default shadow-xl">
                     {/* Hover Glow Background */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-pink-500/0 via-pink-500/0 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-brand-orange/0 via-brand-orange/0 to-brand-orange/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     {/* Top edge glow */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-brand-orange to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     {/* Avatar Initials */}
-                    <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-pink-500 to-amber-400 flex items-center justify-center shadow-[0_0_20px_rgba(236,72,153,0.2)] mb-5 transform group-hover:-translate-y-2 group-hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] transition-all duration-500">
+                    <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-brand-orange to-amber-400 flex items-center justify-center shadow-[0_0_20px_rgba(255,119,0,0.2)] mb-5 transform group-hover:-translate-y-2 group-hover:shadow-[0_0_30px_rgba(255,119,0,0.5)] transition-all duration-500">
                       <span className="text-4xl font-black text-white tracking-tighter drop-shadow-md">{getInitials(b.Full_name)}</span>
                     </div>
                     
                     {/* Info */}
-                    <h3 className="text-xl font-bold text-white mb-2 relative z-10 group-hover:text-pink-300 transition-colors line-clamp-1">{b.Full_name}</h3>
-                    <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-black/20 border border-white/5 group-hover:bg-pink-500/10 group-hover:border-pink-500/20 transition-all duration-300">
+                    <h3 className="text-xl font-bold text-white mb-2 relative z-10 group-hover:text-brand-orange transition-colors line-clamp-1">{b.Full_name}</h3>
+                    <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-black/5 dark:bg-black/20 border border-white/5 group-hover:bg-brand-orange/10 group-hover:border-brand-orange/20 transition-all duration-300">
                       <span className="text-sm font-semibold text-amber-400 relative z-10">{selectedMonthName} {formatDate(b.date_of_birth)}</span>
                       <span className="text-sm animate-bounce inline-block" style={{ animationDuration: '2s' }}>🎉</span>
                     </div>
@@ -97,7 +97,7 @@ export default function Birthdays() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-[#1a1e2f]/50 rounded-3xl border border-white/5 border-dashed">
+              <div className="flex flex-col items-center justify-center py-24 px-4 text-center bg-surface-850/50 rounded-3xl border border-white/5 border-dashed">
                 <div className="text-6xl mb-6 opacity-30 grayscale filter">🎈</div>
                 <h3 className="text-2xl font-bold text-white mb-2">No Birthdays This Month</h3>
                 <p className="text-slate-400 max-w-sm">Looks like there are no upcoming celebrations scheduled for {selectedMonthName}.</p>

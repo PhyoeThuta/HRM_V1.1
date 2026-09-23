@@ -147,7 +147,7 @@ export default function Recruitment() {
       {/* Top Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <StatBox icon="👥" label="Total Candidates" value={stats.total} bg="bg-white/5" text="text-white" />
-        <StatBox icon="🔄" label="In Pipeline" value={stats.pipeline} bg="bg-blue-500/10 border border-blue-500/20" text="text-blue-400" />
+        <StatBox icon="🔄" label="In Pipeline" value={stats.pipeline} bg="bg-indigo-500/10 border border-indigo-500/20" text="text-indigo-400" />
         <StatBox icon="⭐" label="Shortlisted" value={stats.shortlisted} bg="bg-amber-500/10 border border-amber-500/20" text="text-amber-400" />
         <StatBox icon="✅" label="Hired" value={stats.hired} bg="bg-emerald-500/10 border border-emerald-500/20" text="text-emerald-400" />
         <StatBox icon="📁" label="Talent Pool" value={stats.pool} bg="bg-orange-500/10 border border-orange-500/20" text="text-orange-400" />
@@ -641,8 +641,8 @@ function TalentPoolCard({ candidate: c, onReconsider, onDelete, positions }) {
     'bg-indigo-500/20 text-indigo-400',
     'bg-emerald-500/20 text-emerald-400',
     'bg-amber-500/20 text-amber-400',
-    'bg-purple-500/20 text-purple-400',
-    'bg-blue-500/20 text-blue-400'
+    'bg-orange-500/20 text-orange-400',
+    'bg-teal-500/20 text-teal-400'
   ];
   const charCode = initial.charCodeAt(0) || 0;
   const colorClass = colors[charCode % colors.length];

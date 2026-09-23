@@ -7,38 +7,36 @@ import api from '../api/client';
 
 Chart.register(...registerables);
 
-function StatCard({ label, value, gradient, iconPath, color, href }) {
+function StatCard({ label, value, iconPath, color, href }) {
   const card = (
-    <div className="relative overflow-hidden rounded-2xl p-5 hover:border-white/10 transition-all duration-300"
-      style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-5 translate-x-6 -translate-y-6"
-        style={{ background: gradient }} />
+    <div className="dashboard-card relative overflow-hidden rounded-2xl p-5 transition-all duration-300">
       <div className="flex items-start justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-          <svg className="w-5 h-5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+          <svg className="w-5 h-5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d={iconPath} />
           </svg>
         </div>
       </div>
-      <p className="text-3xl font-black text-white mb-0.5">{value ?? '—'}</p>
-      <p className="text-xs text-slate-400 font-medium">{label}</p>
+      <p className="text-3xl font-black dashboard-text-primary mb-0.5">{value ?? '—'}</p>
+      <p className="text-xs dashboard-text-secondary font-medium">{label}</p>
     </div>
   );
   return href ? <Link to={href} className="block">{card}</Link> : card;
 }
 
-function MiniCard({ label, value, iconColor, icon }) {
-  return (
-    <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${iconColor}20` }}>
+function MiniCard({ label, value, iconColor, icon, href }) {
+  const card = (
+    <div className="dashboard-card-secondary rounded-2xl p-4 flex items-center gap-3 transition-all duration-200 hover:-translate-y-0.5">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${iconColor}15` }}>
         <span style={{ color: iconColor }} className="text-lg font-bold">{icon}</span>
       </div>
       <div>
-        <p className="text-xl font-bold text-white">{value}</p>
-        <p className="text-xs text-slate-400">{label}</p>
+        <p className="text-xl font-bold dashboard-text-primary">{value}</p>
+        <p className="text-xs dashboard-text-secondary font-medium">{label}</p>
       </div>
     </div>
   );
+  return href ? <Link to={href} className="block">{card}</Link> : card;
 }
 
 function BarChartWidget({ id, label, data }) {
@@ -48,21 +46,39 @@ function BarChartWidget({ id, label, data }) {
   useEffect(() => {
     if (!ref.current || !data) return;
     if (chartRef.current) chartRef.current.destroy();
-    const palette = ['#10b981', '#f59e0b', '#6366f1', '#ef4444'];
+    
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const gridColor = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)';
+    const tickColor = isLight ? '#9B9B9B' : '#64748b';
+    
+    const getSemanticColor = (label) => {
+      const lower = label.toLowerCase();
+      if (lower.includes('on time') || lower.includes('approved')) return '#A3B81F';
+      if (lower.includes('late') || lower.includes('pending')) return '#FF7700';
+      if (lower.includes('absent') || lower.includes('reject')) return '#e11d48';
+      if (lower.includes('leave')) return '#8b8d94';
+      return null;
+    };
+    
+    const fallbackPalette = ['#A3B81F', '#FF7700', '#8b8d94', '#e11d48'];
     const keys = Object.keys(data);
     const vals = Object.values(data);
+    
+    const bgColors = keys.map((k, i) => (getSemanticColor(k) || fallbackPalette[i % fallbackPalette.length]) + '99');
+    const borderColors = keys.map((k, i) => getSemanticColor(k) || fallbackPalette[i % fallbackPalette.length]);
+    
     chartRef.current = new Chart(ref.current, {
       type: 'bar',
       data: {
         labels: keys,
-        datasets: [{ data: vals, backgroundColor: palette.slice(0, keys.length).map(c => c + '99'), borderColor: palette, borderWidth: 1, borderRadius: 8 }],
+        datasets: [{ data: vals, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 1, borderRadius: 8 }],
       },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 } } },
-          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', stepSize: 1 }, beginAtZero: true },
+          x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
+          y: { grid: { color: gridColor }, ticks: { color: tickColor, stepSize: 1 }, beginAtZero: true },
         },
       },
     });
@@ -70,8 +86,8 @@ function BarChartWidget({ id, label, data }) {
   }, [data]);
 
   return (
-    <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <h2 className="text-sm font-bold text-white mb-4">{label}</h2>
+    <div className="dashboard-card rounded-2xl p-6">
+      <h2 className="text-sm font-bold dashboard-text-primary mb-4">{label}</h2>
       <canvas id={id} ref={ref} height="200" />
     </div>
   );
@@ -96,34 +112,34 @@ export default function Dashboard() {
   const recentEmps = data?.recent_employees || [];
 
   const priorityClass = {
-    Urgent: 'text-rose-400 bg-rose-400/10',
-    High: 'text-orange-400 bg-orange-400/10',
-    Medium: 'text-amber-400 bg-amber-400/10',
+    Urgent: 'text-[#e11d48] bg-[#e11d48]/10',
+    High: 'text-[#FF7700] bg-[#FF7700]/10',
+    Medium: 'text-[#A3B81F] bg-[#A3B81F]/10',
   };
 
   return (
     <Layout title="Analytics Dashboard" subtitle={`${data?.today || ''} · Live data from Supabase`}>
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <>
+        <div className="dashboard-page-container -m-4 md:-m-8 p-4 md:p-8 min-h-[calc(100vh-64px)]">
           {/* KPI Row 1 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-            <StatCard label="Total Staff" value={stats.total_staff} gradient="linear-gradient(to br, #6366f1, #4338ca)" iconPath={ICONS.staff} color="#818cf8" href="/employees" />
-            <StatCard label="Active Staff" value={stats.active_staff} gradient="linear-gradient(to br, #10b981, #059669)" iconPath={ICONS.active} color="#34d399" href="/employees?status=active" />
-            <StatCard label="Present Today" value={stats.today_present} gradient="linear-gradient(to br, #06b6d4, #0891b2)" iconPath={ICONS.present} color="#22d3ee" href="/attendance" />
-            <StatCard label="Total Leaves" value={stats.total_leaves} gradient="linear-gradient(to br, #f59e0b, #d97706)" iconPath={ICONS.leave} color="#fbbf24" href="/leave" />
+            <StatCard label="Total Staff" value={stats.total_staff} iconPath={ICONS.staff} color="#A3B81F" href="/employees" />
+            <StatCard label="Active Staff" value={stats.active_staff} iconPath={ICONS.active} color="#A3B81F" href="/employees?status=active" />
+            <StatCard label="Present Today" value={stats.today_present} iconPath={ICONS.present} color="#64748b" href="/attendance" />
+            <StatCard label="Total Leaves" value={stats.total_leaves} iconPath={ICONS.leave} color="#FF7700" href="/leave" />
           </div>
 
           {/* KPI Row 2 */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
-            <MiniCard label="Pending Clearances" value={stats.pending_clearances} iconColor="#f43f5e" icon="!" />
-            <MiniCard label="Active Onboarding" value={stats.active_onboarding} iconColor="#a855f7" icon="+" />
-            <MiniCard label="Open Positions" value={stats.open_recruitment} iconColor="#3b82f6" icon="★" />
-            <MiniCard label="Total Payroll Paid" value={stats.total_payroll_paid} iconColor="#10b981" icon="$" />
-            <MiniCard label="Turnover Rate" value={stats.turnover_rate} iconColor="#f97316" icon="%" />
+            <MiniCard label="Pending Clearances" value={stats.pending_clearances} iconColor="#FF7700" icon="!" href="/offboarding" />
+            <MiniCard label="Active Onboarding" value={stats.active_onboarding} iconColor="#FF7700" icon="+" href="/onboarding" />
+            <MiniCard label="Open Positions" value={stats.open_recruitment} iconColor="#64748b" icon="★" href="/recruitment" />
+            <MiniCard label="Total Payroll Paid" value={stats.total_payroll_paid} iconColor="#A3B81F" icon="$" href="/payroll" />
+            <MiniCard label="Turnover Rate" value={stats.turnover_rate} iconColor="#e11d48" icon="%" href="/employees?status=Inactive" />
           </div>
 
           {/* Charts */}
@@ -134,62 +150,63 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            {[
-              ['/employees', '+ Add Employee', 'indigo'],
-              ['/attendance', '📋 Record Attendance', 'cyan'],
-              ['/leave', '📅 Submit Leave', 'amber'],
-              ['/onboarding', '🚀 Start Onboarding', 'purple'],
-            ].map(([href, label, clr]) => (
-              <Link key={href} to={href}
-                className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all duration-200"
-                style={{ border: `1px solid var(--color-${clr}-500, #6366f1)22`, background: 'rgba(99,102,241,0.05)', color: '#818cf8' }}
-              >
-                {label}
-              </Link>
-            ))}
+            <Link to="/employees" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-90" style={{ background: '#A3B81F', color: '#FFFFFF', border: '1px solid #829319', boxShadow: '0 2px 4px rgba(163,184,31,0.2)' }}>
+              + Add Employee
+            </Link>
+            <Link to="/attendance" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-80" style={{ background: 'rgba(255,119,0,0.1)', color: '#FF7700', border: '1px solid rgba(255,119,0,0.2)' }}>
+              📋 Record Attendance
+            </Link>
+            <Link to="/leave" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-80 dashboard-text-secondary" style={{ background: 'transparent', border: '1px solid var(--bbd-overlay-border, rgba(100,116,139,0.3))' }}>
+              📅 Submit Leave
+            </Link>
+            <Link to="/onboarding" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-80" style={{ background: 'transparent', color: '#A3B81F', border: '1px solid rgba(163,184,31,0.3)' }}>
+              🚀 Start Onboarding
+            </Link>
           </div>
 
           {/* Bottom Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Recent Employees */}
-            <div className="lg:col-span-2 rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <h2 className="text-sm font-bold text-white">Employee Snapshot</h2>
-                <Link to="/employees" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">View All →</Link>
+            <div className="lg:col-span-2 dashboard-card rounded-2xl overflow-hidden">
+              <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--bbd-overlay-border)' }}>
+                <h2 className="text-sm font-bold dashboard-text-primary">Employee Snapshot</h2>
+                <Link to="/employees" className="text-xs text-[#A3B81F] hover:text-[#829319] font-bold transition-colors">View All →</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead style={{ background: 'var(--bg-850, #161929)' }}>
                     <tr>
                       {['ID', 'Name', 'Status'].map(h => (
-                        <th key={h} className="text-left py-3 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                        <th key={h} className="text-left py-2.5 px-5 text-[10px] font-bold dashboard-text-secondary uppercase tracking-widest">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {recentEmps.length > 0 ? recentEmps.map(emp => (
-                      <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors">
-                        <td className="py-3 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">{emp.employee_id || '—'}</span></td>
+                      <tr key={emp.id} className="transition-colors hover:bg-black/5" style={{ borderTop: '1px solid var(--bbd-overlay-border)' }}>
+                        <td className="py-3 px-5"><span className="text-xs font-semibold dashboard-text-primary px-2.5 py-1 rounded" style={{ background: 'var(--bg-900, rgba(255,255,255,0.05))' }}>{emp.employee_id || '—'}</span></td>
                         <td className="py-3 px-5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: 'rgba(163,184,31,0.15)', color: '#829319' }}>
                               {(emp.Full_name || '?')[0]}
                             </div>
-                            <span className="font-medium text-white">{emp.Full_name || '—'}</span>
+                            <span className="font-medium dashboard-text-primary">{emp.Full_name || '—'}</span>
                           </div>
                         </td>
                         <td className="py-3 px-5">
                           {emp.status === 'Active' ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Active
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#829319] px-2.5 py-1 rounded-full" style={{ background: 'rgba(163,184,31,0.1)' }}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#A3B81F]" />Active
                             </span>
                           ) : (
-                            <span className="inline-flex items-center text-xs font-semibold text-slate-400 bg-slate-400/10 px-2 py-0.5 rounded-full">{emp.status || '—'}</span>
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold dashboard-text-secondary px-2.5 py-1 rounded-full" style={{ background: 'var(--bg-900, rgba(255,255,255,0.05))' }}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current" />Inactive
+                            </span>
                           )}
                         </td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="3" className="py-10 text-center text-slate-500 text-sm">No employees found.</td></tr>
+                      <tr><td colSpan="3" className="py-12 text-center dashboard-text-secondary text-sm">No employees found.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -197,8 +214,8 @@ export default function Dashboard() {
             </div>
 
             {/* Announcements */}
-            <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <h2 className="text-sm font-bold text-white mb-4">Company Announcements</h2>
+            <div className="dashboard-card rounded-2xl p-5">
+              <h2 className="text-sm font-bold dashboard-text-primary mb-4">Company Announcements</h2>
               {annList.filter(a => {
                 const today = new Date().toISOString().split('T')[0];
                 return !a.expiry_date || a.expiry_date >= today;
@@ -208,25 +225,33 @@ export default function Dashboard() {
                     const today = new Date().toISOString().split('T')[0];
                     return !a.expiry_date || a.expiry_date >= today;
                   }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(a => (
-                    <div key={a.id} className="flex items-start gap-3 rounded-xl p-3 transition-colors" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div key={a.id} className="flex items-start gap-3 rounded-xl p-3 transition-colors" style={{ background: 'var(--bg-850)', border: '1px solid var(--bbd-overlay-border)' }}>
                       {a.is_pinned && <span className="text-sm flex-shrink-0">📌</span>}
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${priorityClass[a.priority] || 'text-slate-400 bg-white/5'}`}>{a.priority || 'Normal'}</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${priorityClass[a.priority] || 'text-slate-400 bg-black/5'}`}>{a.priority || 'Normal'}</span>
                           <span className="text-[10px] text-slate-500">{(a.created_at || '').slice(0, 10)}</span>
                         </div>
-                        <p className="text-xs font-semibold text-white">{a.title}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">{a.content}</p>
+                        <p className="text-xs font-semibold dashboard-text-primary">{a.title}</p>
+                        <p className="text-[11px] dashboard-text-secondary mt-0.5 leading-relaxed line-clamp-2">{a.content}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-slate-500 text-sm">No announcements at this time.</div>
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--bg-900, rgba(255,255,255,0.03))' }}>
+                    <svg className="w-6 h-6 dashboard-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-bold dashboard-text-primary">No announcements yet</h3>
+                  <p className="text-xs dashboard-text-secondary mt-1">Check back later for company updates.</p>
+                </div>
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
     </Layout>
   );

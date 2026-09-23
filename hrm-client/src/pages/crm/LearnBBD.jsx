@@ -56,7 +56,7 @@ export default function LearnBBD() {
       title: '4. 1-Month Milestone Review & Dynamic Certificate Form',
       subtitle: 'ရက် ၃၀ ပြည့်တိုင်း Target Weight ထိမထိ စစ်ဆေးပေးပြီး Dynamic e-Certificate ထုတ်ပေးကာ Package သက်တမ်းတိုး Noti ပို့ပေးသည့် Form',
       badge: 'ရက် ၃၀ ပြည့်တိုင်း',
-      badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      badgeColor: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
       icon: '🏆',
       linkPath: `/monthly-review/${sampleCustomerId}`,
       description: 'Customer သည် ၁ လ (ရက် ၃၀) ပြည့်သွားချိန်တွင် Target Weight အတိုင်း ဖြစ်မဖြစ် ပြန်လည် ဆန်းစစ်ပေးခြင်း၊ Weight Loss Calculator ဖြင့် ဝိတ်ကျမှု ရာခိုင်နှုန်း တွက်ချက်ပေးခြင်း၊ **Dynamic VIP e-Certificate** ထုတ်ပေးခြင်းနှင့် Package သက်တမ်း ဆက်တိုးရန် / မတိုးရန် အရေးကြီး Noti ပို့ပေးသော စနစ်ဖြစ်ပါသည်။',
@@ -161,7 +161,7 @@ export default function LearnBBD() {
         </div>
 
         <div className="bg-surface-800 border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-2xl font-bold mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-400 flex items-center justify-center text-2xl font-bold mb-4">
             ⏰
           </div>
           <h3 className="font-extrabold text-white text-lg mb-2">Automated Follow-ups</h3>
@@ -184,7 +184,7 @@ export default function LearnBBD() {
             <p className="text-xl font-black text-white mt-1">မနက် 05:00 AM</p>
             <p className="text-[11px] text-slate-400 mt-1">Cron: <code className="text-emerald-400 font-mono">0 5 * * *</code></p>
           </div>
-          <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+          <div className="p-5 rounded-2xl bg-teal-500/10 border border-teal-500/20">
             <p className="text-2xl mb-2">✈️</p>
             <h4 className="font-black text-blue-400 text-sm mb-1">Telegram Group Channel</h4>
             <p className="text-xs text-slate-300 leading-relaxed">Chef အဖွဲ့ Telegram Group သို့ ဟင်းပွဲ၊ Headcount နှင့် BOM Ingredients ကို HTML Format ဖြင့် Inline Button ("Finish Cooking") အပါ တပ်ဆင်ပေးပို့မည်။</p>

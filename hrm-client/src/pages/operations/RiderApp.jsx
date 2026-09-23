@@ -57,7 +57,7 @@ function ProofOfDeliveryModal({ group, onClose, onSubmit, isSubmitting }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5" onClick={e => e.stopPropagation()}>
+      <div className="bg-surface-850 border border-emerald-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b border-white/10 pb-3">
           <div>
             <h3 className="text-white text-lg font-black flex items-center gap-2">
@@ -77,8 +77,8 @@ function ProofOfDeliveryModal({ group, onClose, onSubmit, isSubmitting }) {
             <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500/50 bg-black aspect-video flex items-center justify-center group">
               <img src={photoData} alt="Proof preview" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <button type="button" onClick={() => cameraInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-bold border border-white/20">📷 Retake</button>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-bold border border-white/20">🖼️ Gallery</button>
+                <button type="button" onClick={() => cameraInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-surface-850 text-white text-xs font-bold border border-white/20">📷 Retake</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-surface-850 text-white text-xs font-bold border border-white/20">🖼️ Gallery</button>
               </div>
             </div>
             <p className="text-center text-xs text-emerald-400 font-bold">✅ Photo captured! Ready to submit.</p>
@@ -254,7 +254,7 @@ function DeliveryCard({ group, onUpdateStatus, isPending, onOpenPodModal }) {
           <div className="mt-2.5">
             <div
               onClick={() => setShowSpotPhotoModal(true)}
-              className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-900/90 border border-fuchsia-500/30 hover:border-fuchsia-400 cursor-pointer transition-all active:scale-[0.98] group"
+              className="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-850 border border-fuchsia-500/30 hover:border-fuchsia-400 cursor-pointer transition-all active:scale-[0.98] group"
             >
               <img
                 src={spotPhotoUrl}
@@ -279,7 +279,7 @@ function DeliveryCard({ group, onUpdateStatus, isPending, onOpenPodModal }) {
                 className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fade-in"
                 onClick={() => setShowSpotPhotoModal(false)}
               >
-                <div className="relative max-w-lg w-full bg-slate-900 rounded-3xl overflow-hidden border border-white/20 shadow-2xl p-4 space-y-4" onClick={e => e.stopPropagation()}>
+                <div className="relative max-w-lg w-full bg-surface-850 rounded-3xl overflow-hidden border border-white/20 shadow-2xl p-4 space-y-4" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-between">
                     <h4 className="text-white font-black text-sm flex items-center gap-2">
                       <span>📸</span> Drop-off Location Photo ({group.customer?.full_name})

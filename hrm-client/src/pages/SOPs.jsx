@@ -118,7 +118,7 @@ export default function SOPs() {
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all duration-200 ${
-              activeTab === t.id ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+              activeTab === t.id ? 'border-brand-green text-brand-green' : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
             <span>{t.icon}</span> {t.label}
@@ -142,7 +142,7 @@ export default function SOPs() {
               {isAdmin() && (
                 <button
                   onClick={() => { setTemplateForm({ position_id: '', task_description: '' }); setShowTemplateModal(true); }}
-                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-xl transition-colors"
+                  className="px-4 py-2 bg-brand-green hover:bg-emerald-500 text-black text-sm font-bold rounded-xl transition-colors"
                 >
                   + New Template
                 </button>
@@ -216,7 +216,7 @@ export default function SOPs() {
                   <button
                     onClick={() => autoAssignMutation.mutate(autoMonth)}
                     disabled={autoAssignMutation.isPending || templates.length === 0}
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2"
+                    className="px-6 py-2.5 bg-brand-orange hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2"
                   >
                     {autoAssignMutation.isPending ? (
                       <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Assigning...</>
@@ -418,7 +418,7 @@ export default function SOPs() {
               <button
                 onClick={() => saveTplMutation.mutate(templateForm)}
                 disabled={saveTplMutation.isPending || !templateForm.position_id || !templateForm.task_description.trim()}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition-colors"
+                className="flex-1 bg-brand-green hover:bg-emerald-500 disabled:opacity-50 text-black rounded-xl py-2.5 text-sm font-bold transition-colors"
               >
                 {saveTplMutation.isPending ? 'Saving...' : 'Save Template'}
               </button>
@@ -454,7 +454,7 @@ export default function SOPs() {
               <button
                 onClick={() => editMutation.mutate({ ids: editTarget.ids, task_description: editText })}
                 disabled={editMutation.isPending || !editText.trim()}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition-colors"
+                className="flex-1 bg-brand-green hover:bg-emerald-500 disabled:opacity-50 text-black rounded-xl py-2.5 text-sm font-bold transition-colors"
               >
                 {editMutation.isPending ? 'Saving...' : 'Save Changes'}
               </button>

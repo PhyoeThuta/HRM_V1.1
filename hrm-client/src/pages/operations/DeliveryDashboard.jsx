@@ -50,7 +50,7 @@ function SpotPhotoPreview({ photoUrl, customerName }) {
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fade-in"
           onClick={() => setIsOpen(false)}
         >
-          <div className="relative max-w-xl w-full bg-slate-900 rounded-3xl overflow-hidden border border-white/20 shadow-2xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+          <div className="relative max-w-xl w-full bg-surface-850 rounded-3xl overflow-hidden border border-white/20 shadow-2xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h4 className="text-white font-black text-sm flex items-center gap-2">
                 <span>📸</span> Drop-off Location Photo {customerName ? `(${customerName})` : ''}

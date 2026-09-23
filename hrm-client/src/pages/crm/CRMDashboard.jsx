@@ -572,10 +572,10 @@ export default function CRMDashboard() {
 
                 if (status === 'pending' || status === 'payment_pending') {
                   badgeText = 'Pending Payment';
-                  badgeClass = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                  badgeClass = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
                 } else if (status === 'in_progress' || status === 'followup' || status === 'contacted') {
                   badgeText = 'Follow-up';
-                  badgeClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                  badgeClass = 'bg-orange-500/10 text-orange-400 border-orange-500/20';
                 } else if (status === 'lost' || status === 'closed') {
                   badgeText = 'Lost';
                   badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
@@ -628,7 +628,7 @@ export default function CRMDashboard() {
                       <span className={`text-xs font-black px-2 py-1 rounded-lg border ${
                         renewal.daysLeft < 0 ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
                         renewal.daysLeft === 0 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                        'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                        'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
                       }`}>
                         {renewal.daysLeft < 0 ? `Expired ${Math.abs(renewal.daysLeft)} days ago` : 
                          renewal.daysLeft === 0 ? 'Expires Today' : 

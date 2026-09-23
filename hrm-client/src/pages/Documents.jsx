@@ -29,7 +29,7 @@ const DOCUMENT_TYPES = [
 ];
 
 const CATEGORY_STYLES = {
-  'Employee Handbooks':    { color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+  'Employee Handbooks':    { color: 'text-teal-400 bg-teal-500/10 border-teal-500/20' },
   'Company Policies':      { color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
   'Disciplinary Records':  { color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
   'Commendations & Awards':{ color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
@@ -399,7 +399,7 @@ export default function Documents() {
       {/* ───────────────────────────────────────────────────────────── */}
       {mainTab === 'employee_folders' && (
         <div className="space-y-6">
-          <div className="p-4 rounded-2xl bg-indigo-900/20 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-3">
+          <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-3">
             <svg className="w-6 h-6 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
             <div>
               <strong className="font-bold text-white block">Per-Employee Vault Directories (ဝန်ထမ်းသီးသန့် ဖိုင်တွဲများ)</strong>
@@ -421,7 +421,7 @@ export default function Documents() {
                   }}
                   className={`rounded-2xl p-5 cursor-pointer transition-all duration-200 border ${
                     isSelected
-                      ? 'bg-indigo-900/30 border-indigo-500 shadow-xl'
+                      ? 'bg-indigo-500/10 border-indigo-500 shadow-xl'
                       : 'bg-white/5 border-white/10 hover:border-indigo-500/40 hover:bg-white/10'
                   }`}
                 >

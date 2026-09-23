@@ -126,7 +126,7 @@ export default function RostersTab({ employees }) {
                 <tr><td colSpan="5" className="p-4 text-center text-slate-500">No shifts defined yet.</td></tr>
               ) : (
                 shifts.map(s => (
-                  <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr key={s.id} className="hover:bg-white/5 transition-colors">
                     <td className="p-4 font-bold text-indigo-400">{s.shift_name}</td>
                     <td className="p-4">{s.start_time}</td>
                     <td className="p-4">{s.end_time}</td>
@@ -168,7 +168,7 @@ export default function RostersTab({ employees }) {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {employees.map(emp => (
-                <tr key={emp.id} className="hover:bg-slate-800/30 transition-colors">
+                <tr key={emp.id} className="hover:bg-white/5 transition-colors">
                   <td className="p-4">{emp.Full_name}</td>
                   <td className="p-4">
                     <select
@@ -217,7 +217,7 @@ export default function RostersTab({ employees }) {
                 <tr><td colSpan="5" className="p-4 text-center text-slate-500">No active rosters found.</td></tr>
               ) : (
                 rosters.map(r => (
-                  <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr key={r.id} className="hover:bg-white/5 transition-colors">
                     <td className="p-4">{empMap[r.employee_id] || 'Unknown'}</td>
                     <td className="p-4">
                       <span className="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-md text-xs font-medium">

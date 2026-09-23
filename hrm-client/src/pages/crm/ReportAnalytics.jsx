@@ -187,7 +187,7 @@ export default function ReportAnalytics() {
                   </div>
 
                   <div className="p-5 rounded-2xl bg-surface-800 border border-white/5 relative overflow-hidden">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-lg mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold text-lg mb-3">
                       📦
                     </div>
                     <p className="text-3xl font-black text-white">{summary.activePackages || 0}</p>
@@ -196,7 +196,7 @@ export default function ReportAnalytics() {
                   </div>
 
                   <div className="p-5 rounded-2xl bg-surface-800 border border-white/5 relative overflow-hidden">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-lg mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center font-bold text-lg mb-3">
                       ⚡
                     </div>
                     <p className="text-3xl font-black text-white">{summary.leadConversionRate || 0}%</p>
@@ -288,7 +288,7 @@ export default function ReportAnalytics() {
                       <h4 className="font-bold text-blue-400 text-sm flex items-center gap-1.5">
                         <span>⚖️</span> အသင့်အတင့် ကြိုက်နှစ်သက်သော ဟင်းပွဲများ ({averageDishes.length})
                       </h4>
-                      <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full font-bold">3.0 ~ 3.9 ★</span>
+                      <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold">3.0 ~ 3.9 ★</span>
                     </div>
                     {averageDishes.length === 0 ? (
                       <p className="text-slate-500 text-xs py-4 text-center">အသင့်အတင့် အဆင့် ဟင်းပွဲ မရှိပါ</p>

@@ -104,7 +104,7 @@ export default function CustomerPackagesList({
                   <span>🛑</span> EXPIRED (သက်တမ်းကုန်)
                 </span>
               ) : pkg.status === 'Upcoming' ? (
-                <span className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-500/40 text-blue-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                <span className="inline-flex items-center gap-1.5 bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 px-4 py-1.5 rounded-full text-xs font-black shadow-[0_0_10px_rgba(163,184,31,0.2)]">
                   <span>📅</span> UPCOMING
                 </span>
               ) : (
@@ -113,7 +113,7 @@ export default function CustomerPackagesList({
                 </span>
               )}
 
-              <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-black border ${pkg.payment_status === 'Paid' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : pkg.payment_status === 'Partial' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
+              <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-black border ${pkg.payment_status === 'Paid' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : pkg.payment_status === 'Partial' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-slate-500/10 border-slate-500/20 text-slate-400'}`}>
                 {pkg.payment_status || 'Unpaid'}
               </span>
 

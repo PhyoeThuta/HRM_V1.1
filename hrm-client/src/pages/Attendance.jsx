@@ -526,7 +526,7 @@ export default function Attendance() {
                       <label className="block text-xs font-semibold text-slate-400 mb-1">LOCATION</label>
                       <input name="location" placeholder="Floor 1 — Main Entrance" className="form-input" />
                     </div>
-                    <button type="submit" disabled={addDeviceMutation.isLoading} className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
+                    <button type="submit" disabled={addDeviceMutation.isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
                       + Register Device
                     </button>
                   </form>
@@ -536,7 +536,7 @@ export default function Attendance() {
                   <h3 className="text-xs font-bold text-slate-400 mb-3 tracking-wider uppercase">Registered Devices ({data?.biometric_devices?.length || 0})</h3>
                   <div className="space-y-3">
                     {data?.biometric_devices?.length > 0 ? data.biometric_devices.map(d => (
-                      <div key={d.id} className="p-4 bg-slate-800 rounded-lg flex justify-between items-center group">
+                      <div key={d.id} className="p-4 bg-surface-850 border border-white/5 rounded-lg flex justify-between items-center group">
                         <div>
                           <p className="font-bold text-slate-200">{d.device_name}</p>
                           <p className="text-xs text-slate-400 mt-1">{d.ip_address || 'N/A'}:{d.port || 4370}</p>
@@ -588,9 +588,9 @@ export default function Attendance() {
                   <h3 className="text-xs font-bold text-slate-400 mb-3 tracking-wider uppercase">Enrolled Employees ({data?.biometric_registrations?.length || 0})</h3>
                   <div className="space-y-3">
                     {data?.biometric_registrations?.length > 0 ? data.biometric_registrations.map(r => (
-                      <div key={r.id} className="p-4 bg-slate-800 rounded-lg flex justify-between items-center group">
+                      <div key={r.id} className="p-4 bg-surface-850 border border-white/5 rounded-lg flex justify-between items-center group">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">{(r.Full_name || '?')[0]}</div>
+                          <div className="w-8 h-8 rounded-full bg-surface-950 border border-white/5 flex items-center justify-center text-xs font-bold text-slate-400">{(r.Full_name || '?')[0]}</div>
                           <div>
                             <p className="font-bold text-slate-200">{r.Full_name}</p>
                             <p className="text-xs text-slate-400 mt-0.5">Device ID: <span className="font-mono text-cyan-400">{r.biometric_id}</span></p>

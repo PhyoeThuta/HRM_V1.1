@@ -176,7 +176,7 @@ export default function SopReportTab({ positions }) {
                         // Check if it's a future date
                         if (dateStr > todayStr) {
                           return (
-                            <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-slate-800/30">
+                            <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-white/5">
                               <span className="text-slate-500 text-xs" title="Pending">⏳</span>
                             </td>
                           );
@@ -203,7 +203,7 @@ export default function SopReportTab({ positions }) {
                     });
 
                     return (
-                      <tr key={emp.id} className="hover:bg-slate-800/30 transition-colors">
+                      <tr key={emp.id} className="hover:bg-white/5 transition-colors">
                         <td className="p-3 font-medium sticky left-0 bg-surface-800 z-10 border-r border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                           {emp.Full_name}
                         </td>

@@ -63,7 +63,7 @@ export default function MyOvertimeTab() {
   const getStatusBadge = (status) => {
     const config = {
       'Pending_Boss_Approval': { text: 'Waiting for Approval', css: 'bg-amber-500/10 text-amber-400 border border-amber-400/20' },
-      'Pending_Employee_Acceptance': { text: 'Action Required', css: 'bg-blue-500/10 text-blue-400 border border-blue-400/20 animate-pulse' },
+      'Pending_Employee_Acceptance': { text: 'Action Required', css: 'bg-orange-500/10 text-orange-400 border border-orange-400/20 animate-pulse' },
       'Approved': { text: 'Approved', css: 'bg-emerald-500/10 text-emerald-400 border border-emerald-400/20' },
       'Rejected': { text: 'Rejected', css: 'bg-rose-500/10 text-rose-400 border border-rose-400/20' }
     };

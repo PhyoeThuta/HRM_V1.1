@@ -72,10 +72,10 @@ export default function Positions() {
   });
 
   const levelColor = {
-    Executive: 'text-purple-400 bg-purple-400/10',
+    Executive: 'text-amber-400 bg-amber-400/10',
     Manager: 'text-amber-400 bg-amber-400/10',
     Supervisor: 'text-emerald-400 bg-emerald-400/10',
-    Senior: 'text-blue-400 bg-blue-400/10',
+    Senior: 'text-orange-400 bg-orange-400/10',
     Mid: 'text-indigo-400 bg-indigo-400/10',
     Junior: 'text-slate-400 bg-slate-400/10',
   };
@@ -94,7 +94,7 @@ export default function Positions() {
           />
         </div>
         {isAdmin() && (
-          <button onClick={() => { setEditTarget(null); setShowModal(true); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl whitespace-nowrap">
+          <button onClick={() => { setEditTarget(null); setShowModal(true); }} className="px-4 py-2 bg-brand-green hover:bg-emerald-500 text-black text-sm font-semibold rounded-xl whitespace-nowrap">
             + New Position
           </button>
         )}
@@ -162,7 +162,7 @@ export default function Positions() {
                   <button
                     title="Compose Facebook announcement (image + text)"
                     onClick={() => setAnnounceTarget(p)}
-                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-colors"
+                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-brand-green/20 text-brand-green hover:bg-brand-green hover:text-black transition-colors"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                   </button>
@@ -206,7 +206,7 @@ export default function Positions() {
               <div><label className="form-label">Base Salary</label><input type="number" name="base_salary" defaultValue={editTarget?.base_salary || ''} className="form-input" /></div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowModal(false); setEditTarget(null); }} className="flex-1 px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl">Save</button>
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-brand-green hover:bg-emerald-500 text-black font-semibold rounded-xl transition-colors">Save</button>
               </div>
             </form>
           </div>

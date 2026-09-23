@@ -131,7 +131,7 @@ export default function LevelSettings() {
             const maxStr = setting.max_spend !== undefined && setting.max_spend !== null ? `${setting.max_spend.toLocaleString()} THB` : 'No Limit';
 
             return (
-              <div key={setting.id} className="p-5 rounded-2xl border border-white/5 bg-slate-900/50 backdrop-blur-sm relative group">
+              <div key={setting.id} className="p-5 rounded-2xl border border-white/5 bg-surface-850 relative group">
                 <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openModal(setting)} className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -190,7 +190,7 @@ export default function LevelSettings() {
                   required
                   value={formData.level_name}
                   onChange={(e) => setFormData({ ...formData, level_name: e.target.value })}
-                  className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-green/50"
+                  className="w-full bg-surface-800 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-green/50"
                   placeholder="e.g., Gold, Diamond"
                 />
               </div>

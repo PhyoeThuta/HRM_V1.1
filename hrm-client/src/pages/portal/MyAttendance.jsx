@@ -49,7 +49,7 @@ export default function MyAttendance() {
   };
 
   const methodBadge = (m) => {
-    const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-purple-400 bg-purple-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
+    const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-orange-400 bg-orange-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
     return cfg[m] ? <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg[m]}`}>🪄 {m}</span>
       : <span className="text-xs font-medium px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ Manual</span>;
   };

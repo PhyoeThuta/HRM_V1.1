@@ -183,7 +183,7 @@ export default function UserAccounts() {
                   <div key={u.id} className={`p-5 rounded-2xl border transition-colors flex flex-col justify-between h-full ${!u.is_active ? 'bg-surface-900/50 border-rose-500/20' : 'bg-surface-800 border-white/5 hover:border-indigo-500/30'}`}>
                     
                     <div className="flex items-start gap-4 mb-6">
-                      <div className={`w-12 h-12 rounded-full font-bold flex items-center justify-center text-xl shrink-0 ${!u.is_active ? 'bg-slate-800 text-slate-500' : 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300'}`}>
+                      <div className={`w-12 h-12 rounded-full font-bold flex items-center justify-center text-xl shrink-0 ${!u.is_active ? 'bg-surface-950 border border-white/5 text-slate-500' : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'}`}>
                         {(u.full_name || u.username)[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -270,7 +270,7 @@ export default function UserAccounts() {
                 <p className="text-[10px] text-slate-500 mt-2 leading-tight">Link employee accounts so they can see their own data in the portal.</p>
               </div>
               <div className="pt-4 flex gap-3">
-                <button type="button" onClick={handleCancelEdit} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors text-sm">
+                <button type="button" onClick={handleCancelEdit} className="flex-1 py-3 border border-white/10 hover:bg-white/5 text-slate-400 font-bold rounded-xl transition-colors text-sm">
                   Cancel
                 </button>
                 <button type="submit" disabled={addMutation.isPending || editMutation.isPending} className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors text-sm shadow-lg shadow-indigo-500/20">
@@ -312,7 +312,7 @@ export default function UserAccounts() {
                 <button
                   type="button"
                   onClick={() => setResetTargetId(null)}
-                  className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition-colors"
+                  className="flex-1 px-4 py-2 border border-white/10 hover:bg-white/5 text-slate-400 text-sm font-bold rounded-xl transition-colors"
                 >
                   Cancel
                 </button>

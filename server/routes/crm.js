@@ -8,6 +8,7 @@ import { emitInquiryMessage, emitInquiryUpdated, emitInquiryCreated } from '../l
 import { packageBodySchema, resumePackageSchema } from '../schemas/crmPackagesSchema.js';
 import { crmPackagesService } from '../services/crmPackagesService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import * as crmController from '../modules/crm/controller/index.js';
 
 const router = express.Router();
 
@@ -78,146 +79,13 @@ const customerCreationMutex = new Mutex();
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/level-settings
-router.get('/level-settings', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .schema('crm')
-      .from('level_settings')
-      .select('*')
-      .order('required_spend', { ascending: true });
-
-    if (error) throw error;
-    
-    // Decode metadata stored in `color` column if formatted like "amber|max_spend:8000"
-    const decoded = (data || []).map(item => {
-      let color = item.color || 'blue';
-      let max_spend = null;
-
-      if (color && color.includes('|max_spend:')) {
-        const parts = color.split('|max_spend:');
-        color = parts[0];
-        const parsedMax = parseInt(parts[1], 10);
-        if (!isNaN(parsedMax)) max_spend = parsedMax;
-      }
-
-      const min_spend = item.min_spend !== undefined && item.min_spend !== null ? item.min_spend : (item.required_spend || 0);
-
-      return {
-        ...item,
-        min_spend,
-        max_spend,
-        color
-      };
-    });
-
-    // Sort ascending by min_spend
-    const sorted = decoded.sort((a, b) => a.min_spend - b.min_spend);
-
-    // Compute range dynamically: fallback to next tier's min_spend ONLY IF max_spend was not explicitly saved
-    const normalized = sorted.map((s, idx) => {
-      let max = s.max_spend;
-      if (max === null && idx < sorted.length - 1) {
-        const nextMin = sorted[idx + 1].min_spend;
-        max = nextMin > s.min_spend ? nextMin : null;
-      }
-
-      return { ...s, max_spend: max };
-    });
-
-    return res.json(normalized);
-  } catch (e) {
-    console.error('[CRM GET LEVEL SETTINGS]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/level-settings', verifyToken, crmController.getLevelSettings);
 
 // POST /api/crm/level-settings
-router.post('/level-settings', verifyToken, async (req, res) => {
-  try {
-    const { id, level_name, required_spend, min_spend, max_spend, color } = req.body;
-    
-    const parsedMin = min_spend !== undefined && min_spend !== '' ? parseInt(min_spend) : (required_spend !== undefined ? parseInt(required_spend) : 0);
-    const parsedMax = max_spend !== undefined && max_spend !== '' && max_spend !== null ? parseInt(max_spend) : null;
-
-    if (!level_name || parsedMin === undefined || isNaN(parsedMin)) {
-      return res.status(400).json({ error: 'level_name and valid min_spend are required' });
-    }
-
-    if (parsedMax !== null && !isNaN(parsedMax) && parsedMin > parsedMax) {
-      return res.status(400).json({ error: 'Minimum spend cannot be greater than maximum spend.' });
-    }
-
-    // Encode explicit max_spend inside color string so DB stores it without schema migration errors
-    const baseColor = color || 'blue';
-    const encodedColor = parsedMax !== null ? `${baseColor}|max_spend:${parsedMax}` : baseColor;
-
-    const payload = {
-      level_name,
-      required_spend: parsedMin, // Keep for DB column compatibility
-      color: encodedColor
-    };
-
-    let result;
-    if (id) {
-      // Update
-      const { data, error } = await supabaseAdmin
-        .schema('crm')
-        .from('level_settings')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    } else {
-      // Insert
-      const { data, error } = await supabaseAdmin
-        .schema('crm')
-        .from('level_settings')
-        .insert(payload)
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    }
-
-    // Normalize output format
-    let resColor = result.color || 'blue';
-    let resMax = null;
-    if (resColor && resColor.includes('|max_spend:')) {
-      const parts = resColor.split('|max_spend:');
-      resColor = parts[0];
-      resMax = parseInt(parts[1], 10);
-    }
-
-    return res.json({
-      ...result,
-      min_spend: parsedMin,
-      max_spend: resMax,
-      color: resColor
-    });
-  } catch (e) {
-    console.error('[CRM POST LEVEL SETTING]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/level-settings', verifyToken, crmController.upsertLevelSetting);
 
 // DELETE /api/crm/level-settings/:id
-router.delete('/level-settings/:id', verifyToken, async (req, res) => {
-  try {
-    const { error } = await supabaseAdmin
-      .schema('crm')
-      .from('level_settings')
-      .delete()
-      .eq('id', req.params.id);
-      
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    console.error('[CRM DELETE LEVEL SETTING]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/level-settings/:id', verifyToken, crmController.deleteLevelSetting);
 
 // ──────────────────────────────────────────────────────────────────
 // CUSTOMERS
@@ -748,204 +616,10 @@ router.post('/customer-packages/:id/renew', verifyToken, asyncHandler(async (req
 }));
 
 // POST /api/crm/kitchen-dashboard/deduct-meals
-router.post('/kitchen-dashboard/deduct-meals', verifyToken, async (req, res) => {
-  try {
-    // We fetch all active packages that have meal_count > 0 and deduct 1
-    const { data: packages, error: fetchErr } = await supabaseAdmin.schema('crm')
-      .from('customer_packages')
-      .select('id, meal_count')
-      .eq('status', 'Active')
-      .gt('meal_count', 0);
-      
-    if (fetchErr) throw fetchErr;
-    
-    let deductedCount = 0;
-    
-    // Group packages by their current meal_count to perform bulk updates
-    const groups = {};
-    for (const pkg of packages) {
-      if (!groups[pkg.meal_count]) groups[pkg.meal_count] = [];
-      groups[pkg.meal_count].push(pkg.id);
-    }
-    
-    for (const [mealCountStr, ids] of Object.entries(groups)) {
-      const mealCount = parseInt(mealCountStr, 10);
-      const { error } = await supabaseAdmin.schema('crm')
-        .from('customer_packages')
-        .update({ meal_count: mealCount - 1 })
-        .in('id', ids);
-        
-      if (!error) {
-        deductedCount += ids.length;
-      }
-    }
-    
-    return res.json({ success: true, message: `Deducted 1 meal from ${deductedCount} active packages.` });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/kitchen-dashboard/deduct-meals', verifyToken, crmController.deductKitchenMeals);
 
 // GET /api/crm/kitchen-dashboard
-router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
-  try {
-    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
-    
-    // Get all active packages today with customer info
-    let { data: packages, error } = await supabaseAdmin.schema('crm')
-      .from('customer_packages')
-      .select(`
-        *,
-        customers:customer_id ( 
-          full_name, phone, address, delivery_address, delivery_notes,
-          customer_health ( allergies, medical_condition, special_requests ),
-          customer_lifestyle ( food_restriction )
-        )
-      `)
-      .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
-      .gte('expires_at', targetDate);
-
-    if (error) throw error;
-
-    // Fallback: If no packages found by date bounds, fetch all active packages or packages for customers with orders today
-    if (!packages || packages.length === 0) {
-      const { data: fallbackPkgs } = await supabaseAdmin.schema('crm')
-        .from('customer_packages')
-        .select(`
-          *,
-          customers:customer_id ( 
-            full_name, phone, address, delivery_address, delivery_notes,
-            customer_health ( allergies, medical_condition, special_requests ),
-            customer_lifestyle ( food_restriction )
-          )
-        `);
-      packages = fallbackPkgs || [];
-    }
-
-    // Also check operations_orders for targetDate to ensure headcount matches generated orders
-    const { data: todayOrders } = await supabaseAdmin
-      .from('operations_orders')
-      .select('customer_id, daily_menu_id, daily_menus:daily_menu_id(meal_type)')
-      .eq('date', targetDate);
-
-    let totalLunch = 0;
-    let totalDinner = 0;
-    const specialRequests = [];
-
-    // If todayOrders exist, count headcount from actual orders
-    if (todayOrders && todayOrders.length > 0) {
-      todayOrders.forEach(o => {
-        const mtype = (o.daily_menus?.meal_type || '').toUpperCase();
-        if (mtype.includes('LUNCH')) totalLunch++;
-        else if (mtype.includes('DINNER')) totalDinner++;
-      });
-    }
-
-    // Parse the data for kitchen view
-    const deliveryList = packages.map(pkg => {
-      let isLunch = (pkg.meal_type || '').toLowerCase().includes('lunch');
-      let isDinner = (pkg.meal_type || '').toLowerCase().includes('dinner');
-      
-      if (!todayOrders || todayOrders.length === 0) {
-        if (isLunch) totalLunch++;
-        if (isDinner) totalDinner++;
-      }
-      
-      const restrictions = [];
-      const health = pkg.customers?.customer_health?.[0] || pkg.customers?.customer_health || {};
-      const lifestyle = pkg.customers?.customer_lifestyle?.[0] || pkg.customers?.customer_lifestyle || {};
-      
-      if (health.allergies && health.allergies !== 'None') restrictions.push(health.allergies);
-      if (health.special_requests && health.special_requests !== 'None') restrictions.push(health.special_requests);
-      if (lifestyle.food_restriction && lifestyle.food_restriction !== 'None') restrictions.push(lifestyle.food_restriction);
-      
-      const restrictionStr = restrictions.join(', ');
-      if (restrictionStr && pkg.customers?.full_name) {
-        specialRequests.push({ customer: pkg.customers.full_name, request: restrictionStr, type: pkg.meal_type || 'Lunch & Dinner' });
-      }
-
-      return {
-        package_id: pkg.id,
-        customer_id: pkg.customer_id,
-        name: pkg.customers.full_name,
-        phone: pkg.customers.phone,
-        delivery_address: pkg.customers.delivery_address || pkg.customers.address || 'No Address',
-        delivery_notes: pkg.customers.delivery_notes || '',
-        meal_type: pkg.meal_type,
-        restrictions: restrictionStr || 'None'
-      };
-    });
-
-    // Get date filter (default to today)
-    // targetDate already declared at top
-
-    // Fetch Daily Menus for the target date
-    const { data: dailyMenus } = await supabaseAdmin
-      .from('operations_daily_menus')
-      .select('*')
-      .eq('date', targetDate);
-
-    // Fetch associated menu_types and menus
-    const { data: menuTypes } = await supabaseAdmin.from('operations_menu_types').select('*');
-    const { data: menus } = await supabaseAdmin.from('operations_menus').select('*');
-    const { data: recipes } = await supabaseAdmin.from('operations_recipes').select('*');
-    const { data: inventoryItems } = await supabaseAdmin.from('inventory_items').select('*');
-
-    const enrichedDailyMenus = (dailyMenus || []).map(dm => {
-      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
-      const enrichedTypes = types.map(mt => ({
-        ...mt,
-        menu: menus?.find(m => m.id === mt.menu_id) || { name_en: 'Uncosted Item', name_mm: '' }
-      }));
-      return { ...dm, menu_types: enrichedTypes };
-    }).filter(dm => dm.menu_types && dm.menu_types.length > 0);
-
-    // Aggregate BOM
-    const bomMap = new Map();
-    
-    enrichedDailyMenus.forEach(dm => {
-      const mtype = (dm.meal_type || '').toUpperCase();
-      const multiplier = mtype.includes('LUNCH') ? totalLunch : (mtype.includes('DINNER') ? totalDinner : totalLunch);
-      if (multiplier === 0) return;
-      
-      dm.menu_types.forEach(mt => {
-        if (!mt.menu_id) return;
-        const menuRecipes = recipes?.filter(r => r.menu_id === mt.menu_id) || [];
-        
-        menuRecipes.forEach(recipe => {
-          const item = inventoryItems?.find(i => i.id === recipe.inventory_item_id);
-          if (!item) return;
-          
-          if (!bomMap.has(item.id)) {
-            bomMap.set(item.id, {
-              id: item.id,
-              name: item.name_eng,
-              name_mm: item.name_mm,
-              uom: item.unit_of_measure,
-              qty: 0
-            });
-          }
-          const current = bomMap.get(item.id);
-          current.qty += (recipe.qty * multiplier);
-        });
-      });
-    });
-
-    const aggregatedBOM = Array.from(bomMap.values()).sort((a, b) => b.qty - a.qty);
-
-    return res.json({
-      headcount: { totalLunch, totalDinner },
-      specialRequests,
-      deliveryList,
-      dailyMenus: enrichedDailyMenus,
-      aggregatedBOM,
-      targetDate
-    });
-  } catch (e) {
-    console.error('[CRM KITCHEN DASHBOARD]', e);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/kitchen-dashboard', verifyToken, crmController.getKitchenDashboard);
 
 // ──────────────────────────────────────────────────────────────────
 // GALLERY PHOTOS
@@ -1751,325 +1425,26 @@ router.delete('/inquiries/:id', verifyToken, async (req, res) => {
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/packages
-router.get('/packages', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .schema('crm')
-      .from('packages')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/packages', verifyToken, crmController.getPackages);
 
 // POST /api/crm/packages
-router.post('/packages', verifyToken, async (req, res) => {
-  try {
-    const { name, duration, price } = req.body;
-    const { data, error } = await supabaseAdmin.schema('crm').from('packages')
-      .insert({ name, duration, price })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.status(201).json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/packages', verifyToken, crmController.createPackage);
 
 // PUT /api/crm/packages/:id
-router.put('/packages/:id', verifyToken, async (req, res) => {
-  try {
-    const { name, duration, price } = req.body;
-    const { error } = await supabaseAdmin.schema('crm').from('packages')
-      .update({ name, duration, price })
-      .eq('id', req.params.id);
-
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/packages/:id', verifyToken, crmController.updatePackage);
 
 // DELETE /api/crm/packages/:id
-router.delete('/packages/:id', verifyToken, async (req, res) => {
-  try {
-    const { error } = await supabaseAdmin.schema('crm').from('packages').delete().eq('id', req.params.id);
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/packages/:id', verifyToken, crmController.deletePackage);
 
 // ──────────────────────────────────────────────────────────────────
 // DASHBOARD STATS
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/dashboard
-router.get('/dashboard', verifyToken, async (req, res) => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
-    const sevenMonthsAgo = new Date();
-    sevenMonthsAgo.setMonth(sevenMonthsAgo.getMonth() - 6);
-    sevenMonthsAgo.setDate(1);
-    const sevenMonthsAgoStr = sevenMonthsAgo.toISOString().split('T')[0];
-
-    const [
-      { count: totalCustomers },
-      { data: allPackages },
-      { data: allInquiriesForStatus },
-      { data: convertedLeads },
-      { count: upcomingBookings },
-      { data: upcomingRenewals },
-      { data: recentLeads },
-      { data: recentCustomers },
-      { data: allInquiriesForSource },
-      { data: recentFeedbacks },
-    ] = await Promise.all([
-      supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
-      supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, amount, payment_status'),
-      supabaseAdmin.schema('crm').from('inquiries').select('id, status, notes, updated_at, customer_id'),
-      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Upcoming'),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
-      supabaseAdmin.schema('crm').from('inquiries').select('*').is('customer_id', null).neq('status', 'converted').order('created_at', { ascending: false }).limit(6),
-      supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
-      supabaseAdmin.schema('crm').from('inquiries').select('source'),
-      supabaseAdmin.schema('crm').from('feedbacks').select('*, customers!inner(full_name)').order('created_at', { ascending: false }).limit(30),
-    ]);
-
-    // Calculate 8 Dashboard Metrics
-    const pkgs = allPackages || [];
-    let totalRevenue = 0;
-    let activeCustomersSet = new Set();
-    let hasExpiredPackagesSet = new Set();
-    let hasAnyPackageSet = new Set();
-
-    pkgs.forEach(pkg => {
-      hasAnyPackageSet.add(pkg.customer_id);
-      if (pkg.payment_status === 'Paid') {
-        totalRevenue += (Number(pkg.amount) || 0);
-      }
-      
-      const expiresAtDate = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
-      expiresAtDate.setHours(0,0,0,0);
-      const todayDate = new Date();
-      todayDate.setHours(0,0,0,0);
-
-      const isActive = (expiresAtDate >= todayDate) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
-
-      if (isActive) {
-        activeCustomersSet.add(pkg.customer_id);
-      } else {
-        hasExpiredPackagesSet.add(pkg.customer_id);
-      }
-    });
-
-    let churnedCustomers = 0;
-    hasExpiredPackagesSet.forEach(cid => {
-      if (!activeCustomersSet.has(cid)) churnedCustomers++;
-    });
-
-    let hotProspects = 0, followUpProspects = 0, pendingProspects = 0, lostProspects = 0;
-    (allInquiriesForStatus || []).forEach(inq => {
-      const s = (inq.status || '').toLowerCase();
-      
-      // If inquiry is linked to customer or status is converted, it is a converted customer (not a prospect)
-      if (inq.customer_id || s === 'converted') {
-        return;
-      }
-
-      if (['hot', 'new', 'initial_contact'].includes(s)) {
-        hotProspects++;
-      } else if (['pending', 'payment_pending'].includes(s)) {
-        pendingProspects++;
-      } else if (['lost', 'closed'].includes(s)) {
-        lostProspects++;
-      } else {
-        followUpProspects++;
-      }
-    });
-
-    const mappedRenewals = (upcomingRenewals || []).map(pkg => {
-      const daysLeft = Math.ceil((new Date(pkg.expires_at) - new Date(today)) / (1000 * 60 * 60 * 24));
-      return {
-        customerId: pkg.customer_id,
-        customerName: pkg.customers?.full_name || 'Unknown',
-        packageName: pkg.name,
-        daysLeft: daysLeft
-      };
-    });
-
-    const customerGrowth = [0, 0, 0, 0, 0, 0, 0];
-    const currM = new Date().getMonth();
-    const currY = new Date().getFullYear();
-
-    (recentCustomers || []).forEach(c => {
-      const d = new Date(c.created_at);
-      const diff = (currY - d.getFullYear()) * 12 + (currM - d.getMonth());
-      if (diff >= 0 && diff <= 6) {
-        customerGrowth[6 - diff] += 1;
-      }
-    });
-
-    const sourceCounts = {
-      'Facebook': 0, 'Telegram': 0, 'Website': 0, 'Referral': 0, 'Other': 0
-    };
-    (allInquiriesForSource || []).forEach(inq => {
-      let src = inq.source?.toLowerCase() || '';
-      if (src === 'messenger' || src === 'facebook') sourceCounts['Facebook']++;
-      else if (src === 'telegram') sourceCounts['Telegram']++;
-      else if (src === 'website') sourceCounts['Website']++;
-      else if (src === 'referral') sourceCounts['Referral']++;
-      else sourceCounts['Other']++;
-    });
-
-    const flaggedFeedback = (recentFeedbacks || [])
-      .filter(fb => {
-        const comment = fb.comment || '';
-        if (comment.includes('[RESOLVED]')) return false;
-        return fb.rating <= 2 || comment.includes('[COMPLAIN]') || comment.includes('[REQUEST]');
-      })
-      .map(fb => {
-        let type = 'Issue';
-        if (fb.comment?.includes('[REQUEST]')) type = 'Request';
-        else if (fb.comment?.includes('[COMPLAIN]')) type = 'Complaint';
-        else if (fb.rating <= 2) type = 'Low Rating';
-        
-        let cleanText = (fb.comment || '')
-          .replace(/\[GENERAL\]/g, '')
-          .replace(/\[MENU\]/g, '')
-          .replace(/\[FEEDBACK\]/g, '')
-          .replace(/\[COMPLAIN\]/g, '')
-          .replace(/\[REQUEST\]/g, '')
-          .trim();
-
-        return {
-          id: fb.id,
-          customerName: fb.customers?.full_name || 'Unknown',
-          date: new Date(fb.created_at).toLocaleDateString(),
-          text: cleanText,
-          type: type,
-          rating: fb.rating
-        };
-      });
-
-    return res.json({
-      // The 8 new metrics
-      totalRevenue,
-      totalCustomers: totalCustomers || 0,
-      activeCustomers: activeCustomersSet.size,
-      churnedCustomers,
-      hotProspects,
-      followUpProspects,
-      pendingProspects,
-      lostProspects,
-      // Legacy metrics for charts/bottom UI
-      upcomingRenewals: mappedRenewals,
-      recentLeads: recentLeads || [],
-      customerGrowth: customerGrowth,
-      sourceCounts: sourceCounts,
-      flaggedFeedback: flaggedFeedback
-    });
-  } catch (e) {
-    console.error('[CRM DASHBOARD]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/dashboard', verifyToken, crmController.getDashboard);
 
 // GET /api/crm/segments/:segment
-router.get('/segments/:segment', verifyToken, async (req, res) => {
-  try {
-    const { segment } = req.params;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    if (segment === 'revenue') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, phone, customer_code)').eq('payment_status', 'Paid').order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else if (segment === 'customers') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('customers').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else if (segment === 'active') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-        .select('*, customers!inner(full_name, phone, customer_code)')
-        .in('status', ['Active', 'Paused', 'Upcoming'])
-        .order('expires_at', { ascending: false });
-      if (error) throw error;
-      
-      const filtered = data.filter(pkg => {
-        const exp = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
-        exp.setHours(0,0,0,0);
-        return (exp >= today) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
-      });
-      return res.json(filtered);
-    } 
-    else if (segment === 'churned') {
-      const { data: allPackages, error: pkgErr } = await supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, customers!inner(*)');
-      if (pkgErr) throw pkgErr;
-
-      let activeSet = new Set();
-      let hasExpiredSet = new Set();
-      let customerMap = new Map();
-
-      (allPackages || []).forEach(pkg => {
-        customerMap.set(pkg.customer_id, pkg.customers);
-        const exp = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
-        exp.setHours(0,0,0,0);
-        
-        const isActive = (exp >= today) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
-
-        if (isActive) {
-          activeSet.add(pkg.customer_id);
-        } else {
-          hasExpiredSet.add(pkg.customer_id);
-        }
-      });
-
-      let churned = [];
-      hasExpiredSet.forEach(cid => {
-        if (!activeSet.has(cid)) churned.push(customerMap.get(cid));
-      });
-      return res.json(churned);
-    } 
-    else if (segment === 'hot' || segment === 'pending' || segment === 'lost') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('inquiries').select('*').eq('status', segment).order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else if (segment === 'follow_up') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('inquiries').select('*')
-        .is('customer_id', null)
-        .not('status', 'eq', 'converted')
-        .not('status', 'eq', 'hot')
-        .not('status', 'eq', 'pending')
-        .not('status', 'eq', 'lost')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else {
-      return res.json([]);
-    }
-  } catch (e) {
-    console.error('[CRM GET SEGMENT]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/segments/:segment', verifyToken, crmController.getSegment);
 
 // DELETE /api/crm/inquiries/:id
 router.delete('/inquiries/:id', verifyToken, async (req, res) => {
@@ -2225,69 +1600,20 @@ router.post('/onboarding/submit', async (req, res) => {
 });
 
 // GET All Feedbacks (For Customer Voices)
-router.get('/feedbacks', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin.schema('crm')
-      .from('feedbacks')
-      .select('*, customers(*)')
-      .order('created_at', { ascending: false });
-      
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    console.error('[CRM GET ALL FEEDBACKS]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/feedbacks', verifyToken, crmController.getAllFeedbacks);
 
 // DELETE Feedback (Boss only)
-router.delete('/feedbacks/:id', verifyToken, requireBoss, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { error } = await supabaseAdmin.schema('crm').from('feedbacks').delete().eq('id', id);
-    if (error) throw error;
-    return res.json({ success: true, message: 'Feedback deleted successfully' });
-  } catch (e) {
-    console.error('[CRM DELETE FEEDBACK]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/feedbacks/:id', verifyToken, requireBoss, crmController.deleteFeedback);
 
 // -----------------------------------------
 // CUSTOMER ONBOARDING (DYNAMIC FORMS & MARK PAID)
 // -----------------------------------------
 
 // GET /api/crm/settings/form
-router.get('/settings/form', verifyToken, async (req, res) => {
-  try {
-    const { data: formSettings } = await supabaseAdmin.schema('crm').from('form_settings')
-      .select('*')
-      .eq('form_name', 'enrollment')
-      .single();
-
-    res.json(formSettings || { schema: [] });
-  } catch (err) {
-    console.error('[GET FORM SETTINGS ERROR]', err);
-    res.status(500).send('Internal Error');
-  }
-});
+router.get('/settings/form', verifyToken, crmController.getFormSettings);
 
 // PUT /api/crm/settings/form
-router.put('/settings/form', verifyToken, async (req, res) => {
-  try {
-    const { schema } = req.body;
-    const { data, error } = await supabaseAdmin.schema('crm').from('form_settings')
-      .upsert({ form_name: 'enrollment', schema, updated_at: new Date().toISOString() }, { onConflict: 'form_name' })
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('[PUT FORM SETTINGS ERROR]', err);
-    res.status(500).send('Internal Error');
-  }
-});
+router.put('/settings/form', verifyToken, crmController.upsertFormSettings);
 
 // POST /api/crm/inquiries/:id/mark-paid
 router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
@@ -2368,66 +1694,10 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
   }
 });
 // GET /api/crm/weekly-feedbacks (Daily & Weekly Menu Feedbacks)
-router.get('/weekly-feedbacks', verifyToken, async (req, res) => {
-  try {
-    // 1. Fetch daily feedbacks
-    const { data: dailyFeedbacks, error: dailyErr } = await supabaseAdmin
-      .schema('crm')
-      .from('daily_feedbacks')
-      .select('*, customers(id, full_name, phone, status)')
-      .order('created_at', { ascending: false });
-
-    if (dailyErr) console.warn('[CRM GET DAILY FEEDBACKS WARN]', dailyErr.message);
-
-    // 2. Fetch weekly menu feedbacks
-    const { data: weeklyFeedbacks, error: weeklyErr } = await supabaseAdmin
-      .from('crm_menu_feedbacks')
-      .select('*, customers(id, full_name, phone, status)')
-      .order('created_at', { ascending: false });
-
-    if (weeklyErr) console.warn('[CRM GET WEEKLY FEEDBACKS WARN]', weeklyErr.message);
-
-    // 3. Combine and return sorted by date
-    const combined = [
-      ...(dailyFeedbacks || []).map(item => ({ ...item, feedback_type: 'DAILY' })),
-      ...(weeklyFeedbacks || []).map(item => ({ ...item, feedback_type: 'WEEKLY' }))
-    ].sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
-
-    res.json(combined);
-  } catch (err) {
-    console.error('[GET WEEKLY/DAILY FEEDBACKS ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/weekly-feedbacks', verifyToken, crmController.getWeeklyFeedbacks);
 
 // POST /api/crm/feedback/:id/resolve
-router.post('/feedback/:id/resolve', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Get current comment
-    const { data: fb, error: fetchErr } = await supabaseAdmin.schema('crm')
-      .from('feedbacks')
-      .select('comment')
-      .eq('id', id)
-      .single();
-      
-    if (fetchErr) throw fetchErr;
-    
-    const updatedComment = fb.comment + '\n[RESOLVED]';
-    
-    const { error: updateErr } = await supabaseAdmin.schema('crm')
-      .from('feedbacks')
-      .update({ comment: updatedComment })
-      .eq('id', id);
-      
-    if (updateErr) throw updateErr;
-    
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.post('/feedback/:id/resolve', verifyToken, crmController.resolveFeedback);
 
 // In-memory or Database-backed daily task quota tracker per user ID & date
 const userDailyTaskQuota = new Map();

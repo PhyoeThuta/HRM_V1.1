@@ -21,7 +21,7 @@ export default function OnboardingDetail() {
     return (
       <Layout title="Loading..." subtitle="Fetching onboarding details...">
         <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
         </div>
       </Layout>
     );
@@ -68,7 +68,7 @@ export default function OnboardingDetail() {
           const totalCount = catTasks.length;
           
           return (
-            <div key={category} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={category} className="rounded-2xl overflow-hidden bg-surface-850 border border-white/5">
               
               {/* Category Header */}
               <div className="flex items-center justify-between p-5 border-b border-white/5">
@@ -96,7 +96,7 @@ export default function OnboardingDetail() {
                           className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
                             isDone 
                             ? 'bg-emerald-500/20 border-emerald-500 text-emerald-500' 
-                            : 'border-slate-600 hover:border-indigo-400'
+                            : 'border-slate-600 hover:border-brand-green'
                           }`}
                         >
                           {isDone && (

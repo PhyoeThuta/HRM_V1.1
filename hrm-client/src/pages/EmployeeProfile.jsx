@@ -70,7 +70,7 @@ function HandoverHistorySection({ employeeId }) {
         ))}
       </div>
       {all.length > 12 && (
-        <Link to="/handovers" className="text-xs text-indigo-400 hover:underline mt-3 inline-block">View all in Handovers →</Link>
+        <Link to="/handovers" className="text-xs text-brand-green hover:underline mt-3 inline-block font-semibold">View all in Handovers →</Link>
       )}
 
       {detailId && (
@@ -162,7 +162,7 @@ export default function EmployeeProfile() {
                 {emp.avatar_url ? (
                   <img src={emp.avatar_url} alt={emp.Full_name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center">
+                  <div className="w-full h-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center">
                     {emp.Full_name[0]}
                   </div>
                 )}
@@ -188,7 +188,7 @@ export default function EmployeeProfile() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">{emp.Full_name}</h2>
-                <p className="text-indigo-400 font-mono text-sm">{emp.employee_id}</p>
+                <p className="text-brand-orange font-mono text-sm font-semibold">{emp.employee_id}</p>
                 <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${emp.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                   {emp.status}
                 </span>
@@ -223,7 +223,7 @@ export default function EmployeeProfile() {
             </div>
 
             <div className="mt-6 flex gap-3">
-              <Link to={`/employees/${id}/edit`} className="flex-1 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-xl transition-colors">
+              <Link to={`/employees/${id}/edit`} className="flex-1 text-center bg-brand-green hover:bg-emerald-500 text-black font-bold py-2 rounded-xl transition-colors">
                 Edit Profile
               </Link>
             </div>
@@ -233,7 +233,7 @@ export default function EmployeeProfile() {
             <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Quick Stats</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/5 text-center">
-                <div className="text-2xl font-bold text-indigo-400">{vote_stats?.avg || 0}</div>
+                <div className="text-2xl font-bold text-brand-orange">{vote_stats?.avg || 0}</div>
                 <div className="text-xs text-slate-500">Peer Rating</div>
               </div>
               <div className="p-4 rounded-xl bg-white/5 text-center">
@@ -367,7 +367,7 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
 
   const EVENT_TYPE_STYLES = {
     HIRED: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Hired / Onboarded' },
-    PROMOTION: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30', label: 'Promotion' },
+    PROMOTION: { bg: 'bg-brand-orange/10', text: 'text-brand-orange', border: 'border-brand-orange/30', label: 'Promotion' },
     SALARY_RAISE: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Salary Raise' },
     DEPARTMENT_TRANSFER: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Department Transfer' },
     COMMENDATION: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', label: 'Commendation / Award' },
@@ -384,7 +384,7 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+          className="px-3 py-1.5 text-xs font-bold rounded-xl bg-brand-orange hover:bg-orange-500 text-white transition-colors"
         >
           + Add Milestone
         </button>
@@ -411,7 +411,7 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
 
                   {(evt.previous_position || evt.new_position) && (
                     <div className="mt-2 text-xs font-mono text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg inline-block">
-                      Position: <span className="text-slate-400">{evt.previous_position || '—'}</span> ➔ <span className="text-indigo-400 font-semibold">{evt.new_position || '—'}</span>
+                      Position: <span className="text-slate-400">{evt.previous_position || '—'}</span> ➔ <span className="text-brand-orange font-semibold">{evt.new_position || '—'}</span>
                     </div>
                   )}
 
@@ -539,7 +539,7 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
                 <button
                   type="submit"
                   disabled={addMutation.isLoading}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-orange hover:bg-orange-500 text-white disabled:opacity-50"
                 >
                   {addMutation.isLoading ? 'Saving...' : 'Save Milestone'}
                 </button>

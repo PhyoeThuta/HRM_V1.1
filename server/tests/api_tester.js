@@ -30,7 +30,7 @@ export function generateTestToken(role = 'boss') {
 export async function get(endpoint) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'GET',
-    headers: { 'Authorization': `Bearer ${jwtToken}` }
+    headers: { 'Cookie': `token=${jwtToken}` }
   });
   const data = await res.json().catch(() => null);
   return { status: res.status, ok: res.ok, data };
@@ -40,7 +40,7 @@ export async function post(endpoint, body) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: { 
-      'Authorization': `Bearer ${jwtToken}`,
+      'Cookie': `token=${jwtToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)

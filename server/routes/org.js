@@ -232,4 +232,114 @@ router.post('/positions/:id/post-to-facebook', requireAdmin, async (req, res) =>
   }
 });
 
+
+// ─── ORGANIZATION CHART ──────────────────────────────────────────────────────
+
+// GET /api/org/chart — full employee hierarchy tree
+router.get('/org/chart', async (req, res) => {
+  try {
+    const [empRows, positions, depts] = await Promise.all([
+      dbFetch('Employees', 'id,Full_name,employee_id,position_id,Dept_id,Manager_id,status,avatar_url,email,hire_date', {}, {}),
+      dbFetch('positions', 'id,title,level'),
+      dbFetch('Departments', 'id,Department_name'),
+    ]);
+
+    const posMap  = Object.fromEntries((positions || []).map(p => [p.id, p]));
+    const deptMap = Object.fromEntries((depts     || []).map(d => [d.id, d]));
+
+    // Enrich employees
+    const employees = (empRows || [])
+      .filter(e => e.status !== 'Inactive' && !e.deleted_at)
+      .map(e => {
+        const code = (e.employee_id || '').toLowerCase();
+        const name = (e.Full_name || '').toLowerCase();
+        const rawPosTitle = posMap[e.position_id]?.title;
+        const rawPosLvl   = posMap[e.position_id]?.level;
+        const rawDeptName = deptMap[e.Dept_id]?.Department_name;
+
+        const isBoss = code.includes('boss') || code.includes('ceo') || name.includes('wai wai phyo maung') || name.includes('boss') || (rawPosTitle || '').toLowerCase().includes('ceo') || (rawPosTitle || '').toLowerCase().includes('managing director');
+
+        return {
+          id:            e.id,
+          name:          e.Full_name || '—',
+          employee_code: e.employee_id || '—',
+          position:      rawPosTitle || (isBoss ? 'Managing Director & CEO' : 'Staff'),
+          level:         isBoss ? 'Executive' : (rawPosLvl || 'Mid'),
+          department:    rawDeptName || (isBoss ? 'Executive Board' : 'General'),
+          manager_id:    e.Manager_id || null,
+          avatar_url:    e.avatar_url || null,
+          email:         e.email || null,
+          hire_date:     e.hire_date || null,
+          children:      [],
+        };
+      });
+
+    // Build id → node map
+    const nodeMap = Object.fromEntries(employees.map(e => [e.id, e]));
+
+    // Find CEO/Boss — employee whose Manager_id is null OR manager is not in active list
+    const roots = [];
+    employees.forEach(emp => {
+      if (!emp.manager_id || !nodeMap[emp.manager_id]) {
+        roots.push(emp);
+      } else {
+        nodeMap[emp.manager_id].children.push(emp);
+      }
+    });
+
+    // Sort children by position level hierarchy
+    const levelOrder = { 'Executive': 0, 'Senior': 1, 'Manager': 2, 'Supervisor': 3, 'Mid': 4, 'Junior': 5 };
+    function sortChildren(node) {
+      node.children.sort((a, b) => (levelOrder[a.level] ?? 9) - (levelOrder[b.level] ?? 9) || a.name.localeCompare(b.name));
+      node.children.forEach(sortChildren);
+    }
+    roots.forEach(sortChildren);
+
+    return res.json({ tree: roots, total: employees.length, departments: depts, positions });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/org/update-manager — reassign an employee's direct manager
+router.put('/org/update-manager', requireAdmin, async (req, res) => {
+  try {
+    const { employee_id, new_manager_id } = req.body;
+    if (!employee_id) return res.status(400).json({ error: 'employee_id is required' });
+
+    // Prevent circular hierarchy: new_manager cannot be a subordinate of employee_id
+    if (new_manager_id) {
+      const allEmps = await dbFetch('Employees', 'id,Manager_id');
+      const empMap = Object.fromEntries(allEmps.map(e => [e.id, e.Manager_id]));
+      // Walk up new_manager's chain — if we hit employee_id, it's circular
+      let cursor = new_manager_id;
+      let depth = 0;
+      while (cursor && depth < 20) {
+        if (cursor === employee_id) {
+          return res.status(400).json({ error: 'Circular hierarchy detected: the selected manager is a subordinate of this employee.' });
+        }
+        cursor = empMap[cursor];
+        depth++;
+      }
+    }
+
+    await dbUpdate('Employees', employee_id, {
+      Manager_id: new_manager_id || null,
+      updated_at: new Date().toISOString(),
+    });
+
+    await dbInsert('sys_audit_logs', {
+      user_id:    req.user.id,
+      action:     'UPDATE',
+      module:     'OrgChart',
+      details:    `Reassigned manager for employee ${employee_id} → ${new_manager_id || 'None (Root)'}`,
+      ip_address: req.ip || '0.0.0.0',
+    });
+
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

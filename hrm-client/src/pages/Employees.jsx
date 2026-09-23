@@ -8,14 +8,14 @@ import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 
 function StatusBadge({ status }) {
   const cfg = {
-    Active: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    'On Leave': 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-    Offboarding: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    Inactive: 'text-slate-400 bg-slate-400/10',
-  }[status] || 'text-slate-400 bg-slate-400/10';
+    Active: 'emp-status-active text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+    'On Leave': 'emp-status-leave text-amber-400 bg-amber-400/10 border-amber-400/20',
+    Offboarding: 'emp-status-offboarding text-rose-400 bg-rose-400/10 border-rose-400/20',
+    Inactive: 'emp-status-inactive text-slate-400 bg-slate-400/10',
+  }[status] || 'emp-status-inactive text-slate-400 bg-slate-400/10';
   const isActive = status === 'Active';
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg}`}>
+    <span className={`emp-status-badge inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg}`}>
       {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
       {status || '—'}
     </span>
@@ -88,7 +88,7 @@ function EmployeeModal({ open, onClose, departments, positions, managers, candid
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white px-4 py-2.5 rounded-xl transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
-            <button type="submit" className="text-sm font-semibold text-white px-5 py-2.5 rounded-xl transition-colors" style={{ background: '#4f46e5' }}>Save Employee</button>
+            <button type="submit" className="text-sm font-bold text-black px-5 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-500 transition-colors">Save Employee</button>
           </div>
         </form>
       </div>
@@ -198,7 +198,7 @@ export default function Employees() {
         <div className="flex gap-4 border-b border-white/10 w-full sm:w-auto">
           <button 
             onClick={() => setTab('active')} 
-            className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'active' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'}`}
+            className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'active' ? 'text-brand-green border-b-2 border-brand-green' : 'text-slate-400 hover:text-white'}`}
           >
             Active Directory
           </button>
@@ -214,13 +214,12 @@ export default function Employees() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowBulkModal(true)}
-              className="flex items-center gap-2 text-indigo-300 text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all"
+              className="emp-btn-secondary flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
             >
-              📊 Bulk Import Salaries / IDs
+              Bulk Import Salaries & IDs
             </button>
             <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors"
-              style={{ background: '#4f46e5' }}>
+              className="emp-btn-primary flex items-center gap-2 text-black text-xs font-bold px-4 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-500 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               Add Employee
             </button>
@@ -236,12 +235,12 @@ export default function Employees() {
             placeholder="Search by name or ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+            className="emp-search-input flex-1 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
           />
           <select 
             value={deptFilter} 
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="w-full sm:w-48 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+            className="emp-filter-select w-full sm:w-48 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
           >
             <option value="">All Departments</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
@@ -257,9 +256,10 @@ export default function Employees() {
             <table className="w-full text-sm">
               <thead className="bg-surface-850">
                 <tr>
-                  {['Employee ID', 'Full Name', 'Department', 'Position', 'Status', 'Email', 'Hire Date', 'Actions'].map(h => (
+                  {['Employee ID', 'Full Name', 'Department', 'Position', 'Status', 'Email', 'Hire Date'].map(h => (
                     <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
+                  <th className="text-right py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -270,44 +270,45 @@ export default function Employees() {
                       return (
                       <React.Fragment key={dept}>
                         <tr 
-                          className="cursor-pointer bg-surface-850 hover:bg-white/5 transition-colors border-t border-white/5"
+                          className="emp-dept-header cursor-pointer bg-surface-850 hover:bg-white/5 transition-colors border-t border-white/5"
                           onClick={() => toggleDept(dept)}
                         >
                           <td colSpan="8" className="py-3 px-5">
                             <div className="flex items-center gap-2 text-indigo-300 font-semibold text-sm">
                               <span className="text-xs transition-transform duration-200" style={{ transform: collapsedDepts[dept] ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
-                              {dept} <span className="bg-white/10 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">{emps.length}</span>
+                              {dept} <span className="emp-dept-count bg-white/10 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">{emps.length}</span>
                             </div>
                           </td>
                         </tr>
                         {!collapsedDepts[dept] && emps.map(emp => (
-                          <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
-                            <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                          <tr key={emp.id} className="emp-row border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                            <td className="py-3.5 px-5"><span className="emp-id-badge font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
                             <td className="py-3.5 px-5">
                               <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
+                                <div className="emp-avatar w-8 h-8 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
                                 <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
                               </div>
                             </td>
                             <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
                             <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
                             <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
-                            <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
-                            <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                            <td className="emp-email py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
+                            <td className="emp-hire-date py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
                             <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
-                              <div className="flex items-center gap-2">
-                                <Link to={`/employees/${emp.id}`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
+                              <div className="emp-action-group flex items-center gap-2">
+                                <Link to={`/employees/${emp.id}`} className="emp-action-view flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
                                   <span className="text-sm">📄</span>
-                                  View
+                                  <span className="emp-action-text">View</span>
                                 </Link>
-                                <Link to={`/employees/${emp.id}/edit`} className="flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
+                                <Link to={`/employees/${emp.id}/edit`} className="emp-action-edit flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-brand-green bg-brand-green/10 hover:bg-brand-green/20 transition-colors">
                                   <span className="text-sm">🖊️</span>
-                                  Edit
+                                  <span className="emp-action-text">Edit</span>
                                 </Link>
                                 {isAdmin() && (
                                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
-                                    className="flex items-center justify-center w-10 h-10 ml-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 transition-colors text-rose-400" title="Soft Delete">
+                                    className="emp-action-delete flex items-center justify-center w-10 h-10 ml-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 transition-colors text-rose-400" title="Soft Delete">
                                     <span className="text-sm">🗑️</span>
+                                    <span className="emp-action-text hidden">Delete</span>
                                   </button>
                                 )}
                               </div>
@@ -321,33 +322,33 @@ export default function Employees() {
                     <tr><td colSpan="8" className="py-16 text-center">
                       <div className="text-4xl mb-3">👤</div>
                       <p className="text-slate-400 text-sm">No employees found.</p>
-                      <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-indigo-400 hover:underline">Add your first employee</button>
+                      <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-brand-green hover:underline font-semibold">Add your first employee</button>
                     </td></tr>
                   )
                 ) : (
                   /* Recycle Bin Rendering */
                   (recycleData?.employees || []).length > 0 ? recycleData.employees.map(emp => (
-                    <tr key={emp.id} className="border-t border-white/5 hover:bg-white/2 transition-colors group">
-                      <td className="py-3.5 px-5"><span className="font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                    <tr key={emp.id} className="emp-row border-t border-white/5 hover:bg-white/2 transition-colors group">
+                      <td className="py-3.5 px-5"><span className="emp-id-badge font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
-                          <span className="font-medium text-white">{emp.Full_name || '—'}</span>
+                          <div className="emp-avatar w-8 h-8 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
+                          <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
                       <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
                       <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
-                      <td className="py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                      <td className="emp-email py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
+                      <td className="emp-hire-date py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
                       <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => restoreMutation.mutate(emp.id)} className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-colors">
-                            <span>♻️</span> Restore
+                        <div className="emp-action-group flex items-center gap-2">
+                          <button onClick={() => restoreMutation.mutate(emp.id)} className="emp-action-edit flex items-center justify-center h-8 px-3 rounded-lg text-xs font-bold text-brand-green bg-brand-green/10 hover:bg-brand-green/20 transition-colors">
+                            <span className="emp-action-text">Restore</span>
                           </button>
                           {isAdmin() && (
-                            <button onClick={() => setHardDeleteTarget(emp)} className="flex items-center gap-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-xl transition-colors">
-                              <span>🔥</span> Hard Delete
+                            <button onClick={() => setHardDeleteTarget(emp)} className="emp-action-delete flex items-center justify-center h-8 px-3 rounded-lg text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors">
+                              <span className="emp-action-text">Hard Delete</span>
                             </button>
                           )}
                         </div>
@@ -364,7 +365,7 @@ export default function Employees() {
         
         {/* Pagination Controls */}
         {tab === 'active' && data?.total > 0 && !isLoading && (
-          <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
+          <div className="emp-pagination px-6 py-4 border-t border-white/5 flex items-center justify-between">
             <span className="text-xs text-slate-400">
               Showing <span className="font-bold text-white">{(page - 1) * 20 + 1}</span> to <span className="font-bold text-white">{Math.min(page * 20, data.total)}</span> of <span className="font-bold text-white">{data.total}</span> employees
             </span>
@@ -453,7 +454,7 @@ function BulkImportModal({ open, onClose, onRefresh }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative rounded-2xl w-full max-w-lg p-6 bg-surface-850 border border-white/10">
+      <div className="relative rounded-2xl w-full max-w-lg p-6 emp-modal-surface bg-surface-850 border border-white/10">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-base font-bold text-white">Bulk Update Employee Numbers & Salaries</h2>
@@ -462,9 +463,9 @@ function BulkImportModal({ open, onClose, onRefresh }) {
           <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
         </div>
 
-        <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-xl mb-4 text-xs text-indigo-300">
-          <p className="font-bold mb-1">Supported Excel Headers:</p>
-          <code className="bg-black/30 px-2 py-1 rounded block text-emerald-400 font-mono">
+        <div className="emp-info-box p-3 rounded-xl mb-4 text-xs">
+          <p className="emp-info-title font-bold mb-1">Supported Excel Headers:</p>
+          <code className="emp-code-block px-2 py-1 rounded block font-mono">
             Employee ID | Full Name | Salary | Email | Phone
           </code>
         </div>
@@ -477,16 +478,16 @@ function BulkImportModal({ open, onClose, onRefresh }) {
               accept=".xlsx, .xls, .csv"
               required
               onChange={(e) => setSelectedFile(e.target.files?.[0])}
-              className="w-full text-xs text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+              className="w-full text-xs text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-slate-300 hover:file:bg-white/20 file:transition-colors cursor-pointer emp-file-input"
             />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white bg-white/5 rounded-xl">
+            <button type="button" onClick={onClose} className="emp-btn-secondary px-5 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-white/5 rounded-xl transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50">
-              {loading ? 'Uploading & Updating...' : 'Upload & Update System'}
+            <button type="submit" disabled={loading} className="emp-btn-primary px-6 py-2.5 text-xs font-bold text-white bg-brand-green hover:bg-emerald-500 rounded-xl transition-colors disabled:opacity-50">
+              {loading ? 'Uploading...' : 'Upload & Update System'}
             </button>
           </div>
         </form>

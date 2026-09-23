@@ -6,9 +6,9 @@ import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 
 const COLUMNS = [
-  { id: 'new', title: 'Hot Prospects', color: 'from-blue-500/20 to-blue-600/20', borderColor: 'border-blue-500/30', badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  { id: 'new', title: 'Hot Prospects', color: 'from-orange-500/20 to-orange-600/20', borderColor: 'border-orange-500/30', badgeColor: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
   { id: 'in_progress', title: 'Follow-up Prospects', color: 'from-amber-500/20 to-amber-600/20', borderColor: 'border-amber-500/30', badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  { id: 'pending', title: 'Pending Prospects', color: 'from-purple-500/20 to-purple-600/20', borderColor: 'border-purple-500/30', badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  { id: 'pending', title: 'Pending Prospects', color: 'from-indigo-500/20 to-indigo-600/20', borderColor: 'border-indigo-500/30', badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
   { id: 'lost', title: 'Lost Prospects', color: 'from-rose-500/20 to-rose-600/20', borderColor: 'border-rose-500/30', badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
 ];
 
@@ -248,9 +248,9 @@ export default function LeadsPipeline() {
       {/* Header Stats matching Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl"></div>
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/10 rounded-full blur-xl"></div>
           <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Hot Prospects</p>
-          <p className="text-3xl font-black text-blue-400">{hotCount}</p>
+          <p className="text-3xl font-black text-orange-400">{hotCount}</p>
         </div>
         <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-xl"></div>
@@ -258,9 +258,9 @@ export default function LeadsPipeline() {
           <p className="text-3xl font-black text-amber-400">{followUpCount}</p>
         </div>
         <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl"></div>
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl"></div>
           <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Pending Prospects</p>
-          <p className="text-3xl font-black text-purple-400">{pendingCount}</p>
+          <p className="text-3xl font-black text-indigo-400">{pendingCount}</p>
         </div>
         <div className="bg-surface-800 rounded-2xl p-5 border border-white/5 shadow-lg relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-rose-500/10 rounded-full blur-xl"></div>
@@ -338,7 +338,7 @@ export default function LeadsPipeline() {
                           <div 
                             className={`h-full rounded-full ${
                               (lead.service_interest_confidence || 10) > 75 ? 'bg-emerald-500' :
-                              (lead.service_interest_confidence || 10) > 40 ? 'bg-amber-500' : 'bg-blue-500'
+                              (lead.service_interest_confidence || 10) > 40 ? 'bg-amber-500' : 'bg-slate-500'
                             }`}
                             style={{ width: `${lead.service_interest_confidence || 10}%` }}
                           ></div>
