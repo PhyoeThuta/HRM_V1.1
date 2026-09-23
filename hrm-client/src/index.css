@@ -13,6 +13,8 @@
   --bg-850: #161929;
   --bg-900: #0f1120;
   --bg-950: #080b14;
+  /* Overlay/dropdown border — overridden per theme */
+  --bbd-overlay-border: rgba(255,255,255,0.12);
 }
 
 body {
@@ -90,52 +92,102 @@ body {
 [data-theme="light"] .toggle-track { background: rgba(255,119,0,0.2); }
 
 /* =================================================================
-   LIGHT MODE — Native Clean White Design (Busy Boss Diet)
-   Like RealtyTopia: White bg, dark text, green/orange accents only
+   LIGHT MODE — BBD "Clean Slate"
+   Quiet Luxury · Wellness White · Confident Enterprise
    ================================================================= */
 
 html[data-theme="light"] {
-  --bg-800: #ffffff;
-  --bg-850: #ffffff;
-  --bg-900: #ffffff;
-  --bg-950: #f8f9fa;
-  
-  /* Pure white page background */
-  background-color: #f8f9fa !important;
+  /* Surface layers — warm white depth system */
+  --bg-800: #FFFFFF;        /* primary surfaces / cards */
+  --bg-850: #FAFAF8;        /* elevated surfaces, sub-panels */
+  --bg-900: #FFFFFF;        /* sidebar, major panels */
+  --bg-950: #F5F4F0;        /* application background (warm off-white) */
+
+  /* Overlay border override for light mode */
+  --bbd-overlay-border: #E8E5DE;
+
+  background-color: #F5F4F0 !important;
 }
 
-/* Page & Layout backgrounds */
-html[data-theme="light"] body { background-color: #f8f9fa !important; color: #111827 !important; }
-html[data-theme="light"] .flex.min-h-screen { background-color: #f8f9fa !important; }
+/* Application background */
+html[data-theme="light"] body {
+  background-color: #F5F4F0 !important;
+  color: #1A1A1A !important;
+}
+html[data-theme="light"] .flex.min-h-screen { background-color: #F5F4F0 !important; }
 
-/* SIDEBAR — clean white */
+/* ======================== SIDEBAR ======================== */
 html[data-theme="light"] aside {
-  background: #ffffff !important;
-  border-right: 1px solid #e5e7eb !important;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.05) !important;
+  background: #FFFFFF !important;
+  border-right: 1px solid #E8E5DE !important;
+  box-shadow: none !important;
 }
-html[data-theme="light"] aside .text-white { color: #111827 !important; }
-html[data-theme="light"] aside .text-slate-400 { color: #6b7280 !important; }
-html[data-theme="light"] aside p { color: #111827 !important; }
-html[data-theme="light"] aside .text-\[10px\] { color: #6b7280 !important; }
-html[data-theme="light"] aside [style*="color: '#A3B81F'"] { color: #A3B81F !important; }
-/* Section labels */
-html[data-theme="light"] aside .text-slate-500 { color: #9ca3af !important; }
+/* Internal sidebar dividers (logo area, user footer) */
+html[data-theme="light"] aside [style*="rgba(255,255,255,0.05)"] { border-color: #E8E5DE !important; }
+/* Sidebar typography */
+html[data-theme="light"] aside .text-white { color: #1A1A1A !important; }
+html[data-theme="light"] aside p { color: #1A1A1A !important; }
+html[data-theme="light"] aside .text-slate-400 { color: #5C5C5C !important; }
+html[data-theme="light"] aside .text-slate-500 { color: #9B9B9B !important; }
+html[data-theme="light"] aside .text-\[10px\] { color: #9B9B9B !important; }
+/* Accordion indent line */
+html[data-theme="light"] aside .border-l { border-color: #E8E5DE !important; }
+/* Icon containers */
+html[data-theme="light"] aside [class*="bg-white/5"],
+html[data-theme="light"] aside [class*="bg-white/10"] { background: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"] aside [class*="bg-brand-green/20"] { background: rgba(163,184,31,0.10) !important; }
+/* Nav item — inactive */
+html[data-theme="light"] aside a { color: #5C5C5C; }
+html[data-theme="light"] aside a:hover { color: #1A1A1A !important; background: #F0EEE9 !important; }
+/* Nav item — active (BBD olive accent) */
+html[data-theme="light"] aside a[class*="bg-brand-green"] {
+  background: rgba(163,184,31,0.09) !important;
+  color: #6E7D14 !important;
+  border-color: rgba(163,184,31,0.22) !important;
+}
+html[data-theme="light"] aside a[class*="bg-brand-green"] svg { color: #6E7D14 !important; }
+/* Accordion header buttons */
+html[data-theme="light"] aside button { color: #5C5C5C !important; }
+html[data-theme="light"] aside button:hover { background: #F0EEE9 !important; color: #1A1A1A !important; }
+html[data-theme="light"] aside button[class*="bg-white/10"] {
+  background: #F0EEE9 !important;
+  color: #1A1A1A !important;
+  border-color: #E8E5DE !important;
+}
+/* My Portal link (emerald) */
+html[data-theme="light"] aside a.text-emerald-400 { color: #4D8A3A !important; }
+html[data-theme="light"] aside a[class*="bg-emerald-500/10"] {
+  background: rgba(77,138,58,0.07) !important;
+  border-color: rgba(77,138,58,0.18) !important;
+}
 
-/* TOP HEADER BAR — pure white */
+/* ======================== TOP HEADER ======================== */
 html[data-theme="light"] header {
-  background: #ffffff !important;
+  background: #FFFFFF !important;
   backdrop-filter: none !important;
-  border-bottom: 1px solid #e5e7eb !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+  border-bottom: 1px solid #E8E5DE !important;
+  box-shadow: none !important;
 }
-html[data-theme="light"] header .text-white { color: #111827 !important; }
-html[data-theme="light"] header .text-slate-400 { color: #6b7280 !important; }
-html[data-theme="light"] header h1 { color: #111827 !important; }
-html[data-theme="light"] header p { color: #6b7280 !important; }
+html[data-theme="light"] header h1 { color: #1A1A1A !important; }
+html[data-theme="light"] header .text-white { color: #1A1A1A !important; }
+html[data-theme="light"] header .text-slate-400 { color: #9B9B9B !important; }
+html[data-theme="light"] header p { color: #9B9B9B !important; }
+html[data-theme="light"] header button:not([class*="bg-rose"]) { color: #5C5C5C; }
+html[data-theme="light"] header button:not([class*="bg-rose"]):hover {
+  background: #F0EEE9 !important;
+  color: #1A1A1A !important;
+}
+/* Theme toggle */
+html[data-theme="light"] #theme-toggle {
+  background: rgba(0,0,0,0.03) !important;
+  border-color: #E8E5DE !important;
+  color: #9B9B9B !important;
+}
+html[data-theme="light"] #theme-toggle:hover { background: #F0EEE9 !important; }
 
-/* CARDS — white with subtle shadow */
-html[data-theme="light"] [style*="background: rgb(var(--color-surface-800))"],
+/* ======================== CARDS & SURFACES ======================== */
+/* var(--bg-*) inline styles auto-resolve via token overrides above.
+   Additionally catch any hardcoded dark hex values: */
 html[data-theme="light"] [style*="background: '#1e2235'"],
 html[data-theme="light"] [style*="background: #1e2235"],
 html[data-theme="light"] [style*="background: '#161929'"],
@@ -143,64 +195,86 @@ html[data-theme="light"] [style*="background: #161929"],
 html[data-theme="light"] [style*="background: '#0f1120'"],
 html[data-theme="light"] [style*="background: #0f1120"],
 html[data-theme="light"] [style*="background: '#080b14'"],
-html[data-theme="light"] [style*="background: #080b14"] {
-  background: #ffffff !important;
-  border-color: #e5e7eb !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+html[data-theme="light"] [style*="background: #080b14"] { background: #FFFFFF !important; }
+/* Card border + shadow — inline rgba(255,255,255,0.05) border pattern */
+html[data-theme="light"] [style*="border: 1px solid rgba(255,255,255,0.05)"],
+html[data-theme="light"] [style*="border: '1px solid rgba(255,255,255,0.05)'"] {
+  border-color: #E8E5DE !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.025) !important;
 }
-/* Surface-800/850/900/950 Tailwind classes */
+/* Inner dividers */
+html[data-theme="light"] [style*="borderBottom: '1px solid rgba(255,255,255"],
+html[data-theme="light"] [style*="borderBottom: \"1px solid rgba(255,255,255"] { border-color: #EEECE7 !important; }
+html[data-theme="light"] [style*="borderTop: '1px solid rgba(255,255,255"],
+html[data-theme="light"] [style*="borderTop: \"1px solid rgba(255,255,255"] { border-color: #EEECE7 !important; }
+/* Dropdown inner dividers (0.06 alpha) */
+html[data-theme="light"] [style*="rgba(255,255,255,0.06)"] { border-color: #EEECE7 !important; }
+/* Tailwind surface classes */
 html[data-theme="light"] .bg-surface-800,
 html[data-theme="light"] .bg-surface-850,
 html[data-theme="light"] .bg-surface-900,
-html[data-theme="light"] .bg-surface-950 { background-color: #ffffff !important; }
-
-/* Rounded card panels (common pattern) */
-html[data-theme="light"] .rounded-2xl,
-html[data-theme="light"] .rounded-xl {
-  background-color: #ffffff;
-  border-color: #e5e7eb;
-}
-
-/* TEXT colors in light mode */
-html[data-theme="light"] .text-white { color: #111827 !important; }
-html[data-theme="light"] .text-slate-100 { color: #1f2937 !important; }
-html[data-theme="light"] .text-slate-200 { color: #374151 !important; }
-html[data-theme="light"] .text-slate-300 { color: #374151 !important; }
-html[data-theme="light"] .text-slate-400 { color: #6b7280 !important; }
-html[data-theme="light"] .text-slate-500 { color: #9ca3af !important; }
-
-/* Border colors */
-html[data-theme="light"] [class*="border-white"] { border-color: #e5e7eb !important; }
-html[data-theme="light"] [style*="rgba(255,255,255,0.05)"] { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .bg-surface-950 { background-color: #FFFFFF !important; }
+/* Micro-surface overlays (very low opacity whites → warm dark tints) */
+html[data-theme="light"] [style*="rgba(255,255,255,0.03)"] { background: rgba(0,0,0,0.015) !important; }
+html[data-theme="light"] [style*="rgba(255,255,255,0.04)"] { background: rgba(0,0,0,0.02) !important; }
 html[data-theme="light"] [style*="rgba(255,255,255,0.08)"] { background: rgba(0,0,0,0.03) !important; }
 html[data-theme="light"] [style*="rgba(255,255,255,0.1)"] { background: rgba(0,0,0,0.04) !important; }
-html[data-theme="light"] [style*="border: 1px solid rgba(255,255,255"] { border-color: #e5e7eb !important; }
-html[data-theme="light"] [style*="borderBottom: '1px solid rgba(255,255,255"] { border-color: rgba(0,0,0,0.1) !important; }
+/* Tailwind border-white/* and divide-white/* */
+html[data-theme="light"] [class*="border-white/"] { border-color: #E8E5DE !important; }
+html[data-theme="light"] [class*="divide-white/"] > * + * { border-color: #EEECE7 !important; }
+/* Icon well backgrounds */
+html[data-theme="light"] [class*="bg-white/5"] { background: rgba(0,0,0,0.035) !important; }
+/* Interactive hover surfaces */
+html[data-theme="light"] [class*="hover:bg-white/5"]:hover,
+html[data-theme="light"] [class*="hover:bg-white/10"]:hover { background: #F0EEE9 !important; }
 
-/* Scrollbar for light mode */
-html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+/* ======================== TABLES ======================== */
+html[data-theme="light"] th { color: #5C5C5C !important; background: #FAFAF8 !important; }
+html[data-theme="light"] tbody tr { border-color: #EEECE7 !important; }
+html[data-theme="light"] tbody tr:hover { background: #F0EEE9 !important; }
 
-/* Form inputs */
+/* ======================== TYPOGRAPHY ======================== */
+html[data-theme="light"] .text-white { color: #1A1A1A !important; }
+html[data-theme="light"] .text-slate-100 { color: #1A1A1A !important; }
+html[data-theme="light"] .text-slate-200 { color: #2D2D2D !important; }
+html[data-theme="light"] .text-slate-300 { color: #5C5C5C !important; }
+html[data-theme="light"] .text-slate-400 { color: #9B9B9B !important; }
+html[data-theme="light"] .text-slate-500 { color: #BCBCBC !important; }
+/* Indigo is remapped to BBD olive in Tailwind config; keep readable in light */
+html[data-theme="light"] .text-indigo-400 { color: #7A8E10 !important; }
+html[data-theme="light"] .text-indigo-300 { color: #A3B81F !important; }
+
+/* ======================== FORMS ======================== */
 html[data-theme="light"] .form-input {
-  background: #ffffff;
-  border-color: #d1d5db;
-  color: #111827;
+  background: #FFFFFF;
+  border-color: #D5D1C8;
+  color: #1A1A1A;
 }
 html[data-theme="light"] .form-input:focus {
   border-color: #A3B81F;
-  box-shadow: 0 0 0 3px rgba(163,184,31,0.15);
-  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(163,184,31,0.12);
+  background: #FFFFFF;
 }
-html[data-theme="light"] .form-input option { background: white; color: #111827; }
-html[data-theme="light"] .form-label { color: #6b7280; }
+html[data-theme="light"] .form-input option { background: white; color: #1A1A1A; }
+html[data-theme="light"] .form-label { color: #5C5C5C; }
+/* Native inputs */
+html[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background: #FFFFFF !important;
+  border-color: #D5D1C8 !important;
+  color: #1A1A1A !important;
+}
+html[data-theme="light"] input:focus,
+html[data-theme="light"] select:focus,
+html[data-theme="light"] textarea:focus {
+  border-color: #A3B81F !important;
+  box-shadow: 0 0 0 3px rgba(163,184,31,0.12) !important;
+}
 
-/* Theme toggle in light mode */
-html[data-theme="light"] #theme-toggle {
-  background: rgba(0,0,0,0.04);
-  border-color: rgba(0,0,0,0.1);
-  color: #6b7280;
-}
-html[data-theme="light"] #theme-toggle:hover { background: rgba(0,0,0,0.08); }
+/* ======================== SCROLLBAR ======================== */
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
 
 /* Animations */
 @keyframes pulse-glow {
