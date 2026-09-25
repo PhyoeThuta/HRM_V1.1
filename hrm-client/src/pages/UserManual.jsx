@@ -171,22 +171,22 @@ export default function UserManual() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-100px)] bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+    <div className="flex h-[calc(100vh-100px)] bg-surface-800 rounded-lg shadow overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-800">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="w-64 border-r border-white/10 flex flex-col bg-surface-850">
+        <div className="p-4 border-b border-white/10">
           <input
             type="text"
             placeholder="Search manual..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            className="w-full px-3 py-2 border rounded-md bg-surface-900 border-white/10 text-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {categories.map(cat => (
             <div key={cat.id} className="mb-4">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300 px-2 py-1 uppercase text-xs tracking-wider flex justify-between group">
+              <h3 className="font-semibold text-slate-300 px-2 py-1 uppercase text-xs tracking-wider flex justify-between group">
                 {cat.name}
                 {canEdit && (
                   <button onClick={() => addArticle.mutate(cat.id)} className="hidden group-hover:block text-blue-500 hover:text-blue-700 text-lg leading-none">+</button>
@@ -202,8 +202,8 @@ export default function UserManual() {
                       }}
                       className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
                         activeArticle?.id === art.id 
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 font-medium' 
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          ? 'bg-indigo-500/20 text-indigo-400 font-medium' 
+                          : 'text-slate-400 hover:bg-white/5'
                       }`}
                     >
                       {art.title}
@@ -220,15 +220,15 @@ export default function UserManual() {
                 const name = prompt('Category name:');
                 if (name) addCategory.mutate(name);
               }}
-              className="mt-4 w-full text-left px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md"
+              className="mt-4 w-full text-left px-3 py-2 text-sm text-indigo-400 hover:bg-white/5 rounded-md"
             >
               + Add Category
             </button>
           )}
 
           {canEdit && deletedArticles.length > 0 && (
-            <div className="mb-4 mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-500 dark:text-gray-400 px-2 py-1 uppercase text-xs tracking-wider flex items-center gap-2">
+            <div className="mb-4 mt-8 pt-4 border-t border-white/10">
+              <h3 className="font-semibold text-slate-400 px-2 py-1 uppercase text-xs tracking-wider flex items-center gap-2">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 Recycle Bin
               </h3>
@@ -260,16 +260,16 @@ export default function UserManual() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeArticle ? (
           <>
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-900">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-surface-800">
               {isEditing ? (
                 <input 
                   type="text"
                   value={activeArticle.title}
                   onChange={e => setActiveArticle({...activeArticle, title: e.target.value})}
-                  className="text-2xl font-bold border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 bg-transparent dark:text-white"
+                  className="text-2xl font-bold border-b border-white/20 focus:outline-none focus:border-blue-500 bg-transparent dark:text-white"
                 />
               ) : (
-                <h2 className="text-2xl font-bold dark:text-white">{activeArticle.title}</h2>
+                <h2 className="text-2xl font-bold text-white">{activeArticle.title}</h2>
               )}
               
               <div className="flex gap-2 items-center">
@@ -303,7 +303,7 @@ export default function UserManual() {
                         </button>
                         <button 
                           onClick={() => setConfirmModal({ isOpen: true, type: 'soft', articleId: activeArticle.id, articleTitle: activeArticle.title })}
-                          className="px-4 py-2 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 rounded hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors text-sm font-semibold flex items-center gap-1.5"
+                          className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded hover:bg-rose-500/20 transition-colors text-sm font-semibold flex items-center gap-1.5"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           Delete
@@ -317,13 +317,13 @@ export default function UserManual() {
                             setIsEditing(false);
                             queryClient.invalidateQueries(['manual-data']); // cancel changes
                           }} 
-                          className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-sm font-semibold"
+                          className="px-4 py-2 text-slate-400 hover:bg-white/5 rounded transition-colors text-sm font-semibold"
                         >
                           Cancel
                         </button>
                         <button 
                           onClick={() => updateArticle.mutate({ id: activeArticle.id, title: activeArticle.title, draft_content: activeArticle.draft_content })} 
-                          className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 rounded transition-colors text-sm font-semibold"
+                          className="px-4 py-2 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded transition-colors text-sm font-semibold"
                         >
                           Save Draft
                         </button>
@@ -342,7 +342,7 @@ export default function UserManual() {
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+            <div className="flex-1 overflow-y-auto p-6 bg-surface-850">
               {isEditing ? (
                 <div className="h-full">
                   <RichTextEditor 
@@ -355,7 +355,7 @@ export default function UserManual() {
                 </div>
               ) : (
                 <div 
-                  className="prose dark:prose-invert max-w-4xl" 
+                  className="prose prose-invert max-w-4xl" 
                   onClick={handleContentClick}
                   dangerouslySetInnerHTML={{ __html: getLocalizedContent(activeArticle.published_content) || '<p class="text-gray-400 italic">No published content yet.</p>' }} 
                 />
@@ -363,7 +363,7 @@ export default function UserManual() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-slate-500">
             Select an article from the left to view or edit.
           </div>
         )}
@@ -376,35 +376,35 @@ export default function UserManual() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
             onClick={() => setConfirmModal({ isOpen: false })}
           />
-          <div className="relative bg-white dark:bg-surface-800 border border-gray-200 dark:border-slate-700 rounded-2xl w-full max-w-sm m-4 p-6 shadow-2xl text-center">
+          <div className="relative bg-surface-800 border border-white/10 rounded-2xl w-full max-w-sm m-4 p-6 shadow-2xl text-center">
             <button 
               onClick={() => setConfirmModal({ isOpen: false })}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             
             <div className={`w-14 h-14 flex items-center justify-center rounded-full mx-auto mb-4 ${
               confirmModal.type === 'hard' 
-                ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500' 
-                : 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500'
+                ? 'bg-rose-500/10 text-rose-500' 
+                : 'bg-amber-500/10 text-amber-500'
             }`}>
               <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             </div>
             
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-lg font-bold text-white mb-2">
               {confirmModal.type === 'hard' ? 'Permanently Delete Article?' : 'Move to Recycle Bin?'}
             </h2>
             
-            <div className="text-sm text-gray-600 dark:text-slate-400 mb-6 space-y-2">
+            <div className="text-sm text-slate-400 mb-6 space-y-2">
               {confirmModal.type === 'hard' ? (
                 <>
-                  <p>You are about to permanently delete<br/><strong className="text-gray-900 dark:text-white">"{confirmModal.articleTitle}"</strong>.</p>
-                  <p className="text-rose-600 dark:text-rose-400 text-xs font-medium">This action cannot be undone. The article and its version history will be permanently removed.</p>
+                  <p>You are about to permanently delete<br/><strong className="text-white">"{confirmModal.articleTitle}"</strong>.</p>
+                  <p className="text-rose-400 text-xs font-medium">This action cannot be undone. The article and its version history will be permanently removed.</p>
                 </>
               ) : (
                 <>
-                  <p>Are you sure you want to move<br/><strong className="text-gray-900 dark:text-white">"{confirmModal.articleTitle}"</strong> to the Recycle Bin?</p>
+                  <p>Are you sure you want to move<br/><strong className="text-white">"{confirmModal.articleTitle}"</strong> to the Recycle Bin?</p>
                   <p className="text-xs">You can restore this article later from the Recycle Bin.</p>
                 </>
               )}
@@ -413,7 +413,7 @@ export default function UserManual() {
             <div className="flex justify-center gap-3">
               <button 
                 onClick={() => setConfirmModal({ isOpen: false })}
-                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-surface-850 hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold rounded-xl transition-colors"
+                className="flex-1 px-4 py-2.5 bg-surface-900 hover:bg-white/5 text-slate-300 font-semibold rounded-xl transition-colors"
               >
                 Cancel
               </button>

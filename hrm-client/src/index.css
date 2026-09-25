@@ -4177,3 +4177,30 @@ html[data-theme='light'] .oc-chart-wrapper { background: #FAFAF8 !important; bor
 html[data-theme='light'] .oc-error { color: #DC2626 !important; }
 html[data-theme='light'] .oc-empty { color: #737373 !important; }
 html[data-theme='light'] .oc-root-label { color: #737373 !important; }
+
+/* ======================== USER MANUAL LIGHT MODE ======================== */
+html[data-theme='light'] .prose-invert {
+  --tw-prose-body: #1A1A1A !important;
+  --tw-prose-headings: #1A1A1A !important;
+  --tw-prose-lead: #5C5C5C !important;
+  --tw-prose-links: #6E7D14 !important;
+  --tw-prose-bold: #1A1A1A !important;
+  --tw-prose-counters: #5C5C5C !important;
+  --tw-prose-bullets: #BCBCBC !important;
+  --tw-prose-hr: #E0DDD6 !important;
+  --tw-prose-quotes: #1A1A1A !important;
+  --tw-prose-quote-borders: #E0DDD6 !important;
+  --tw-prose-captions: #737373 !important;
+  --tw-prose-code: #1A1A1A !important;
+  --tw-prose-pre-code: #1A1A1A !important;
+  --tw-prose-pre-bg: #F5F3ED !important;
+  --tw-prose-th-borders: #E0DDD6 !important;
+  --tw-prose-td-borders: #E0DDD6 !important;
+}
+html[data-theme='light'] .prose-invert table th {
+  color: #1A1A1A !important;
+  background-color: #F5F3ED !important;
+}
+html[data-theme='light'] .prose-invert table td {
+  color: #1A1A1A !important;
+}
