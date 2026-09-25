@@ -61,6 +61,7 @@ import EditEmployee from './pages/EditEmployee';
 import BossKPI from './pages/BossKPI';
 import PerformanceTracker from './pages/PerformanceTracker';
 import OrgChart from './pages/OrgChart';
+import UserManual from './pages/UserManual';
 import Layout from './components/layout/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -206,6 +207,7 @@ function AppRoutes() {
       <Route path="/birthdays" element={<Protected allowedRoles={adminRoles}><Birthdays /></Protected>} />
       <Route path="/performance" element={<Protected allowedRoles={adminRoles}><PerformanceTracker /></Protected>} />
       <Route path="/org-chart" element={<Protected allowedRoles={adminRoles}><OrgChart /></Protected>} />
+<Route path="/user-manual" element={<Protected><Layout title="User Manual"><UserManual /></Layout></Protected>} />
       <Route path="/boss" element={<Protected allowedRoles={['boss']}><BossDashboard /></Protected>} />
       <Route path="/boss/chat" element={<Protected allowedRoles={['boss']}><BossChat /></Protected>} />
       <Route path="/announcements" element={<Protected allowedRoles={adminRoles}><Announcements /></Protected>} />

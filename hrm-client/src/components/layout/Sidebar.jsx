@@ -1,5 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useRef, useEffect, useState } from 'react';
 
 const NavItem = ({ to, label, icon, end }) => (
@@ -7,32 +8,32 @@ const NavItem = ({ to, label, icon, end }) => (
     to={to}
     end={end}
     className={({ isActive }) =>
-      `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+      `sidebar-nav-item group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
         isActive
-          ? 'bg-brand-green/15 text-brand-green border border-brand-green/30'
+          ? 'sidebar-nav-item-active bg-brand-green/15 text-brand-green border border-brand-green/30'
           : 'text-slate-400 hover:bg-white/5 hover:text-white'
       }`
     }
   >
     {({ isActive }) => (
       <>
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-brand-green/20' : 'group-hover:bg-white/5'}`}>
-          <svg className={`w-4 h-4 ${isActive ? 'text-brand-green' : 'text-slate-500 group-hover:text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+        <div className={`sidebar-nav-icon-bg w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-brand-green/20' : 'group-hover:bg-white/5'}`}>
+          <svg className={`sidebar-nav-icon w-4 h-4 ${isActive ? 'text-brand-green' : 'text-slate-500 group-hover:text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
             <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
           </svg>
         </div>
-        <span>{label}</span>
+        <span className="sidebar-nav-label">{label}</span>
       </>
     )}
   </NavLink>
 );
 
 const NavSection = ({ title, color = 'text-slate-500' }) => (
-  <p className={`px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest ${color}`}>{title}</p>
+  <p className={`sidebar-section-title px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest ${color}`}>{title}</p>
 );
 
 const NavCategoryAccordion = ({ title, icon, color = 'text-slate-300', isOpen, onToggle, children }) => (
-  <div className="mb-1.5">
+  <div className="sidebar-category-wrapper mb-1.5">
     <button
       type="button"
       onClick={(e) => {
@@ -40,19 +41,19 @@ const NavCategoryAccordion = ({ title, icon, color = 'text-slate-300', isOpen, o
         e.stopPropagation();
         onToggle(e);
       }}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+      className={`sidebar-category-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
         isOpen
-          ? 'bg-white/10 text-white shadow-sm border border-white/10'
+          ? 'sidebar-category-btn-open bg-white/10 text-white shadow-sm border border-white/10'
           : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
       }`}
     >
       <div className="flex items-center gap-2.5">
-        <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isOpen ? 'bg-brand-green/20 text-brand-green' : 'bg-white/5 text-slate-400'}`}>
+        <div className={`sidebar-category-icon-bg w-6 h-6 rounded-lg flex items-center justify-center ${isOpen ? 'bg-brand-green/20 text-brand-green' : 'bg-white/5 text-slate-400'}`}>
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
           </svg>
         </div>
-        <span className={color}>{title}</span>
+        <span className={`sidebar-category-title ${color}`}>{title}</span>
       </div>
       <div className="flex items-center gap-1">
         <svg
@@ -67,7 +68,7 @@ const NavCategoryAccordion = ({ title, icon, color = 'text-slate-300', isOpen, o
       </div>
     </button>
     {isOpen && (
-      <div className="mt-1 ml-3 pl-2 border-l border-white/10 space-y-0.5">
+      <div className="sidebar-category-content mt-1 ml-3 pl-2 border-l border-white/10 space-y-0.5">
         {children}
       </div>
     )}
@@ -106,7 +107,7 @@ const ICONS = {
 const hrmRoutes = [
   '/dashboard', '/employees', '/departments', '/positions', '/attendance',
   '/leave', '/payroll', '/recruitment', '/documents', '/sops', '/birthdays',
-  '/peer-voting', '/onboarding', '/offboarding', '/handovers', '/performance', '/org-chart'
+  '/peer-voting', '/onboarding', '/offboarding', '/handovers', '/performance', '/org-chart', '/user-manual'
 ];
 
 const adminRoutes = [
@@ -117,6 +118,7 @@ const isHrmRoute = (path) => hrmRoutes.some(r => path === r || path.startsWith(r
 const isAdminRoute = (path) => adminRoutes.some(r => path === r || path.startsWith(r + '/'));
 
 export default function Sidebar({ isOpen, close }) {
+  const { t } = useLanguage();
   const { user, logout, isAdmin, isBoss, isFinance, isEmployee } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -171,22 +173,22 @@ export default function Sidebar({ isOpen, close }) {
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-40 w-64 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`sidebar-root fixed inset-y-0 left-0 z-40 w-64 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       style={{ background: 'var(--bg-900, #0f1120)', borderRight: '1px solid rgba(255,255,255,0.05)' }}
     >
       {/* Logo */}
-      <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="sidebar-header px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <img src="/logo.png" alt="Busy Boss Diet Logo" className="w-10 h-10 object-contain rounded-xl shadow-sm bg-white p-1 flex-shrink-0" />
         <div>
           {isEmployee() ? (
             <>
-              <p className="text-sm font-bold text-white leading-tight">My Portal 🚀</p>
-              <p className="text-[10px] text-slate-400 font-medium tracking-widest">EMPLOYEE</p>
+              <p className="sidebar-logo-title text-sm font-bold text-white leading-tight">My Portal 🚀</p>
+              <p className="sidebar-logo-sub text-[10px] text-slate-400 font-medium tracking-widest">EMPLOYEE</p>
             </>
           ) : (
             <>
-              <p className="text-sm font-bold text-white leading-tight">Busy Boss Diet</p>
-              <p className="text-[10px] font-medium tracking-widest" style={{ color: '#A3B81F' }}>ENTERPRISE</p>
+              <p className="sidebar-logo-title text-sm font-bold text-white leading-tight">Busy Boss Diet</p>
+              <p className="sidebar-logo-sub text-[10px] font-medium tracking-widest" style={{ color: '#A3B81F' }}>ENTERPRISE</p>
             </>
           )}
         </div>
@@ -196,7 +198,7 @@ export default function Sidebar({ isOpen, close }) {
       <nav 
         ref={navRef}
         onScroll={handleScroll}
-        className="flex-1 px-3 py-4 overflow-y-auto space-y-0.5" 
+        className="sidebar-nav flex-1 px-3 py-4 overflow-y-auto space-y-0.5" 
         onClick={handleNavClick}
       >
         {isEmployee() ? (
@@ -212,12 +214,13 @@ export default function Sidebar({ isOpen, close }) {
             <NavItem to="/portal/handover/incoming" label="Incoming Handover" icon={ICONS.handover} />
             <NavItem to="/portal/payslips" label="Payslips" icon={ICONS.payroll} />
             <NavItem to="/portal/documents" label="My Documents" icon={ICONS.documents} />
-            <NavItem to="/portal/sops" label="Daily SOPs" icon={ICONS.sops} />
+            <NavItem to="/portal/sops" label={t('hrm.navigation.dailySops')} icon={ICONS.sops} />
 
             <NavSection title="Profile" />
-            <NavItem to="/portal" label="Dashboard" icon={ICONS.dashboard} end />
+            <NavItem to="/portal" label={t('hrm.navigation.dashboard')} icon={ICONS.dashboard} end />
             <NavItem to="/portal/profile" label="My Profile" icon={ICONS.users} />
-            <NavItem to="/portal/vote" label="Peer Voting" icon={ICONS.voting} />
+            <NavItem to="/portal/vote" label={t('hrm.navigation.peerVoting')} icon={ICONS.voting} />
+            <NavItem to="/user-manual" label={t('hrm.navigation.userManual')} icon={ICONS.documents} />
           </>
         ) : (
           <>
@@ -229,23 +232,24 @@ export default function Sidebar({ isOpen, close }) {
               isOpen={openCategories.hrm}
               onToggle={(e) => toggleCategory('hrm', e)}
             >
-              <NavItem to="/dashboard" label="Dashboard" icon={ICONS.dashboard} />
-              <NavItem to="/employees" label="Employees" icon={ICONS.employees} />
-              <NavItem to="/departments" label="Departments" icon={ICONS.departments} />
-              <NavItem to="/positions" label="Positions" icon={ICONS.positions} />
-              <NavItem to="/attendance" label="Attendance" icon={ICONS.attendance} />
-              <NavItem to="/leave" label="Leave Mgmt" icon={ICONS.leave} />
-              <NavItem to="/payroll" label="Payroll & KPI" icon={ICONS.payroll} />
-              <NavItem to="/recruitment" label="Recruitment" icon={ICONS.recruitment} />
-              <NavItem to="/documents" label="Document Vault" icon={ICONS.documents} />
-              <NavItem to="/sops" label="Daily SOPs" icon={ICONS.sops} />
-              <NavItem to="/birthdays" label="Birthdays" icon={ICONS.birthdays} />
-              <NavItem to="/peer-voting" label="Peer Voting" icon={ICONS.voting} />
-              <NavItem to="/onboarding" label="Onboarding" icon={ICONS.onboarding} />
-              <NavItem to="/offboarding" label="Offboarding" icon={ICONS.offboarding} />
-              <NavItem to="/handovers" label="Handovers" icon={ICONS.handover} />
-              <NavItem to="/performance" label="Performance Tracker" icon={ICONS.performance} />
-              <NavItem to="/org-chart" label="Org Chart" icon={ICONS.orgchart} />
+              <NavItem to="/dashboard" label={t('hrm.navigation.dashboard')} icon={ICONS.dashboard} />
+              <NavItem to="/employees" label={t('hrm.navigation.employees')} icon={ICONS.employees} />
+              <NavItem to="/departments" label={t('hrm.navigation.departments')} icon={ICONS.departments} />
+              <NavItem to="/positions" label={t('hrm.navigation.positions')} icon={ICONS.positions} />
+              <NavItem to="/attendance" label={t('hrm.navigation.attendance')} icon={ICONS.attendance} />
+              <NavItem to="/leave" label={t('hrm.navigation.leaveMgmt')} icon={ICONS.leave} />
+              <NavItem to="/payroll" label={t('hrm.navigation.payrollKpi')} icon={ICONS.payroll} />
+              <NavItem to="/recruitment" label={t('hrm.navigation.recruitment')} icon={ICONS.recruitment} />
+              <NavItem to="/documents" label={t('hrm.navigation.documentVault')} icon={ICONS.documents} />
+              <NavItem to="/sops" label={t('hrm.navigation.dailySops')} icon={ICONS.sops} />
+              <NavItem to="/birthdays" label={t('hrm.navigation.birthdays')} icon={ICONS.birthdays} />
+              <NavItem to="/peer-voting" label={t('hrm.navigation.peerVoting')} icon={ICONS.voting} />
+              <NavItem to="/onboarding" label={t('hrm.navigation.onboarding')} icon={ICONS.onboarding} />
+              <NavItem to="/offboarding" label={t('hrm.navigation.offboarding')} icon={ICONS.offboarding} />
+              <NavItem to="/handovers" label={t('hrm.navigation.handovers')} icon={ICONS.handover} />
+              <NavItem to="/performance" label={t('hrm.navigation.performanceTracker')} icon={ICONS.performance} />
+              <NavItem to="/org-chart" label={t('hrm.navigation.orgChart')} icon={ICONS.orgchart} />
+              <NavItem to="/user-manual" label={t('hrm.navigation.userManual')} icon={ICONS.documents} />
             </NavCategoryAccordion>
 
             {/* 2. CRM (Top-level Section) */}
@@ -285,29 +289,29 @@ export default function Sidebar({ isOpen, close }) {
         {/* My Portal link for admins/managers */}
         {!isEmployee() && (
           <div className="pt-4">
-            <NavLink to="/portal" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <NavLink to="/portal" className="sidebar-portal-btn flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20">
+              <div className="sidebar-nav-icon-bg w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="sidebar-nav-icon w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d={ICONS.portal} />
                 </svg>
               </div>
-              <span>My Portal</span>
+              <span className="sidebar-nav-label">My Portal</span>
             </NavLink>
           </div>
         )}
       </nav>
 
       {/* User Footer */}
-      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="sidebar-footer px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center gap-2.5 px-1">
-          <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${roleGrad} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+          <div className={`sidebar-user-avatar w-8 h-8 rounded-full bg-gradient-to-br ${roleGrad} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
             {(user?.full_name || user?.username || 'U')[0].toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold truncate" style={{ color: 'rgb(var(--color-text-inverse))' }}>{user?.full_name || user?.username}</p>
-            <p className="text-[10px] truncate capitalize" style={{ color: 'rgb(var(--color-slate-400))' }}>{(user?.role || '').replace('_', ' ')}</p>
+            <p className="sidebar-user-name text-xs font-semibold truncate" style={{ color: 'rgb(var(--color-text-inverse))' }}>{user?.full_name || user?.username}</p>
+            <p className="sidebar-user-role text-[10px] truncate capitalize" style={{ color: 'rgb(var(--color-slate-400))' }}>{(user?.role || '').replace('_', ' ')}</p>
           </div>
-          <button onClick={handleLogout} className="text-slate-500 hover:text-rose-400 transition-colors flex-shrink-0" title="Logout">
+          <button onClick={handleLogout} className="sidebar-logout-icon-btn text-slate-500 hover:text-rose-400 transition-colors flex-shrink-0" title="Logout">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d={ICONS.offboarding} />
             </svg>

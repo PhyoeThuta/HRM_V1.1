@@ -1,0 +1,43 @@
+{
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "close": "Close",
+  "search": "Search",
+  "loading": "Loading...",
+  "noRecords": "No records found",
+  "logout": "Logout",
+  "roles": {
+    "boss": "Boss",
+    "hr_manager": "HR Manager",
+    "general_manager": "Gen. Manager",
+    "finance": "Finance",
+    "employee": "Employee"
+  },
+  "actions": {
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "details": "Details",
+    "back": "Back",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "modal": {
+    "cannotDelete": "Cannot delete",
+    "areYouSure": "Are you sure to delete?",
+    "aboutToDelete": "You are about to delete",
+    "cannotBeUndone": "This action cannot be undone.",
+    "thisItem": "this item",
+    "yesDelete": "Yes, Delete"
+  }
+}
