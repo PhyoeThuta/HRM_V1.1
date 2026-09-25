@@ -1,0 +1,115 @@
+/* --- AUDIT LOGS COMPONENT STYLES --- */
+
+/* DARK MODE (DEFAULT) */
+.audit-logs-container {
+  background: var(--bg-800, #1e2235);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.audit-logs-table thead {
+  background: var(--bg-850, #161929);
+}
+.audit-logs-table th {
+  color: #94a3b8; /* slate-400 */
+}
+.audit-logs-row {
+  border-color: rgba(255,255,255,0.05);
+}
+.audit-logs-row:hover {
+  background: rgba(255,255,255,0.05);
+}
+.audit-logs-time {
+  color: #94a3b8; /* slate-400 */
+}
+.audit-logs-user {
+  color: #ffffff;
+}
+.audit-logs-role {
+  color: #64748b; /* slate-500 */
+}
+.audit-logs-module {
+  color: #cbd5e1; /* slate-300 */
+}
+.audit-logs-details {
+  color: #94a3b8; /* slate-400 */
+}
+.audit-logs-context {
+  color: #94a3b8; /* slate-400 */
+}
+.context-label {
+  color: #64748b; /* slate-500 */
+}
+.context-value {
+  color: #94a3b8; /* slate-400 */
+}
+.audit-logs-fallback {
+  color: #64748b; /* slate-500 */
+}
+.audit-logs-empty {
+  color: #64748b; /* slate-500 */
+}
+.audit-logs-spinner {
+  border-color: #6366f1; /* indigo-500 */
+  border-top-color: transparent;
+}
+
+/* Action Badges */
+.audit-action-CREATE { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.audit-action-UPDATE { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.audit-action-DELETE { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+.audit-action-UPDATE_BULK { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
+/* LIGHT MODE */
+html[data-theme="light"] .audit-logs-container {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important; /* slate-200 */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+html[data-theme="light"] .audit-logs-table thead {
+  background: #f8fafc !important; /* slate-50 */
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+html[data-theme="light"] .audit-logs-table th {
+  color: #64748b !important; /* slate-500 */
+}
+html[data-theme="light"] .audit-logs-row {
+  border-color: #f1f5f9 !important; /* slate-100 */
+}
+html[data-theme="light"] .audit-logs-row:hover {
+  background: #f8fafc !important; /* slate-50 */
+}
+html[data-theme="light"] .audit-logs-time {
+  color: #64748b !important; /* slate-500 */
+}
+html[data-theme="light"] .audit-logs-user {
+  color: #0f172a !important; /* slate-900 (strong contrast) */
+  font-weight: 600;
+}
+html[data-theme="light"] .audit-logs-role {
+  color: #475569 !important; /* slate-600 */
+}
+html[data-theme="light"] .audit-logs-module {
+  color: #1e293b !important; /* slate-800 */
+}
+html[data-theme="light"] .audit-logs-details {
+  color: #334155 !important; /* slate-700 (clear readable details) */
+}
+html[data-theme="light"] .context-label {
+  color: #64748b !important; /* slate-500 */
+  font-weight: 500;
+}
+html[data-theme="light"] .context-value {
+  color: #0f172a !important; /* slate-900 (strong metadata) */
+  font-weight: 500;
+}
+html[data-theme="light"] .audit-logs-fallback {
+  color: #475569 !important; /* slate-600 */
+}
+html[data-theme="light"] .audit-logs-empty {
+  color: #475569 !important; /* slate-600 */
+}
+
+/* Light Mode Action Badges */
+html[data-theme="light"] .audit-action-CREATE { background: #dcfce7 !important; color: #166534 !important; }
+html[data-theme="light"] .audit-action-UPDATE { background: #e0e7ff !important; color: #3730a3 !important; }
+html[data-theme="light"] .audit-action-DELETE { background: #ffe4e6 !important; color: #be123c !important; }
+html[data-theme="light"] .audit-action-UPDATE_BULK { background: #e0e7ff !important; color: #3730a3 !important; }

@@ -1,4 +1,7 @@
+import { useLanguage } from '../../context/LanguageContext';
+
 export default function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemName, warning, blockedReason }) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   const isBlocked = !!blockedReason;
@@ -13,13 +16,13 @@ export default function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemNam
           </svg>
         </div>
         <h2 className="text-lg font-bold text-white mb-2">
-          {isBlocked ? 'Cannot delete' : 'Are you sure to delete?'}
+          {isBlocked ? t('common.modal.cannotDelete') : t('common.modal.areYouSure')}
         </h2>
         <p className="text-sm text-slate-400 mb-4">
           {isBlocked ? (
             <span className="text-amber-300">{blockedReason}</span>
           ) : (
-            <>You are about to delete <strong className="text-white">{itemName || 'this item'}</strong>. This action cannot be undone.</>
+            <>{t('common.modal.aboutToDelete')} <strong className="text-white">{itemName || t('common.modal.thisItem')}</strong> {t('common.modal.cannotBeUndone')}</>
           )}
         </p>
         {!isBlocked && warning && (
@@ -29,11 +32,11 @@ export default function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemNam
         )}
         <div className="flex justify-center gap-3">
           <button onClick={onClose} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold rounded-xl transition-colors">
-            {isBlocked ? 'Close' : 'Cancel'}
+            {isBlocked ? t('common.actions.close') : t('common.actions.cancel')}
           </button>
           {!isBlocked && (
             <button onClick={onConfirm} className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-rose-600/20">
-              Yes, Delete
+              {t('common.modal.yesDelete')}
             </button>
           )}
         </div>

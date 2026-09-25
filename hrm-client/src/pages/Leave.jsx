@@ -10,6 +10,7 @@ import HandoverPanel from '../components/handover/HandoverPanel';
 import LeaveRequestDetailModal from '../components/leave/LeaveRequestDetailModal';
 import LeaveHandoverWorkflow from '../components/leave/LeaveHandoverWorkflow';
 import LeaveRequestActionsMenu, { buildLeaveRequestMenuItems } from '../components/leave/LeaveRequestActionsMenu';
+import { useLanguage } from '../context/LanguageContext';
 
 function leaveDays(start, end) {
   if (!start || !end) return null;
@@ -20,7 +21,22 @@ function leaveDays(start, end) {
   return diff > 0 ? diff : null;
 }
 
+const mapLeaveType = (name, t) => {
+  if (!name) return name;
+  const key = name.toLowerCase().replace(' leave', '').replace(' ', '');
+  return t(`hrm.leave.leaveType.${key}`) || name;
+};
+
+const mapLeaveDescription = (name, desc, t) => {
+  if (!name) return desc;
+  const key = name.toLowerCase().replace(' leave', '').replace(' ', '');
+  const translated = t(`hrm.leave.leaveDesc.${key}`);
+  if (translated && !translated.startsWith('hrm.')) return translated;
+  return desc || '—';
+};
+
 export default function Leave() {
+  const { t } = useLanguage();
   const [activeTabState, setActiveTabState] = useState(localStorage.getItem('leaveTab') || 'balances');
   const activeTab = activeTabState;
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('leaveTab', tab); };
@@ -57,8 +73,8 @@ export default function Leave() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/leave/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['leave']); setDeleteTarget(null); toast.success('Leave request deleted'); },
-    onError: (e) => toast.error(e.response?.data?.error || 'Failed to delete leave request'),
+    onSuccess: () => { qc.invalidateQueries(['leave']); setDeleteTarget(null); toast.success(t('hrm.leave.toast.delSuccess') || 'Leave request deleted'); },
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.leave.toast.delError') || 'Failed to delete leave request'),
   });
 
   const saveTypeMutation = useMutation({
@@ -78,21 +94,21 @@ export default function Leave() {
       qc.invalidateQueries(['leave']);
       setCoverageModal(null);
       setActingSuccessorId('');
-      toast.success('Coverage handover started');
+      toast.success(t('hrm.leave.toast.covSuccess') || 'Coverage handover started');
       if (res.data?.warning?.message) {
         toast(res.data.warning.message, { icon: '⚠️', duration: 8000 });
       }
     },
-    onError: (e) => toast.error(e.response?.data?.error || 'Failed to start coverage handover'),
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.leave.toast.covError') || 'Failed to start coverage handover'),
   });
 
   const returnMutation = useMutation({
     mutationFn: (leaveId) => api.post(`/handover/leave/${leaveId}/return`),
     onSuccess: () => {
       qc.invalidateQueries(['leave']);
-      toast.success('Return handover started');
+      toast.success(t('hrm.leave.toast.retSuccess') || 'Return handover started');
     },
-    onError: (e) => toast.error(e.response?.data?.error || 'Failed to start return handover'),
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.leave.toast.retError') || 'Failed to start return handover'),
   });
 
   const { data: handoverDetail, refetch: refetchHandover } = useQuery({
@@ -107,9 +123,9 @@ export default function Leave() {
   const balances = data?.balances || [];
 
   const TABS = [
-    { id: 'balances', label: '📊 Total Leaves' },
-    { id: 'requests', label: '📋 Leave Requests' },
-    { id: 'types', label: '⚙️ Leave Types' }
+    { id: 'balances', label: t('hrm.leave.tabs.balances') },
+    { id: 'requests', label: t('hrm.leave.tabs.requests') },
+    { id: 'types', label: t('hrm.leave.tabs.types') }
   ];
 
   const handleRequestSubmit = (e) => {
@@ -136,7 +152,7 @@ export default function Leave() {
     onViewReturn: (r) => setHandoverView({ leaveId: r.id, kind: 'return', readOnly: r.return_handover_is_terminal }),
     onDelete: (r) => {
       if (r.can_delete_leave === false) {
-        toast(r.delete_blocked_reason || 'Cannot delete while handover is active', { icon: '⚠️', duration: 6000 });
+        toast(r.delete_blocked_reason || t('hrm.leave.toast.delBlock') || 'Cannot delete while handover is active', { icon: '⚠️', duration: 6000 });
         return;
       }
       setDeleteTarget({ mode: 'request', item: r });
@@ -144,25 +160,25 @@ export default function Leave() {
   };
 
   return (
-    <Layout title="Leave Management" subtitle="Leave requests, balances and types">
+    <Layout title={t('hrm.leave.title')} subtitle={t('hrm.leave.subtitle')}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex gap-2">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === t.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              style={{ background: activeTab === t.id ? '#4f46e5' : 'rgba(255,255,255,0.05)' }}>
+              className={`leave-tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === t.id ? 'active bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              style={activeTab === t.id ? { background: '#4f46e5' } : { background: 'rgba(255,255,255,0.05)' }}>
               {t.label}
             </button>
           ))}
         </div>
         {activeTab === 'requests' ? (
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:bg-indigo-500" style={{ background: '#4f46e5' }}>
-            + New Leave Request
+          <button onClick={() => setShowModal(true)} className="leave-primary-action flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:bg-indigo-500" style={{ background: '#4f46e5' }}>
+            {t('hrm.leave.newRequestBtn')}
           </button>
         ) : (
           isAdmin() && (
-            <button onClick={() => { setEditTypeData(null); setShowTypeModal(true); }} className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:bg-indigo-500" style={{ background: '#4f46e5' }}>
-              + Add Leave Type
+            <button onClick={() => { setEditTypeData(null); setShowTypeModal(true); }} className="leave-primary-action flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:bg-indigo-500" style={{ background: '#4f46e5' }}>
+              {t('hrm.leave.addTypeBtn')}
             </button>
           )
         )}
@@ -177,11 +193,11 @@ export default function Leave() {
               <table className="w-full text-sm">
                 <thead style={{ background: 'var(--bg-850, #161929)' }}>
                   <tr>
-                    <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee</th>
-                    <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Type</th>
-                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Entitled</th>
-                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Used</th>
-                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-emerald-400 uppercase tracking-wider">Remaining</th>
+                    <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.leave.balances.emp')}</th>
+                    <th className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.leave.balances.type')}</th>
+                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.leave.balances.entitled')}</th>
+                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.leave.balances.used')}</th>
+                    <th className="text-center py-3.5 px-5 text-xs font-semibold text-emerald-400 uppercase tracking-wider">{t('hrm.leave.balances.remaining')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -205,7 +221,7 @@ export default function Leave() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 px-5 text-slate-300 font-medium">{b.type_name}</td>
+                        <td className="py-3 px-5 text-slate-300 font-medium">{mapLeaveType(b.type_name, t)}</td>
                         <td className="py-3 px-5 text-center text-slate-300">{b.entitled_days}</td>
                         <td className="py-3 px-5 text-center text-slate-300">
                           <div className="flex flex-col items-center gap-1">
@@ -218,7 +234,7 @@ export default function Leave() {
                         <td className="py-3 px-5 text-center font-bold text-emerald-400">{b.remain_days}</td>
                       </tr>
                     );
-                  }) : <tr><td colSpan="5" className="py-12 text-center text-slate-500 text-sm">No leave balances found.</td></tr>}
+                  }) : <tr><td colSpan="5" className="py-12 text-center text-slate-500 text-sm">{t('hrm.leave.balances.empty')}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -228,48 +244,48 @@ export default function Leave() {
 
       {/* Requests Table */}
       {activeTab === 'requests' && (
-        <div className="rounded-2xl" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="leave-req-table-wrapper rounded-2xl" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
           {isLoading ? <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
           : (
             <div className="overflow-x-auto rounded-2xl">
-              <table className="w-full text-sm">
-                <thead style={{ background: 'var(--bg-850, #161929)' }}>
+              <table className="leave-req-table w-full text-sm">
+                <thead className="leave-req-thead" style={{ background: 'var(--bg-850, #161929)' }}>
                   <tr>
-                    {['Employee', 'Leave', 'Period', 'Progress', ''].map(h => (
-                      <th key={h || 'actions'} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider last:text-right">
+                    {[t('hrm.leave.requests.emp'), t('hrm.leave.requests.leave'), t('hrm.leave.requests.period'), t('hrm.leave.requests.progress'), ''].map(h => (
+                      <th key={h || 'actions'} className="leave-req-th text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider last:text-right">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="leave-req-tbody">
                   {requests.length > 0 ? requests.map(r => {
                     const days = leaveDays(r.start_date, r.end_date);
-                    const menuItems = buildLeaveRequestMenuItems(r, leaveActionHandlers, { isAdmin: isAdmin() });
+                    const menuItems = buildLeaveRequestMenuItems(r, leaveActionHandlers, { isAdmin: isAdmin(), t });
                     return (
                     <tr
                       key={r.id}
-                      className="border-t border-white/5 hover:bg-white/[0.03] transition-colors cursor-pointer"
+                      className="leave-req-tr border-t border-white/5 hover:bg-white/[0.03] transition-colors cursor-pointer"
                       onClick={() => setDetailRequest(r)}
                     >
-                      <td className="py-4 px-5">
+                      <td className="leave-req-td py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                          <div className="leave-req-avatar w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
                             {(r.employee_name || '?')[0]}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{r.employee_name}</p>
-                            {r.employee_code && <p className="text-[10px] text-slate-500 font-mono">{r.employee_code}</p>}
+                            <p className="leave-req-emp-name text-white text-sm font-medium truncate">{r.employee_name}</p>
+                            {r.employee_code && <p className="leave-req-emp-code text-[10px] text-slate-500 font-mono">{r.employee_code}</p>}
                             {r.employee_in_offboarding && (
-                              <span className="inline-block text-[10px] font-semibold text-amber-400 mt-0.5">⚠ Offboarding</span>
+                              <span className="inline-block text-[10px] font-semibold text-amber-400 mt-0.5">{t('hrm.leave.requests.offboarding')}</span>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-5">
-                        <p className="text-slate-200 font-medium">{r.type_name}</p>
+                      <td className="leave-req-td py-4 px-5">
+                        <p className="leave-req-type text-slate-200 font-medium">{mapLeaveType(r.type_name, t)}</p>
                         {r.reason && (
-                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 max-w-[180px]" title={r.reason}>{r.reason}</p>
+                          <p className="leave-req-reason text-[11px] text-slate-500 mt-0.5 line-clamp-1 max-w-[180px]" title={r.reason}>{r.reason}</p>
                         )}
                         {r.document_url && (
                           <a
@@ -277,24 +293,24 @@ export default function Leave() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="text-[10px] text-indigo-400 hover:text-indigo-300 mt-0.5 inline-block"
+                            className="leave-req-attachment text-[10px] text-indigo-400 hover:text-indigo-300 mt-0.5 inline-block"
                           >
-                            📎 Attachment
+                            {t('hrm.leave.requests.attachment')}
                           </a>
                         )}
                       </td>
-                      <td className="py-4 px-5 whitespace-nowrap">
-                        <p className="text-slate-300 text-sm">{(r.start_date || '').slice(0, 10)}</p>
-                        <p className="text-slate-500 text-xs">→ {(r.end_date || '').slice(0, 10)}{days != null && ` · ${days}d`}</p>
+                      <td className="leave-req-td py-4 px-5 whitespace-nowrap">
+                        <p className="leave-req-dates text-slate-300 text-sm">{(r.start_date || '').slice(0, 10)}</p>
+                        <p className="leave-req-duration text-slate-500 text-xs">→ {(r.end_date || '').slice(0, 10)}{days != null && ` · ${days}d`}</p>
                       </td>
-                      <td className="py-4 px-5" onClick={e => e.stopPropagation()}>
+                      <td className="leave-req-td py-4 px-5" onClick={e => e.stopPropagation()}>
                         <LeaveHandoverWorkflow request={r} />
                       </td>
-                      <td className="py-4 px-5" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="leave-req-td py-4 px-5" onClick={e => e.stopPropagation()}>
+                        <div className="leave-req-actions flex items-center justify-end gap-1">
                           <button
                             onClick={() => setDetailRequest(r)}
-                            className="p-2 rounded-lg text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors"
+                            className="leave-req-btn-view p-2 rounded-lg text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors"
                             title="View details & signature"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -305,7 +321,7 @@ export default function Leave() {
                           {isAdmin() && r.status === 'Pending' && (
                             <button
                               onClick={() => setSignatureModalTarget(r)}
-                              className="p-2 rounded-lg text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                              className="leave-req-btn-approve p-2 rounded-lg text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
                               title="Approve with signature"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -323,7 +339,7 @@ export default function Leave() {
                       </td>
                     </tr>
                     );
-                  }) : <tr><td colSpan="5" className="py-12 text-center text-slate-500 text-sm">No leave requests yet.</td></tr>}
+                  }) : <tr><td colSpan="5" className="leave-req-empty py-12 text-center text-slate-500 text-sm">{t('hrm.leave.requests.empty')}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -333,39 +349,39 @@ export default function Leave() {
 
       {/* Leave Types */}
       {activeTab === 'types' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {leaveTypes.length > 0 ? leaveTypes.map(t => (
-            <div key={t.id} className="rounded-2xl p-6 flex flex-col justify-between transition-transform hover:-translate-y-1" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="leave-type-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {leaveTypes.length > 0 ? leaveTypes.map(tType => (
+            <div key={tType.id} className="leave-type-card rounded-2xl p-6 flex flex-col justify-between transition-transform hover:-translate-y-1" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div>
                 <div className="flex justify-between items-start mb-4">
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${t.is_paid !== false ? 'text-emerald-400 bg-emerald-400/10' : 'text-slate-400 bg-white/5'}`}>
-                    {t.is_paid !== false ? 'Paid' : 'Unpaid'}
+                  <span className={`leave-type-badge ${tType.is_paid !== false ? 'leave-type-badge-paid text-emerald-400 bg-emerald-400/10' : 'leave-type-badge-unpaid text-slate-400 bg-white/5'} text-xs font-semibold px-3 py-1 rounded-full`}>
+                    {tType.is_paid !== false ? t('hrm.leave.types.paid') : t('hrm.leave.types.unpaid')}
                   </span>
-                  <span className="text-3xl font-bold text-white">{t.default_days}</span>
+                  <span className="leave-type-days-num text-3xl font-bold text-white">{tType.default_days}</span>
                 </div>
-                <h3 className="text-lg font-bold text-white mb-1">{t.type_name}</h3>
-                <p className="text-sm text-slate-400 mb-2 leading-relaxed">{t.description || '—'}</p>
-                <p className="text-xs text-slate-500 font-medium">{t.default_days} days entitlement</p>
+                <h3 className="leave-type-title text-lg font-bold text-white mb-1">{mapLeaveType(tType.type_name, t)}</h3>
+                <p className="leave-type-desc text-sm text-slate-400 mb-2 leading-relaxed">{mapLeaveDescription(tType.type_name, tType.description, t)}</p>
+                <p className="leave-type-days-text text-xs text-slate-500 font-medium">{tType.default_days} {t('hrm.leave.types.daysEntitlement')}</p>
               </div>
               
-              <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-white/5">
+              <div className="leave-type-actions flex justify-end gap-4 mt-6 pt-4 border-t border-white/5">
                 {isAdmin() && (
                   <>
-                    <button onClick={() => { setEditTypeData(t); setShowTypeModal(true); }} className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors">
+                    <button onClick={() => { setEditTypeData(tType); setShowTypeModal(true); }} className="leave-type-btn-edit text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                      Edit
+                      {t('hrm.leave.types.edit')}
                     </button>
-                    <button onClick={() => setDeleteTarget({ mode: 'type', item: t })} className="text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1.5 transition-colors">
+                    <button onClick={() => setDeleteTarget({ mode: 'type', item: tType })} className="leave-type-btn-delete text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1.5 transition-colors">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Delete
+                      {t('hrm.leave.types.delete')}
                     </button>
                   </>
                 )}
               </div>
             </div>
           )) : (
-            <div className="col-span-full py-12 text-center text-slate-500 text-sm bg-surface-850 rounded-2xl border border-white/5">
-              No leave types configured.
+            <div className="leave-type-empty col-span-full py-12 text-center text-slate-500 text-sm bg-surface-850 rounded-2xl border border-white/5">
+              {t('hrm.leave.types.empty')}
             </div>
           )}
         </div>
@@ -377,30 +393,30 @@ export default function Leave() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-white">New Leave Request</h2>
+              <h2 className="text-base font-bold text-white">{t('hrm.leave.modal.newTitle')}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             <form onSubmit={handleRequestSubmit} className="space-y-4">
               <div>
-                <label className="form-label">Employee *</label>
+                <label className="form-label">{t('hrm.leave.modal.emp')}</label>
                 <select name="employee_id" required className="form-input">
-                  <option value="">— Select Employee —</option>
+                  <option value="">{t('hrm.leave.modal.selectEmp')}</option>
                   {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="form-label">Leave Type *</label>
+                <label className="form-label">{t('hrm.leave.modal.type')}</label>
                 <select name="leave_type_id" required className="form-input">
-                  <option value="">— Select Type —</option>
-                  {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.type_name}</option>)}
+                  <option value="">{t('hrm.leave.modal.selectType')}</option>
+                  {leaveTypes.map(tType => <option key={tType.id} value={tType.id}>{mapLeaveType(tType.type_name, t)}</option>)}
                 </select>
               </div>
-              <div><label className="form-label">Start Date</label><input type="date" name="start_date" className="form-input" /></div>
-              <div><label className="form-label">End Date</label><input type="date" name="end_date" className="form-input" /></div>
-              <div><label className="form-label">Reason</label><textarea name="reason" rows="3" className="form-input" placeholder="Reason for leave..." /></div>
+              <div><label className="form-label">{t('hrm.leave.modal.start')}</label><input type="date" name="start_date" className="form-input" /></div>
+              <div><label className="form-label">{t('hrm.leave.modal.end')}</label><input type="date" name="end_date" className="form-input" /></div>
+              <div><label className="form-label">{t('hrm.leave.modal.reason')}</label><textarea name="reason" rows="3" className="form-input" placeholder={t('hrm.leave.modal.reasonPlaceholder')} /></div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
-                <button type="submit" className="flex-1 text-sm font-semibold text-white py-2.5 rounded-xl" style={{ background: '#4f46e5' }}>Submit</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>{t('hrm.leave.modal.cancel')}</button>
+                <button type="submit" className="flex-1 text-sm font-semibold text-white py-2.5 rounded-xl" style={{ background: '#4f46e5' }}>{t('hrm.leave.modal.submit')}</button>
               </div>
             </form>
           </div>
@@ -413,31 +429,31 @@ export default function Leave() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCoverageModal(null)} />
           <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-white">Start coverage handover</h2>
+              <h2 className="text-base font-bold text-white">{t('hrm.leave.coverage.title')}</h2>
               <button onClick={() => setCoverageModal(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             <p className="text-sm text-slate-400 mb-4">
-              Assign an acting employee to cover for <span className="text-white font-semibold">{coverageModal.employee_name}</span> during leave ({(coverageModal.start_date || '').slice(0, 10)} → {(coverageModal.end_date || '').slice(0, 10)}).
+              {t('hrm.leave.coverage.assign')} <span className="text-white font-semibold">{coverageModal.employee_name}</span> {t('hrm.leave.coverage.during')} ({(coverageModal.start_date || '').slice(0, 10)} → {(coverageModal.end_date || '').slice(0, 10)}).
             </p>
             {coverageModal.employee_in_offboarding && (
               <div className="mb-4 rounded-xl p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30">
-                <p className="font-bold mb-1">⚠️ Employee is in offboarding</p>
-                <p>{coverageModal.offboarding_warning || 'Leave coverage will run in parallel with offboarding. Continue tracking laptop return, NDA, exit interview, and settlement on the Offboarding page.'}</p>
+                <p className="font-bold mb-1">{t('hrm.leave.coverage.offboardWarnTitle')}</p>
+                <p>{coverageModal.offboarding_warning || t('hrm.leave.coverage.offboardWarn')}</p>
               </div>
             )}
-            <label className="form-label">Acting successor *</label>
+            <label className="form-label">{t('hrm.leave.coverage.successor')}</label>
             <select
               value={actingSuccessorId}
               onChange={e => setActingSuccessorId(e.target.value)}
               className="form-input mb-4"
             >
-              <option value="">— Select employee —</option>
+              <option value="">{t('hrm.leave.modal.selectEmp')}</option>
               {employees.filter(e => e.id !== coverageModal.employee_id).map(e => (
                 <option key={e.id} value={e.id}>{e.Full_name} ({e.employee_id})</option>
               ))}
             </select>
             <div className="flex gap-3">
-              <button type="button" onClick={() => setCoverageModal(null)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
+              <button type="button" onClick={() => setCoverageModal(null)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>{t('hrm.leave.modal.cancel')}</button>
               <button
                 type="button"
                 disabled={!actingSuccessorId || coverageMutation.isPending}
@@ -445,7 +461,7 @@ export default function Leave() {
                 className="flex-1 text-sm font-semibold text-white py-2.5 rounded-xl disabled:opacity-50"
                 style={{ background: '#4f46e5' }}
               >
-                {coverageMutation.isPending ? 'Starting...' : 'Start handover'}
+                {coverageMutation.isPending ? t('hrm.leave.coverage.starting') : t('hrm.leave.coverage.startBtn')}
               </button>
             </div>
           </div>
@@ -459,8 +475,8 @@ export default function Leave() {
           <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4 sticky top-0 bg-surface-850 pb-2 z-10">
               <h2 className="text-base font-bold text-white">
-                {handoverView.readOnly ? 'Handover history — ' : ''}
-                {handoverView.kind === 'return' ? 'Return handover' : 'Coverage handover'}
+                {handoverView.readOnly ? t('hrm.leave.handover.history') : ''}
+                {handoverView.kind === 'return' ? t('hrm.leave.handover.return') : t('hrm.leave.handover.coverage')}
               </h2>
               <button onClick={() => setHandoverView(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>
@@ -506,9 +522,9 @@ export default function Leave() {
           else deleteTypeMutation.mutate(deleteTarget.item.id);
         }}
         itemName={deleteTarget?.mode === 'type' ? deleteTarget.item.type_name : 'Leave Request'}
-        blockedReason={deleteTarget?.mode === 'request' && deleteTarget.item?.can_delete_leave === false ? deleteTarget.item.delete_blocked_reason : null}
+        blockedReason={deleteTarget?.mode === 'request' && deleteTarget.item?.can_delete_leave === false ? (deleteTarget.item.delete_blocked_reason || t('hrm.leave.toast.delBlock')) : null}
         warning={deleteTarget?.mode === 'request' && deleteTarget.item?.coverage_handover_status
-          ? 'Linked handover history will be kept; only the leave request row is removed.'
+          ? t('hrm.leave.toast.delWarn')
           : null}
       />
 
@@ -518,26 +534,26 @@ export default function Leave() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowTypeModal(false)} />
           <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-white">{editTypeData ? 'Edit' : 'Add'} Leave Type</h2>
+              <h2 className="text-base font-bold text-white">{editTypeData ? t('hrm.leave.typeModal.edit') : t('hrm.leave.typeModal.add')}</h2>
               <button onClick={() => setShowTypeModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             <form onSubmit={handleTypeSubmit} className="space-y-4">
               <div>
-                <label className="form-label">Type Name *</label>
-                <input type="text" name="type_name" required defaultValue={editTypeData?.type_name || ''} className="form-input" placeholder="e.g. Annual Leave" />
+                <label className="form-label">{t('hrm.leave.typeModal.name')}</label>
+                <input type="text" name="type_name" required defaultValue={editTypeData?.type_name || ''} className="form-input" placeholder={t('hrm.leave.typeModal.namePlaceholder')} />
               </div>
               <div>
-                <label className="form-label">Default Days Entitlement *</label>
+                <label className="form-label">{t('hrm.leave.typeModal.days')}</label>
                 <input type="number" name="default_days" required defaultValue={editTypeData?.default_days || 0} className="form-input" />
               </div>
               <div>
-                <label className="form-label">Description</label>
-                <textarea name="description" rows="3" defaultValue={editTypeData?.description || ''} className="form-input" placeholder="Brief description of this leave type..." />
+                <label className="form-label">{t('hrm.leave.typeModal.desc')}</label>
+                <textarea name="description" rows="3" defaultValue={editTypeData?.description || ''} className="form-input" placeholder={t('hrm.leave.typeModal.descPlaceholder')} />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowTypeModal(false)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl transition-colors hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
+                <button type="button" onClick={() => setShowTypeModal(false)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl transition-colors hover:bg-white/5" style={{ background: 'rgba(255,255,255,0.05)' }}>{t('hrm.leave.modal.cancel')}</button>
                 <button type="submit" disabled={saveTypeMutation.isPending} className="flex-1 text-sm font-semibold text-white py-2.5 rounded-xl transition-all hover:bg-indigo-500 disabled:opacity-50" style={{ background: '#4f46e5' }}>
-                  {saveTypeMutation.isPending ? 'Saving...' : 'Save'}
+                  {saveTypeMutation.isPending ? t('hrm.leave.typeModal.saving') : t('hrm.leave.typeModal.save')}
                 </button>
               </div>
             </form>
@@ -550,17 +566,17 @@ export default function Leave() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-surface-800 rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden animate-slide-up">
             <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
-              <h2 className="text-lg font-bold text-white">E-Signature Required</h2>
+              <h2 className="text-lg font-bold text-white">{t('hrm.leave.sig.title')}</h2>
               <button onClick={() => setSignatureModalTarget(null)} className="text-slate-400 hover:text-white transition-colors">
                 ✕
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <p className="text-sm text-slate-300">Please provide your signature to approve this leave request for <span className="font-bold text-white">{signatureModalTarget.employee_name}</span>.</p>
+              <p className="text-sm text-slate-300">{t('hrm.leave.sig.desc')} <span className="font-bold text-white">{signatureModalTarget.employee_name}</span>.</p>
               {signatureModalTarget.employee_in_offboarding && (
                 <div className="rounded-xl p-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30">
-                  <p className="font-bold mb-1">⚠️ Employee is in offboarding</p>
-                  <p>{signatureModalTarget.offboarding_warning || 'Leave will run in parallel with offboarding. Exit tasks must still be completed on the Offboarding page.'}</p>
+                  <p className="font-bold mb-1">{t('hrm.leave.coverage.offboardWarnTitle')}</p>
+                  <p>{signatureModalTarget.offboarding_warning || t('hrm.leave.sig.offboardWarn')}</p>
                 </div>
               )}
               <div className="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
@@ -571,7 +587,7 @@ export default function Leave() {
                 />
               </div>
               <div className="flex justify-end">
-                <button onClick={() => sigCanvas.current.clear()} className="text-xs text-slate-400 hover:text-white transition-colors">Clear Signature</button>
+                <button onClick={() => sigCanvas.current.clear()} className="text-xs text-slate-400 hover:text-white transition-colors">{t('hrm.leave.sig.clear')}</button>
               </div>
             </div>
             <div className="p-5 border-t border-white/5 flex justify-end gap-3 bg-black/20">
@@ -579,12 +595,12 @@ export default function Leave() {
                 onClick={() => setSignatureModalTarget(null)} 
                 className="px-4 py-2 text-sm font-bold text-slate-300 hover:text-white transition-colors"
               >
-                Cancel
+                {t('hrm.leave.modal.cancel')}
               </button>
               <button 
                 onClick={() => {
                   if (sigCanvas.current.isEmpty()) {
-                    alert("Please provide a signature first.");
+                    alert(t('hrm.leave.toast.noSig') || "Please provide a signature first.");
                     return;
                   }
                   const e_signature = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
@@ -593,7 +609,7 @@ export default function Leave() {
                 }}
                 className="px-5 py-2 text-sm font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/25"
               >
-                Confirm Approval
+                {t('hrm.leave.sig.confirm')}
               </button>
             </div>
           </div>

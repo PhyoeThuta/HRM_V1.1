@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import HandoverPanel from '../components/handover/HandoverPanel';
+import { useLanguage } from '../context/LanguageContext';
 
 const STATUS_COLORS = {
   draft: 'text-slate-400 bg-slate-500/10',
@@ -18,6 +19,7 @@ const STATUS_COLORS = {
 const TERMINAL = ['completed', 'waived', 'cancelled'];
 
 export default function Handovers() {
+  const { t, tDyn } = useLanguage();
   const qc = useQueryClient();
   const [status, setStatus] = useState('all');
   const [triggerType, setTriggerType] = useState('');
@@ -50,104 +52,102 @@ export default function Handovers() {
   const handovers = data?.handovers || [];
 
   return (
-    <Layout title="Handovers" subtitle="All employee handovers — exit, leave coverage, and return">
+    <Layout title={t('hrm.handovers.title')} subtitle={t('hrm.handovers.subtitle')}>
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-3 items-end">
+        <div className="ho-filters flex flex-wrap gap-3 items-end">
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Status</label>
+            <label className="ho-filter-label text-xs text-slate-500 block mb-1">{t('hrm.handovers.status')}</label>
             <select
               value={status}
               onChange={e => setStatus(e.target.value)}
-              className="bg-surface-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              className="ho-select bg-surface-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
             >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="waived">Waived</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="in_progress">In progress</option>
-              <option value="pending_review">Pending review</option>
+              <option value="all">{t('hrm.handovers.all')}</option>
+              <option value="active">{t('hrm.handovers.active')}</option>
+              <option value="completed">{t('hrm.handovers.completed')}</option>
+              <option value="waived">{t('hrm.handovers.waived')}</option>
+              <option value="cancelled">{t('hrm.handovers.cancelled')}</option>
+              <option value="in_progress">{t('hrm.handovers.inProgress')}</option>
+              <option value="pending_review">{t('hrm.handovers.pendingReview')}</option>
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Type</label>
+            <label className="ho-filter-label text-xs text-slate-500 block mb-1">{t('hrm.handovers.type')}</label>
             <select
               value={triggerType}
               onChange={e => setTriggerType(e.target.value)}
-              className="bg-surface-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              className="ho-select bg-surface-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
             >
-              <option value="">All types</option>
-              <option value="exit">Exit / offboarding</option>
-              <option value="temporary_coverage">Leave coverage</option>
-              <option value="return_from_leave">Return from leave</option>
+              <option value="">{t('hrm.handovers.allTypes')}</option>
+              <option value="exit">{t('hrm.handovers.exitOffboarding')}</option>
+              <option value="temporary_coverage">{t('hrm.handovers.leaveCoverage')}</option>
+              <option value="return_from_leave">{t('hrm.handovers.returnFromLeave')}</option>
             </select>
           </div>
           <div className="min-w-[200px]">
-            <label className="text-xs text-slate-500 block mb-1">Employee</label>
+            <label className="ho-filter-label text-xs text-slate-500 block mb-1">{t('hrm.handovers.employee')}</label>
             <select
               value={employeeId}
               onChange={e => setEmployeeId(e.target.value)}
-              className="w-full bg-surface-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              className="ho-select w-full bg-surface-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2 outline-none"
             >
-              <option value="">All employees</option>
+              <option value="">{t('hrm.handovers.allEmployees')}</option>
               {employees.map(e => (
                 <option key={e.id} value={e.id}>{e.Full_name}</option>
               ))}
             </select>
           </div>
-          <p className="text-xs text-slate-500 self-center">{data?.total ?? 0} record(s)</p>
+          <p className="ho-filter-meta text-xs text-slate-500 self-center">{data?.total ?? 0} {t('hrm.handovers.records')}</p>
         </div>
 
-        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="ho-table-card rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
           {isLoading ? (
-            <div className="p-12 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
+            <div className="p-12 text-center"><div className="ho-spinner w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="ho-table w-full text-sm">
                 <thead>
-                  <tr className="text-left text-slate-500 border-b border-white/5">
-                    <th className="py-3 px-5 font-medium">Handover</th>
-                    <th className="py-3 px-5 font-medium">Outgoing</th>
-                    <th className="py-3 px-5 font-medium">Successor</th>
-                    <th className="py-3 px-5 font-medium">Status</th>
-                    <th className="py-3 px-5 font-medium">Progress</th>
-                    <th className="py-3 px-5 font-medium">Closed</th>
+                  <tr className="ho-table-header text-left text-slate-500 border-b border-white/5">
+                    <th className="py-3 px-5 font-medium">{t('hrm.handovers.cols.handover')}</th>
+                    <th className="py-3 px-5 font-medium">{t('hrm.handovers.cols.outgoing')}</th>
+                    <th className="py-3 px-5 font-medium">{t('hrm.handovers.cols.successor')}</th>
+                    <th className="py-3 px-5 font-medium">{t('hrm.handovers.cols.status')}</th>
+                    <th className="py-3 px-5 font-medium">{t('hrm.handovers.cols.progress')}</th>
+                    <th className="py-3 px-5 font-medium">{t('hrm.handovers.cols.closed')}</th>
                     <th className="py-3 px-5 font-medium"></th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="ho-table-body">
                   {handovers.length ? handovers.map(h => (
-                    <tr key={h.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                    <tr key={h.id} className="ho-table-row border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
                       <td className="py-3 px-5">
-                        <p className="text-white font-medium">{h.handover_label || h.handover_kind}</p>
-                        <p className="text-[10px] text-slate-500 capitalize">{h.trigger_type?.replace(/_/g, ' ')}</p>
+                        <p className="ho-cell-primary text-white font-medium">{tDyn("hrm.handovers.kinds", h.handover_label || h.handover_kind)}</p>
+                        <p className="ho-cell-secondary text-[10px] text-slate-500 capitalize">{tDyn("hrm.handovers.types", h.trigger_type) || h.trigger_type?.replace(/_/g, ' ')}</p>
                       </td>
                       <td className="py-3 px-5">
-                        <Link to={`/employees/${h.outgoing_employee_id}`} className="text-indigo-400 hover:underline">
+                        <Link to={`/employees/${h.outgoing_employee_id}`} className="ho-link text-indigo-400 hover:underline">
                           {h.outgoing_name || '—'}
                         </Link>
                       </td>
-                      <td className="py-3 px-5 text-slate-300">{h.successor_name || '—'}</td>
+                      <td className="ho-cell-text py-3 px-5 text-slate-300">{h.successor_name || '—'}</td>
                       <td className="py-3 px-5">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${STATUS_COLORS[h.status] || 'text-slate-400 bg-white/5'}`}>
-                          {h.status?.replace(/_/g, ' ')}
+                        <span className={`ho-badge ho-badge-${h.status || 'draft'} text-xs font-semibold px-2 py-0.5 rounded capitalize ${STATUS_COLORS[h.status] || 'text-slate-400 bg-white/5'}`}>
+                          {tDyn("hrm.offboarding.statusEnum", h.status) || h.status?.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="py-3 px-5 text-slate-400">{h.completion_pct ?? 0}% · {h.item_count ?? '—'} items</td>
-                      <td className="py-3 px-5 text-slate-500 text-xs">
+                      <td className="ho-cell-text py-3 px-5 text-slate-400">{h.completion_pct ?? 0}% · {h.item_count ?? '—'} {t('hrm.handovers.items')}</td>
+                      <td className="ho-cell-secondary py-3 px-5 text-slate-500 text-xs">
                         {(h.approved_at || h.waived_at || '').slice(0, 10) || '—'}
                       </td>
                       <td className="py-3 px-5">
                         <button
                           onClick={() => setDetailId(h.id)}
-                          className="text-xs font-medium text-indigo-400 bg-indigo-400/10 px-2.5 py-1.5 rounded-lg hover:bg-indigo-400/20"
-                        >
-                          View
-                        </button>
+                          className="ho-btn-view text-xs font-medium text-indigo-400 bg-indigo-400/10 px-2.5 py-1.5 rounded-lg hover:bg-indigo-400/20"
+                        >{t('hrm.handovers.view')}</button>
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="7" className="py-12 text-center text-slate-500">No handovers match your filters.</td></tr>
+                    <tr><td colSpan="7" className="ho-empty-state py-12 text-center text-slate-500">{t('hrm.handovers.noHandovers')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -157,15 +157,15 @@ export default function Handovers() {
       </div>
 
       {detailId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="ho-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailId(null)} />
-          <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-surface-850 pb-2 z-10">
-              <h2 className="text-base font-bold text-white">Handover detail</h2>
-              <button onClick={() => setDetailId(null)} className="text-slate-400 hover:text-white">✕</button>
+          <div className="ho-modal-content relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="ho-modal-header flex items-center justify-between mb-4 sticky top-0 bg-surface-850 pb-2 z-10">
+              <h2 className="ho-modal-title text-base font-bold text-white">{t('hrm.handovers.modalTitle')}</h2>
+              <button onClick={() => setDetailId(null)} className="ho-modal-close text-slate-400 hover:text-white">✕</button>
             </div>
             {detailLoading || !detail?.handover ? (
-              <div className="py-8 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
+              <div className="py-8 text-center"><div className="ho-spinner w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
             ) : (
               <HandoverPanel
                 handover={detail.handover}

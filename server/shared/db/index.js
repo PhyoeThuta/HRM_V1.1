@@ -63,6 +63,40 @@ export async function dbFetchOne(table, columns = '*', filters = {}) {
 }
 
 export async function dbInsert(table, data) {
+  if (table === 'sys_audit_logs') {
+    const { auditContext } = await import('../../middleware/auditContext.js');
+    const { parseUserAgent } = await import('../../utils/uaParser.js');
+    const { resolveIp } = await import('../../utils/ipResolver.js');
+    const req = auditContext.getStore();
+    
+    if (req) {
+      const uaString = req.headers['user-agent'] || '';
+      const { os, browser, device } = parseUserAgent(uaString);
+      const realIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip || '0.0.0.0';
+      const user = req.user || {};
+      const location = resolveIp(realIp);
+      
+      const meta = {
+        user_name: user.full_name || user.email || 'System',
+        user_role: user.role || 'Unknown',
+        device_type: device,
+        os: os,
+        browser: browser,
+        user_agent: uaString,
+        ip_address: realIp,
+        location: location
+      };
+      
+      // Merge with existing details
+      data.details = `${data.details} ||| ${JSON.stringify(meta)}`;
+      data.ip_address = realIp; // Overwrite if it was '0.0.0.0'
+      // Use real authenticated ID
+      if (user.id && (!data.user_id || data.user_id === '00000000-0000-0000-0000-000000000000')) {
+        data.user_id = user.id;
+      }
+    }
+  }
+
   const clean = Object.fromEntries(
     Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '')
   );

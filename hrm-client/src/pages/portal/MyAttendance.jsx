@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
 import Layout from '../../components/layout/Layout';
 import MyOvertimeTab from './MyOvertimeTab';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function MyAttendance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('records');
   const [expandedMonths, setExpandedMonths] = useState({});
   
@@ -50,8 +52,9 @@ export default function MyAttendance() {
 
   const methodBadge = (m) => {
     const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-orange-400 bg-orange-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
-    return cfg[m] ? <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg[m]}`}>🪄 {m}</span>
-      : <span className="text-xs font-medium px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ Manual</span>;
+    const label = m ? (t(`hrm.attendance.methods.${m.toLowerCase()}`) || m) : t('hrm.attendance.methods.manual');
+    return cfg[m] ? <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg[m]}`}>🪄 {label}</span>
+      : <span className="text-xs font-medium px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ {label}</span>;
   };
 
   const formatMonthTitle = (yyyy_mm) => {
@@ -114,8 +117,8 @@ export default function MyAttendance() {
                       <table className="w-full text-sm">
                         <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
                           <tr>
-                            {['Date', 'Check In', 'Check Out', 'Hours', 'Method', 'Status'].map(h => (
-                              <th key={h} className="text-left py-2 px-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>
+                            {[t('hrm.attendance.columns.date'), t('hrm.attendance.columns.checkIn'), t('hrm.attendance.columns.checkOut'), t('hrm.attendance.columns.hours'), t('hrm.attendance.columns.method'), t('hrm.attendance.columns.status')].map((h, i) => (
+                              <th key={i} className="text-left py-2 px-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -133,10 +136,10 @@ export default function MyAttendance() {
                                 <td className="py-3 px-5">{methodBadge(r.attendance_method)}</td>
                                 <td className="py-3 px-5">
                                   {r.is_early_leave
-                                    ? <span className="text-xs font-semibold text-rose-400">Early Leave</span>
+                                    ? <span className="text-xs font-semibold text-rose-400">{t('hrm.attendance.status.earlyLeave')}</span>
                                     : r.is_late
-                                    ? <span className="text-xs font-semibold text-amber-400">Late</span>
-                                    : <span className="text-xs text-emerald-400">On time</span>}
+                                    ? <span className="text-xs font-semibold text-amber-400">{t('hrm.attendance.status.late')}</span>
+                                    : <span className="text-xs text-emerald-400">{t('hrm.attendance.status.onTime')}</span>}
                                 </td>
                               </tr>
                             );

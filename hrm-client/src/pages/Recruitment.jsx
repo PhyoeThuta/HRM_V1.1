@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 
 export default function Recruitment() {
+  const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -143,37 +145,37 @@ export default function Recruitment() {
   ];
 
   return (
-    <Layout title="Recruitment" subtitle="Active Pipeline - Hired - Rejected Talent Pool">
+    <Layout title={t('hrm.recruitment.title')} subtitle={t('hrm.recruitment.activePipeline') + ' - ' + t('hrm.recruitment.hiredCount') + ' - ' + t('hrm.recruitment.rejectedCount') + ' ' + t('hrm.recruitment.talentPool')}>
       {/* Top Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <StatBox icon="👥" label="Total Candidates" value={stats.total} bg="bg-white/5" text="text-white" />
-        <StatBox icon="🔄" label="In Pipeline" value={stats.pipeline} bg="bg-indigo-500/10 border border-indigo-500/20" text="text-indigo-400" />
-        <StatBox icon="⭐" label="Shortlisted" value={stats.shortlisted} bg="bg-amber-500/10 border border-amber-500/20" text="text-amber-400" />
-        <StatBox icon="✅" label="Hired" value={stats.hired} bg="bg-emerald-500/10 border border-emerald-500/20" text="text-emerald-400" />
-        <StatBox icon="📁" label="Talent Pool" value={stats.pool} bg="bg-orange-500/10 border border-orange-500/20" text="text-orange-400" />
+        <StatBox onClick={() => { setActiveTab('pipeline'); setSearchQuery(''); }} icon="👥" label={t('hrm.recruitment.totalCandidates')} value={stats.total} bg="rect-stat-box bg-white/5" text="rect-stat-val text-white" />
+        <StatBox onClick={() => setActiveTab('pipeline')} icon="🔄" label={t('hrm.recruitment.inPipeline')} value={stats.pipeline} bg="rect-stat-box bg-indigo-500/10 border border-indigo-500/20" text="rect-stat-val text-indigo-400" />
+        <StatBox onClick={() => setActiveTab('pipeline')} icon="⭐" label={t('hrm.recruitment.shortlisted')} value={stats.shortlisted} bg="rect-stat-box bg-amber-500/10 border border-amber-500/20" text="rect-stat-val text-amber-400" />
+        <StatBox onClick={() => setActiveTab('hired')} icon="✅" label={t('hrm.recruitment.hired')} value={stats.hired} bg="rect-stat-box bg-emerald-500/10 border border-emerald-500/20" text="rect-stat-val text-emerald-400" />
+        <StatBox onClick={() => setActiveTab('pool')} icon="📁" label={t('hrm.recruitment.talentPool')} value={stats.pool} bg="rect-stat-box bg-orange-500/10 border border-orange-500/20" text="rect-stat-val text-orange-400" />
       </div>
 
       {/* Filters and Actions */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <div className="flex gap-2">
-          <TabButton active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} icon="🔄" label="Active Pipeline" activeClass="bg-indigo-600 text-white" inactiveClass="bg-white/5 text-slate-400 hover:bg-white/10" />
-          <TabButton active={activeTab === 'hired'} onClick={() => setActiveTab('hired')} icon="✅" label="Hired" activeClass="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" inactiveClass="bg-white/5 text-slate-400 hover:bg-white/10" />
-          <TabButton active={activeTab === 'pool'} onClick={() => setActiveTab('pool')} icon="📁" label="Talent Pool" activeClass="bg-orange-500/20 text-orange-400 border border-orange-500/30" inactiveClass="bg-white/5 text-slate-400 hover:bg-white/10" />
+          <TabButton active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} icon="🔄" label={t('hrm.recruitment.activePipeline')} activeClass="rect-tab-active bg-indigo-600 text-white" inactiveClass="rect-tab-inactive bg-white/5 text-slate-400 hover:bg-white/10" />
+          <TabButton active={activeTab === 'hired'} onClick={() => setActiveTab('hired')} icon="✅" label={t('hrm.recruitment.hired')} activeClass="rect-tab-active-hired bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" inactiveClass="rect-tab-inactive bg-white/5 text-slate-400 hover:bg-white/10" />
+          <TabButton active={activeTab === 'pool'} onClick={() => setActiveTab('pool')} icon="📁" label={t('hrm.recruitment.talentPool')} activeClass="rect-tab-active-pool bg-orange-500/20 text-orange-400 border border-orange-500/30" inactiveClass="rect-tab-inactive bg-white/5 text-slate-400 hover:bg-white/10" />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button 
             type="button"
             onClick={() => { setBulkPosFilter(''); setBulkStageFilter('All'); setShowBulkModal(true); }}
-            className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 flex items-center gap-2 transition-all shadow-md"
+            className="rect-btn-bulk px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 flex items-center gap-2 transition-all shadow-md"
           >
-            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-            <span>Move All to Talent Pool</span>
+            <svg className="w-4 h-4 text-amber-400 rect-bulk-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            <span>{t('hrm.recruitment.moveToPool')}</span>
           </button>
-          <button onClick={() => setShowPositionModal(true)} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-xl border border-white/10">
-            + Position
+          <button onClick={() => setShowPositionModal(true)} className="rect-btn-secondary px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-xl border border-white/10">
+            + {t('hrm.recruitment.position')}
           </button>
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">
-            + Add Candidate
+          <button onClick={() => setShowModal(true)} className="rect-btn-primary px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">
+            + {t('hrm.recruitment.addCandidate')}
           </button>
         </div>
       </div>
@@ -184,18 +186,18 @@ export default function Recruitment() {
       ) : activeTab === 'pipeline' ? (
         <div className="flex overflow-x-auto gap-6 pb-4">
           {columns.map(col => (
-            <div key={col.id} className="min-w-[320px] w-[320px] flex flex-col h-[calc(100vh-320px)] bg-surface-800 border border-white/5 rounded-2xl p-4">
+            <div key={col.id} className="rect-column min-w-[320px] w-[320px] flex flex-col h-[calc(100vh-320px)] bg-surface-800 border border-white/5 rounded-2xl p-4">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-indigo-400 tracking-wider">{col.title}</h3>
-                  <span className="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-full">{col.items.length}</span>
+                  <h3 className="rect-column-header text-xs font-bold text-indigo-400 tracking-wider">{col.title}</h3>
+                  <span className="rect-column-count bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-full">{col.items.length}</span>
                 </div>
                 {col.items.length > 0 && (
                   <button
                     type="button"
                     title={`Move all ${col.title} candidates to Talent Pool`}
                     onClick={() => { setBulkPosFilter(''); setBulkStageFilter(col.id); setShowBulkModal(true); }}
-                    className="text-[10px] font-bold text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 px-2 py-1 rounded-lg border border-transparent hover:border-amber-500/20 transition-all flex items-center gap-1"
+                    className="rect-btn-move-pool text-[10px] font-bold text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 px-2 py-1 rounded-lg border border-transparent hover:border-amber-500/20 transition-all flex items-center gap-1"
                   >
                     <span>Move to Pool</span>
                   </button>
@@ -204,7 +206,7 @@ export default function Recruitment() {
               
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-hide">
                 {col.items.length === 0 ? (
-                  <p className="text-center text-slate-500 text-sm mt-10 italic">No candidates</p>
+                  <p className="text-center text-slate-500 text-sm mt-10 italic">{t('hrm.recruitment.noCandidates')}</p>
                 ) : col.items.map(c => (
                   <CandidateCard 
                     key={c.id} 
@@ -216,7 +218,7 @@ export default function Recruitment() {
                       title: 'Convert to Employee',
                       message: 'Are you sure you want to officially convert this candidate into an employee?',
                       actionText: 'Convert',
-                      actionColor: 'bg-emerald-600 hover:bg-emerald-700',
+                      actionColor: 'rect-btn-convert-confirm bg-emerald-600 hover:bg-emerald-700',
                       onConfirm: () => convertMutation.mutate(c.id)
                     })} 
                   />
@@ -228,24 +230,24 @@ export default function Recruitment() {
       ) : (
         <>
           {activeTab === 'pool' && (
-            <div className="col-span-full bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 mb-6 flex items-start gap-4">
+            <div className="rect-pool-alert col-span-full bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 mb-6 flex items-start gap-4">
               <span className="text-2xl">📁</span>
               <div>
-                <h3 className="text-rose-400 font-bold text-sm mb-1">Talent Pool — Rejected Candidates</h3>
-                <p className="text-slate-400 text-xs">These candidates were not selected for a previous role but their resumes and information are kept for future opportunities. You can reconsider any of them for a new position.</p>
+                <h3 className="rect-pool-alert-title text-rose-400 font-bold text-sm mb-1">Talent Pool — Rejected Candidates</h3>
+                <p className="rect-pool-alert-text text-slate-400 text-xs">These candidates were not selected for a previous role but their resumes and information are kept for future opportunities. You can reconsider any of them for a new position.</p>
               </div>
             </div>
           )}
           {activeTab === 'pool' && (
             <div className="col-span-full mb-6">
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+                <span className="rect-search-icon absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
                 <input 
                   type="text" 
                   placeholder="Search by name, email, or position applied..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-surface-850 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                  className="rect-input w-full bg-surface-850 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500" 
                 />
               </div>
             </div>
@@ -295,23 +297,23 @@ export default function Recruitment() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 bg-surface-850 border border-white/10">
-            <h2 className="text-base font-bold text-white mb-4">Add Candidate</h2>
+          <div className="rect-modal-overlay absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="rect-modal-content relative rounded-2xl w-full max-w-md m-4 p-6 bg-surface-850 border border-white/10">
+            <h2 className="rect-modal-title text-base font-bold text-white mb-4">Add Candidate</h2>
             <form onSubmit={handleSave} className="space-y-4">
-              <div><label className="form-label">Name *</label><input name="candidate_name" required className="form-input" /></div>
+              <div><label className="rect-label form-label">Name *</label><input name="candidate_name" required className="rect-input form-input" /></div>
               <div>
-                <label className="form-label">Applying For</label>
-                <select name="position_id" className="form-input">
+                <label className="rect-label form-label">Applying For</label>
+                <select name="position_id" className="rect-input form-input">
                   <option value="">Select Position...</option>
                   {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
-              <div><label className="form-label">Email</label><input type="email" name="email" className="form-input" /></div>
-              <div><label className="form-label">Phone</label><input name="phone" className="form-input" /></div>
+              <div><label className="rect-label form-label">Email</label><input type="email" name="email" className="rect-input form-input" /></div>
+              <div><label className="rect-label form-label">Phone</label><input name="phone" className="rect-input form-input" /></div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl">Save</button>
+                <button type="button" onClick={() => setShowModal(false)} className="rect-btn-cancel flex-1 px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl">Cancel</button>
+                <button type="submit" className="rect-btn-save flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl">Save</button>
               </div>
             </form>
           </div>
@@ -320,44 +322,44 @@ export default function Recruitment() {
 
       {showPositionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPositionModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl bg-surface-850 border border-white/5">
+          <div className="rect-modal-overlay absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPositionModal(false)} />
+          <div className="rect-modal-content relative rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl bg-surface-850 border border-white/5">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-sm font-bold text-white">Add Position</h2>
-              <button onClick={() => setShowPositionModal(false)} className="text-slate-500 hover:text-white">✕</button>
+              <h2 className="rect-modal-title text-sm font-bold text-white">Add Position</h2>
+              <button onClick={() => setShowPositionModal(false)} className="rect-modal-close text-slate-500 hover:text-white">✕</button>
             </div>
             
             <form onSubmit={handlePositionSave} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">JOB TITLE *</label>
-                <input name="title" required placeholder="e.g. Senior Engineer" className="w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                <label className="rect-label block text-[10px] font-bold text-slate-400 mb-1">JOB TITLE *</label>
+                <input name="title" required placeholder="e.g. Senior Engineer" className="rect-input w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">LEVEL</label>
-                  <select name="level" className="w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <label className="rect-label block text-[10px] font-bold text-slate-400 mb-1">LEVEL</label>
+                  <select name="level" className="rect-input w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                     <option value="Mid">Mid</option>
                     <option value="Supervisor">Supervisor</option>
                     <option value="Manager">Manager</option>
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">TEAM / DEPT</label>
-                  <select name="department" className="w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <label className="rect-label block text-[10px] font-bold text-slate-400 mb-1">TEAM / DEPT</label>
+                  <select name="department" className="rect-input w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                     <option value="">— Select Dept —</option>
                     {departments.map(d => <option key={d.id} value={d.Department_name}>{d.Department_name}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">BASE SALARY</label>
-                <input type="number" name="base_salary" defaultValue="0" className="w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                <label className="rect-label block text-[10px] font-bold text-slate-400 mb-1">BASE SALARY</label>
+                <input type="number" name="base_salary" defaultValue="0" className="rect-input w-full bg-surface-800 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowPositionModal(false)} className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold rounded-lg transition-colors">
+                <button type="button" onClick={() => setShowPositionModal(false)} className="rect-btn-cancel flex-1 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-semibold rounded-lg transition-colors">
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors">
+                <button type="submit" className="rect-btn-save flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors">
                   Create Position
                 </button>
               </div>
@@ -369,17 +371,17 @@ export default function Recruitment() {
       {/* BULK MOVE TO TALENT POOL MODAL */}
       {showBulkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowBulkModal(false)} />
-          <div className="relative rounded-2xl w-full max-w-md p-6 bg-surface-850 border border-white/10 shadow-2xl">
+          <div className="rect-modal-overlay absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowBulkModal(false)} />
+          <div className="rect-modal-content relative rounded-2xl w-full max-w-md p-6 bg-surface-850 border border-white/10 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-                <h2 className="text-base font-bold text-white">Move Candidates to Talent Pool</h2>
+                <svg className="w-5 h-5 text-amber-400 rect-bulk-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                <h2 className="rect-modal-title text-base font-bold text-white">Move Candidates to Talent Pool</h2>
               </div>
-              <button onClick={() => setShowBulkModal(false)} className="text-slate-500 hover:text-white">✕</button>
+              <button onClick={() => setShowBulkModal(false)} className="rect-modal-close text-slate-500 hover:text-white">✕</button>
             </div>
 
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            <p className="rect-label text-xs text-slate-400 mb-4 leading-relaxed">
               Move candidates who were not selected for a position into the Talent Pool so their profiles and resumes are archived for future job opportunities.
             </p>
 
@@ -395,11 +397,11 @@ export default function Recruitment() {
               return (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">FILTER BY POSITION</label>
+                    <label className="rect-label block text-[10px] font-bold text-slate-400 mb-1">FILTER BY POSITION</label>
                     <select
                       value={bulkPosFilter}
                       onChange={e => setBulkPosFilter(e.target.value)}
-                      className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      className="rect-input w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                     >
                       <option value="">All Job Positions</option>
                       {positions.map(p => (
@@ -409,11 +411,11 @@ export default function Recruitment() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">FILTER BY STAGE / COLUMN</label>
+                    <label className="rect-label block text-[10px] font-bold text-slate-400 mb-1">FILTER BY STAGE / COLUMN</label>
                     <select
                       value={bulkStageFilter}
                       onChange={e => setBulkStageFilter(e.target.value)}
-                      className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      className="rect-input w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                     >
                       <option value="All">All Pipeline Stages (Applied, Screening, Interview, Offer)</option>
                       <option value="Applied">Only APPLIED</option>
@@ -423,16 +425,16 @@ export default function Recruitment() {
                     </select>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
-                    <span>Candidates to be moved:</span>
-                    <strong className="text-base font-extrabold text-white px-2 py-0.5 rounded bg-amber-500/20">{affectedCandidates.length}</strong>
+                  <div className="rect-bulk-alert p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
+                    <span className="rect-bulk-alert-text">Candidates to be moved:</span>
+                    <strong className="rect-bulk-alert-val text-base font-extrabold text-white px-2 py-0.5 rounded bg-amber-500/20">{affectedCandidates.length}</strong>
                   </div>
 
                   <div className="flex gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => setShowBulkModal(false)}
-                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold rounded-xl transition-colors"
+                      className="rect-btn-cancel flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold rounded-xl transition-colors"
                     >
                       Cancel
                     </button>
@@ -440,7 +442,7 @@ export default function Recruitment() {
                       type="button"
                       disabled={affectedCandidates.length === 0 || bulkTalentPoolMutation.isPending}
                       onClick={() => bulkTalentPoolMutation.mutate({ position_id: bulkPosFilter, stage: bulkStageFilter })}
-                      className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                      className="rect-bulk-btn flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20"
                     >
                       {bulkTalentPoolMutation.isPending ? 'Moving...' : `Move ${affectedCandidates.length} to Talent Pool`}
                     </button>
@@ -457,36 +459,36 @@ export default function Recruitment() {
       {/* INTERVIEW SCHEDULING MODAL */}
       {scheduleModalCandidate && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div className="bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
-            <div className="p-6 border-b border-white/10 bg-[#1a1d2e]">
-              <h2 className="text-xl font-bold text-white mb-1">Schedule Interview</h2>
-              <p className="text-sm text-slate-400">Send offer to {scheduleModalCandidate.full_name}</p>
+          <div className="rect-modal-content bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+            <div className="rect-modal-header p-6 border-b border-white/10 bg-[#1a1d2e]">
+              <h2 className="rect-modal-title text-xl font-bold text-white mb-1">Schedule Interview</h2>
+              <p className="rect-modal-subtitle text-sm text-slate-400">Send offer to {scheduleModalCandidate.full_name}</p>
             </div>
             <form onSubmit={handleScheduleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">DATE</label>
-                <input type="date" name="date" required className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
+                <label className="rect-label block text-xs font-bold text-slate-400 mb-1">DATE</label>
+                <input type="date" name="date" required className="rect-input w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">TIME</label>
-                <input type="time" name="time" required className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
+                <label className="rect-label block text-xs font-bold text-slate-400 mb-1">TIME</label>
+                <input type="time" name="time" required className="rect-input w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">MEETING LINK / LOCATION</label>
-                <input type="text" name="link" required placeholder="e.g. Zoom link or Office Address" className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
+                <label className="rect-label block text-xs font-bold text-slate-400 mb-1">MEETING LINK / LOCATION</label>
+                <input type="text" name="link" required placeholder="e.g. Zoom link or Office Address" className="rect-input w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500" />
               </div>
               <div className="pt-4 flex gap-3">
                 <button 
                   type="button" 
                   onClick={() => setScheduleModalCandidate(null)}
-                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                  className="rect-btn-cancel flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   disabled={sendInterviewMutation.isPending}
-                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-colors flex justify-center items-center gap-2"
+                  className="rect-btn-save flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-colors flex justify-center items-center gap-2"
                 >
                   {sendInterviewMutation.isPending ? 'Sending...' : '✉ Send Offer'}
                 </button>
@@ -499,24 +501,24 @@ export default function Recruitment() {
       {/* GLOBAL CONFIRM DIALOG */}
       {confirmDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+          <div className="rect-modal-content bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
             <div className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-400 mx-auto flex items-center justify-center text-3xl mb-4">
+              <div className="rect-dialog-icon w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-400 mx-auto flex items-center justify-center text-3xl mb-4">
                 ❓
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">{confirmDialog.title}</h2>
-              <p className="text-slate-400 text-sm">{confirmDialog.message}</p>
+              <h2 className="rect-modal-title text-xl font-bold text-white mb-2">{confirmDialog.title}</h2>
+              <p className="rect-modal-subtitle text-slate-400 text-sm">{confirmDialog.message}</p>
             </div>
-            <div className="p-6 border-t border-white/10 bg-[#1a1d2e] flex gap-3">
+            <div className="rect-dialog-footer p-6 border-t border-white/10 bg-[#1a1d2e] flex gap-3">
               <button 
                 onClick={() => setConfirmDialog(null)}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl transition-colors"
+                className="rect-btn-cancel flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
-                className={`flex-1 py-2.5 font-bold rounded-xl transition-colors text-white ${confirmDialog.actionColor || 'bg-indigo-600 hover:bg-indigo-700'}`}
+                className={`rect-btn-confirm flex-1 py-2.5 font-bold rounded-xl transition-colors text-white ${confirmDialog.actionColor || 'bg-indigo-600 hover:bg-indigo-700'}`}
               >
                 {confirmDialog.actionText || 'Confirm'}
               </button>
@@ -534,15 +536,18 @@ export default function Recruitment() {
   );
 }
 
-function StatBox({ icon, label, value, bg, text }) {
+function StatBox({ icon, label, value, bg, text, onClick }) {
   return (
-    <div className={`p-4 rounded-2xl flex items-center gap-4 ${bg}`}>
+    <button 
+      onClick={onClick}
+      className={`w-full text-left p-4 rounded-2xl flex items-center gap-4 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 ${onClick ? 'cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:border-indigo-500/30' : ''} ${bg}`}
+    >
       <div className={`text-xl ${text}`}>{icon}</div>
       <div>
         <div className={`text-2xl font-bold ${text}`}>{value}</div>
-        <div className="text-xs text-slate-400 font-semibold">{label}</div>
+        <div className="rect-stat-label text-xs text-slate-400 font-semibold">{label}</div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -559,46 +564,46 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert, onClick
   const [newStatus, setNewStatus] = useState(c.status || 'Applied');
 
   return (
-    <div className="bg-surface-850 border border-white/5 p-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1 hover:border-indigo-500/30">
+    <div className="rect-card bg-surface-850 border border-white/5 p-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1 hover:border-indigo-500/30">
       <div className="flex gap-3 mb-3 cursor-pointer group" onClick={onClick}>
-        <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg flex-shrink-0 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+        <div className="rect-avatar w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg flex-shrink-0 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
           {initial}
         </div>
         <div className="overflow-hidden flex-1">
-          <h4 className="font-bold text-white text-sm truncate group-hover:text-indigo-400 transition-colors">{c.full_name}</h4>
-          <p className="text-slate-400 text-xs truncate mt-0.5">{c.email || c.phone || 'No contact info'}</p>
+          <h4 className="rect-card-name font-bold text-white text-sm truncate group-hover:text-indigo-400 transition-colors">{c.full_name}</h4>
+          <p className="rect-card-meta text-slate-400 text-xs truncate mt-0.5">{c.email || c.phone || 'No contact info'}</p>
         </div>
       </div>
 
-      <div className="bg-surface-900 border border-white/5 rounded-lg p-3 mb-4">
+      <div className="rect-ai-box bg-surface-900 border border-white/5 rounded-lg p-3 mb-4">
         <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="text-amber-400 text-xs">⭐</span>
-          <span className="text-white text-xs font-bold">AI Match: {c.ai_score || 0}/10</span>
+          <span className="rect-ai-icon text-amber-400 text-xs">⭐</span>
+          <span className="rect-ai-score text-white text-xs font-bold">AI Match: {c.ai_score || 0}/10</span>
         </div>
         <p 
-          className="text-slate-400 text-[10px] leading-tight line-clamp-2 mb-2 cursor-help"
+          className="rect-ai-reason text-slate-400 text-[10px] leading-tight line-clamp-2 mb-2 cursor-help"
           title={c.ai_reasoning || 'No AI reasoning available.'}
         >
           {c.ai_reasoning || 'No AI reasoning available.'}
         </p>
         <button 
           onClick={() => onOpenGuide()}
-          className="w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-md border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
+          className="rect-btn-schedule w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-md border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
         >
           ✉ Schedule & Send Offer
         </button>
       </div>
 
       <div className="flex justify-between items-center mb-3">
-        <span className="px-2 py-0.5 bg-white/5 text-slate-400 text-[10px] rounded">Direct</span>
-        <span className="text-slate-500 text-[10px]">{(c.created_at || '').slice(0, 10)}</span>
+        <span className="rect-source px-2 py-0.5 bg-white/5 text-slate-400 text-[10px] rounded">Direct</span>
+        <span className="rect-date text-slate-500 text-[10px]">{(c.created_at || '').slice(0, 10)}</span>
       </div>
 
       <div className="flex flex-col gap-2">
         <select 
           value={newStatus} 
           onChange={e => setNewStatus(e.target.value)}
-          className="w-full bg-surface-800 border border-white/10 text-white text-xs px-2 py-1.5 rounded-lg outline-none"
+          className="rect-status-select w-full bg-surface-800 border border-white/10 text-white text-xs px-2 py-1.5 rounded-lg outline-none"
         >
           {['Applied', 'Screening', 'Interview', 'Offer', 'Hired'].map((stage, idx) => {
             const currentIdx = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired'].indexOf(c.status || 'Applied');
@@ -613,7 +618,7 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert, onClick
         {newStatus !== c.status && (
           <button 
             onClick={() => onUpdate(newStatus)}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
+            className="rect-btn-update w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
           >
             Update Stage
           </button>
@@ -622,7 +627,7 @@ function CandidateCard({ candidate: c, onUpdate, onOpenGuide, onConvert, onClick
         {c.status === 'Hired' && (
           <button 
             onClick={() => onConvert()}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition-colors mt-2 flex items-center justify-center gap-2"
+            className="rect-btn-convert w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition-colors mt-2 flex items-center justify-center gap-2"
           >
             ✨ Add to Employees
           </button>
@@ -648,28 +653,28 @@ function TalentPoolCard({ candidate: c, onReconsider, onDelete, positions }) {
   const colorClass = colors[charCode % colors.length];
 
   return (
-    <div className="bg-surface-850 border border-white/5 p-4 rounded-xl shadow-lg flex flex-col h-full">
+    <div className="rect-pool-card bg-surface-850 border border-white/5 p-4 rounded-xl shadow-lg flex flex-col h-full">
       <div className="flex gap-4 mb-4">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 ${colorClass}`}>
+        <div className={`rect-pool-avatar w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 ${colorClass}`}>
           {initial}
         </div>
         <div className="overflow-hidden">
-          <h4 className="font-bold text-white text-base truncate">{c.full_name}</h4>
-          <p className="text-rose-400 text-xs truncate mt-0.5">Previously applied: {c.position_title}</p>
-          <p className="text-slate-500 text-xs truncate mt-0.5">{c.email}</p>
+          <h4 className="rect-pool-name font-bold text-white text-base truncate">{c.full_name}</h4>
+          <p className="rect-pool-role text-rose-400 text-xs truncate mt-0.5">Previously applied: {c.position_title}</p>
+          <p className="rect-pool-email text-slate-500 text-xs truncate mt-0.5">{c.email}</p>
         </div>
       </div>
 
       <div className="flex justify-between items-center mb-4">
-        <span className="text-slate-400 text-xs">Direct</span>
-        <span className="text-slate-500 text-xs">{(c.created_at || '').slice(0, 10)}</span>
+        <span className="rect-source text-slate-400 text-xs">Direct</span>
+        <span className="rect-date text-slate-500 text-xs">{(c.created_at || '').slice(0, 10)}</span>
       </div>
 
       <div className="mt-auto space-y-3 pt-4 border-t border-white/5">
         <select 
           value={reconsiderPos} 
           onChange={e => setReconsiderPos(e.target.value)}
-          className="w-full bg-surface-800 border border-white/10 text-white text-xs px-3 py-2 rounded-lg outline-none appearance-none"
+          className="rect-pool-select w-full bg-surface-800 border border-white/10 text-white text-xs px-3 py-2 rounded-lg outline-none appearance-none"
         >
           <option value="">— Reconsider for Position —</option>
           {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -679,19 +684,19 @@ function TalentPoolCard({ candidate: c, onReconsider, onDelete, positions }) {
           <button 
             onClick={() => onReconsider(reconsiderPos)}
             disabled={!reconsiderPos}
-            className="flex-1 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rect-btn-reconsider flex-1 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ★ Reconsider
           </button>
           <a 
             href={c.email ? `mailto:${c.email}` : '#'}
-            className="flex-1 flex justify-center items-center py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-colors text-center"
+            className="rect-btn-contact flex-1 flex justify-center items-center py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-colors text-center"
           >
             ✉ Contact
           </a>
         </div>
         
-        <button onClick={onDelete} className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors mt-2">
+        <button onClick={onDelete} className="rect-btn-delete w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors mt-2">
           🗑 Delete Candidate
         </button>
       </div>
@@ -706,71 +711,71 @@ function CandidateDetailModal({ candidate, onClose }) {
   
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1a1d2e] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="rect-detail-modal bg-[#1a1d2e] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
-        <div className="p-6 border-b border-white/10 flex justify-between items-start bg-gradient-to-r from-indigo-900/40 to-transparent">
+        <div className="rect-detail-header p-6 border-b border-white/10 flex justify-between items-start bg-gradient-to-r from-indigo-900/40 to-transparent">
           <div className="flex gap-4 items-center">
-            <div className="w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-3xl">
+            <div className="rect-detail-avatar w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-3xl">
               {initial}
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white mb-1">{candidate.full_name}</h2>
+              <h2 className="rect-detail-title text-2xl font-bold text-white mb-1">{candidate.full_name}</h2>
               <div className="flex flex-wrap gap-2 text-sm">
-                {candidate.email && <span className="text-slate-400">✉ {candidate.email}</span>}
-                {candidate.phone && <span className="text-slate-400">📞 {candidate.phone}</span>}
-                {candidate.position_title && <span className="text-indigo-400 px-2 py-0.5 bg-indigo-500/10 rounded-md">Brief: {candidate.position_title}</span>}
+                {candidate.email && <span className="rect-detail-meta text-slate-400">✉ {candidate.email}</span>}
+                {candidate.phone && <span className="rect-detail-meta text-slate-400">📞 {candidate.phone}</span>}
+                {candidate.position_title && <span className="rect-detail-role text-indigo-400 px-2 py-0.5 bg-indigo-500/10 rounded-md">Brief: {candidate.position_title}</span>}
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-2xl p-2">✕</button>
+          <button onClick={onClose} className="rect-modal-close text-slate-400 hover:text-white transition-colors text-2xl p-2">✕</button>
         </div>
 
         {/* Tabs */}
-        <div className="flex px-6 pt-4 border-b border-white/10 gap-6 bg-surface-900">
+        <div className="rect-detail-tabs flex px-6 pt-4 border-b border-white/10 gap-6 bg-surface-900">
           <button 
             onClick={() => setActiveTab('ai')}
-            className={`pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'ai' ? 'border-amber-400 text-amber-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`rect-detail-tab pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'ai' ? 'rect-detail-tab-active border-amber-400 text-amber-400' : 'rect-detail-tab-inactive border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             ⭐ AI Evaluation
           </button>
           <button 
             onClick={() => setActiveTab('form')}
-            className={`pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'form' ? 'border-indigo-400 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`rect-detail-tab pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'form' ? 'rect-detail-tab-active border-indigo-400 text-indigo-400' : 'rect-detail-tab-inactive border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             📝 Form Data
           </button>
           <button 
             onClick={() => setActiveTab('resume')}
-            className={`pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'resume' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`rect-detail-tab pb-3 text-sm font-bold transition-colors border-b-2 ${activeTab === 'resume' ? 'rect-detail-tab-active border-emerald-400 text-emerald-400' : 'rect-detail-tab-inactive border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             📄 Original Resume
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface-850">
+        <div className="rect-detail-content p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface-850">
           
           {activeTab === 'ai' && (
             <div className="space-y-6">
-              <div className="flex items-center gap-4 p-6 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className="rect-detail-ai-score-box flex items-center gap-4 p-6 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <div className="text-5xl">🎯</div>
                 <div>
-                  <h3 className="text-sm font-bold text-amber-400 mb-1">AI Match Score</h3>
-                  <div className="text-4xl font-bold text-white">{candidate.ai_score || 0}<span className="text-2xl text-slate-500">/10</span></div>
+                  <h3 className="rect-detail-ai-score-label text-sm font-bold text-amber-400 mb-1">AI Match Score</h3>
+                  <div className="text-4xl font-bold text-white rect-detail-ai-score-val">{candidate.ai_score || 0}<span className="text-2xl text-slate-500 rect-detail-ai-score-max">/10</span></div>
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-5 rounded-xl bg-surface-800 border border-white/5">
-                  <h3 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">🇬🇧 English Reasoning</h3>
-                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                <div className="rect-detail-ai-reason-box p-5 rounded-xl bg-surface-800 border border-white/5">
+                  <h3 className="rect-detail-ai-reason-label text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">🇬🇧 English Reasoning</h3>
+                  <p className="rect-detail-ai-reason-text text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
                     {candidate.ai_reasoning ? candidate.ai_reasoning.split('မြန်မာလို အကျဉ်းချုပ်:')[0].trim() : 'No AI reasoning available yet.'}
                   </p>
                 </div>
-                <div className="p-5 rounded-xl bg-surface-800 border border-white/5">
-                  <h3 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">🇲🇲 မြန်မာလို အကျဉ်းချုပ်</h3>
-                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">
+                <div className="rect-detail-ai-reason-box p-5 rounded-xl bg-surface-800 border border-white/5">
+                  <h3 className="rect-detail-ai-reason-label text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">🇲🇲 မြန်မာလို အကျဉ်းချုပ်</h3>
+                  <p className="rect-detail-ai-reason-text text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-sans">
                     {candidate.ai_reasoning && candidate.ai_reasoning.includes('မြန်မာလို အကျဉ်းချုပ်:') 
                       ? candidate.ai_reasoning.split('မြန်မာလို အကျဉ်းချုပ်:')[1].trim() 
                       : 'မြန်မာလို အကျဉ်းချုပ် မရရှိနိုင်သေးပါ။'}
@@ -783,7 +788,7 @@ function CandidateDetailModal({ candidate, onClose }) {
           {activeTab === 'form' && (
             <div className="space-y-4">
               {Object.keys(formData).length === 0 ? (
-                <div className="text-center py-10 text-slate-500">
+                <div className="text-center py-10 text-slate-500 rect-empty-text">
                   Form data not available for this candidate.
                 </div>
               ) : (
@@ -791,9 +796,9 @@ function CandidateDetailModal({ candidate, onClose }) {
                   {Object.entries(formData).map(([key, value]) => {
                     if (!value || key === 'Timestamp' || key === 'Email Address' || key === 'Full Name' || key === 'Phone / Telegram / WhatsApp Number' || key.includes('drive link')) return null;
                     return (
-                      <div key={key} className="p-4 rounded-lg bg-surface-800 border border-white/5">
-                        <h4 className="text-xs font-bold text-indigo-400 mb-1">{key}</h4>
-                        <p className="text-white text-sm whitespace-pre-wrap">{String(value)}</p>
+                      <div key={key} className="rect-form-data-box p-4 rounded-lg bg-surface-800 border border-white/5">
+                        <h4 className="rect-form-data-label text-xs font-bold text-indigo-400 mb-1">{key}</h4>
+                        <p className="rect-form-data-val text-white text-sm whitespace-pre-wrap">{String(value)}</p>
                       </div>
                     );
                   })}
@@ -805,14 +810,14 @@ function CandidateDetailModal({ candidate, onClose }) {
           {activeTab === 'resume' && (
             <div>
               {candidate.resume_content ? (
-                <div className="p-6 rounded-xl bg-white/5 border border-white/10 font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                <div className="rect-resume-box p-6 rounded-xl bg-white/5 border border-white/10 font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
                   {candidate.resume_content}
                 </div>
               ) : (
                 <div className="text-center py-10">
                   <div className="text-4xl mb-4 opacity-50">📄</div>
-                  <h3 className="text-lg font-bold text-white mb-2">No Resume Text Available</h3>
-                  <p className="text-slate-400 text-sm max-w-sm mx-auto">
+                  <h3 className="rect-resume-empty-title text-lg font-bold text-white mb-2">No Resume Text Available</h3>
+                  <p className="rect-empty-text text-slate-400 text-sm max-w-sm mx-auto">
                     The AI could not extract text from the provided link, or the file was private/restricted.
                   </p>
                 </div>
@@ -823,8 +828,8 @@ function CandidateDetailModal({ candidate, onClose }) {
         </div>
         
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 bg-surface-900 flex justify-end">
-          <button onClick={onClose} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors">
+        <div className="rect-detail-footer p-4 border-t border-white/10 bg-surface-900 flex justify-end">
+          <button onClick={onClose} className="rect-btn-save px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors">
             Close Details
           </button>
         </div>

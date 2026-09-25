@@ -5,12 +5,14 @@ import toast from 'react-hot-toast';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import HandoverTab from '../components/handover/HandoverTab';
+import { useLanguage } from '../context/LanguageContext';
 
 // ─── Helper: category icons ───────────────────────────────────────────────────
 const catIcon = { IT: '💻', Finance: '💰', Legal: '⚖️', 'Knowledge Transfer': '📚', Facilities: '🏢', HR: '📌' };
 
-// ─── Exit Interview Page ────────────────────────────────────────────────────────
+// ─── {t('hrm.offboarding.exitInterview')} Page ────────────────────────────────────────────────────────
 function ExitInterviewPage({ ob, onClose }) {
+  const { t, tDyn } = useLanguage();
   const qc = useQueryClient();
   const [form, setForm] = useState({
     interviewer_name: ob.interviewer_name || '',
@@ -39,30 +41,30 @@ function ExitInterviewPage({ ob, onClose }) {
   });
 
   const RatingRow = ({ title, desc, field }) => (
-    <div className="rounded-2xl p-6 mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <h3 className="text-base font-bold text-white mb-1">{title}</h3>
-      <p className="text-xs text-slate-400 mb-5">{desc}</p>
+    <div className="offb-rating-row rounded-2xl p-6 mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <h3 className="offb-title text-base font-bold text-white mb-1">{title}</h3>
+      <p className="offb-subtitle text-xs text-slate-400 mb-5">{desc}</p>
       <div className="flex items-center gap-3">
         {[1,2,3,4,5].map(n => {
-          const labels = ['Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+          const labels = [t('hrm.offboarding.ratings.poor'), t('hrm.offboarding.ratings.fair'), t('hrm.offboarding.ratings.good'), t('hrm.offboarding.ratings.great'), t('hrm.offboarding.ratings.excellent')];
           const selected = form[field] === n;
           return (
             <div key={n} className="flex flex-col items-center gap-2">
               <button
                 type="button"
                 onClick={() => setForm(f => ({ ...f, [field]: n }))}
-                className={`w-14 h-14 rounded-2xl font-black text-xl transition-all duration-300 ${
+                className={`offb-rating-btn w-14 h-14 rounded-2xl font-black text-xl transition-all duration-300 ${
                   selected
-                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white scale-110 shadow-lg shadow-indigo-500/30'
+                    ? 'offb-rating-selected bg-gradient-to-br from-indigo-500 to-purple-600 text-white scale-110 shadow-lg shadow-indigo-500/30'
                     : 'bg-white/5 text-indigo-300/50 border border-white/5 hover:bg-white/10 hover:text-white'
                 }`}
               >{n}</button>
-              <span className={`text-[10px] font-semibold tracking-wide uppercase ${selected ? 'text-indigo-400' : 'text-slate-500'}`}>{labels[n-1]}</span>
+              <span className={`offb-rating-label text-[10px] font-semibold tracking-wide uppercase ${selected ? 'text-indigo-400' : 'text-slate-500'}`}>{labels[n-1]}</span>
             </div>
           );
         })}
         <div className="ml-auto text-xs text-slate-500 flex gap-2">
-          <span>1 = Poor</span><span>·</span><span>5 = Excellent</span>
+          <span>{t('hrm.offboarding.ratings.oneIsPoor')}</span><span>·</span><span>{t('hrm.offboarding.ratings.fiveIsExcellent')}</span>
         </div>
       </div>
     </div>
@@ -71,48 +73,46 @@ function ExitInterviewPage({ ob, onClose }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       <div className="flex items-center gap-3">
-        <button onClick={onClose} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">
-          ← Back to Offboarding
-        </button>
+        <button onClick={onClose} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">← {t('hrm.offboarding.backToOffboarding')}</button>
       </div>
 
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-black text-white">Exit Interview</h2>
+        <h2 className="text-2xl font-black text-white">{t('hrm.offboarding.exitInterview')}</h2>
         <p className="text-sm text-slate-400 mt-1">{ob.employee_name} · Comprehensive feedback form</p>
       </div>
 
       {/* Interview Details */}
-      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h3 className="text-base font-bold text-white mb-5">Interview Details</h3>
+      <div className="offb-interview-card rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h3 className="offb-title text-base font-bold text-white mb-5">{t('hrm.offboarding.interviewDetails')}</h3>
         <div className="grid grid-cols-2 gap-5 mb-5">
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Interviewer</label>
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('hrm.offboarding.interviewer')}</label>
             <input
               value={form.interviewer_name}
               onChange={e => setForm(f => ({ ...f, interviewer_name: e.target.value }))}
-              placeholder="— Select HR Interviewer —"
-              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors"
+              placeholder={t('hrm.offboarding.selectHr')}
+              className="offb-input w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Interview Date</label>
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('hrm.offboarding.interviewDate')}</label>
             <input
               type="date"
               value={form.interview_date}
               onChange={e => setForm(f => ({ ...f, interview_date: e.target.value }))}
-              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-indigo-500 transition-colors"
+              className="offb-input w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Primary Reason for Leaving</label>
+          <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('hrm.offboarding.primaryReason')}</label>
           <textarea
             value={form.reason_for_leaving}
             onChange={e => setForm(f => ({ ...f, reason_for_leaving: e.target.value }))}
-            placeholder="What is the main reason for your departure?"
+            placeholder={t('hrm.offboarding.mainReasonPlaceholder')}
             rows={3}
-            className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+            className="offb-input w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
           />
         </div>
       </div>
@@ -126,12 +126,12 @@ function ExitInterviewPage({ ob, onClose }) {
 
       {/* Final Questions */}
       <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h3 className="text-base font-bold text-white mb-5">Final Questions</h3>
+        <h3 className="text-base font-bold text-white mb-5">{t('hrm.offboarding.finalQuestions')}</h3>
         <div className="space-y-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Would you consider returning to the company in the future?</p>
-              <p className="text-xs text-slate-500 mt-1">Indicates if the employee is a potential boomerang hire</p>
+              <p className="text-sm font-semibold text-white">{t('hrm.offboarding.considerReturning')}</p>
+              <p className="text-xs text-slate-500 mt-1">{t('hrm.offboarding.boomerangHint')}</p>
             </div>
             <div className="flex gap-4">
               {['Yes', 'No'].map(opt => (
@@ -146,8 +146,8 @@ function ExitInterviewPage({ ob, onClose }) {
           </div>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Would you recommend the company to others as a great place to work?</p>
-              <p className="text-xs text-slate-500 mt-1">Net Promoter Score indicator</p>
+              <p className="text-sm font-semibold text-white">{t('hrm.offboarding.recommend')}</p>
+              <p className="text-xs text-slate-500 mt-1">{t('hrm.offboarding.npsHint')}</p>
             </div>
             <div className="flex gap-4">
               {['Yes', 'No'].map(opt => (
@@ -164,37 +164,37 @@ function ExitInterviewPage({ ob, onClose }) {
       </div>
 
       {/* Open Feedback */}
-      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h3 className="text-base font-bold text-white mb-5">Open Feedback</h3>
+      <div className="offb-interview-card rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h3 className="offb-title text-base font-bold text-white mb-5">{t('hrm.offboarding.openFeedback')}</h3>
         <div className="space-y-5">
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">What did you enjoy most about working here? (Highlights)</label>
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('hrm.offboarding.highlightsTitle')}</label>
             <textarea
               value={form.highlights}
               onChange={e => setForm(f => ({ ...f, highlights: e.target.value }))}
-              placeholder="Positive experiences, achievements, team dynamics..."
+              placeholder={t('hrm.offboarding.highlightsPlaceholder')}
               rows={3}
-              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="offb-input w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">What could be improved? (Constructive feedback)</label>
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('hrm.offboarding.improvementsTitle')}</label>
             <textarea
               value={form.improvements}
               onChange={e => setForm(f => ({ ...f, improvements: e.target.value }))}
-              placeholder="Processes, culture, management, systems..."
+              placeholder={t('hrm.offboarding.improvementsPlaceholder')}
               rows={3}
-              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="offb-input w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Any additional comments?</label>
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">{t('hrm.offboarding.commentsTitle')}</label>
             <textarea
               value={form.additional_comments}
               onChange={e => setForm(f => ({ ...f, additional_comments: e.target.value }))}
-              placeholder="Anything else you'd like to share..."
+              placeholder={t('hrm.offboarding.commentsPlaceholder')}
               rows={3}
-              className="w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
+              className="offb-input w-full bg-surface-850 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 resize-none transition-colors"
             />
           </div>
         </div>
@@ -202,7 +202,7 @@ function ExitInterviewPage({ ob, onClose }) {
 
       {/* Footer Actions */}
       <div className="flex gap-4">
-        <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-semibold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">Cancel</button>
+        <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-semibold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors">{t('hrm.offboarding.cancel')}</button>
         <button
           onClick={() => mutation.mutate(form)}
           disabled={mutation.isPending}
@@ -218,6 +218,7 @@ function ExitInterviewPage({ ob, onClose }) {
 
 // ─── Detail View ──────────────────────────────────────────────────────────────
 function OffboardingDetail({ obId, onBack, onShowEI }) {
+  const { t, tDyn } = useLanguage();
   const qc = useQueryClient();
   const [detailTab, setDetailTab] = useState('tasks');
 
@@ -270,52 +271,50 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
   }, {});
 
   const clearanceItems = [
-    { field: 'laptop_returned', label: 'Laptop Returned', icon: '💻' },
-    { field: 'access_card_returned', label: 'Access Card', icon: '🪪' },
-    { field: 'nda_signed', label: 'NDA Signed', icon: '📝' },
-    { field: 'knowledge_transfer', label: 'Knowledge Transfer', icon: '🔄' },
+    { field: 'laptop_returned', label: t('hrm.offboarding.laptopReturned'), icon: '💻' },
+    { field: 'access_card_returned', label: t('hrm.offboarding.accessCard'), icon: '🪪' },
+    { field: 'nda_signed', label: t('hrm.offboarding.ndaSigned'), icon: '📝' },
+    { field: 'knowledge_transfer', label: tDyn('hrm.offboarding.owners', 'Knowledge Transfer'), icon: '🔄' },
   ];
 
   return (
     <div className="space-y-5">
       {/* Back nav */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">
-          ← All Offboarding
-        </button>
+        <button onClick={onBack} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">← {t('hrm.offboarding.allOffboarding')}</button>
         <span className="text-slate-600">|</span>
         <button
           onClick={() => onShowEI(ob)}
-          className="text-sm font-semibold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1.5 rounded-xl transition-colors"
+          className="text-sm font-semibold text-white bg-[#6e7d14] hover:bg-[#5a6610] px-3 py-1.5 rounded-xl transition-colors shadow-sm"
         >
-          📋 Conduct Exit Interview →
+          📋 {t('hrm.offboarding.conductExitInterview')} →
         </button>
       </div>
 
       {/* Header card */}
-      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="offb-detail-header rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0"
+            <div className="offb-avatar w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #f43f5e, #ec4899)' }}>
               {(ob.employee_name || '?').charAt(0)}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">{ob.employee_name}</h2>
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-slate-400">
+              <h2 className="offb-title text-xl font-bold text-white">{ob.employee_name}</h2>
+              <div className="offb-meta flex flex-wrap items-center gap-2 mt-1 text-sm text-slate-400">
                 <span className="font-mono text-indigo-400">{ob.employee_code}</span>
                 <span>·</span><span>{ob.termination_reason || ob.reason || '—'}</span>
-                {ob.exit_type && <><span>·</span><span>Exit: {ob.exit_type}</span></>}
-                {ob.resignation_date && <><span>·</span><span>Resignation: {ob.resignation_date}</span></>}
-                <span>·</span><span className="font-semibold text-white">Last Day: {ob.last_working_day || ob.last_working_date || '—'}</span>
+                {ob.exit_type && <><span>·</span><span>{t('hrm.offboarding.exit')}: {tDyn('hrm.offboarding.exitTypes', ob.exit_type)}</span></>}
+                {ob.resignation_date && <><span>·</span><span>{t('hrm.offboarding.resignation')}: {ob.resignation_date}</span></>}
+                <span>·</span><span className="font-semibold text-white">{t('hrm.offboarding.lastDay')}: {ob.last_working_day || ob.last_working_date || '—'}</span>
               </div>
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
             {isCleared ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2.5 text-center">
-                <p className="text-sm font-bold text-emerald-400">✓ Release Final Settlement</p>
-                <p className="text-xs text-emerald-300/60">All cleared · Updated</p>
+              <div className="offb-cleared-box bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2.5 text-center">
+                <p className="offb-cleared-text text-sm font-bold text-emerald-400">✓ {t('hrm.offboarding.releaseFinalSettlement')}</p>
+                <p className="text-xs text-emerald-300/60">{t('hrm.offboarding.allCleared')}</p>
               </div>
             ) : (
               <button
@@ -324,20 +323,20 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
                   if (handoverBlocking) return toast.error('Handover must be completed or waived before releasing settlement');
                   releaseMutation.mutate();
                 }}
-                className={`text-sm font-bold px-4 py-2.5 rounded-xl border transition-colors ${
+                className={`offb-btn-action text-sm font-bold px-4 py-2.5 rounded-xl border transition-colors ${
                   pct === 100 && !handoverBlocking
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                    : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    ? 'offb-btn-success bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                    : 'offb-btn-warning bg-rose-500/10 border-rose-500/30 text-rose-400'
                 }`}
               >
-                {pct === 100 && !handoverBlocking ? '✓ Release Final Settlement' : handoverBlocking ? '⚠ Handover Incomplete' : '⚠ Hold Final Payroll'}
+                {pct === 100 && !handoverBlocking ? '✓ ' + t('hrm.offboarding.releaseFinalSettlement') : handoverBlocking ? t('hrm.offboarding.handoverIncomplete') : t('hrm.offboarding.holdFinalPayroll')}
               </button>
             )}
             <div className="text-right">
-              <p className={`text-2xl font-black ${pct === 100 ? 'text-emerald-400' : 'text-rose-400'}`}>{pct}%</p>
-              <p className="text-xs text-slate-400">{done}/{total} tasks</p>
-              <div className="w-32 h-2 bg-white/5 rounded-full overflow-hidden mt-1">
-                <div className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }} />
+              <p className={`offb-progress-text text-2xl font-black ${pct === 100 ? 'text-emerald-400' : 'text-rose-400'}`}>{pct}%</p>
+              <p className="offb-progress-sub text-xs text-slate-400">{done}/{total} {t('hrm.offboarding.tasks')}</p>
+              <div className="offb-progress-bg w-32 h-2 bg-white/5 rounded-full overflow-hidden mt-1">
+                <div className={`offb-progress-fill h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }} />
               </div>
             </div>
           </div>
@@ -345,16 +344,16 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-800, #1e2235)' }}>
+      <div className="offb-tabs flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-800, #1e2235)' }}>
         {[
-          { id: 'tasks', label: 'Clearance & Tasks' },
+          { id: 'tasks', label: t('hrm.offboarding.clearanceTasks') },
           { id: 'handover', label: `Handover${handover ? ` (${handover.completion_pct || 0}%)` : ''}` },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setDetailTab(tab.id)}
-            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
-              detailTab === tab.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+            className={`offb-tab-btn flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+              detailTab === tab.id ? 'bg-indigo-600 text-white offb-tab-active' : 'text-slate-400 hover:text-white offb-tab-inactive'
             }`}
           >
             {tab.label}
@@ -367,16 +366,16 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       ) : (
       <>
       {/* Asset clearance */}
-      <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h3 className="text-sm font-bold text-white mb-4">Asset & Compliance Clearance</h3>
+      <div className="offb-clearance-panel rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h3 className="offb-title text-sm font-bold text-white mb-4">{t('hrm.offboarding.assetClearance')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {clearanceItems.map(({ field, label, icon }) => {
             const checked = !!ob[field];
             return (
               <label
                 key={field}
-                className={`relative rounded-xl border p-4 cursor-pointer transition-all duration-300 ${
-                  checked ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/10 bg-white/3'
+                className={`offb-clearance-item relative rounded-xl border p-4 cursor-pointer transition-all duration-300 ${
+                  checked ? 'offb-checked border-emerald-500/30 bg-emerald-500/5' : 'offb-unchecked border-white/10 bg-white/3'
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
@@ -389,12 +388,12 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
                       checked={checked}
                       onChange={e => toggleClearance.mutate({ field, value: e.target.checked })}
                     />
-                    <div className={`w-10 h-5 rounded-full transition-colors duration-300 ${checked ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                    <div className={`absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-300 ${checked ? 'left-5.5 translate-x-1' : 'left-0.5'}`} />
+                    <div className={`offb-switch-bg w-10 h-5 rounded-full transition-colors duration-300 ${checked ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                    <div className={`offb-switch-knob absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-300 ${checked ? 'left-5.5 translate-x-1' : 'left-0.5'}`} />
                   </div>
                 </div>
-                <p className={`text-sm font-bold ${checked ? 'text-emerald-400' : 'text-slate-300'}`}>{label}</p>
-                <p className={`text-xs mt-0.5 ${checked ? 'text-emerald-400/70' : 'text-slate-500'}`}>{checked ? '✓ Confirmed' : '⏳ Pending'}</p>
+                <p className={`offb-clearance-label text-sm font-bold ${checked ? 'text-emerald-400' : 'text-slate-300'}`}>{label}</p>
+                <p className={`text-xs mt-0.5 ${checked ? 'text-emerald-400/70' : 'text-slate-500'}`}>{checked ? t('hrm.offboarding.confirmed') : t('hrm.offboarding.pending')}</p>
               </label>
             );
           })}
@@ -405,24 +404,24 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
       {Object.entries(catGroups).map(([cat, catTasks]) => {
         const catDone = catTasks.filter(t => t.status === 'Completed').length;
         return (
-          <div key={cat} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div className="px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
+          <div key={cat} className="offb-cat-card rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="offb-cat-header px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span>{catIcon[cat] || '📌'}</span>
-                <h3 className="text-sm font-bold text-white">{cat}</h3>
+                <h3 className="offb-cat-title text-sm font-bold text-white">{tDyn("hrm.offboarding.owners", cat)}</h3>
               </div>
-              <span className="text-xs text-slate-400">{catDone}/{catTasks.length}</span>
+              <span className="offb-cat-meta text-xs text-slate-400">{catDone}/{catTasks.length}</span>
             </div>
-            <div className="divide-y divide-white/5">
+            <div className="offb-task-list divide-y divide-white/5">
               {catTasks.map(task => {
                 const isDone = task.status === 'Completed';
                 return (
-                  <div key={task.id} className={`px-5 py-3.5 flex items-center justify-between ${isDone ? 'bg-emerald-500/3' : ''}`}>
+                  <div key={task.id} className={`offb-task-row px-5 py-3.5 flex items-center justify-between ${isDone ? 'bg-emerald-500/3' : ''}`}>
                     <div className="flex items-center gap-3 flex-1">
                       <button
                         onClick={() => toggleTask.mutate(task.id)}
-                        className={`w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isDone ? 'bg-emerald-500/20 border-emerald-500/40' : 'border-white/20 hover:border-indigo-400'
+                        className={`offb-task-checkbox w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isDone ? 'bg-emerald-500/20 border-emerald-500/40 offb-checked' : 'border-white/20 hover:border-indigo-400 offb-unchecked'
                         }`}
                       >
                         {isDone && (
@@ -432,8 +431,8 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
                         )}
                       </button>
                       <div>
-                        <p className={`text-sm font-medium ${isDone ? 'text-emerald-400 line-through' : 'text-white'}`}>{task.task_name}</p>
-                        <p className="text-xs text-slate-500">Owner: {task.responsible || task.assigned_to_role || 'HR'}</p>
+                        <p className={`offb-task-title text-sm font-medium ${isDone ? 'text-emerald-400 line-through' : 'text-white'}`}>{tDyn("hrm.offboarding.tasksNames", task.task_name)}</p>
+                        <p className="offb-task-meta text-xs text-slate-500">{t('hrm.offboarding.owner')}: {tDyn("hrm.offboarding.owners", task.responsible || task.assigned_to_role || "HR")}</p>
                       </div>
                     </div>
                     <span className="text-xs text-slate-500 ml-4">{task.completed_at ? task.completed_at.slice(0, 10) : task.due_date || ''}</span>
@@ -447,7 +446,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
 
       {tasks.length === 0 && (
         <div className="py-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-2xl">
-          No tasks found. The offboarding task list will appear here.
+          {t('hrm.offboarding.noTasks')}
         </div>
       )}
       </>
@@ -458,6 +457,7 @@ function OffboardingDetail({ obId, onBack, onShowEI }) {
 
 // ─── Main List View ───────────────────────────────────────────────────────────
 export default function Offboarding() {
+  const { t, tDyn } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [activeObId, setActiveObId] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'detail' | 'exit'
@@ -490,7 +490,7 @@ export default function Offboarding() {
 
   if (viewMode === 'exit' && eiData) {
     return (
-      <Layout title="Offboarding" subtitle="Asset clearance, task tracking, and exit interviews">
+      <Layout title={t('hrm.offboarding.title')} subtitle={t('hrm.offboarding.subtitle')}>
         <ExitInterviewPage ob={eiData} onClose={() => setViewMode('detail')} />
       </Layout>
     );
@@ -498,7 +498,7 @@ export default function Offboarding() {
 
   if (viewMode === 'detail' && activeObId) {
     return (
-      <Layout title="Offboarding" subtitle="Asset clearance, task tracking, and exit interviews">
+      <Layout title={t('hrm.offboarding.title')} subtitle={t('hrm.offboarding.subtitle')}>
         <OffboardingDetail
           obId={activeObId}
           onBack={() => setViewMode('list')}
@@ -509,60 +509,60 @@ export default function Offboarding() {
   }
 
   return (
-    <Layout title="Offboarding & Exit Management" subtitle="Asset clearance, task tracking, and exit interviews">
+    <Layout title={t('hrm.offboarding.title')} subtitle={t('hrm.offboarding.subtitle')}>
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Total Cases', value: totalCases, color: 'text-white' },
-          { label: 'Hold Final Payroll', value: holdPayroll, color: 'text-rose-400' },
-          { label: 'Settlement Released', value: released, color: 'text-emerald-400' },
+          { label: t('hrm.offboarding.totalCases'), value: totalCases, color: 'text-white' },
+          { label: t('hrm.offboarding.holdFinalPayroll'), value: holdPayroll, color: 'text-rose-400' },
+          { label: t('hrm.offboarding.settlementReleased'), value: released, color: 'text-emerald-400' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-2xl p-6 text-center" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <p className={`text-4xl font-black ${color} mb-1`}>{value}</p>
-            <p className="text-xs text-slate-400">{label}</p>
+          <div key={label} className="offb-stat-card rounded-2xl p-6 text-center" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <p className={`offb-stat-val text-4xl font-black ${color} mb-1`}>{value}</p>
+            <p className="offb-stat-label text-xs text-slate-400">{label}</p>
           </div>
         ))}
       </div>
 
       {/* Initiate form */}
-      <div className="rounded-2xl p-6 mb-8" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h2 className="text-sm font-bold text-white mb-5">🚪 Initiate Offboarding Process</h2>
+      <div className="offb-form-card rounded-2xl p-6 mb-8" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h2 className="offb-title text-sm font-bold text-white mb-5">🚪 {t('hrm.offboarding.initiate')}</h2>
         <form onSubmit={handleSave} className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="md:col-span-1">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Employee *</label>
-            <select name="employee_id" required className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500">
-              <option value="">— Select Employee —</option>
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">{t('hrm.offboarding.employee')} *</label>
+            <select name="employee_id" required className="offb-input w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500">
+              <option value="">— {t('hrm.offboarding.selectEmployee')} —</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Termination Reason</label>
-            <select name="reason" className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500">
-              {['Resignation', 'Termination', 'Retirement', 'Contract End'].map(r => <option key={r} value={r}>{r}</option>)}
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">{t('hrm.offboarding.terminationReason')}</label>
+            <select name="reason" className="offb-input w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500">
+              {[{val:"Resignation", key:"resignation"}, {val:"Termination", key:"termination"}, {val:"Retirement", key:"retirement"}, {val:"Contract End", key:"contractEnd"}].map(r => <option key={r.val} value={r.val}>{t(`hrm.offboarding.reasons.${r.key}`)}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Exit Type</label>
-            <select name="exit_type" className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500">
-              {['Voluntary', 'Involuntary', 'Mutual Agreement', 'Retirement'].map(r => <option key={r} value={r}>{r}</option>)}
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">{t('hrm.offboarding.exitType')}</label>
+            <select name="exit_type" className="offb-input w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500">
+              {[{val:"Voluntary", key:"voluntary"}, {val:"Involuntary", key:"involuntary"}, {val:"Mutual Agreement", key:"mutual"}, {val:"Retirement", key:"retirement"}].map(r => <option key={r.val} value={r.val}>{t(`hrm.offboarding.exitTypes.${r.key}`)}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Resignation Date</label>
-            <input type="date" name="resignation_date" className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500" />
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">{t('hrm.offboarding.resignationDate')}</label>
+            <input type="date" name="resignation_date" className="offb-input w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Last Working Date</label>
-            <input type="date" name="last_working_day" className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500" />
+            <label className="offb-field-label text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">{t('hrm.offboarding.lastWorkingDate')}</label>
+            <input type="date" name="last_working_day" className="offb-input w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500" />
           </div>
           <div className="flex items-end">
             <button
               type="submit"
               disabled={addMutation.isPending}
-              className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50"
+              className="offb-btn-start w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #ef4444, #f43f5e)' }}
             >
-              {addMutation.isPending ? 'Starting...' : '🚪 Start Offboarding'}
+              {addMutation.isPending ? 'Starting...' : '🚪 ' + t('hrm.offboarding.startOffboarding')}
             </button>
           </div>
         </form>
@@ -574,7 +574,7 @@ export default function Offboarding() {
           <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
         ) : offboarding.length === 0 ? (
           <div className="py-12 text-center rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm" style={{ background: 'var(--bg-800, #1e2235)' }}>
-            No offboarding records yet.
+            {t('hrm.offboarding.noRecords')}
           </div>
         ) : offboarding.map(o => {
           const pct = o.completion_pct || 0;
@@ -590,21 +590,21 @@ export default function Offboarding() {
           ];
 
           return (
-            <div key={o.id} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div key={o.id} className="offb-emp-card rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
               {/* Card header */}
               <div className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-base font-black text-white"
+                  <div className="offb-avatar w-10 h-10 rounded-full flex items-center justify-center text-base font-black text-white"
                     style={{ background: 'linear-gradient(135deg, #f43f5e, #ec4899)' }}>
                     {(o.employee_name || '?').charAt(0)}
                   </div>
                   <div>
-                    <p className="text-white font-bold text-sm">{o.employee_name}</p>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                    <p className="offb-title text-white font-bold text-sm">{o.employee_name}</p>
+                    <div className="offb-meta flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                       <span className="font-mono text-indigo-400">{o.employee_code}</span>
                       {o.department && <><span>·</span><span>{o.department}</span></>}
-                      {o.reason && <><span>·</span><span>{o.reason}</span></>}
-                      {o.last_working_day && <><span>·</span><span>Last: {o.last_working_day}</span></>}
+                      {o.reason && <><span>·</span><span>{tDyn('hrm.offboarding.reasons', o.reason)}</span></>}
+                      {o.last_working_day && <><span>·</span><span>{t('hrm.offboarding.last')}: {o.last_working_day}</span></>}
                     </div>
                   </div>
                 </div>
@@ -612,25 +612,21 @@ export default function Offboarding() {
                   <span className={`text-sm font-bold ${pct === 100 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {pct}%
                   </span>
-                  {tasksTotal > 0 && <span className="text-xs text-slate-500">{tasksDone}/{tasksTotal} tasks</span>}
+                  {tasksTotal > 0 && <span className="offb-meta text-xs text-slate-500">{tasksDone}/{tasksTotal} {t('hrm.offboarding.tasks')}</span>}
                   {isCleared ? (
-                    <button className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+                    <button className="offb-badge offb-badge-success text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
                       ✓ Release Final Settlement
                     </button>
                   ) : (
-                    <span className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl">
-                      ⚠ Hold Payroll
-                    </span>
+                    <span className="offb-badge offb-badge-warning text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl">⚠ {t('hrm.offboarding.holdPayroll')}</span>
                   )}
                   <button
                     onClick={() => { setActiveObId(o.id); setViewMode('detail'); }}
-                    className="text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl hover:bg-indigo-500/20 transition-colors"
-                  >
-                    Details →
-                  </button>
+                    className="offb-btn-outline text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl hover:bg-indigo-500/20 transition-colors"
+                  >{t('hrm.offboarding.details')} →</button>
                   <button
                     onClick={() => { setEiData(o); setViewMode('exit'); }}
-                    className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl hover:bg-amber-500/20 transition-colors"
+                    className="offb-btn-outline text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl hover:bg-amber-500/20 transition-colors"
                   >
                     Exit Interview
                   </button>
@@ -639,8 +635,8 @@ export default function Offboarding() {
 
               {/* Progress bar */}
               <div className="px-5 pb-3">
-                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }} />
+                <div className="offb-progress-track w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div className={`offb-progress-fill h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
 
@@ -649,10 +645,10 @@ export default function Offboarding() {
                 {clearanceItems2.map(({ field, label, icon }) => {
                   const checked = !!o[field];
                   return (
-                    <div key={field} className={`rounded-xl p-3 border text-center transition-colors ${checked ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5 bg-white/3'}`}>
+                    <div key={field} className={`offb-clearance-mini rounded-xl p-3 border text-center transition-colors ${checked ? 'offb-checked border-emerald-500/30 bg-emerald-500/5' : 'offb-unchecked border-white/5 bg-white/3'}`}>
                       <span className="text-lg">{icon}</span>
                       <p className={`text-xs font-semibold mt-1 ${checked ? 'text-emerald-400' : 'text-slate-400'}`}>{label}</p>
-                      {checked && <p className="text-[10px] text-emerald-400/70 mt-0.5">✓ Confirmed</p>}
+                      {checked && <p className="text-[10px] text-emerald-400/70 mt-0.5">✓ {t('hrm.offboarding.confirmed')}</p>}
                     </div>
                   );
                 })}

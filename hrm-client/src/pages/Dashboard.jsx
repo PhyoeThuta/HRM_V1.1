@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Chart, registerables } from 'chart.js';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 
 Chart.register(...registerables);
 
@@ -101,6 +102,8 @@ const ICONS = {
 };
 
 export default function Dashboard() {
+  const { t } = useLanguage();
+  
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard').then(r => r.data),
@@ -118,7 +121,7 @@ export default function Dashboard() {
   };
 
   return (
-    <Layout title="Analytics Dashboard" subtitle={`${data?.today || ''} · Live data from Supabase`}>
+    <Layout title={t('hrm.dashboard.title')} subtitle={`${data?.today || ''} · ${t('hrm.dashboard.subtitle')}`}>
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="w-8 h-8 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
@@ -127,40 +130,40 @@ export default function Dashboard() {
         <div className="dashboard-page-container -m-4 md:-m-8 p-4 md:p-8 min-h-[calc(100vh-64px)]">
           {/* KPI Row 1 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-            <StatCard label="Total Staff" value={stats.total_staff} iconPath={ICONS.staff} color="#A3B81F" href="/employees" />
-            <StatCard label="Active Staff" value={stats.active_staff} iconPath={ICONS.active} color="#A3B81F" href="/employees?status=active" />
-            <StatCard label="Present Today" value={stats.today_present} iconPath={ICONS.present} color="#64748b" href="/attendance" />
-            <StatCard label="Total Leaves" value={stats.total_leaves} iconPath={ICONS.leave} color="#FF7700" href="/leave" />
+            <StatCard label={t('hrm.dashboard.totalStaff')} value={stats.total_staff} iconPath={ICONS.staff} color="#A3B81F" href="/employees" />
+            <StatCard label={t('hrm.dashboard.activeStaff')} value={stats.active_staff} iconPath={ICONS.active} color="#A3B81F" href="/employees?status=active" />
+            <StatCard label={t('hrm.dashboard.presentToday')} value={stats.today_present} iconPath={ICONS.present} color="#64748b" href="/attendance" />
+            <StatCard label={t('hrm.dashboard.totalLeaves')} value={stats.total_leaves} iconPath={ICONS.leave} color="#FF7700" href="/leave" />
           </div>
 
           {/* KPI Row 2 */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
-            <MiniCard label="Pending Clearances" value={stats.pending_clearances} iconColor="#FF7700" icon="!" href="/offboarding" />
-            <MiniCard label="Active Onboarding" value={stats.active_onboarding} iconColor="#FF7700" icon="+" href="/onboarding" />
-            <MiniCard label="Open Positions" value={stats.open_recruitment} iconColor="#64748b" icon="★" href="/recruitment" />
-            <MiniCard label="Total Payroll Paid" value={stats.total_payroll_paid} iconColor="#A3B81F" icon="$" href="/payroll" />
-            <MiniCard label="Turnover Rate" value={stats.turnover_rate} iconColor="#e11d48" icon="%" href="/employees?status=Inactive" />
+            <MiniCard label={t('hrm.dashboard.pendingClearances')} value={stats.pending_clearances} iconColor="#FF7700" icon="!" href="/offboarding" />
+            <MiniCard label={t('hrm.dashboard.activeOnboarding')} value={stats.active_onboarding} iconColor="#FF7700" icon="+" href="/onboarding" />
+            <MiniCard label={t('hrm.dashboard.openPositions')} value={stats.open_recruitment} iconColor="#64748b" icon="★" href="/recruitment" />
+            <MiniCard label={t('hrm.dashboard.totalPayrollPaid')} value={stats.total_payroll_paid} iconColor="#A3B81F" icon="$" href="/payroll" />
+            <MiniCard label={t('hrm.dashboard.turnoverRate')} value={stats.turnover_rate} iconColor="#e11d48" icon="%" href="/employees?status=Inactive" />
           </div>
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
-            <BarChartWidget id="attChart" label="Today's Attendance Overview" data={data?.att_chart} />
-            <BarChartWidget id="leaveChart" label="Leave Status Breakdown" data={data?.leave_chart} />
+            <BarChartWidget id="attChart" label={t('hrm.dashboard.attChartTitle')} data={data?.att_chart} />
+            <BarChartWidget id="leaveChart" label={t('hrm.dashboard.leaveChartTitle')} data={data?.leave_chart} />
           </div>
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
             <Link to="/employees" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-90" style={{ background: '#A3B81F', color: '#FFFFFF', border: '1px solid #829319', boxShadow: '0 2px 4px rgba(163,184,31,0.2)' }}>
-              + Add Employee
+              + {t('hrm.dashboard.addEmployee')}
             </Link>
             <Link to="/attendance" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-80" style={{ background: 'rgba(255,119,0,0.1)', color: '#FF7700', border: '1px solid rgba(255,119,0,0.2)' }}>
-              📋 Record Attendance
+              📋 {t('hrm.dashboard.recordAttendance')}
             </Link>
             <Link to="/leave" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-80 dashboard-text-secondary" style={{ background: 'transparent', border: '1px solid var(--bbd-overlay-border, rgba(100,116,139,0.3))' }}>
-              📅 Submit Leave
+              📅 {t('hrm.dashboard.submitLeave')}
             </Link>
             <Link to="/onboarding" className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 hover:opacity-80" style={{ background: 'transparent', color: '#A3B81F', border: '1px solid rgba(163,184,31,0.3)' }}>
-              🚀 Start Onboarding
+              🚀 {t('hrm.dashboard.startOnboarding')}
             </Link>
           </div>
 
@@ -169,14 +172,14 @@ export default function Dashboard() {
             {/* Recent Employees */}
             <div className="lg:col-span-2 dashboard-card rounded-2xl overflow-hidden">
               <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--bbd-overlay-border)' }}>
-                <h2 className="text-sm font-bold dashboard-text-primary">Employee Snapshot</h2>
-                <Link to="/employees" className="text-xs text-[#A3B81F] hover:text-[#829319] font-bold transition-colors">View All →</Link>
+                <h2 className="text-sm font-bold dashboard-text-primary">{t('hrm.dashboard.empSnapshot')}</h2>
+                <Link to="/employees" className="text-xs text-[#A3B81F] hover:text-[#829319] font-bold transition-colors">{t('hrm.dashboard.viewAll')} →</Link>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead style={{ background: 'var(--bg-850, #161929)' }}>
                     <tr>
-                      {['ID', 'Name', 'Status'].map(h => (
+                      {[t('hrm.dashboard.id'), t('hrm.dashboard.name'), t('hrm.dashboard.status')].map(h => (
                         <th key={h} className="text-left py-2.5 px-5 text-[10px] font-bold dashboard-text-secondary uppercase tracking-widest">{h}</th>
                       ))}
                     </tr>
@@ -196,17 +199,17 @@ export default function Dashboard() {
                         <td className="py-3 px-5">
                           {emp.status === 'Active' ? (
                             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#829319] px-2.5 py-1 rounded-full" style={{ background: 'rgba(163,184,31,0.1)' }}>
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#A3B81F]" />Active
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#A3B81F]" />{t('hrm.dashboard.active')}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 text-xs font-semibold dashboard-text-secondary px-2.5 py-1 rounded-full" style={{ background: 'var(--bg-900, rgba(255,255,255,0.05))' }}>
-                              <span className="w-1.5 h-1.5 rounded-full bg-current" />Inactive
+                              <span className="w-1.5 h-1.5 rounded-full bg-current" />{t('hrm.dashboard.inactive')}
                             </span>
                           )}
                         </td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="3" className="py-12 text-center dashboard-text-secondary text-sm">No employees found.</td></tr>
+                      <tr><td colSpan="3" className="py-12 text-center dashboard-text-secondary text-sm">{t('hrm.dashboard.noEmployees')}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -215,7 +218,7 @@ export default function Dashboard() {
 
             {/* Announcements */}
             <div className="dashboard-card rounded-2xl p-5">
-              <h2 className="text-sm font-bold dashboard-text-primary mb-4">Company Announcements</h2>
+              <h2 className="text-sm font-bold dashboard-text-primary mb-4">{t('hrm.dashboard.announcements')}</h2>
               {annList.filter(a => {
                 const today = new Date().toISOString().split('T')[0];
                 return !a.expiry_date || a.expiry_date >= today;
@@ -229,7 +232,7 @@ export default function Dashboard() {
                       {a.is_pinned && <span className="text-sm flex-shrink-0">📌</span>}
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${priorityClass[a.priority] || 'text-slate-400 bg-black/5'}`}>{a.priority || 'Normal'}</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${priorityClass[a.priority] || 'text-slate-400 bg-black/5'}`}>{a.priority || t('hrm.dashboard.normal')}</span>
                           <span className="text-[10px] text-slate-500">{(a.created_at || '').slice(0, 10)}</span>
                         </div>
                         <p className="text-xs font-semibold dashboard-text-primary">{a.title}</p>
@@ -245,8 +248,8 @@ export default function Dashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                   </div>
-                  <h3 className="text-sm font-bold dashboard-text-primary">No announcements yet</h3>
-                  <p className="text-xs dashboard-text-secondary mt-1">Check back later for company updates.</p>
+                  <h3 className="text-sm font-bold dashboard-text-primary">{t('hrm.dashboard.noAnnouncements')}</h3>
+                  <p className="text-xs dashboard-text-secondary mt-1">{t('hrm.dashboard.checkBack')}</p>
                 </div>
               )}
             </div>

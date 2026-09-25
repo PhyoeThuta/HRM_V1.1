@@ -5,8 +5,10 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
+import { useLanguage } from '../context/LanguageContext';
 
 function StatusBadge({ status }) {
+  const { t } = useLanguage();
   const cfg = {
     Active: 'emp-status-active text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
     'On Leave': 'emp-status-leave text-amber-400 bg-amber-400/10 border-amber-400/20',
@@ -14,15 +16,23 @@ function StatusBadge({ status }) {
     Inactive: 'emp-status-inactive text-slate-400 bg-slate-400/10',
   }[status] || 'emp-status-inactive text-slate-400 bg-slate-400/10';
   const isActive = status === 'Active';
+  
+  // Quick translation for status if needed, assuming status comes from DB and matches these strings.
+  let displayStatus = status || '—';
+  if (status === 'Active') displayStatus = t('hrm.employees.active') || status;
+  else if (status === 'Inactive') displayStatus = t('hrm.employees.inactive') || status;
+  else if (status === 'On Leave') displayStatus = t('hrm.employees.onLeave') || status;
+
   return (
     <span className={`emp-status-badge inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg}`}>
       {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-      {status || '—'}
+      {displayStatus}
     </span>
   );
 }
 
 function EmployeeModal({ open, onClose, departments, positions, managers, candidates, onSave }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({ employee_id: '', Full_name: '', email: '', phone: '', Dept_id: '', position_id: '', Manager_id: '', hire_date: '', date_of_birth: '', salary: '', national_id: '', address: '', employment_type: 'Full-Time', status: 'Active' });
   if (!open) return null;
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -38,57 +48,64 @@ function EmployeeModal({ open, onClose, departments, positions, managers, candid
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4 bg-surface-850 border border-white/10">
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h2 className="text-base font-bold text-white">Add New Employee</h2>
+          <h2 className="text-base font-bold text-white">{t('hrm.employees.addModalTitle')}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
         </div>
         <form onSubmit={handleSave} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="form-label">Employee ID *</label><input required className="form-input" value={form.employee_id} onChange={e => set('employee_id', e.target.value)} placeholder="e.g. EMP001" /></div>
-            <div><label className="form-label">Full Name *</label><input required className="form-input" value={form.Full_name} onChange={e => set('Full_name', e.target.value)} placeholder="Full Name" /></div>
-            <div><label className="form-label">Email</label><input type="email" className="form-input" value={form.email} onChange={e => set('email', e.target.value)} placeholder="employee@company.com" /></div>
-            <div><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9..." /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.empId')}</label><input required className="form-input" value={form.employee_id} onChange={e => set('employee_id', e.target.value)} placeholder={t('hrm.employees.placeholders.empId')} /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.fullName')}</label><input required className="form-input" value={form.Full_name} onChange={e => set('Full_name', e.target.value)} placeholder={t('hrm.employees.labels.fullName').replace(' *','')} /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.email')}</label><input type="email" className="form-input" value={form.email} onChange={e => set('email', e.target.value)} placeholder={t('hrm.employees.placeholders.email')} /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.phone')}</label><input className="form-input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder={t('hrm.employees.placeholders.phone')} /></div>
             <div>
-              <label className="form-label">Department</label>
+              <label className="form-label">{t('hrm.employees.labels.department')}</label>
               <select className="form-input" value={form.Dept_id} onChange={e => set('Dept_id', e.target.value)}>
-                <option value="">— Select Department —</option>
+                <option value="">{t('hrm.employees.selects.dept')}</option>
                 {departments?.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
               </select>
             </div>
             <div>
-              <label className="form-label">Position</label>
+              <label className="form-label">{t('hrm.employees.labels.position')}</label>
               <select className="form-input" value={form.position_id} onChange={e => set('position_id', e.target.value)}>
-                <option value="">— Select Position —</option>
+                <option value="">{t('hrm.employees.selects.pos')}</option>
                 {positions?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
             </div>
             <div>
-              <label className="form-label">Boss / Head</label>
+              <label className="form-label">{t('hrm.employees.labels.boss')}</label>
               <select className="form-input" value={form.Manager_id} onChange={e => set('Manager_id', e.target.value)}>
-                <option value="">— No Boss/Head —</option>
+                <option value="">{t('hrm.employees.selects.noBoss')}</option>
                 {managers?.map(m => <option key={m.id} value={m.id}>{m.Full_name} ({m.employee_id})</option>)}
               </select>
             </div>
-            <div><label className="form-label">Hire Date</label><input type="date" className="form-input" value={form.hire_date} onChange={e => set('hire_date', e.target.value)} /></div>
-            <div><label className="form-label">Date of Birth</label><input type="date" className="form-input" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} /></div>
-            <div><label className="form-label">Salary</label><input type="number" step="0.01" className="form-input" value={form.salary} onChange={e => set('salary', e.target.value)} placeholder="0.00" /></div>
-            <div><label className="form-label">National ID</label><input className="form-input" value={form.national_id} onChange={e => set('national_id', e.target.value)} placeholder="e.g. 12/A..." /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.hireDate')}</label><input type="date" className="form-input" value={form.hire_date} onChange={e => set('hire_date', e.target.value)} /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.dob')}</label><input type="date" className="form-input" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.salary')}</label><input type="number" step="0.01" className="form-input" value={form.salary} onChange={e => set('salary', e.target.value)} placeholder={t('hrm.employees.placeholders.salary')} /></div>
+            <div><label className="form-label">{t('hrm.employees.labels.nationalId')}</label><input className="form-input" value={form.national_id} onChange={e => set('national_id', e.target.value)} placeholder={t('hrm.employees.placeholders.nationalId')} /></div>
             <div>
-              <label className="form-label">Employment Type</label>
+              <label className="form-label">{t('hrm.employees.labels.employmentType')}</label>
               <select className="form-input" value={form.employment_type} onChange={e => set('employment_type', e.target.value)}>
-                {['Full-Time', 'Part-Time', 'Contract', 'Internship'].map(t => <option key={t}>{t}</option>)}
+                {['Full-Time', 'Part-Time', 'Contract', 'Internship'].map(tType => {
+                   let trans = tType;
+                   if(tType==='Full-Time') trans = t('hrm.employees.empTypes.fullTime') || tType;
+                   if(tType==='Part-Time') trans = t('hrm.employees.empTypes.partTime') || tType;
+                   if(tType==='Contract') trans = t('hrm.employees.empTypes.contract') || tType;
+                   if(tType==='Internship') trans = t('hrm.employees.empTypes.internship') || tType;
+                   return <option key={tType} value={tType}>{trans}</option>;
+                })}
               </select>
             </div>
-            <div className="col-span-2"><label className="form-label">Address</label><input className="form-input" value={form.address} onChange={e => set('address', e.target.value)} placeholder="Full Address" /></div>
+            <div className="col-span-2"><label className="form-label">{t('hrm.employees.labels.address')}</label><input className="form-input" value={form.address} onChange={e => set('address', e.target.value)} placeholder={t('hrm.employees.placeholders.address')} /></div>
             <div>
-              <label className="form-label">Status</label>
+              <label className="form-label">{t('hrm.employees.labels.status')}</label>
               <select className="form-input" value={form.status} onChange={e => set('status', e.target.value)}>
-                {['Active', 'On Leave', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+                {['Active', 'On Leave', 'Inactive'].map(s => <option key={s} value={s}>{s === 'Active' ? (t('hrm.employees.active')||s) : (s === 'Inactive' ? (t('hrm.employees.inactive')||s) : s)}</option>)}
               </select>
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white px-4 py-2.5 rounded-xl transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancel</button>
-            <button type="submit" className="text-sm font-bold text-black px-5 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-500 transition-colors">Save Employee</button>
+            <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-white px-4 py-2.5 rounded-xl transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>{t('hrm.employees.cancel')}</button>
+            <button type="submit" className="text-sm font-bold text-black px-5 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-500 transition-colors">{t('hrm.employees.saveEmployee')}</button>
           </div>
         </form>
       </div>
@@ -97,6 +114,7 @@ function EmployeeModal({ open, onClose, departments, positions, managers, candid
 }
 
 export default function Employees() {
+  const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [flash, setFlash] = useState(null);
@@ -129,7 +147,7 @@ export default function Employees() {
     mutationFn: (body) => api.post('/employees', body),
     onSuccess: (res) => {
       qc.invalidateQueries(['employees']);
-      setFlash({ type: 'success', msg: res.data.message || 'Employee added successfully' });
+      setFlash({ type: 'success', msg: res.data.message || t('hrm.employees.toast.added') || 'Employee added successfully' });
       setTimeout(() => setFlash(null), 4000);
     },
     onError: (e) => setFlash({ type: 'error', msg: e.response?.data?.error || 'Failed to add employee' }),
@@ -137,17 +155,17 @@ export default function Employees() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/employees/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['employees']); qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee soft-deleted' }); setTimeout(() => setFlash(null), 3000); setDeleteTarget(null); },
+    onSuccess: () => { qc.invalidateQueries(['employees']); qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: t('hrm.employees.toast.softDeleted') || 'Employee soft-deleted' }); setTimeout(() => setFlash(null), 3000); setDeleteTarget(null); },
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id) => api.put(`/employees/${id}/restore`),
-    onSuccess: () => { qc.invalidateQueries(['employees']); qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee restored' }); setTimeout(() => setFlash(null), 3000); },
+    onSuccess: () => { qc.invalidateQueries(['employees']); qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: t('hrm.employees.toast.restored') || 'Employee restored' }); setTimeout(() => setFlash(null), 3000); },
   });
 
   const hardDeleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/employees/${id}/hard`),
-    onSuccess: () => { qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: 'Employee permanently deleted' }); setTimeout(() => setFlash(null), 3000); setHardDeleteTarget(null); },
+    onSuccess: () => { qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: t('hrm.employees.toast.hardDeleted') || 'Employee permanently deleted' }); setTimeout(() => setFlash(null), 3000); setHardDeleteTarget(null); },
     onError: (err) => { setFlash({ type: 'error', msg: err.response?.data?.error || 'Failed to hard delete employee' }); setTimeout(() => setFlash(null), 5000); setHardDeleteTarget(null); }
   });
 
@@ -185,7 +203,7 @@ export default function Employees() {
   });
 
   return (
-    <Layout title="Employee Management" subtitle="Add, edit, and manage your entire workforce">
+    <Layout title={t('hrm.employees.title')} subtitle={t('hrm.employees.subtitle')}>
       {/* Flash */}
       {flash && (
         <div className={`mb-6 flex items-center gap-3 rounded-2xl px-5 py-3 animate-slide-in ${flash.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-rose-500/10 border border-rose-500/30'}`}>
@@ -200,13 +218,13 @@ export default function Employees() {
             onClick={() => setTab('active')} 
             className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'active' ? 'text-brand-green border-b-2 border-brand-green' : 'text-slate-400 hover:text-white'}`}
           >
-            Active Directory
+            {t('hrm.employees.activeDirectory')}
           </button>
           <button 
             onClick={() => setTab('recycle')} 
             className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'recycle' ? 'text-rose-400 border-b-2 border-rose-400' : 'text-slate-400 hover:text-white'}`}
           >
-            Recycle Bin
+            {t('hrm.employees.recycleBin')}
           </button>
         </div>
         
@@ -214,14 +232,14 @@ export default function Employees() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowBulkModal(true)}
-              className="emp-btn-secondary flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
+              className="emp-btn-secondary px-4 py-2.5 w-full sm:w-auto"
             >
-              Bulk Import Salaries & IDs
+              {t('hrm.employees.bulkImport')}
             </button>
             <button onClick={() => setShowModal(true)}
-              className="emp-btn-primary flex items-center gap-2 text-black text-xs font-bold px-4 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-500 transition-colors">
+              className="emp-btn-primary px-4 py-2.5 gap-2 w-full sm:w-auto">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              Add Employee
+              {t('hrm.employees.addEmployee')}
             </button>
           </div>
         )}
@@ -232,17 +250,17 @@ export default function Employees() {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <input 
             type="text" 
-            placeholder="Search by name or ID..."
+            placeholder={t('hrm.employees.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="emp-search-input flex-1 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+            className="emp-search-input flex-1 outline-none w-full"
           />
           <select 
             value={deptFilter} 
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="emp-filter-select w-full sm:w-48 bg-surface-800 text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+            className="emp-filter-select outline-none w-full sm:w-48"
           >
-            <option value="">All Departments</option>
+            <option value="">{t('hrm.employees.allDepartments')}</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.Department_name}</option>)}
           </select>
         </div>
@@ -256,10 +274,10 @@ export default function Employees() {
             <table className="w-full text-sm">
               <thead className="bg-surface-850">
                 <tr>
-                  {['Employee ID', 'Full Name', 'Department', 'Position', 'Status', 'Email', 'Hire Date'].map(h => (
+                  {[t('hrm.employees.cols.empId'), t('hrm.employees.cols.fullName'), t('hrm.employees.cols.department'), t('hrm.employees.cols.position'), t('hrm.employees.cols.status'), t('hrm.employees.cols.email'), t('hrm.employees.cols.hireDate')].map(h => (
                     <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
-                  <th className="text-right py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
+                  <th className="text-right py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.employees.cols.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,46 +287,43 @@ export default function Employees() {
                       const emps = groupedEmployees[dept];
                       return (
                       <React.Fragment key={dept}>
-                        <tr 
-                          className="emp-dept-header cursor-pointer bg-surface-850 hover:bg-white/5 transition-colors border-t border-white/5"
-                          onClick={() => toggleDept(dept)}
-                        >
+                        <tr className="emp-dept-header cursor-pointer transition-colors" onClick={() => toggleDept(dept)}>
                           <td colSpan="8" className="py-3 px-5">
-                            <div className="flex items-center gap-2 text-indigo-300 font-semibold text-sm">
+                            <div className="flex items-center gap-2 text-sm font-semibold">
                               <span className="text-xs transition-transform duration-200" style={{ transform: collapsedDepts[dept] ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
-                              {dept} <span className="emp-dept-count bg-white/10 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">{emps.length}</span>
+                              {dept} <span className="emp-dept-count px-2 py-0.5 rounded-full ml-2 text-[10px]">{emps.length}</span>
                             </div>
                           </td>
                         </tr>
                         {!collapsedDepts[dept] && emps.map(emp => (
-                          <tr key={emp.id} className="emp-row border-t border-white/5 hover:bg-white/2 transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
-                            <td className="py-3.5 px-5"><span className="emp-id-badge font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                          <tr key={emp.id} className="emp-row transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                            <td className="py-3.5 px-5"><span className="emp-id-badge">{emp.employee_id || '—'}</span></td>
                             <td className="py-3.5 px-5">
                               <div className="flex items-center gap-2.5">
-                                <div className="emp-avatar w-8 h-8 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
-                                <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
+                                <div className="emp-avatar">{(emp.Full_name || '?')[0]}</div>
+                                <span className="font-medium">{emp.Full_name || '—'}</span>
                               </div>
                             </td>
                             <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
                             <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
                             <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
-                            <td className="emp-email py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
-                            <td className="emp-hire-date py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                            <td className="emp-email py-3.5 px-5">{emp.email || '—'}</td>
+                            <td className="emp-hire-date py-3.5 px-5">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
                             <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
-                              <div className="emp-action-group flex items-center gap-2">
-                                <Link to={`/employees/${emp.id}`} className="emp-action-view flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10 transition-colors">
+                              <div className="emp-action-group">
+                                <Link to={`/employees/${emp.id}`} className="emp-action-view">
                                   <span className="text-sm">📄</span>
-                                  <span className="emp-action-text">View</span>
+                                  <span className="emp-action-text">{t('hrm.employees.view')}</span>
                                 </Link>
-                                <Link to={`/employees/${emp.id}/edit`} className="emp-action-edit flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-[10px] font-bold text-brand-green bg-brand-green/10 hover:bg-brand-green/20 transition-colors">
+                                <Link to={`/employees/${emp.id}/edit`} className="emp-action-edit">
                                   <span className="text-sm">🖊️</span>
-                                  <span className="emp-action-text">Edit</span>
+                                  <span className="emp-action-text">{t('hrm.employees.edit')}</span>
                                 </Link>
                                 {isAdmin() && (
                                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(emp); }}
-                                    className="emp-action-delete flex items-center justify-center w-10 h-10 ml-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 transition-colors text-rose-400" title="Soft Delete">
+                                    className="emp-action-delete" title="Soft Delete">
                                     <span className="text-sm">🗑️</span>
-                                    <span className="emp-action-text hidden">Delete</span>
+                                    <span className="emp-action-text hidden">{t('hrm.employees.delete')}</span>
                                   </button>
                                 )}
                               </div>
@@ -321,41 +336,41 @@ export default function Employees() {
                   ) : (
                     <tr><td colSpan="8" className="py-16 text-center">
                       <div className="text-4xl mb-3">👤</div>
-                      <p className="text-slate-400 text-sm">No employees found.</p>
-                      <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-brand-green hover:underline font-semibold">Add your first employee</button>
+                      <p className="text-slate-400 text-sm">{t('hrm.employees.noEmployeesFound')}</p>
+                      <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-brand-green hover:underline font-semibold">{t('hrm.employees.addFirstEmployee')}</button>
                     </td></tr>
                   )
                 ) : (
                   /* Recycle Bin Rendering */
                   (recycleData?.employees || []).length > 0 ? recycleData.employees.map(emp => (
-                    <tr key={emp.id} className="emp-row border-t border-white/5 hover:bg-white/2 transition-colors group">
-                      <td className="py-3.5 px-5"><span className="emp-id-badge font-mono text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">{emp.employee_id || '—'}</span></td>
+                    <tr key={emp.id} className="emp-row transition-colors group">
+                      <td className="py-3.5 px-5"><span className="emp-id-badge">{emp.employee_id || '—'}</span></td>
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2.5">
-                          <div className="emp-avatar w-8 h-8 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(emp.Full_name || '?')[0]}</div>
-                          <span className="font-medium text-white group-hover:text-indigo-400 transition-colors">{emp.Full_name || '—'}</span>
+                          <div className="emp-avatar">{(emp.Full_name || '?')[0]}</div>
+                          <span className="font-medium">{emp.Full_name || '—'}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
                       <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
                       <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
-                      <td className="emp-email py-3.5 px-5 text-slate-400 text-xs">{emp.email || '—'}</td>
-                      <td className="emp-hire-date py-3.5 px-5 text-slate-400 text-xs">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
+                      <td className="emp-email py-3.5 px-5">{emp.email || '—'}</td>
+                      <td className="emp-hire-date py-3.5 px-5">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
                       <td className="py-3.5 px-5">
-                        <div className="emp-action-group flex items-center gap-2">
-                          <button onClick={() => restoreMutation.mutate(emp.id)} className="emp-action-edit flex items-center justify-center h-8 px-3 rounded-lg text-xs font-bold text-brand-green bg-brand-green/10 hover:bg-brand-green/20 transition-colors">
-                            <span className="emp-action-text">Restore</span>
+                        <div className="emp-action-group">
+                          <button onClick={() => restoreMutation.mutate(emp.id)} className="emp-action-edit">
+                            <span className="emp-action-text">{t('hrm.employees.restore')}</span>
                           </button>
                           {isAdmin() && (
-                            <button onClick={() => setHardDeleteTarget(emp)} className="emp-action-delete flex items-center justify-center h-8 px-3 rounded-lg text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors">
-                              <span className="emp-action-text">Hard Delete</span>
+                            <button onClick={() => setHardDeleteTarget(emp)} className="emp-action-delete">
+                              <span className="emp-action-text">{t('hrm.employees.hardDelete')}</span>
                             </button>
                           )}
                         </div>
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="8" className="py-16 text-center text-slate-400 text-sm">Recycle bin is empty.</td></tr>
+                    <tr><td colSpan="8" className="py-16 text-center text-slate-400 text-sm">{t('hrm.employees.recycleEmpty')}</td></tr>
                   )
                 )}
               </tbody>
@@ -367,7 +382,7 @@ export default function Employees() {
         {tab === 'active' && data?.total > 0 && !isLoading && (
           <div className="emp-pagination px-6 py-4 border-t border-white/5 flex items-center justify-between">
             <span className="text-xs text-slate-400">
-              Showing <span className="font-bold text-white">{(page - 1) * 20 + 1}</span> to <span className="font-bold text-white">{Math.min(page * 20, data.total)}</span> of <span className="font-bold text-white">{data.total}</span> employees
+              {t('hrm.employees.showing')} <span className="font-bold text-white">{(page - 1) * 20 + 1}</span> {t('hrm.employees.to')} <span className="font-bold text-white">{Math.min(page * 20, data.total)}</span> {t('hrm.employees.of')} <span className="font-bold text-white">{data.total}</span> {t('hrm.employees.employeesCount')}
             </span>
             <div className="flex items-center gap-2">
               <button 
@@ -375,14 +390,14 @@ export default function Employees() {
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors"
               >
-                Previous
+                {t('hrm.employees.prev')}
               </button>
               <button 
                 disabled={page * 20 >= data.total}
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors"
               >
-                Next
+                {t('hrm.employees.next')}
               </button>
             </div>
           </div>
@@ -423,6 +438,7 @@ export default function Employees() {
 }
 
 function BulkImportModal({ open, onClose, onRefresh }) {
+  const { t } = useLanguage();
   const [file, setFile] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -457,14 +473,14 @@ function BulkImportModal({ open, onClose, onRefresh }) {
       <div className="relative rounded-2xl w-full max-w-lg p-6 emp-modal-surface bg-surface-850 border border-white/10">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-bold text-white">Bulk Update Employee Numbers & Salaries</h2>
-            <p className="text-xs text-slate-400">Upload Excel (.xlsx/.xls) or CSV file to batch write employee numbers & base salaries</p>
+            <h2 className="text-base font-bold text-white">{t('hrm.employees.bulkTitle')}</h2>
+            <p className="text-xs text-slate-400">{t('hrm.employees.bulkDesc')}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
         </div>
 
         <div className="emp-info-box p-3 rounded-xl mb-4 text-xs">
-          <p className="emp-info-title font-bold mb-1">Supported Excel Headers:</p>
+          <p className="emp-info-title font-bold mb-1">{t('hrm.employees.supportedHeaders')}</p>
           <code className="emp-code-block px-2 py-1 rounded block font-mono">
             Employee ID | Full Name | Salary | Email | Phone
           </code>
@@ -472,7 +488,7 @@ function BulkImportModal({ open, onClose, onRefresh }) {
 
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
-            <label className="form-label text-xs">Select Excel / CSV File</label>
+            <label className="form-label text-xs">{t('hrm.employees.selectFile')}</label>
             <input
               type="file"
               accept=".xlsx, .xls, .csv"
@@ -483,11 +499,11 @@ function BulkImportModal({ open, onClose, onRefresh }) {
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="emp-btn-secondary px-5 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-white/5 rounded-xl transition-colors">
-              Cancel
+            <button type="button" onClick={onClose} className="emp-btn-secondary px-5 py-2.5">
+              {t('hrm.employees.cancel')}
             </button>
-            <button type="submit" disabled={loading} className="emp-btn-primary px-6 py-2.5 text-xs font-bold text-white bg-brand-green hover:bg-emerald-500 rounded-xl transition-colors disabled:opacity-50">
-              {loading ? 'Uploading...' : 'Upload & Update System'}
+            <button type="submit" disabled={loading} className="emp-btn-primary px-6 py-2.5 disabled:opacity-50">
+              {loading ? t('hrm.employees.uploading') : t('hrm.employees.uploadBtn')}
             </button>
           </div>
         </form>

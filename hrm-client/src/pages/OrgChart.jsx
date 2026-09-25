@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 
 // ─── Level color config ───────────────────────────────────────────────────────
@@ -34,17 +35,17 @@ function DarkSelect({ value, onChange, options, placeholder = 'Select...', class
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm text-left transition-all"
+        className="oc-select-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm text-left transition-all"
         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: value ? '#e2e8f0' : '#64748b' }}
       >
-        <span className="truncate">{selectedLabel}</span>
-        <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: '#64748b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <span className="oc-select-label truncate">{selectedLabel}</span>
+        <svg className={`oc-select-icon w-4 h-4 flex-shrink-0 ml-2 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: '#64748b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       {open && (
         <div
-          className="absolute z-50 mt-1 w-full rounded-xl overflow-hidden shadow-2xl"
+          className="oc-select-menu absolute z-50 mt-1 w-full rounded-xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--bg-900)', border: '1px solid var(--bbd-overlay-border)', maxHeight: 280, overflowY: 'auto' }}
         >
           {options.map(opt => (
@@ -52,7 +53,7 @@ function DarkSelect({ value, onChange, options, placeholder = 'Select...', class
               key={opt.value}
               type="button"
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className="w-full text-left px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+              className="oc-select-opt w-full text-left px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
               style={{ color: opt.value === value ? '#a5b4fc' : '#cbd5e1', background: opt.value === value ? 'rgba(99,102,241,0.1)' : 'transparent' }}
             >
               {opt.label}
@@ -80,6 +81,7 @@ function Avatar({ node, size = 48 }) {
 
 // ─── OrgNode Card ─────────────────────────────────────────────────────────────
 function OrgNode({ node, depth, onSelectNode }) {
+  const { t, tDyn } = useLanguage();
   const [collapsed, setCollapsed] = useState(depth >= 2);
   const hasChildren = node.children?.length > 0;
   const style = getLvl(node.level);
@@ -90,13 +92,13 @@ function OrgNode({ node, depth, onSelectNode }) {
       <div className="relative flex flex-col items-center group cursor-pointer select-none" style={{ minWidth: isRoot ? 200 : 168 }}>
         {/* Connector above (except root) */}
         {depth > 0 && (
-          <div style={{ width: 2, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+          <div className="oc-line-v" style={{ width: 2, height: 20, background: 'rgba(255,255,255,0.08)' }} />
         )}
 
         {/* Card */}
         <div
           onClick={() => onSelectNode(node)}
-          className="hover:border-white/25 transition-all"
+          className="oc-node-card hover:border-white/25 transition-all"
           style={{
             background: isRoot
               ? `linear-gradient(135deg, ${style.ring}22, var(--bg-800))`
@@ -112,14 +114,14 @@ function OrgNode({ node, depth, onSelectNode }) {
         >
           <Avatar node={node} size={isRoot ? 56 : 44} />
           <div className="text-center">
-            <p className={`font-bold text-white leading-tight ${isRoot ? 'text-sm' : 'text-xs'}`}>{node.name}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{node.employee_code}</p>
-            <p className={`text-[10px] mt-1 font-semibold ${isRoot ? 'text-xs' : ''}`} style={{ color: style.ring }}>{node.position}</p>
-            <p className="text-[9px] text-slate-500 mt-0.5">{node.department}</p>
+            <p className={`oc-node-name font-bold text-white leading-tight ${isRoot ? 'text-sm' : 'text-xs'}`}>{node.name}</p>
+            <p className="oc-node-code text-[10px] text-slate-400 mt-0.5 font-mono">{node.employee_code}</p>
+            <p className={`oc-node-pos text-[10px] mt-1 font-semibold ${isRoot ? 'text-xs' : ''}`} style={{ color: style.ring }}>{node.position}</p>
+            <p className="oc-node-dept text-[9px] text-slate-500 mt-0.5">{tDyn("hrm.departments", node.department) || node.department}</p>
           </div>
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${getLvl(node.level).badge}`}>{node.level}</span>
+          <span className={`oc-node-badge text-[9px] font-bold px-2 py-0.5 rounded-full border ${getLvl(node.level).badge}`}>{node.level}</span>
           {hasChildren && (
-            <span className="text-[9px] text-slate-500">{node.children.length} direct report{node.children.length !== 1 ? 's' : ''}</span>
+            <span className="oc-node-meta text-[9px] text-slate-500">{node.children.length} {t('hrm.orgChart.directReports')}</span>
           )}
         </div>
 
@@ -128,6 +130,7 @@ function OrgNode({ node, depth, onSelectNode }) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setCollapsed(c => !c); }}
+            className="oc-node-toggle"
             style={{
               marginTop: 4, width: 22, height: 22, borderRadius: '50%',
               background: collapsed ? style.ring : 'rgba(255,255,255,0.06)',
@@ -137,7 +140,7 @@ function OrgNode({ node, depth, onSelectNode }) {
             }}
             title={collapsed ? 'Expand' : 'Collapse'}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <svg className="oc-node-toggle-icon" width="10" height="10" viewBox="0 0 10 10" fill="none">
               <path d={collapsed ? 'M2 4l3 3 3-3' : 'M2 6l3-3 3 3'} stroke={collapsed ? '#fff' : style.ring} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
@@ -147,10 +150,10 @@ function OrgNode({ node, depth, onSelectNode }) {
       {/* Children */}
       {hasChildren && !collapsed && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: 2, height: 16, background: 'rgba(255,255,255,0.08)' }} />
+          <div className="oc-line-v" style={{ width: 2, height: 16, background: 'rgba(255,255,255,0.08)' }} />
           {node.children.length > 1 && (
             <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ height: 2, background: 'rgba(255,255,255,0.08)', position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: `calc(100% - 100px)` }} />
+              <div className="oc-line-h" style={{ height: 2, background: 'rgba(255,255,255,0.08)', position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: `calc(100% - 100px)` }} />
             </div>
           )}
           <div style={{ display: 'flex', gap: node.children.length > 1 ? 16 : 0, alignItems: 'flex-start', paddingTop: node.children.length > 1 ? 2 : 0 }}>
@@ -166,34 +169,35 @@ function OrgNode({ node, depth, onSelectNode }) {
 
 // ─── Employee Detail Drawer ────────────────────────────────────────────────────
 function EmployeeDrawer({ node, allEmployees, onClose, onReassign, reassigning, isAdmin }) {
+  const { t, tDyn } = useLanguage();
   const [newManagerId, setNewManagerId] = useState(node?.manager_id || '');
   const style = getLvl(node?.level || 'Mid');
   if (!node) return null;
 
   const managerOptions = [
-    { value: '', label: '— No Manager (Root Level) —' },
+    { value: '', label: t('hrm.orgChart.noManagerRoot') },
     ...allEmployees
       .filter(e => e.id !== node.id)
       .map(e => ({ value: e.id, label: `${e.name} (${e.position})` })),
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="oc-drawer-overlay fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="w-full max-w-sm flex flex-col h-full overflow-y-auto"
+        className="oc-drawer-content w-full max-w-sm flex flex-col h-full overflow-y-auto"
         style={{ background: 'var(--bg-900)', borderLeft: '1px solid var(--bbd-overlay-border)' }}
       >
         {/* Header */}
-        <div className="px-6 py-5 flex items-start justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="oc-drawer-header px-6 py-5 flex items-start justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-3">
             <Avatar node={node} size={48} />
             <div>
-              <p className="font-bold text-white text-sm">{node.name}</p>
-              <p className="text-xs font-mono text-slate-400">{node.employee_code}</p>
+              <p className="oc-drawer-name font-bold text-white text-sm">{node.name}</p>
+              <p className="oc-drawer-code text-xs font-mono text-slate-400">{node.employee_code}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors mt-0.5">
+          <button onClick={onClose} className="oc-drawer-close text-slate-500 hover:text-white transition-colors mt-0.5">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -203,24 +207,24 @@ function EmployeeDrawer({ node, allEmployees, onClose, onReassign, reassigning, 
         {/* Info rows */}
         <div className="px-6 py-4 space-y-1">
           {[
-            ['Position',       node.position],
-            ['Department',     node.department],
-            ['Level',          node.level],
-            ['Email',          node.email || '—'],
-            ['Hire Date',      node.hire_date ? new Date(node.hire_date).toLocaleDateString() : '—'],
-            ['Direct Reports', node.children?.length ?? 0],
+            [t('hrm.orgChart.position'),       node.position],
+            [t('hrm.orgChart.drawerDepartment'),     tDyn("hrm.departments", node.department) || node.department],
+            [t('hrm.orgChart.level'),          node.level],
+            [t('hrm.orgChart.email'),          node.email || '—'],
+            [t('hrm.orgChart.hireDate'),      node.hire_date ? new Date(node.hire_date).toLocaleDateString() : '—'],
+            [t('hrm.orgChart.directReportsDrawer'), node.children?.length ?? 0],
           ].map(([label, val]) => (
-            <div key={label} className="flex justify-between items-center py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <span className="text-xs text-slate-500">{label}</span>
-              <span className="text-xs font-semibold text-slate-200">{val}</span>
+            <div key={label} className="oc-drawer-row flex justify-between items-center py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <span className="oc-drawer-label text-xs text-slate-500">{label}</span>
+              <span className="oc-drawer-val text-xs font-semibold text-slate-200">{val}</span>
             </div>
           ))}
         </div>
 
         {/* Level badge */}
         <div className="px-6 pb-4">
-          <span className={`inline-flex text-xs font-bold px-3 py-1.5 rounded-xl border ${getLvl(node.level).badge}`}>
-            {node.level} Level
+          <span className={`oc-drawer-badge inline-flex text-xs font-bold px-3 py-1.5 rounded-xl border ${getLvl(node.level).badge}`}>
+            {node.level} {t('hrm.orgChart.levelBadge')}
           </span>
         </div>
 
@@ -229,24 +233,24 @@ function EmployeeDrawer({ node, allEmployees, onClose, onReassign, reassigning, 
 
         {/* Manager Reassignment — Admin only */}
         {isAdmin && (
-          <div className="px-6 py-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider">Reassign Direct Manager</p>
+          <div className="oc-drawer-reassign px-6 py-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="oc-reassign-title text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider">{t('hrm.orgChart.reassignTitle')}</p>
             <DarkSelect
               value={newManagerId}
               onChange={setNewManagerId}
               options={managerOptions}
-              placeholder="— No Manager (Root Level) —"
+              placeholder={t('hrm.orgChart.noManagerRoot')}
               className="mb-3"
             />
             <button
               onClick={() => onReassign(node.id, newManagerId || null)}
               disabled={reassigning}
-              className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
+              className="oc-reassign-btn w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
               style={{ background: `linear-gradient(135deg, ${style.ring}cc, ${style.ring}88)` }}
             >
-              {reassigning ? 'Saving...' : 'Confirm Reassignment'}
+              {reassigning ? t('hrm.orgChart.saving') : t('hrm.orgChart.confirmReassignment')}
             </button>
-            <p className="text-[10px] text-slate-600 mt-2 text-center">Changes are saved immediately to database</p>
+            <p className="oc-reassign-hint text-[10px] text-slate-600 mt-2 text-center">{t('hrm.orgChart.changesSaved')}</p>
           </div>
         )}
 
@@ -255,10 +259,10 @@ function EmployeeDrawer({ node, allEmployees, onClose, onReassign, reassigning, 
           <Link
             to={`/employees/${node.id}`}
             onClick={onClose}
-            className="block w-full py-2.5 rounded-xl text-sm font-semibold text-center transition-all"
+            className="oc-profile-link block w-full py-2.5 rounded-xl text-sm font-semibold text-center transition-all"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }}
           >
-            View Full Profile →
+            {t('hrm.orgChart.viewFullProfile')}
           </Link>
         </div>
       </div>
@@ -281,6 +285,7 @@ function filterByDept(node, dept) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function OrgChart() {
+  const { t, tDyn } = useLanguage();
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
   const [selectedNode, setSelectedNode] = useState(null);
@@ -321,12 +326,12 @@ export default function OrgChart() {
     : tree;
 
   const deptOptions = [
-    { value: '', label: 'All Departments' },
-    ...departments.map(d => ({ value: d.Department_name, label: d.Department_name })),
+    { value: '', label: t('hrm.orgChart.allDepartments') },
+    ...departments.map(d => ({ value: d.Department_name, label: tDyn("hrm.departments", d.Department_name) || d.Department_name })),
   ];
 
   return (
-    <Layout title="Organization Chart" subtitle="Visual hierarchy — live data from Employees & Manager assignments">
+    <Layout title={t('hrm.orgChart.title')} subtitle={t('hrm.orgChart.subtitle')}>
 
       {/* ── Controls ── */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -337,27 +342,27 @@ export default function OrgChart() {
           </svg>
           <input
             type="text"
-            placeholder="Search employee, code, or position..."
+            placeholder={t('hrm.orgChart.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-xl"
+            className="oc-search-input w-full pl-9 pr-4 py-2 text-sm rounded-xl"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', outline: 'none' }}
           />
           {searchResults.length > 0 && (
             <div
-              className="absolute top-full mt-1 left-0 right-0 z-30 rounded-xl overflow-hidden shadow-2xl"
+              className="oc-search-results absolute top-full mt-1 left-0 right-0 z-30 rounded-xl overflow-hidden shadow-2xl"
               style={{ background: 'var(--bg-900)', border: '1px solid var(--bbd-overlay-border)', maxHeight: 320, overflowY: 'auto' }}
             >
               {searchResults.slice(0, 8).map(emp => (
                 <button
                   key={emp.id}
                   onClick={() => { setSelectedNode(emp); setSearch(''); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                  className="oc-search-result-item w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
                 >
                   <Avatar node={emp} size={32} />
                   <div>
-                    <p className="text-sm font-semibold text-white">{emp.name}</p>
-                    <p className="text-xs text-slate-400">{emp.position} · {emp.department}</p>
+                    <p className="oc-search-result-name text-sm font-semibold text-white">{emp.name}</p>
+                    <p className="oc-search-result-pos text-xs text-slate-400">{emp.position} · {emp.department}</p>
                   </div>
                 </button>
               ))}
@@ -370,19 +375,19 @@ export default function OrgChart() {
           value={deptFilter}
           onChange={setDeptFilter}
           options={deptOptions}
-          placeholder="All Departments"
+          placeholder={t('hrm.orgChart.allDepartments')}
           className="w-52"
         />
 
         {/* Stats */}
         <div className="flex items-center gap-5 ml-auto">
           {[
-            { label: 'Employees', value: data?.total || 0, color: '#FF7700' },
-            { label: 'Departments', value: departments.length, color: '#A3B81F' },
+            { label: t('hrm.orgChart.employees'), value: data?.total || 0, color: '#FF7700' },
+            { label: t('hrm.orgChart.departments'), value: departments.length, color: '#A3B81F' },
           ].map(s => (
             <div key={s.label} className="text-center">
-              <p className="text-xl font-black" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">{s.label}</p>
+              <p className="oc-stat-val text-xl font-black" style={{ color: s.color }}>{s.value}</p>
+              <p className="oc-stat-label text-[10px] text-slate-500 uppercase tracking-wider">{s.label}</p>
             </div>
           ))}
         </div>
@@ -391,16 +396,17 @@ export default function OrgChart() {
       {/* ── Level legend ── */}
       <div className="flex flex-wrap gap-2 mb-5">
         {Object.entries(LEVEL_STYLE).map(([lvl, s]) => (
-          <span key={lvl} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${s.badge}`}>{lvl}</span>
+          <span key={lvl} className={`oc-legend-badge text-[10px] font-bold px-2.5 py-1 rounded-lg border ${s.badge}`}>{lvl}</span>
         ))}
-        <span className="text-[10px] text-slate-600 ml-2 self-center">
-          Click card to view details{isAdmin() ? ' & reassign manager' : ''}
+        <span className="oc-legend-hint text-[10px] text-slate-600 ml-2 self-center">
+          {t('hrm.orgChart.clickCard')}
+          {isAdmin() ? ' ' + t('hrm.orgChart.reassignManager') : ''}
         </span>
       </div>
 
       {/* ── Chart area ── */}
       <div
-        className="rounded-2xl overflow-auto pb-12"
+        className="oc-chart-wrapper rounded-2xl overflow-auto pb-12"
         style={{
           minHeight: 400,
           background: 'var(--bg-950)',
@@ -412,16 +418,16 @@ export default function OrgChart() {
             <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : isError ? (
-          <div className="text-center py-20 text-rose-400 font-semibold">Failed to load organization chart.</div>
+          <div className="oc-error text-center py-20 text-rose-400 font-semibold">{t('hrm.orgChart.loadFailed')}</div>
         ) : filteredTree.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">No employees found.</div>
+          <div className="oc-empty text-center py-20 text-slate-500">{t('hrm.orgChart.noEmployees')}</div>
         ) : (
           <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', minWidth: '100%', padding: '32px 24px 48px' }}>
             {filteredTree.map((root, i) => (
               <div key={root.id} style={{ marginBottom: i < filteredTree.length - 1 ? 56 : 0 }}>
                 {filteredTree.length > 1 && (
-                  <p className="text-center text-[10px] text-slate-600 mb-3 font-semibold uppercase tracking-widest">
-                    {i === 0 ? 'Executive Root' : `Root ${i + 1}`}
+                  <p className="oc-root-label text-center text-[10px] text-slate-600 mb-3 font-semibold uppercase tracking-widest">
+                    {i === 0 ? t('hrm.orgChart.executiveRoot') : `Root ${i + 1}`}
                   </p>
                 )}
                 <OrgNode node={root} depth={0} onSelectNode={setSelectedNode} />

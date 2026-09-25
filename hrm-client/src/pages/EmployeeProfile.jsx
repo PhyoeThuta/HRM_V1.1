@@ -5,6 +5,7 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 import HandoverPanel from '../components/handover/HandoverPanel';
+import { useLanguage } from '../context/LanguageContext';
 
 const STATUS_COLORS = {
   completed: 'text-emerald-400 bg-emerald-500/10',
@@ -15,6 +16,7 @@ const STATUS_COLORS = {
 };
 
 function HandoverHistorySection({ employeeId }) {
+  const { t } = useLanguage();
   const [detailId, setDetailId] = useState(null);
   const { data, isLoading } = useQuery({
     queryKey: ['employee-handovers', employeeId],
@@ -27,7 +29,7 @@ function HandoverHistorySection({ employeeId }) {
     enabled: !!detailId,
   });
 
-  if (isLoading) return <p className="text-slate-500 text-sm">Loading handover history...</p>;
+  if (isLoading) return <p className="text-slate-500 text-sm">{t('hrm.employeeProfile.loadingHandover')}</p>;
 
   const outgoing = data?.outgoing || [];
   const incoming = data?.incoming || [];
@@ -35,17 +37,17 @@ function HandoverHistorySection({ employeeId }) {
   const all = [...outgoing.map(h => ({ ...h, role: 'outgoing' })), ...incoming.map(h => ({ ...h, role: 'incoming' }))];
 
   if (!all.length) {
-    return <p className="text-slate-500 text-sm">No handover records for this employee.</p>;
+    return <p className="text-slate-500 text-sm">{t('hrm.employeeProfile.noHandover')}</p>;
   }
 
   return (
     <>
       <div className="flex flex-wrap gap-3 mb-4 text-xs text-slate-500">
-        <span>Outgoing active: {counts.outgoing_active ?? 0}</span>
+        <span>{t('hrm.employeeProfile.outgoingActive')}: {counts.outgoing_active ?? 0}</span>
         <span>·</span>
-        <span>Outgoing completed: {counts.outgoing_completed ?? 0}</span>
+        <span>{t('hrm.employeeProfile.outgoingCompleted')}: {counts.outgoing_completed ?? 0}</span>
         <span>·</span>
-        <span>Incoming active: {counts.incoming_active ?? 0}</span>
+        <span>{t('hrm.employeeProfile.incomingActive')}: {counts.incoming_active ?? 0}</span>
       </div>
       <div className="space-y-2 max-h-64 overflow-y-auto">
         {all.slice(0, 12).map(h => (
@@ -58,7 +60,7 @@ function HandoverHistorySection({ employeeId }) {
               <div>
                 <p className="text-sm font-medium text-white">{h.handover_label || h.handover_kind}</p>
                 <p className="text-[10px] text-slate-500 mt-0.5 capitalize">
-                  {h.role === 'outgoing' ? `To ${h.successor_name || '—'}` : `From ${h.outgoing_name || '—'}`}
+                  {h.role === 'outgoing' ? `${t('hrm.employeeProfile.to')} ${h.successor_name || '—'}` : `${t('hrm.employeeProfile.from')} ${h.outgoing_name || '—'}`}
                   {' · '}{h.trigger_type?.replace(/_/g, ' ')}
                 </p>
               </div>
@@ -70,7 +72,7 @@ function HandoverHistorySection({ employeeId }) {
         ))}
       </div>
       {all.length > 12 && (
-        <Link to="/handovers" className="text-xs text-brand-green hover:underline mt-3 inline-block font-semibold">View all in Handovers →</Link>
+        <Link to="/handovers" className="text-xs text-brand-green hover:underline mt-3 inline-block font-semibold">{t('hrm.employeeProfile.viewAllHandovers')}</Link>
       )}
 
       {detailId && (
@@ -78,7 +80,7 @@ function HandoverHistorySection({ employeeId }) {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailId(null)} />
           <div className="relative rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="flex items-center justify-between mb-4 sticky top-0 bg-surface-850 pb-2 z-10">
-              <h2 className="text-base font-bold text-white">Handover detail</h2>
+              <h2 className="text-base font-bold text-white">{t('hrm.employeeProfile.handoverDetail')}</h2>
               <button onClick={() => setDetailId(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             {detailLoading || !detail?.handover ? (
@@ -98,7 +100,14 @@ function HandoverHistorySection({ employeeId }) {
   );
 }
 
+const mapLeaveType = (name, t) => {
+  if (!name) return name;
+  const key = name.toLowerCase().replace(' leave', '').replace(' ', '');
+  return t(`hrm.leave.leaveType.${key}`) || name;
+};
+
 export default function EmployeeProfile() {
+  const { t } = useLanguage();
   const { id } = useParams();
   const qc = useQueryClient();
   const fileInputRef = useRef(null);
@@ -120,11 +129,11 @@ export default function EmployeeProfile() {
     onSuccess: () => {
       qc.invalidateQueries(['employee', id]);
       qc.invalidateQueries(['portal']); // In case the user is looking at their own profile
-      toast.success('Profile picture updated successfully!');
+      toast.success(t('hrm.employeeProfile.toast.avatarSuccess'));
       setIsUploading(false);
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.error || 'Failed to upload image');
+      toast.error(err?.response?.data?.error || t('hrm.employeeProfile.toast.uploadError'));
       setIsUploading(false);
     }
   });
@@ -133,22 +142,22 @@ export default function EmployeeProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
+      toast.error(t('hrm.employeeProfile.toast.fileSize'));
       return;
     }
     setIsUploading(true);
     uploadMutation.mutate(file);
   };
 
-  if (isLoading) return <Layout title="Employee Profile"><div className="p-8 text-slate-400">Loading profile...</div></Layout>;
-  if (!data?.emp) return <Layout title="Not Found"><div className="p-8 text-rose-400">Employee not found.</div></Layout>;
+  if (isLoading) return <Layout title="Employee Profile"><div className="p-8 text-slate-400">{t('hrm.employeeProfile.loadingProfile')}</div></Layout>;
+  if (!data?.emp) return <Layout title="Not Found"><div className="p-8 text-rose-400">{t('hrm.employeeProfile.notFound')}</div></Layout>;
 
   const { emp, attendance_records, leave_balances, kpi_records, vote_stats, total_paid, career_timeline } = data;
 
   const refetch = () => qc.invalidateQueries(['employee', id]);
 
   return (
-    <Layout title={`Profile: ${emp.Full_name}`} subtitle={`Employee ID: ${emp.employee_id}`}>
+    <Layout title={`${t('hrm.employeeProfile.profile')} ${emp.Full_name}`} subtitle={`${t('hrm.employeeProfile.empId')} ${emp.employee_id}`}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Col: Info */}
@@ -190,55 +199,55 @@ export default function EmployeeProfile() {
                 <h2 className="text-xl font-bold text-white">{emp.Full_name}</h2>
                 <p className="text-brand-orange font-mono text-sm font-semibold">{emp.employee_id}</p>
                 <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${emp.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                  {emp.status}
+                  {emp.status === 'Active' ? (t('hrm.employees.active') || 'Active') : (t('hrm.employees.inactive') || 'Inactive')}
                 </span>
               </div>
             </div>
             
             <div className="space-y-3 text-sm">
               <div className="flex justify-between border-b border-white/5 pb-2">
-                <span className="text-slate-500">Department</span>
+                <span className="text-slate-500">{t('hrm.employeeProfile.info.department')}</span>
                 <span className="text-white font-medium">{emp.dept_name}</span>
               </div>
               <div className="flex justify-between border-b border-white/5 pb-2">
-                <span className="text-slate-500">Position</span>
+                <span className="text-slate-500">{t('hrm.employeeProfile.info.position')}</span>
                 <span className="text-white font-medium">{emp.pos_title}</span>
               </div>
               <div className="flex justify-between border-b border-white/5 pb-2">
-                <span className="text-slate-500">Manager</span>
-                <span className="text-white font-medium">{emp.manager_name || 'None'}</span>
+                <span className="text-slate-500">{t('hrm.employeeProfile.info.manager')}</span>
+                <span className="text-white font-medium">{emp.manager_name || t('hrm.employeeProfile.info.none')}</span>
               </div>
               <div className="flex justify-between border-b border-white/5 pb-2">
-                <span className="text-slate-500">Hire Date</span>
-                <span className="text-white font-medium">{emp.hire_date?.slice(0, 10) || 'N/A'}</span>
+                <span className="text-slate-500">{t('hrm.employeeProfile.info.hireDate')}</span>
+                <span className="text-white font-medium">{emp.hire_date?.slice(0, 10) || t('hrm.employeeProfile.info.na')}</span>
               </div>
               <div className="flex justify-between border-b border-white/5 pb-2">
-                <span className="text-slate-500">Email</span>
-                <span className="text-white font-medium">{emp.email || 'N/A'}</span>
+                <span className="text-slate-500">{t('hrm.employeeProfile.info.email')}</span>
+                <span className="text-white font-medium">{emp.email || t('hrm.employeeProfile.info.na')}</span>
               </div>
               <div className="flex justify-between pb-2">
-                <span className="text-slate-500">Phone</span>
-                <span className="text-white font-medium">{emp.phone || 'N/A'}</span>
+                <span className="text-slate-500">{t('hrm.employeeProfile.info.phone')}</span>
+                <span className="text-white font-medium">{emp.phone || t('hrm.employeeProfile.info.na')}</span>
               </div>
             </div>
 
             <div className="mt-6 flex gap-3">
               <Link to={`/employees/${id}/edit`} className="flex-1 text-center bg-brand-green hover:bg-emerald-500 text-black font-bold py-2 rounded-xl transition-colors">
-                Edit Profile
+                {t('hrm.employeeProfile.editProfile')}
               </Link>
             </div>
           </div>
 
           <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
-            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Quick Stats</h3>
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">{t('hrm.employeeProfile.quickStats')}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/5 text-center">
                 <div className="text-2xl font-bold text-brand-orange">{vote_stats?.avg || 0}</div>
-                <div className="text-xs text-slate-500">Peer Rating</div>
+                <div className="text-xs text-slate-500">{t('hrm.employeeProfile.peerRating')}</div>
               </div>
               <div className="p-4 rounded-xl bg-white/5 text-center">
                 <div className="text-2xl font-bold text-emerald-400">{(total_paid || 0).toLocaleString()} THB</div>
-                <div className="text-xs text-slate-500">Total Paid</div>
+                <div className="text-xs text-slate-500">{t('hrm.employeeProfile.totalPaid')}</div>
               </div>
             </div>
           </div>
@@ -252,16 +261,16 @@ export default function EmployeeProfile() {
 
           {/* Attendance Overview */}
           <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
-            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Recent Attendance</h3>
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">{t('hrm.employeeProfile.attendance.title')}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500 border-b border-white/5">
-                    <th className="pb-3 font-medium">Date</th>
-                    <th className="pb-3 font-medium">Check In</th>
-                    <th className="pb-3 font-medium">Check Out</th>
-                    <th className="pb-3 font-medium">Method</th>
-                    <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium">{t('hrm.employeeProfile.attendance.date')}</th>
+                    <th className="pb-3 font-medium">{t('hrm.employeeProfile.attendance.checkIn')}</th>
+                    <th className="pb-3 font-medium">{t('hrm.employeeProfile.attendance.checkOut')}</th>
+                    <th className="pb-3 font-medium">{t('hrm.employeeProfile.attendance.method')}</th>
+                    <th className="pb-3 font-medium">{t('hrm.employeeProfile.attendance.status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -270,14 +279,14 @@ export default function EmployeeProfile() {
                       <td className="py-3 text-white">{r.check_in?.slice(0, 10)}</td>
                       <td className="py-3 text-emerald-400 font-mono">{r.check_in?.slice(11, 16)}</td>
                       <td className="py-3 text-rose-400 font-mono">{r.check_out?.slice(11, 16) || '—'}</td>
-                      <td className="py-3 text-slate-400">{r.attendance_method}</td>
+                      <td className="py-3 text-slate-400">{r.attendance_method ? (t(`hrm.attendance.methods.${r.attendance_method.toLowerCase()}`) || r.attendance_method) : '—'}</td>
                       <td className="py-3">
-                        {r.is_late ? <span className="text-amber-400 bg-amber-400/10 px-2 py-1 rounded text-xs">Late</span> : <span className="text-emerald-400 text-xs">On Time</span>}
+                        {r.is_late ? <span className="text-amber-400 bg-amber-400/10 px-2 py-1 rounded text-xs">{t('hrm.employeeProfile.attendance.late')}</span> : <span className="text-emerald-400 text-xs">{t('hrm.employeeProfile.attendance.onTime')}</span>}
                       </td>
                     </tr>
                   ))}
                   {attendance_records?.length === 0 && (
-                    <tr><td colSpan="5" className="py-4 text-slate-500 text-center">No recent records</td></tr>
+                    <tr><td colSpan="5" className="py-4 text-slate-500 text-center">{t('hrm.employeeProfile.attendance.noRecords')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -286,41 +295,41 @@ export default function EmployeeProfile() {
 
           {/* Leave Balances */}
           <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
-            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Leave Balances</h3>
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">{t('hrm.employeeProfile.leaves.title')}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {leave_balances?.map(lb => (
                 <div key={lb.id} className="p-4 rounded-xl border border-white/5 bg-surface-850">
-                  <div className="text-xs text-slate-500 mb-1 line-clamp-1">{lb.type_name}</div>
-                  <div className="text-xl font-bold text-white">{lb.remaining_days} <span className="text-xs font-normal text-slate-500">days</span></div>
-                  <div className="text-[10px] text-slate-600 mt-1">Used: {lb.used_days}</div>
+                  <div className="text-xs text-slate-500 mb-1 line-clamp-1">{mapLeaveType(lb.type_name, t)}</div>
+                  <div className="text-xl font-bold text-white">{lb.remaining_days} <span className="text-xs font-normal text-slate-500">{t('hrm.employeeProfile.leaves.days')}</span></div>
+                  <div className="text-[10px] text-slate-600 mt-1">{t('hrm.employeeProfile.leaves.used')} {lb.used_days}</div>
                 </div>
               ))}
-              {leave_balances?.length === 0 && <p className="text-slate-500 text-sm col-span-full">No leave balances set.</p>}
+              {leave_balances?.length === 0 && <p className="text-slate-500 text-sm col-span-full">{t('hrm.employeeProfile.leaves.noBalances')}</p>}
             </div>
           </div>
 
           {/* Handover history */}
           <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
-            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Handover History</h3>
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">{t('hrm.employeeProfile.handoverDetail').replace(' detail',' History')}</h3>
             <HandoverHistorySection employeeId={id} />
           </div>
 
           {/* KPIs */}
           <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
-            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Assigned KPIs</h3>
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">{t('hrm.employeeProfile.kpi.title')}</h3>
             <div className="space-y-3">
               {kpi_records?.map(k => (
                 <div key={k.id} className="p-4 rounded-xl border border-white/5 bg-surface-850 flex justify-between items-center">
                   <div>
                     <h4 className="font-bold text-white text-sm">{k.title}</h4>
-                    <p className="text-xs text-slate-500 mt-1">Due: {k.due_date || 'N/A'}</p>
+                    <p className="text-xs text-slate-500 mt-1">{t('hrm.employeeProfile.kpi.due')} {k.due_date || 'N/A'}</p>
                   </div>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${k.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
                     {k.status}
                   </span>
                 </div>
               ))}
-              {kpi_records?.length === 0 && <p className="text-slate-500 text-sm">No KPIs assigned.</p>}
+              {kpi_records?.length === 0 && <p className="text-slate-500 text-sm">{t('hrm.employeeProfile.kpi.noKpis')}</p>}
             </div>
           </div>
 
@@ -331,6 +340,7 @@ export default function EmployeeProfile() {
 }
 
 function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
+  const { t } = useLanguage();
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({
     event_type: 'PROMOTION',
@@ -346,7 +356,7 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
   const addMutation = useMutation({
     mutationFn: (body) => api.post(`/employees/${employeeId}/timeline`, body),
     onSuccess: () => {
-      toast.success('Career milestone added successfully!');
+      toast.success(t('hrm.employeeProfile.toast.milestoneSuccess'));
       setShowAddModal(false);
       setFormData({
         event_type: 'PROMOTION',
@@ -361,37 +371,37 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
       if (refetch) refetch();
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.error || 'Failed to add milestone');
+      toast.error(err?.response?.data?.error || t('hrm.employeeProfile.toast.milestoneError'));
     }
   });
 
   const EVENT_TYPE_STYLES = {
-    HIRED: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Hired / Onboarded' },
-    PROMOTION: { bg: 'bg-brand-orange/10', text: 'text-brand-orange', border: 'border-brand-orange/30', label: 'Promotion' },
-    SALARY_RAISE: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Salary Raise' },
-    DEPARTMENT_TRANSFER: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Department Transfer' },
-    COMMENDATION: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', label: 'Commendation / Award' },
-    WARNING: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30', label: 'Disciplinary Warning' },
-    OTHER: { bg: 'bg-slate-500/10', text: 'text-slate-300', border: 'border-slate-500/30', label: 'Milestone' },
+    HIRED: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: t('hrm.employeeProfile.eventTypes.hired') },
+    PROMOTION: { bg: 'bg-brand-orange/10', text: 'text-brand-orange', border: 'border-brand-orange/30', label: t('hrm.employeeProfile.eventTypes.promotion') },
+    SALARY_RAISE: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: t('hrm.employeeProfile.eventTypes.salaryRaise') },
+    DEPARTMENT_TRANSFER: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', label: t('hrm.employeeProfile.eventTypes.deptTransfer') },
+    COMMENDATION: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30', label: t('hrm.employeeProfile.eventTypes.commendation') },
+    WARNING: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30', label: t('hrm.employeeProfile.eventTypes.warning') },
+    OTHER: { bg: 'bg-slate-500/10', text: 'text-slate-300', border: 'border-slate-500/30', label: t('hrm.employeeProfile.eventTypes.other') },
   };
 
   return (
     <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-sm font-bold text-white uppercase tracking-widest">Career Timeline (ရာထူး/လစာ ပြောင်းလဲမှု မှတ်တမ်း)</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Historical record of promotions, salary revisions, and official milestones</p>
+          <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('hrm.employeeProfile.careerTimeline')}</h3>
+          <p className="text-xs text-slate-400 mt-0.5">{t('hrm.employeeProfile.timelineDesc')}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="px-3 py-1.5 text-xs font-bold rounded-xl bg-brand-orange hover:bg-orange-500 text-white transition-colors"
         >
-          + Add Milestone
+          + {t('hrm.employeeProfile.addMilestone')}
         </button>
       </div>
 
       {!timeline.length ? (
-        <p className="text-slate-500 text-sm py-4 text-center">No career timeline milestones recorded yet.</p>
+        <p className="text-slate-500 text-sm py-4 text-center">{t('hrm.employeeProfile.noTimeline')}</p>
       ) : (
         <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-white/10">
           {timeline.map((evt) => {
@@ -411,13 +421,13 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
 
                   {(evt.previous_position || evt.new_position) && (
                     <div className="mt-2 text-xs font-mono text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg inline-block">
-                      Position: <span className="text-slate-400">{evt.previous_position || '—'}</span> ➔ <span className="text-brand-orange font-semibold">{evt.new_position || '—'}</span>
+                      {t('hrm.employeeProfile.milestonePos')} <span className="text-slate-400">{evt.previous_position || '—'}</span> ➔ <span className="text-brand-orange font-semibold">{evt.new_position || '—'}</span>
                     </div>
                   )}
 
                   {(evt.previous_salary !== null || evt.new_salary !== null) && (
                     <div className="mt-2 text-xs font-mono text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg inline-block ml-2">
-                      Salary: <span className="text-slate-400">${Number(evt.previous_salary || 0).toLocaleString()}</span> ➔ <span className="text-emerald-400 font-semibold">${Number(evt.new_salary || 0).toLocaleString()}</span>
+                      {t('hrm.employeeProfile.milestoneSal')} <span className="text-slate-400">${Number(evt.previous_salary || 0).toLocaleString()}</span> ➔ <span className="text-emerald-400 font-semibold">${Number(evt.new_salary || 0).toLocaleString()}</span>
                     </div>
                   )}
                 </div>
@@ -430,30 +440,30 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-surface-850 border border-white/10 rounded-2xl p-6 w-full max-w-lg">
-            <h3 className="text-base font-bold text-white mb-4">Add Career Milestone</h3>
+            <h3 className="text-base font-bold text-white mb-4">{t('hrm.employeeProfile.addMilestoneTitle')}</h3>
             <form onSubmit={(e) => { e.preventDefault(); addMutation.mutate(formData); }} className="space-y-4">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Event Type</label>
+                <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.eventType')}</label>
                 <select
                   value={formData.event_type}
                   onChange={(e) => setFormData({ ...formData, event_type: e.target.value })}
                   className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                 >
-                  <option value="PROMOTION">Promotion</option>
-                  <option value="SALARY_RAISE">Salary Raise</option>
-                  <option value="DEPARTMENT_TRANSFER">Department Transfer</option>
-                  <option value="COMMENDATION">Commendation / Award</option>
-                  <option value="WARNING">Disciplinary Warning</option>
-                  <option value="OTHER">Other Milestone</option>
+                  <option value="PROMOTION">{t('hrm.employeeProfile.eventTypes.promotion')}</option>
+                  <option value="SALARY_RAISE">{t('hrm.employeeProfile.eventTypes.salaryRaise')}</option>
+                  <option value="DEPARTMENT_TRANSFER">{t('hrm.employeeProfile.eventTypes.deptTransfer')}</option>
+                  <option value="COMMENDATION">{t('hrm.employeeProfile.eventTypes.commendation')}</option>
+                  <option value="WARNING">{t('hrm.employeeProfile.eventTypes.warning')}</option>
+                  <option value="OTHER">{t('hrm.employeeProfile.eventTypes.other')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Milestone Title</label>
+                <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.title')}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Promoted to Senior Developer"
+                  placeholder={t('hrm.employeeProfile.placeholders.title')}
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
@@ -461,10 +471,10 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Description / Notes</label>
+                <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.desc')}</label>
                 <textarea
                   rows="2"
-                  placeholder="Additional context or official letter summary..."
+                  placeholder={t('hrm.employeeProfile.placeholders.desc')}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
@@ -473,20 +483,20 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Previous Position</label>
+                  <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.prevPos')}</label>
                   <input
                     type="text"
-                    placeholder="e.g. Junior Dev"
+                    placeholder={t('hrm.employeeProfile.placeholders.prevPos')}
                     value={formData.previous_position}
                     onChange={(e) => setFormData({ ...formData, previous_position: e.target.value })}
                     className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">New Position</label>
+                  <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.newPos')}</label>
                   <input
                     type="text"
-                    placeholder="e.g. Senior Dev"
+                    placeholder={t('hrm.employeeProfile.placeholders.newPos')}
                     value={formData.new_position}
                     onChange={(e) => setFormData({ ...formData, new_position: e.target.value })}
                     className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
@@ -496,20 +506,20 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Previous Salary ($)</label>
+                  <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.prevSal')}</label>
                   <input
                     type="number"
-                    placeholder="e.g. 3000"
+                    placeholder={t('hrm.employeeProfile.placeholders.salaryPrev')}
                     value={formData.previous_salary}
                     onChange={(e) => setFormData({ ...formData, previous_salary: e.target.value })}
                     className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">New Salary ($)</label>
+                  <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.newSal')}</label>
                   <input
                     type="number"
-                    placeholder="e.g. 4500"
+                    placeholder={t('hrm.employeeProfile.placeholders.salaryNew')}
                     value={formData.new_salary}
                     onChange={(e) => setFormData({ ...formData, new_salary: e.target.value })}
                     className="w-full bg-surface-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
@@ -518,7 +528,7 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Effective Date</label>
+                <label className="text-xs text-slate-400 block mb-1">{t('hrm.employeeProfile.form.effDate')}</label>
                 <input
                   type="date"
                   required
@@ -534,14 +544,14 @@ function CareerTimelineSection({ employeeId, timeline = [], refetch }) {
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
                 >
-                  Cancel
+                  {t('hrm.employeeProfile.form.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={addMutation.isLoading}
                   className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-orange hover:bg-orange-500 text-white disabled:opacity-50"
                 >
-                  {addMutation.isLoading ? 'Saving...' : 'Save Milestone'}
+                  {addMutation.isLoading ? t('hrm.employeeProfile.form.saving') : t('hrm.employeeProfile.form.saveBtn')}
                 </button>
               </div>
             </form>

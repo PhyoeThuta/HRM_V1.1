@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ShiftApprovalsTab() {
   const qc = useQueryClient();
+  const { t } = useLanguage();
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Fetch all attendance records for the selected date
@@ -28,11 +30,11 @@ export default function ShiftApprovalsTab() {
     mutationFn: ({ id, status, override_shift_id }) => 
       api.put(`/attendance/approvals/${id}`, { shift_approval_status: status, override_shift_id }),
     onSuccess: () => { 
-      toast.success('Approval status updated'); 
+      toast.success(t('hrm.attendance.toast.apprSuccess') || 'Approval status updated'); 
       qc.invalidateQueries(['attendance_approvals']); 
       qc.invalidateQueries(['attendance']); 
     },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update status')
+    onError: (err) => toast.error(err.response?.data?.error || t('hrm.attendance.toast.apprError') || 'Failed to update status')
   });
 
   const handleApprove = (record, overrideShiftId = null) => {
@@ -54,47 +56,47 @@ export default function ShiftApprovalsTab() {
   const pendingRecords = records.filter(r => r.shift_approval_status === 'Pending');
   const processedRecords = records.filter(r => r.shift_approval_status !== 'Pending');
 
-  if (isLoading) return <div className="p-4 text-slate-400">Loading...</div>;
+  if (isLoading) return <div className="p-4 text-slate-400">{t('hrm.attendance.roster.approvals.loading')}</div>;
 
   const renderTable = (data, isPending) => (
-    <div className="overflow-x-auto mt-4">
-      <table className="w-full text-left text-sm">
-        <thead style={{ background: 'var(--bg-850, #161929)' }}>
+    <div className="att-approval-table-wrapper overflow-x-auto mt-4 bg-surface-800 rounded-2xl border border-white/5">
+      <table className="att-approval-table w-full text-left text-sm">
+        <thead className="att-approval-thead" style={{ background: 'var(--bg-850, #161929)' }}>
           <tr>
-            <th className="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee</th>
-            <th className="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Check In</th>
-            <th className="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Claimed Shift</th>
-            <th className="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Reason (If Special)</th>
-            <th className="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-            <th className="p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+            <th className="att-approval-th p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.attendance.roster.approvals.cols.emp')}</th>
+            <th className="att-approval-th p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.attendance.roster.approvals.cols.checkin')}</th>
+            <th className="att-approval-th p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.attendance.roster.approvals.cols.claimed')}</th>
+            <th className="att-approval-th p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.attendance.roster.approvals.cols.reason')}</th>
+            <th className="att-approval-th p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.attendance.roster.approvals.cols.status')}</th>
+            <th className="att-approval-th p-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">{t('hrm.attendance.roster.approvals.cols.actions')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="att-approval-tbody divide-y divide-white/5">
           {data.length > 0 ? data.map(r => {
             const shiftName = r.claimed_shift_id === 'special' 
-              ? 'Special Shift Request' 
-              : shifts.find(s => s.id === r.claimed_shift_id)?.shift_name || 'N/A';
+              ? t('hrm.attendance.roster.approvals.special') 
+              : shifts.find(s => s.id === r.claimed_shift_id)?.shift_name || t('hrm.attendance.roster.approvals.na');
               
             return (
-              <tr key={r.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-3">
-                  <p className="font-bold text-white">{r.Full_name}</p>
+              <tr key={r.id} className="att-approval-tr hover:bg-white/5 transition-colors">
+                <td className="att-approval-td p-3">
+                  <p className="att-approval-emp-name font-bold text-white">{r.Full_name}</p>
                 </td>
-                <td className="p-3 text-emerald-400 font-mono text-xs">
-                  {new Date(r.check_in).toLocaleTimeString()}
+                <td className="att-approval-td p-3">
+                  <span className="att-approval-time text-emerald-400 font-mono text-xs">{new Date(r.check_in).toLocaleTimeString()}</span>
                 </td>
-                <td className="p-3 text-slate-300 font-medium">
+                <td className="att-approval-td p-3 text-slate-300 font-medium att-approval-shift-name">
                   {shiftName}
                 </td>
-                <td className="p-3">
+                <td className="att-approval-td p-3">
                   {r.special_shift_reason ? (
-                    <span className="text-amber-400 text-xs bg-amber-400/10 px-2 py-1 rounded">
+                    <span className="att-approval-reason-badge text-amber-400 text-xs bg-amber-400/10 px-2 py-1 rounded">
                       {r.special_shift_reason}
                     </span>
-                  ) : <span className="text-slate-500">—</span>}
+                  ) : <span className="att-approval-empty-reason text-slate-500">—</span>}
                 </td>
-                <td className="p-3">
-                  <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
+                <td className="att-approval-td p-3">
+                  <span className={`att-approval-status-${(r.shift_approval_status || 'pending').toLowerCase()} text-xs font-bold px-2 py-1 rounded-lg ${
                     r.shift_approval_status === 'Approved' ? 'bg-emerald-500/20 text-emerald-400' :
                     r.shift_approval_status === 'Rejected' ? 'bg-rose-500/20 text-rose-400' :
                     'bg-amber-500/20 text-amber-400'
@@ -102,11 +104,11 @@ export default function ShiftApprovalsTab() {
                     {r.shift_approval_status || 'Pending'}
                   </span>
                 </td>
-                <td className="p-3 text-right">
+                <td className="att-approval-td p-3 text-right">
                   {isPending ? (
                     <div className="flex gap-2 justify-end">
                       <select 
-                        className="bg-surface-800 border border-white/10 text-slate-300 text-xs rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
+                        className="att-approval-select bg-surface-800 border border-white/10 text-slate-300 text-xs rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
                         onChange={(e) => {
                           if (e.target.value) {
                             handleApprove(r, e.target.value);
@@ -114,9 +116,9 @@ export default function ShiftApprovalsTab() {
                           }
                         }}
                       >
-                        <option value="">Approve As...</option>
+                        <option value="">{t('hrm.attendance.roster.approvals.approveAs')}</option>
                         {r.claimed_shift_id !== 'special' && (
-                          <option value={r.claimed_shift_id}>Requested Shift</option>
+                          <option value={r.claimed_shift_id}>{t('hrm.attendance.roster.approvals.reqShift')}</option>
                         )}
                         {shifts.map(s => (
                           <option key={s.id} value={s.id}>{s.shift_name}</option>
@@ -124,17 +126,17 @@ export default function ShiftApprovalsTab() {
                       </select>
                       <button 
                         onClick={() => handleReject(r)}
-                        className="px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded transition-colors"
+                        className="att-approval-btn-reject px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded transition-colors"
                       >
-                        Reject
+                        {t('hrm.attendance.roster.approvals.rejectBtn')}
                       </button>
                     </div>
                   ) : (
                     <button 
                       onClick={() => handleApprove(r, null)} // To reset back to pending or edit later if needed, but for now just a simple action
-                      className="text-xs text-indigo-400 hover:text-indigo-300"
+                      className="att-approval-btn-edit text-xs text-indigo-400 hover:text-indigo-300"
                     >
-                      Edit
+                      {t('hrm.attendance.roster.approvals.editBtn')}
                     </button>
                   )}
                 </td>
@@ -142,8 +144,8 @@ export default function ShiftApprovalsTab() {
             );
           }) : (
             <tr>
-              <td colSpan="6" className="p-8 text-center text-slate-500 text-sm">
-                No {isPending ? 'pending' : 'processed'} records found.
+              <td colSpan="6" className="att-approval-empty p-8 text-center text-slate-500 text-sm">
+                {isPending ? t('hrm.attendance.roster.approvals.emptyPending') : t('hrm.attendance.roster.approvals.emptyProcessed')}
               </td>
             </tr>
           )}
@@ -153,40 +155,36 @@ export default function ShiftApprovalsTab() {
   );
 
   return (
-    <div className="p-6">
+    <div className="att-approval-wrapper p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Daily Shift Approvals</h2>
-          <p className="text-sm text-slate-400 mt-1">Review self-declared shifts and special requests</p>
+          <h2 className="att-approval-title text-xl font-bold text-white">{t('hrm.attendance.roster.approvals.title')}</h2>
+          <p className="att-approval-subtitle text-sm text-slate-400 mt-1">{t('hrm.attendance.roster.approvals.subtitle')}</p>
         </div>
         <div>
           <input 
             type="date" 
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
-            className="form-input bg-surface-800 text-white border-white/10"
+            className="att-approval-date-input form-input bg-surface-800 text-white border-white/10"
           />
         </div>
       </div>
 
       <div className="mb-8">
-        <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2 mb-2">
+        <h3 className="att-approval-section-title text-sm font-bold text-amber-400 flex items-center gap-2 mb-2">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-          Pending Approvals ({pendingRecords.length})
+          {t('hrm.attendance.roster.approvals.pendingSec')} ({pendingRecords.length})
         </h3>
-        <div className="bg-surface-800 rounded-2xl border border-white/5 overflow-hidden">
-          {renderTable(pendingRecords, true)}
-        </div>
+        {renderTable(pendingRecords, true)}
       </div>
 
       <div>
-        <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2 mb-2">
+        <h3 className="att-approval-section-title text-sm font-bold text-emerald-400 flex items-center gap-2 mb-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          Processed Records ({processedRecords.length})
+          {t('hrm.attendance.roster.approvals.processedSec')} ({processedRecords.length})
         </h3>
-        <div className="bg-surface-800 rounded-2xl border border-white/5 overflow-hidden">
-          {renderTable(processedRecords, false)}
-        </div>
+        {renderTable(processedRecords, false)}
       </div>
     </div>
   );

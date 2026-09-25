@@ -4,6 +4,7 @@ import { Chart, registerables } from 'chart.js';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../context/LanguageContext';
 
 Chart.register(...registerables);
 
@@ -18,21 +19,22 @@ const GRADE_CONFIG = {
 };
 
 function GradeBadge({ grade }) {
+  const { t } = useLanguage();
   const cfg = GRADE_CONFIG[grade] || GRADE_CONFIG['—'];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-      {grade === 'A+' ? '🥇' : grade === 'A' ? '🥈' : grade === 'B' ? '🥉' : grade === 'C' ? '⚠️' : grade === 'D' ? '❌' : '⏳'} {grade === '—' ? 'No Data' : `Grade ${grade}`}
+    <span className={`pt-badge inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+      {grade === 'A+' ? '🥇' : grade === 'A' ? '🥈' : grade === 'B' ? '🥉' : grade === 'C' ? '⚠️' : grade === 'D' ? '❌' : '⏳'} {grade === '—' ? t('hrm.performance.noData') : `${t('hrm.performance.gradePrefix')} ${grade}`}
     </span>
   );
 }
 
 function ScoreBar({ value, color = '#6366f1' }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, value)}%`, background: color }} />
+    <div className="pt-score-bar flex items-center gap-2">
+      <div className="pt-score-bg flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+        <div className="pt-score-fill h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, value)}%`, background: color }} />
       </div>
-      <span className="text-xs font-bold text-slate-300 w-10 text-right">{value}%</span>
+      <span className="pt-score-text text-xs font-bold text-slate-300 w-10 text-right">{value}%</span>
     </div>
   );
 }
@@ -118,6 +120,7 @@ function TrendLineChart({ trend }) {
 
 // ─── Radar Chart in Modal ─────────────────────────────────────────
 function RadarChart({ emp }) {
+  const { t } = useLanguage();
   const canvasRef = useRef(null);
   const chartRef  = useRef(null);
   useEffect(() => {
@@ -126,7 +129,7 @@ function RadarChart({ emp }) {
     chartRef.current = new Chart(canvasRef.current, {
       type: 'radar',
       data: {
-        labels: ['SOP Compliance', 'JD / KPI Score', 'Attendance', 'Punctuality', 'Peer Rating'],
+        labels: [t('hrm.performance.sopCompliance'), t('hrm.performance.kpiGoals'), t('hrm.performance.attendance'), t('hrm.performance.punctuality'), t('hrm.performance.peerRating')],
         datasets: [{
           label: emp.full_name,
           data: [emp.sop_score, emp.kpi_score, emp.attendance_rate, emp.punctuality_rate, emp.peer_score],
@@ -157,31 +160,32 @@ function RadarChart({ emp }) {
 
 // ─── Scorecard Modal ──────────────────────────────────────────────
 function ScorecardModal({ emp, onClose }) {
+  const { t, tDyn } = useLanguage();
   if (!emp) return null;
   const cfg = GRADE_CONFIG[emp.grade] || GRADE_CONFIG['B'];
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="pt-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="pt-modal-content relative w-full max-w-2xl rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.08)' }}>
         {/* Header */}
-        <div className="px-6 py-5 flex items-start justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="pt-modal-header px-6 py-5 flex items-start justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black text-white"
+            <div className="pt-modal-avatar w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black text-white"
               style={{ background: `linear-gradient(135deg, ${cfg.color}40, ${cfg.color}20)`, border: `1px solid ${cfg.color}50` }}>
               {(emp.full_name || '?')[0]}
             </div>
             <div>
-              <p className="text-base font-bold text-white">{emp.full_name}</p>
-              <p className="text-xs text-slate-400">{emp.position_title} · {emp.department_name}</p>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">{emp.employee_code}</p>
+              <p className="pt-modal-name text-base font-bold text-white">{emp.full_name}</p>
+              <p className="pt-modal-role text-xs text-slate-400">{emp.position_title} · {tDyn("hrm.departments", emp.department_name) || emp.department_name}</p>
+              <p className="pt-modal-code text-xs text-slate-500 font-mono mt-0.5">{emp.employee_code}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-center">
-              <p className="text-2xl font-black" style={{ color: cfg.color }}>{emp.cpi}%</p>
+              <p className="pt-modal-cpi text-2xl font-black" style={{ color: cfg.color }}>{emp.cpi}%</p>
               <GradeBadge grade={emp.grade} />
             </div>
-            <button type="button" onClick={(e) => { e.preventDefault(); onClose(); }} className="text-slate-500 hover:text-white ml-3">
+            <button type="button" onClick={(e) => { e.preventDefault(); onClose(); }} className="pt-modal-close text-slate-500 hover:text-white ml-3">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -190,54 +194,54 @@ function ScorecardModal({ emp, onClose }) {
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Radar Chart */}
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">360° Performance Radar</p>
-            <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <p className="pt-section-title text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{t('hrm.performance.radarTitle')}</p>
+            <div className="pt-radar-card rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
               <RadarChart emp={emp} />
             </div>
           </div>
 
-          {/* Score Breakdown */}
+          {/* {t('hrm.performance.scoreBreakdown')} */}
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Score Breakdown</p>
+            <p className="pt-section-title text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Score Breakdown</p>
             <div className="space-y-4">
-              <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="pt-breakdown-card rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-white">📋 Daily SOP Compliance {emp.has_sop ? <span className="text-slate-500 font-normal">(Active)</span> : <span className="text-amber-400/80 font-normal">(Unassigned)</span>}</p>
+                  <p className="pt-breakdown-title text-xs font-semibold text-white">📋 {t('hrm.performance.dailySopCompliance')} {emp.has_sop ? <span className="pt-breakdown-meta text-slate-500 font-normal">{t('hrm.performance.statusActive')}</span> : <span className="pt-breakdown-meta-warn text-amber-400/80 font-normal">{t('hrm.performance.statusUnassigned')}</span>}</p>
                 </div>
                 {emp.has_sop ? (
                   <>
                     <ScoreBar value={emp.sop_score} color="#10b981" />
-                    <p className="text-[10px] text-slate-500">{emp.sop_completed} / {emp.sop_total || '—'} tasks completed</p>
+                    <p className="pt-breakdown-desc text-[10px] text-slate-500">{emp.sop_completed} / {emp.sop_total || '—'} {t('hrm.performance.tasksCompleted')}</p>
                   </>
                 ) : (
-                  <p className="text-xs text-slate-500 italic py-1">No SOP tasks assigned yet. Excluded from weight calculation.</p>
+                  <p className="pt-breakdown-desc text-xs text-slate-500 italic py-1">{t('hrm.performance.noSopTasks')}</p>
                 )}
               </div>
 
-              <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="pt-breakdown-card rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-white">🎯 JD & KPI Goals {emp.has_kpi ? <span className="text-slate-500 font-normal">(Active)</span> : <span className="text-amber-400/80 font-normal">(Unassigned)</span>}</p>
+                  <p className="pt-breakdown-title text-xs font-semibold text-white">🎯 {t('hrm.performance.kpiGoals')} {emp.has_kpi ? <span className="pt-breakdown-meta text-slate-500 font-normal">(Active)</span> : <span className="pt-breakdown-meta-warn text-amber-400/80 font-normal">(Unassigned)</span>}</p>
                 </div>
                 {emp.has_kpi ? (
                   <>
                     <ScoreBar value={emp.kpi_score} color="#6366f1" />
-                    <p className="text-[10px] text-slate-500">{emp.kpi_records_found} KPI record{emp.kpi_records_found !== 1 ? 's' : ''} this period</p>
+                    <p className="pt-breakdown-desc text-[10px] text-slate-500">{emp.kpi_records_found} {t('hrm.performance.kpiRecords')}</p>
                   </>
                 ) : (
-                  <p className="text-xs text-slate-500 italic py-1">No KPI targets set yet. Excluded from weight calculation.</p>
+                  <p className="pt-breakdown-desc text-xs text-slate-500 italic py-1">{t('hrm.performance.noKpiTargets')}</p>
                 )}
               </div>
 
-              <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="pt-breakdown-card rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-white">🏅 Culture & Attendance <span className="text-slate-500 font-normal">(Active)</span></p>
+                  <p className="pt-breakdown-title text-xs font-semibold text-white">🏅 {t('hrm.performance.cultureAttendance')} <span className="pt-breakdown-meta text-slate-500 font-normal">(Active)</span></p>
                 </div>
                 <ScoreBar value={emp.culture_score} color="#f59e0b" />
                 <div className="grid grid-cols-3 gap-2 mt-1">
-                  {[['Attendance', emp.attendance_rate], ['Punctuality', emp.punctuality_rate], ['Peer Rating', emp.has_peer ? `${emp.peer_score}%` : 'N/A']].map(([label, val]) => (
+                  {[[t('hrm.performance.attendance'), emp.attendance_rate], [t('hrm.performance.punctuality'), emp.punctuality_rate], [t('hrm.performance.peerRating'), emp.has_peer ? `${emp.peer_score}%` : t('hrm.performance.na')]].map(([label, val]) => (
                     <div key={label} className="text-center">
-                      <p className="text-xs font-bold text-white">{typeof val === 'number' ? `${val}%` : val}</p>
-                      <p className="text-[9px] text-slate-500">{label}</p>
+                      <p className="pt-breakdown-val text-xs font-bold text-white">{typeof val === 'number' ? `${val}%` : val}</p>
+                      <p className="pt-breakdown-desc text-[9px] text-slate-500">{label}</p>
                     </div>
                   ))}
                 </div>
@@ -245,11 +249,11 @@ function ScorecardModal({ emp, onClose }) {
             </div>
 
             {/* Payroll Impact */}
-            <div className="mt-4 rounded-xl p-3 flex items-center gap-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+            <div className="pt-payroll-card mt-4 rounded-xl p-3 flex items-center gap-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
               <span className="text-lg">💰</span>
               <div>
-                <p className="text-xs font-bold text-emerald-400">Payroll Bonus Entitlement</p>
-                <p className="text-xs text-slate-400">{emp.bonus_pct}% of target KPI bonus</p>
+                <p className="pt-payroll-title text-xs font-bold text-emerald-400">{t('hrm.performance.payrollBonusTitle')}</p>
+                <p className="pt-payroll-desc text-xs text-slate-400">{emp.bonus_pct}{t('hrm.performance.targetKpiBonus')}</p>
               </div>
             </div>
           </div>
@@ -261,25 +265,26 @@ function ScorecardModal({ emp, onClose }) {
 
 // ─── Sync Confirm Modal ───────────────────────────────────────────
 function SyncConfirmModal({ month, onConfirm, onCancel, loading }) {
+  const { t } = useLanguage();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="pt-sync-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative w-full max-w-sm rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="pt-sync-content relative w-full max-w-sm rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="text-center mb-5">
           <div className="text-4xl mb-3">⚡</div>
-          <h2 className="text-base font-bold text-white mb-1">Sync Performance to Payroll</h2>
-          <p className="text-sm text-slate-400">This will update <span className="text-amber-400 font-semibold">existing</span> payroll records for <span className="text-white font-semibold">{month}</span> with the computed CPI scores and recalculate bonuses.</p>
+          <h2 className="pt-sync-title text-base font-bold text-white mb-1">{t('hrm.performance.syncTitle')}</h2>
+          <p className="pt-sync-desc text-sm text-slate-400">{t('hrm.performance.syncDesc1')}<span className="pt-sync-highlight-warn text-amber-400 font-semibold">{t('hrm.performance.syncDesc2')}</span>{t('hrm.performance.syncDesc3')}<span className="pt-sync-highlight text-white font-semibold">{month}</span>{t('hrm.performance.syncDesc4')}</p>
         </div>
-        <div className="rounded-xl p-3 mb-5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20">
-          ⚠️ Only existing payroll records will be updated. New records will NOT be created.
+        <div className="pt-sync-alert rounded-xl p-3 mb-5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20">
+          {t('hrm.performance.syncAlert')}
         </div>
         <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-xl text-sm text-slate-400 hover:text-white transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          <button onClick={onCancel} className="pt-sync-btn-cancel flex-1 px-4 py-2.5 rounded-xl text-sm text-slate-400 hover:text-white transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             Cancel
           </button>
-          <button onClick={onConfirm} disabled={loading} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
+          <button onClick={onConfirm} disabled={loading} className="pt-sync-btn-confirm flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
             style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
-            {loading ? '⏳ Syncing...' : '⚡ Confirm Sync'}
+            {loading ? t('hrm.performance.syncing') : t('hrm.performance.confirmSync')}
           </button>
         </div>
       </div>
@@ -289,6 +294,7 @@ function SyncConfirmModal({ month, onConfirm, onCancel, loading }) {
 
 // ─── Main Page ────────────────────────────────────────────────────
 export default function PerformanceTracker() {
+  const { t, tDyn } = useLanguage();
   const now = new Date();
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -345,34 +351,34 @@ export default function PerformanceTracker() {
   const avgGrade = summary.avg_cpi >= 95 ? 'A+' : summary.avg_cpi >= 85 ? 'A' : summary.avg_cpi >= 75 ? 'B' : summary.avg_cpi >= 60 ? 'C' : 'D';
 
   return (
-    <Layout title="Performance Tracker" subtitle="Composite Performance Index — SOP · JD KPIs · Attendance · Peer">
+    <Layout title={t('hrm.performance.title')} subtitle={t('hrm.performance.subtitle')}>
       {/* ── Controls ─────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="pt-filters flex flex-wrap items-center gap-3">
           <input
             type="month"
             value={month}
             onChange={e => setMonth(e.target.value)}
-            className="form-input text-sm px-3 py-2 rounded-xl w-40"
+            className="pt-input form-input text-sm px-3 py-2 rounded-xl w-40"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
           />
           <select
             value={deptFilter}
             onChange={e => setDeptFilter(e.target.value)}
-            className="form-input text-sm px-3 py-2 rounded-xl"
+            className="pt-select form-input text-sm px-3 py-2 rounded-xl"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
           >
-            <option value="">All Departments</option>
-            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <option value="">{t('hrm.performance.allDepartments')}</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{tDyn("hrm.departments", d.name) || d.name}</option>)}
           </select>
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
             <input
               type="text"
-              placeholder="Search employees..."
+              placeholder={t('hrm.performance.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="form-input text-sm pl-9 pr-4 py-2 rounded-xl w-52"
+              className="pt-input form-input text-sm pl-9 pr-4 py-2 rounded-xl w-52"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
             />
           </div>
@@ -380,12 +386,10 @@ export default function PerformanceTracker() {
         <button
           id="sync-to-payroll-btn"
           onClick={() => setShowSync(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+          className="pt-sync-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: '1px solid rgba(99,102,241,0.4)' }}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          Sync to Payroll Engine
-        </button>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>{t('hrm.performance.syncToPayroll')}</button>
       </div>
 
       {isLoading ? (
@@ -393,91 +397,91 @@ export default function PerformanceTracker() {
           <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : isError ? (
-        <div className="text-center py-16 text-rose-400">Failed to load performance data.</div>
+        <div className="text-center py-16 text-rose-400">{t('hrm.performance.loadFailed')}</div>
       ) : (
         <>
           {/* ── Summary Cards ─────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
               {
-                label: 'Company Avg CPI',
+                label: t('hrm.performance.avgCpi'),
                 value: `${summary.avg_cpi ?? '—'}%`,
                 sub: avgGrade ? `Grade ${avgGrade}` : '',
                 icon: '📊',
                 color: GRADE_CONFIG[avgGrade]?.color || '#6366f1',
               },
               {
-                label: 'SOP Compliance Rate',
+                label: t('hrm.performance.sopCompliance'),
                 value: `${summary.avg_sop ?? '—'}%`,
-                sub: 'Daily SOP avg',
+                sub: t('hrm.performance.dailySopAvg'),
                 icon: '✅',
                 color: '#10b981',
               },
               {
-                label: 'Top Achievers',
+                label: t('hrm.performance.topAchievers'),
                 value: summary.top_count ?? '—',
-                sub: 'Grade A+ & A',
+                sub: t('hrm.performance.gradeAPlus'),
                 icon: '🏆',
                 color: '#3b82f6',
               },
               {
-                label: 'Performance Risk',
+                label: t('hrm.performance.performanceRisk'),
                 value: summary.risk_count ?? '—',
-                sub: 'Grade C & D',
+                sub: t('hrm.performance.gradeCD'),
                 icon: '⚠️',
                 color: summary.risk_count > 0 ? '#ef4444' : '#10b981',
               },
             ].map(c => (
-              <div key={c.label} className="rounded-2xl p-5 relative overflow-hidden"
+              <div key={c.label} className="pt-stat-card rounded-2xl p-5 relative overflow-hidden"
                 style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-5 translate-x-4 -translate-y-4"
+                <div className="pt-stat-icon-bg absolute top-0 right-0 w-20 h-20 rounded-full opacity-5 translate-x-4 -translate-y-4"
                   style={{ background: c.color }} />
                 <div className="text-2xl mb-2">{c.icon}</div>
-                <p className="text-2xl font-black text-white">{c.value}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{c.label}</p>
-                {c.sub && <p className="text-[10px] font-semibold mt-1" style={{ color: c.color }}>{c.sub}</p>}
+                <p className="pt-stat-val text-2xl font-black text-white">{c.value}</p>
+                <p className="pt-stat-label text-xs text-slate-400 mt-0.5">{c.label}</p>
+                {c.sub && <p className="pt-stat-sub text-[10px] font-semibold mt-1" style={{ color: c.color }}>{c.sub}</p>}
               </div>
             ))}
           </div>
 
           {/* ── Charts ───────────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-            <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <p className="text-sm font-bold text-white mb-4">📊 Department Performance Comparison</p>
-              {deptStats.length > 0 ? <DeptBarChart data={deptStats} /> : <p className="text-slate-500 text-sm text-center py-10">No department data</p>}
+            <div className="pt-chart-card rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <p className="pt-chart-title text-sm font-bold text-white mb-4">📊 {t('hrm.performance.deptComparison')}</p>
+              {deptStats.length > 0 ? <DeptBarChart data={deptStats} /> : <p className="pt-chart-empty text-slate-500 text-sm text-center py-10">{t('hrm.performance.noDeptData')}</p>}
             </div>
-            <div className="rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <p className="text-sm font-bold text-white mb-4">📈 6-Month CPI Trend</p>
-              {trend.length > 0 ? <TrendLineChart trend={trend} /> : <p className="text-slate-500 text-sm text-center py-10">No trend data</p>}
+            <div className="pt-chart-card rounded-2xl p-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <p className="pt-chart-title text-sm font-bold text-white mb-4">📈 {t('hrm.performance.cpiTrend')}</p>
+              {trend.length > 0 ? <TrendLineChart trend={trend} /> : <p className="pt-chart-empty text-slate-500 text-sm text-center py-10">{t('hrm.performance.noTrendData')}</p>}
             </div>
           </div>
 
           {/* ── Performance Ledger Table ─────────────────────── */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <h2 className="text-sm font-bold text-white">Employee Performance Ledger</h2>
-              <span className="text-xs text-slate-500">{employees.length} employee{employees.length !== 1 ? 's' : ''}</span>
+          <div className="pt-table-card rounded-2xl overflow-hidden" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="pt-table-header px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <h2 className="pt-table-title text-sm font-bold text-white">{t('hrm.performance.ledgerTitle')}</h2>
+              <span className="pt-table-meta text-xs text-slate-500">{employees.length} {t('hrm.performance.employeesCount')}</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead style={{ background: 'rgba(255,255,255,0.02)' }}>
+              <table className="pt-table w-full text-sm">
+                <thead className="pt-table-thead" style={{ background: 'rgba(255,255,255,0.02)' }}>
                   <tr>
                     {[
                       { label: '#',         col: null },
-                      { label: 'Employee',  col: null },
-                      { label: 'Dept',      col: null },
-                      { label: 'SOP %',     col: 'sop_score' },
-                      { label: 'KPI %',     col: 'kpi_score' },
-                      { label: 'Culture %', col: 'culture_score' },
-                      { label: 'CPI Score', col: 'cpi' },
-                      { label: 'Grade',     col: null },
-                      { label: 'Bonus',     col: 'bonus_pct' },
-                      { label: 'Scorecard', col: null },
+                      { label: t('hrm.performance.cols.employee'), col: null },
+                      { label: t('hrm.performance.cols.dept'), col: null },
+                      { label: t('hrm.performance.cols.sop'), col: 'sop_score' },
+                      { label: t('hrm.performance.cols.kpi'), col: 'kpi_score' },
+                      { label: t('hrm.performance.cols.culture'), col: 'culture_score' },
+                      { label: t('hrm.performance.cols.cpi'), col: 'cpi' },
+                      { label: t('hrm.performance.cols.grade'), col: null },
+                      { label: t('hrm.performance.cols.bonus'), col: 'bonus_pct' },
+                      { label: t('hrm.performance.cols.scorecard'), col: null },
                     ].map(({ label, col }) => (
                       <th
                         key={label}
                         onClick={() => col && handleSort(col)}
-                        className={`text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider ${col ? 'cursor-pointer hover:text-white' : ''}`}
+                        className={`pt-th text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider ${col ? 'cursor-pointer hover:text-white' : ''}`}
                       >
                         {label}<SortIcon col={col} />
                       </th>
@@ -486,27 +490,27 @@ export default function PerformanceTracker() {
                 </thead>
                 <tbody>
                   {employees.length === 0 && (
-                    <tr><td colSpan="10" className="py-16 text-center text-slate-500">No employees found for this period.</td></tr>
+                    <tr><td colSpan="10" className="pt-empty-state py-16 text-center text-slate-500">{t('hrm.performance.noEmployees')}</td></tr>
                   )}
                   {employees.map((emp, idx) => {
                     const cfg = GRADE_CONFIG[emp.grade] || GRADE_CONFIG['B'];
                     return (
-                      <tr key={emp.employee_id} className="border-t border-white/5 hover:bg-white/3 transition-colors cursor-pointer"
+                      <tr key={emp.employee_id} className="pt-tr border-t border-white/5 hover:bg-white/3 transition-colors cursor-pointer"
                         onClick={(e) => { e.preventDefault(); setSelectedEmp(emp); }}>
-                        <td className="py-3.5 px-4 text-slate-500 text-xs">{idx + 1}</td>
+                        <td className="pt-td-idx py-3.5 px-4 text-slate-500 text-xs">{idx + 1}</td>
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                            <div className="pt-avatar w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                               style={{ background: `${cfg.color}25`, border: `1px solid ${cfg.color}30` }}>
                               {(emp.full_name || '?')[0]}
                             </div>
                             <div>
-                              <p className="font-semibold text-white text-xs">{emp.full_name}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{emp.employee_code}</p>
+                              <p className="pt-emp-name font-semibold text-white text-xs">{emp.full_name}</p>
+                              <p className="pt-emp-code text-[10px] text-slate-500 font-mono">{emp.employee_code}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 text-xs text-slate-400">{emp.department_name}</td>
+                        <td className="pt-emp-dept py-3.5 px-4 text-xs text-slate-400">{tDyn("hrm.departments", emp.department_name) || emp.department_name}</td>
                         <td className="py-3.5 px-4 w-24">
                           <ScoreBar value={emp.sop_score} color="#10b981" />
                         </td>
@@ -517,7 +521,7 @@ export default function PerformanceTracker() {
                           <ScoreBar value={emp.culture_score} color="#f59e0b" />
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="text-base font-black" style={{ color: cfg.color }}>
+                          <span className="pt-emp-cpi text-base font-black" style={{ color: cfg.color }}>
                             {emp.cpi !== null && emp.cpi !== undefined ? `${emp.cpi}%` : 'N/A'}
                           </span>
                         </td>
@@ -525,7 +529,7 @@ export default function PerformanceTracker() {
                           <GradeBadge grade={emp.grade} />
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className={`text-xs font-bold ${emp.cpi === null ? 'text-slate-500' : emp.bonus_pct === 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          <span className={`pt-emp-bonus text-xs font-bold ${emp.cpi === null ? 'text-slate-500' : emp.bonus_pct === 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                             {emp.cpi !== null ? `${emp.bonus_pct}%` : '—'}
                           </span>
                         </td>
@@ -534,11 +538,9 @@ export default function PerformanceTracker() {
                             type="button"
                             id={`view-scorecard-${emp.employee_id}`}
                             onClick={e => { e.preventDefault(); e.stopPropagation(); setSelectedEmp(emp); }}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                            className="pt-btn-view text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
                             style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}
-                          >
-                            View 360°
-                          </button>
+                          >{t('hrm.performance.view360')}</button>
                         </td>
                       </tr>
                     );

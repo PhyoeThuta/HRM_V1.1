@@ -99,11 +99,11 @@ export default function LeaveRequestActionsMenu({ isOpen, onToggle, onClose, ite
   );
 }
 
-export function buildLeaveRequestMenuItems(request, handlers, { isAdmin }) {
+export function buildLeaveRequestMenuItems(request, handlers, { isAdmin, t }) {
   const items = [
     {
       id: 'details',
-      label: 'View details & signature',
+      label: t('hrm.leave.actions.details'),
       icon: '📋',
       onClick: () => handlers.onDetails(request),
     },
@@ -113,29 +113,29 @@ export function buildLeaveRequestMenuItems(request, handlers, { isAdmin }) {
 
   if (request.status === 'Pending') {
     items.push(
-      { id: 'approve', label: 'Approve with signature', icon: '✓', primary: true, onClick: () => handlers.onApprove(request) },
-      { id: 'reject', label: 'Reject request', icon: '✕', danger: true, onClick: () => handlers.onReject(request) },
+      { id: 'approve', label: t('hrm.leave.actions.approve'), icon: '✓', primary: true, onClick: () => handlers.onApprove(request) },
+      { id: 'reject', label: t('hrm.leave.actions.reject'), icon: '✕', danger: true, onClick: () => handlers.onReject(request) },
     );
   }
 
   if (request.can_start_coverage) {
-    items.push({ id: 'start-cov', label: 'Start coverage handover', icon: '▶', primary: true, onClick: () => handlers.onStartCoverage(request) });
+    items.push({ id: 'start-cov', label: t('hrm.leave.actions.startCov'), icon: '▶', primary: true, onClick: () => handlers.onStartCoverage(request) });
   }
   if (request.can_view_coverage_history) {
     items.push({
       id: 'view-cov',
-      label: request.coverage_handover_is_terminal ? 'Coverage history' : 'Open coverage handover',
+      label: request.coverage_handover_is_terminal ? t('hrm.leave.actions.covHistory') : t('hrm.leave.actions.openCov'),
       icon: '📤',
       onClick: () => handlers.onViewCoverage(request),
     });
   }
   if (request.can_start_return) {
-    items.push({ id: 'start-ret', label: 'Start return handover', icon: '↩', primary: true, onClick: () => handlers.onStartReturn(request) });
+    items.push({ id: 'start-ret', label: t('hrm.leave.actions.startRet'), icon: '↩', primary: true, onClick: () => handlers.onStartReturn(request) });
   }
   if (request.can_view_return_history) {
     items.push({
       id: 'view-ret',
-      label: request.return_handover_is_terminal ? 'Return history' : 'Open return handover',
+      label: request.return_handover_is_terminal ? t('hrm.leave.actions.retHistory') : t('hrm.leave.actions.openRet'),
       icon: '📥',
       onClick: () => handlers.onViewReturn(request),
     });
@@ -143,7 +143,7 @@ export function buildLeaveRequestMenuItems(request, handlers, { isAdmin }) {
 
   items.push({
     id: 'delete',
-    label: 'Delete request',
+    label: t('hrm.leave.actions.delete'),
     icon: '🗑',
     danger: true,
     disabled: request.can_delete_leave === false,

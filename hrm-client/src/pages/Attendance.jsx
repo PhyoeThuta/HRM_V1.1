@@ -9,17 +9,19 @@ import RostersTab from '../components/attendance/RostersTab';
 import ShiftApprovalsTab from '../components/attendance/ShiftApprovalsTab';
 import WeeklyRosterPlanner from '../components/attendance/WeeklyRosterPlanner';
 import OvertimeTab from './OvertimeTab';
+import { useLanguage } from '../context/LanguageContext';
 
 function StatCard({ label, value, color }) {
   return (
-    <div className="rounded-2xl p-4 flex items-center gap-4" style={{ background: 'var(--bg-800, #1e2235)', border: `1px solid rgba(var(--${color}), 0.2)` }}>
-      <p className="text-2xl font-black text-white">{value}</p>
-      <p className="text-xs text-slate-400">{label}</p>
+    <div className={`att-stat-card att-stat-${color} rounded-2xl p-4 flex items-center gap-4`} style={{ background: 'var(--bg-800, #1e2235)', border: `1px solid rgba(var(--${color}), 0.2)` }}>
+      <p className="att-stat-value text-2xl font-black text-white">{value}</p>
+      <p className="att-stat-label text-xs text-slate-400">{label}</p>
     </div>
   );
 }
 
 export default function Attendance() {
+  const { t } = useLanguage();
   const [activeTabState, setActiveTabState] = useState(localStorage.getItem('attendanceTab') || 'manual');
   const activeTab = activeTabState;
   const setActiveTab = (tab) => { setActiveTabState(tab); localStorage.setItem('attendanceTab', tab); };
@@ -45,17 +47,17 @@ export default function Attendance() {
 
   const addMappingMutation = useMutation({
     mutationFn: (body) => api.post('/attendance/biometric/mapping', body),
-    onSuccess: () => { qc.invalidateQueries(['attendance']); toast.success('Mapping saved'); },
+    onSuccess: () => { qc.invalidateQueries(['attendance']); toast.success(t('hrm.attendance.toast.mapSaved') || 'Mapping saved'); },
   });
 
   const editMappingMutation = useMutation({
     mutationFn: ({ id, body }) => api.put(`/attendance/biometric/mapping/${id}`, body),
-    onSuccess: () => { qc.invalidateQueries(['attendance']); setEditMappingTarget(null); toast.success('Mapping updated'); },
+    onSuccess: () => { qc.invalidateQueries(['attendance']); setEditMappingTarget(null); toast.success(t('hrm.attendance.toast.mapUpdated') || 'Mapping updated'); },
   });
 
   const deleteMappingMutation = useMutation({
     mutationFn: (id) => api.delete(`/attendance/biometric/mapping/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['attendance']); setDeleteMappingTarget(null); toast.success('Mapping deleted'); },
+    onSuccess: () => { qc.invalidateQueries(['attendance']); setDeleteMappingTarget(null); toast.success(t('hrm.attendance.toast.mapDeleted') || 'Mapping deleted'); },
   });
 
   const deleteMutation = useMutation({
@@ -86,15 +88,15 @@ export default function Attendance() {
   const tokens = data?.active_tokens || [];
 
   const TABS = [
-    { id: 'manual', icon: '✏️', label: 'Manual Entry' },
-    { id: 'records', icon: '📋', label: 'Records' },
-    { id: 'photo', icon: '📸', label: 'Photo Check-In' },
-    { id: 'qr', icon: '📱', label: 'QR Code' },
-    { id: 'biometric', icon: '👆', label: 'Biometric' },
-    { id: 'rosters', icon: '📅', label: 'Rosters & Shifts' },
-    { id: 'planner', icon: '🗓️', label: 'Weekly Planner' },
-    { id: 'approvals', icon: '✅', label: 'Shift Approvals' },
-    { id: 'overtime', icon: '⏱️', label: 'Overtime Requests' },
+    { id: 'manual', icon: '✏️', label: t('hrm.attendance.tabs.manual') || 'Manual Entry' },
+    { id: 'records', icon: '📋', label: t('hrm.attendance.tabs.records') || 'Records' },
+    { id: 'photo', icon: '📸', label: t('hrm.attendance.tabs.photo') || 'Photo Check-In' },
+    { id: 'qr', icon: '📱', label: t('hrm.attendance.tabs.qr') || 'QR Code' },
+    { id: 'biometric', icon: '👆', label: t('hrm.attendance.tabs.biometric') || 'Biometric' },
+    { id: 'rosters', icon: '📅', label: t('hrm.attendance.tabs.rosters') || 'Rosters & Shifts' },
+    { id: 'planner', icon: '🗓️', label: t('hrm.attendance.tabs.planner') || 'Weekly Planner' },
+    { id: 'approvals', icon: '✅', label: t('hrm.attendance.tabs.approvals') || 'Shift Approvals' },
+    { id: 'overtime', icon: '⏱️', label: t('hrm.attendance.tabs.overtime') || 'Overtime Requests' },
   ];
 
   const handleManualSubmit = (e) => {
@@ -107,46 +109,47 @@ export default function Attendance() {
   const qrMutation = useMutation({
     mutationFn: (body) => api.post('/attendance/generate-qr', body),
     onSuccess: (res) => {
-      toast.success(res.data?.message || 'QR Code Generated Successfully!');
+      toast.success(res.data?.message || t('hrm.attendance.toast.qrSuccess') || 'QR Code Generated Successfully!');
       setGeneratedQrToken(res.data.token);
       qc.invalidateQueries(['attendance']);
     },
-    onError: (err) => toast.error('Failed to generate QR Code')
+    onError: (err) => toast.error(t('hrm.attendance.toast.qrError') || 'Failed to generate QR Code')
   });
 
   const photoMutation = useMutation({
     mutationFn: (body) => api.post('/attendance/photo-checkin', body),
     onSuccess: (res) => {
-      toast.success(res.data?.message || 'Photo Attendance Recorded!');
+      toast.success(res.data?.message || t('hrm.attendance.toast.photoSuccess') || 'Photo Attendance Recorded!');
       qc.invalidateQueries(['attendance']);
       setCapturedPhoto(null);
     },
-    onError: (err) => toast.error('Failed to record photo attendance')
+    onError: (err) => toast.error(t('hrm.attendance.toast.photoError') || 'Failed to record photo attendance')
   });
 
   const addDeviceMutation = useMutation({
     mutationFn: (body) => api.post('/attendance/biometric/device', body),
     onSuccess: () => {
-      toast.success('Device registered successfully');
+      toast.success(t('hrm.attendance.toast.devSuccess') || 'Device registered successfully');
       qc.invalidateQueries(['attendance']);
     },
-    onError: () => toast.error('Failed to register device')
+    onError: () => toast.error(t('hrm.attendance.toast.devError') || 'Failed to register device')
   });
 
   const deleteDeviceMutation = useMutation({
     mutationFn: (id) => api.delete(`/attendance/biometric/device/${id}`),
     onSuccess: () => {
-      toast.success('Device deleted');
+      toast.success(t('hrm.attendance.toast.devDelSuccess') || 'Device deleted');
       qc.invalidateQueries(['attendance']);
     },
-    onError: () => toast.error('Failed to delete device')
+    onError: () => toast.error(t('hrm.attendance.toast.devDelError') || 'Failed to delete device')
   });
 
 
   const methodBadge = (m) => {
-    const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-purple-400 bg-purple-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
-    return cfg[m] ? <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg[m]}`}>{m === 'QR' ? '📱 QR' : m === 'Biometric' ? '👆 Bio' : '📸 Photo'}</span>
-      : <span className="text-xs font-medium px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ Manual</span>;
+    if (m === 'QR')        return <span className="att-method-badge att-method-qr text-xs font-semibold px-2 py-0.5 rounded-full text-cyan-400 bg-cyan-400/10">📱 {t('hrm.attendance.methods.qr')}</span>;
+    if (m === 'Biometric') return <span className="att-method-badge att-method-bio text-xs font-semibold px-2 py-0.5 rounded-full text-purple-400 bg-purple-400/10">👆 {t('hrm.attendance.methods.bio')}</span>;
+    if (m === 'Photo')     return <span className="att-method-badge att-method-photo text-xs font-semibold px-2 py-0.5 rounded-full text-pink-400 bg-pink-400/10">📸 {t('hrm.attendance.methods.photo')}</span>;
+    return <span className="att-method-badge att-method-manual text-xs font-semibold px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ {t('hrm.attendance.methods.manual')}</span>;
   };
 
   const formatTimeByMethod = (isoString, method) => {
@@ -190,7 +193,7 @@ export default function Attendance() {
       setIsCameraActive(true);
       setCapturedPhoto(null);
     } catch (err) {
-      toast.error('Failed to access camera');
+      toast.error(t('hrm.attendance.toast.camError') || 'Failed to access camera');
     }
   };
 
@@ -215,7 +218,7 @@ export default function Attendance() {
 
   const handlePhotoSubmit = (e) => {
     e.preventDefault();
-    if (!capturedPhoto) return toast.error('Please capture a photo first');
+    if (!capturedPhoto) return toast.error(t('hrm.attendance.toast.noPhoto') || 'Please capture a photo first');
     const fd = new FormData(e.target);
     photoMutation.mutate({
       employee_id: fd.get('employee_id'),
@@ -231,21 +234,21 @@ export default function Attendance() {
   };
 
   return (
-    <Layout title="Attendance Management" subtitle="Manual · Photo · QR Code · Biometric">
+    <Layout title={t('hrm.attendance.title')} subtitle={t('hrm.attendance.subtitle')}>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Records" value={stats.total || 0} color="indigo" />
-        <StatCard label="Present Today" value={stats.present || 0} color="emerald" />
-        <StatCard label="Late Arrivals" value={stats.late || 0} color="amber" />
-        <StatCard label="Still In Office" value={stats.in_office || 0} color="cyan" />
+        <StatCard label={t('hrm.attendance.stats.totalRecords')} value={stats.total || 0} color="indigo" />
+        <StatCard label={t('hrm.attendance.stats.presentToday')} value={stats.present || 0} color="emerald" />
+        <StatCard label={t('hrm.attendance.stats.lateArrivals')} value={stats.late || 0} color="amber" />
+        <StatCard label={t('hrm.attendance.stats.stillInOffice')} value={stats.in_office || 0} color="cyan" />
       </div>
 
       {/* Tabs */}
-      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="flex items-center overflow-x-auto" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="att-tab-container rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="att-tab-bar flex items-center overflow-x-auto" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === t.id ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'}`}>
+              className={`att-tab-btn flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === t.id ? 'att-tab-btn-active border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'}`}>
               <span>{t.icon}</span> {t.label}
             </button>
           ))}
@@ -253,26 +256,26 @@ export default function Attendance() {
 
         {/* Manual Entry Tab */}
         {activeTab === 'manual' && (
-          <div className="p-6">
+          <div className="att-manual-form p-6">
             <form onSubmit={handleManualSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="form-label">Employee *</label>
-                <select name="employee_id" required className="form-input">
-                  <option value="">— Select Employee —</option>
+                <label className="form-label att-form-label">{t('hrm.attendance.form.employee')}</label>
+                <select name="employee_id" required className="form-input att-form-input">
+                  <option value="">{t('hrm.attendance.form.selectEmployee')}</option>
                   {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name} ({e.employee_id})</option>)}
                 </select>
               </div>
-              <div><label className="form-label">Check-In Time</label><input type="datetime-local" name="check_in" className="form-input" /></div>
-              <div><label className="form-label">Check-Out Time</label><input type="datetime-local" name="check_out" className="form-input" /></div>
-              <div><label className="form-label">Overtime (Hours)</label><input type="number" step="0.5" min="0" name="overtime_hours" className="form-input" placeholder="e.g. 2.5" /></div>
+              <div><label className="form-label att-form-label">{t('hrm.attendance.form.checkInTime')}</label><input type="datetime-local" name="check_in" className="form-input att-form-input" /></div>
+              <div><label className="form-label att-form-label">{t('hrm.attendance.form.checkOutTime')}</label><input type="datetime-local" name="check_out" className="form-input att-form-input" /></div>
+              <div><label className="form-label att-form-label">{t('hrm.attendance.form.overtimeHours')}</label><input type="number" step="0.5" min="0" name="overtime_hours" className="form-input att-form-input" placeholder={t('hrm.attendance.form.placeholders.overtime')} /></div>
               <div className="flex items-center gap-2 pt-5">
-                <input type="checkbox" name="is_late" value="true" className="accent-amber-500" />
-                <span className="text-xs text-slate-400">Mark as Late Arrival</span>
+                <input type="checkbox" name="is_late" value="true" className="att-late-checkbox accent-amber-500" />
+                <span className="att-late-label text-xs text-slate-400">{t('hrm.attendance.form.markLate')}</span>
               </div>
               <input type="hidden" name="attendance_method" value="Manual" />
               <div className="md:col-span-2">
-                <button type="submit" className="w-full text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors" style={{ background: '#4f46e5' }}>
-                  ✏️ Record Manual Attendance
+                <button type="submit" className="att-manual-submit w-full text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors" style={{ background: '#4f46e5' }}>
+                  ✏️ {t('hrm.attendance.form.recordBtn')}
                 </button>
               </div>
             </form>
@@ -281,11 +284,11 @@ export default function Attendance() {
 
         {/* Photo Check-In Tab */}
         {activeTab === 'photo' && (
-          <div className="p-6">
+          <div className="att-photo-wrapper p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Camera Area */}
               <div className="flex flex-col gap-4">
-                <div className="relative bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center border border-white/10">
+                <div className="att-photo-camera-area relative bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center border border-white/10">
                   <video ref={videoRef} className={`w-full h-full object-cover ${isCameraActive && !capturedPhoto ? 'block' : 'hidden'}`} autoPlay playsInline muted />
                   <canvas ref={canvasRef} className="hidden" />
                   
@@ -296,53 +299,53 @@ export default function Attendance() {
                   {!isCameraActive && !capturedPhoto && (
                     <div className="text-center">
                       <div className="text-5xl mb-3">📸</div>
-                      <p className="text-slate-400 text-sm">Camera preview will appear here</p>
+                      <p className="att-photo-camera-empty-text text-slate-400 text-sm">{t('hrm.attendance.photo.previewEmpty')}</p>
                     </div>
                   )}
 
                   {isCameraActive && !capturedPhoto && (
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 rounded-full px-3 py-1">
-                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                      <span className="text-xs text-white font-bold">LIVE</span>
+                    <div className="att-photo-live-badge absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 rounded-full px-3 py-1">
+                      <div className="att-photo-live-dot w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                      <span className="att-photo-live-text text-xs text-white font-bold">{t('hrm.attendance.photo.live')}</span>
                     </div>
                   )}
                 </div>
 
                 <div className="flex gap-3">
-                  <button type="button" onClick={isCameraActive ? stopCamera : startCamera} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
-                    {isCameraActive ? 'Stop Camera' : 'Start Camera'}
+                  <button type="button" onClick={isCameraActive ? stopCamera : startCamera} className="att-photo-btn-start flex-1 bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    {isCameraActive ? t('hrm.attendance.photo.stop') : t('hrm.attendance.photo.start')}
                   </button>
-                  <button type="button" onClick={capturePhoto} disabled={!isCameraActive} className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
-                    Capture
+                  <button type="button" onClick={capturePhoto} disabled={!isCameraActive} className="att-photo-btn-capture flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+                    {t('hrm.attendance.photo.capture')}
                   </button>
                 </div>
               </div>
 
               {/* Form Area */}
-              <form onSubmit={handlePhotoSubmit} className="flex flex-col gap-4">
+              <form onSubmit={handlePhotoSubmit} className="att-photo-form flex flex-col gap-4">
                 <div>
-                  <label className="form-label">Employee *</label>
-                  <select name="employee_id" value={selectedPhotoEmpId} onChange={(e) => setSelectedPhotoEmpId(e.target.value)} required className="form-input">
-                    <option value="">— Select Employee —</option>
+                  <label className="form-label att-form-label">{t('hrm.attendance.form.employee')}</label>
+                  <select name="employee_id" value={selectedPhotoEmpId} onChange={(e) => setSelectedPhotoEmpId(e.target.value)} required className="form-input att-form-input">
+                    <option value="">{t('hrm.attendance.form.selectEmployee')}</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name} ({e.employee_id})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label">Check-In Notes</label>
-                  <input type="text" name="notes" className="form-input" placeholder="e.g. Working from office — Floor 3" />
+                  <label className="form-label att-form-label">{t('hrm.attendance.form.notes')}</label>
+                  <input type="text" name="notes" className="form-input att-form-input" placeholder={t('hrm.attendance.form.placeholders.notes')} />
                 </div>
                 
                 <div className="mt-auto">
                   {!capturedPhoto ? (
-                    <div className="text-center py-2.5 px-4 rounded-xl text-amber-500 bg-amber-500/10 text-sm font-medium border border-amber-500/20">
-                      📸 Please capture a photo before submitting
+                    <div className="att-photo-warning text-center py-2.5 px-4 rounded-xl text-amber-500 bg-amber-500/10 text-sm font-medium border border-amber-500/20">
+                      📸 {t('hrm.attendance.photo.warning')}
                     </div>
                   ) : (
-                    <button type="submit" disabled={photoMutation.isPending} className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-                      {photoMutation.isPending ? 'Submitting...' : (() => {
+                    <button type="submit" disabled={photoMutation.isPending} className="att-photo-submit w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                      {photoMutation.isPending ? t('hrm.attendance.photo.submitting') : (() => {
                         const today = new Date().toISOString().split('T')[0];
                         const isOpen = records.find(r => r.employee_id === selectedPhotoEmpId && String(r.check_in || '').startsWith(today) && !r.check_out);
-                        return isOpen ? '📸 Submit Check-Out' : '📸 Submit Check-In';
+                        return isOpen ? `📸 ${t('hrm.attendance.photo.submitCheckout')}` : `📸 ${t('hrm.attendance.photo.submitCheckin')}`;
                       })()}
                     </button>
                   )}
@@ -354,23 +357,24 @@ export default function Attendance() {
 
         {/* Records Tab */}
         {activeTab === 'records' && (
-          <div className="p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <input value={filter.name} onChange={e => setFilter(f => ({ ...f, name: e.target.value }))} placeholder="Search employee..." className="form-input w-40" />
-                <input type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} className="form-input w-40" />
-                <button type="button" onClick={() => setFilter(f => ({ ...f, date: new Date().toISOString().split('T')[0] }))} className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filter.date === new Date().toISOString().split('T')[0] ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>Today</button>
-                <button type="button" onClick={() => setFilter(f => ({ ...f, date: '' }))} className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${!filter.date ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>All Dates</button>
-                <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))} className="form-input w-36">
-                  <option value="all">All Status</option>
-                  <option value="late">Late</option>
-                  <option value="ontime">On Time</option>
+          <div className="att-records-wrapper p-4">
+            {/* Filter Bar */}
+            <div className="att-records-filterbar flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <input value={filter.name} onChange={e => setFilter(f => ({ ...f, name: e.target.value }))} placeholder={t('hrm.attendance.records.search')} className="att-records-filter-input form-input w-40" />
+                <input type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} className="att-records-filter-input form-input w-40" />
+                <button type="button" onClick={() => setFilter(f => ({ ...f, date: new Date().toISOString().split('T')[0] }))} className={`att-date-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filter.date === new Date().toISOString().split('T')[0] ? 'att-date-btn-active bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>{t('hrm.attendance.records.today')}</button>
+                <button type="button" onClick={() => setFilter(f => ({ ...f, date: '' }))} className={`att-date-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${!filter.date ? 'att-date-btn-active bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>{t('hrm.attendance.records.allDates')}</button>
+                <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))} className="att-records-filter-input form-input w-36">
+                  <option value="all">{t('hrm.attendance.records.allStatus')}</option>
+                  <option value="late">{t('hrm.attendance.records.late')}</option>
+                  <option value="ontime">{t('hrm.attendance.records.ontime')}</option>
                 </select>
               </div>
-              <button 
+              <button
                 onClick={() => {
-                  if (records.length === 0) return toast.error('No records to export');
-                  const hdrs = ['Employee', 'Check In', 'Check Out', 'Method', 'Hours', 'Overtime', 'Status'];
+                  if (records.length === 0) return toast.error(t('hrm.attendance.toast.noRecords') || 'No records to export');
+                  const hdrs = [t('hrm.attendance.records.cols.employee'), t('hrm.attendance.records.cols.checkIn'), t('hrm.attendance.records.cols.checkOut'), t('hrm.attendance.records.cols.method'), t('hrm.attendance.records.cols.hours'), t('hrm.attendance.records.cols.overtime'), t('hrm.attendance.records.cols.status')];
                   const rows = records.map(r => [
                     `"${r.Full_name || '—'}"`,
                     `"${r.check_in ? formatTimeByMethod(r.check_in, r.attendance_method) : '—'}"`,
@@ -378,7 +382,7 @@ export default function Attendance() {
                     `"${r.attendance_method || '—'}"`,
                     `"${r.work_hours_calc != null ? r.work_hours_calc : '—'}"`,
                     `"${r.overtime_hours != null ? r.overtime_hours : '—'}"`,
-                    `"${r.is_late ? 'Late' : 'On time'}"`
+                    `"${r.is_late ? t('hrm.attendance.records.status.late') : t('hrm.attendance.records.status.ontime')}"`
                   ]);
                   const csv = [hdrs.join(','), ...rows.map(row => row.join(','))].join('\n');
                   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -388,24 +392,28 @@ export default function Attendance() {
                   a.download = `attendance_records_${new Date().toISOString().split('T')[0]}.csv`;
                   a.click();
                 }}
-                className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                className="att-export-btn bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
               >
-                <span>📥</span> Export CSV
+                <span>📥</span> {t('hrm.attendance.records.export')}
               </button>
             </div>
+            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead style={{ background: 'var(--bg-850, #161929)' }}>
-                  <tr>{['Employee', 'Photo', 'Check In', 'Check Out', 'Method', 'Hours', 'Overtime', 'Status', 'Actions'].map(h => <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>)}</tr>
+              <table className="att-records-table w-full text-sm">
+                <thead className="att-records-thead" style={{ background: 'var(--bg-850, #161929)' }}>
+                  <tr>{[t('hrm.attendance.records.cols.employee'), t('hrm.attendance.records.cols.photo'), t('hrm.attendance.records.cols.checkIn'), t('hrm.attendance.records.cols.checkOut'), t('hrm.attendance.records.cols.method'), t('hrm.attendance.records.cols.hours'), t('hrm.attendance.records.cols.overtime'), t('hrm.attendance.records.cols.status'), t('hrm.attendance.records.cols.actions')].map(h => <th key={h} className="att-records-th text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {isLoading ? <tr><td colSpan="9" className="py-10 text-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
+                  {isLoading ? <tr><td colSpan="9" className="py-10 text-center"><div className="att-loading-spinner w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
                   : records.length > 0 ? records.map(r => (
-                    <tr key={r.id} className="border-t border-white/5 hover:bg-white/2 transition-colors">
+                    <tr key={r.id} className="att-records-row border-t border-white/5 hover:bg-white/2 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(r.Full_name || '?')[0]}</div>
-                          <div><p className="font-medium text-white text-sm whitespace-nowrap">{r.Full_name || '—'}</p><p className="text-xs text-slate-500 font-mono">{r.employee_code || '—'}</p></div>
+                          <div className="att-records-avatar w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{(r.Full_name || '?')[0]}</div>
+                          <div>
+                            <p className="att-records-name font-medium text-white text-sm whitespace-nowrap">{r.Full_name || '—'}</p>
+                            <p className="att-records-code text-xs text-slate-500 font-mono">{r.employee_code || '—'}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -413,26 +421,27 @@ export default function Attendance() {
                           <img src={r.check_in_photo_url} alt="Photo" className="w-8 h-8 object-cover rounded border border-white/10" />
                         ) : <span className="text-slate-500">—</span>}
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap"><span className="text-emerald-400 font-mono text-xs">{r.check_in ? formatTimeByMethod(r.check_in, r.attendance_method) : '—'}</span></td>
+                      <td className="py-3 px-4 whitespace-nowrap"><span className="att-checkin-time text-emerald-400 font-mono text-xs">{r.check_in ? formatTimeByMethod(r.check_in, r.attendance_method) : '—'}</span></td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {r.check_out ? <span className="text-rose-400 font-mono text-xs">{formatTimeByMethod(r.check_out, r.attendance_method)}</span>
-                          : <button onClick={() => checkoutMutation.mutate(r.id)} className="text-xs text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 px-2 py-0.5 rounded-lg">Check Out</button>}
+                        {r.check_out
+                          ? <span className="att-checkout-time text-rose-400 font-mono text-xs">{formatTimeByMethod(r.check_out, r.attendance_method)}</span>
+                          : <button onClick={() => checkoutMutation.mutate(r.id)} className="att-checkout-btn text-xs text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 px-2 py-0.5 rounded-lg">{t('hrm.attendance.records.checkoutBtn')}</button>}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">{methodBadge(r.attendance_method)}</td>
-                      <td className="py-3 px-4 whitespace-nowrap"><span className="font-mono text-white text-xs">{r.work_hours_calc != null ? `${r.work_hours_calc}h` : '—'}</span></td>
-                      <td className="py-3 px-4 whitespace-nowrap"><span className="font-mono text-white text-xs">{r.overtime_hours != null ? `${r.overtime_hours}h` : '—'}</span></td>
+                      <td className="py-3 px-4 whitespace-nowrap"><span className="att-hours font-mono text-white text-xs">{r.work_hours_calc != null ? `${r.work_hours_calc}h` : '—'}</span></td>
+                      <td className="py-3 px-4 whitespace-nowrap"><span className="att-overtime font-mono text-white text-xs">{r.overtime_hours != null ? `${r.overtime_hours}h` : '—'}</span></td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         {r.is_early_leave
-                          ? <span className="text-xs font-semibold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">Early Leave</span>
+                          ? <span className="att-status-badge att-status-early text-xs font-semibold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">{t('hrm.attendance.records.status.earlyLeave')}</span>
                           : r.is_late
-                          ? <span className="text-xs font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Late</span>
-                          : <span className="text-xs text-emerald-400">On time</span>}
+                          ? <span className="att-status-badge att-status-late text-xs font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">{t('hrm.attendance.records.status.late')}</span>
+                          : <span className="att-status-badge att-status-ontime text-xs text-emerald-400">{t('hrm.attendance.records.status.ontime')}</span>}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {isAdmin() && <button onClick={() => setDeleteTarget(r)} className="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded-lg">Delete</button>}
+                        {isAdmin() && <button onClick={() => setDeleteTarget(r)} className="att-records-delete text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded-lg">{t('hrm.attendance.records.deleteBtn')}</button>}
                       </td>
                     </tr>
-                  )) : <tr><td colSpan="9" className="py-12 text-center text-slate-500 text-sm">No records for selected filter.</td></tr>}
+                  )) : <tr><td colSpan="9" className="att-records-empty py-12 text-center text-slate-500 text-sm">{t('hrm.attendance.records.empty')}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -441,58 +450,58 @@ export default function Attendance() {
 
         {/* QR Tab */}
         {activeTab === 'qr' && (
-          <div className="p-6">
+          <div className="att-qr-wrapper p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               
               {/* Generate QR Form */}
               <div>
-                <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-                  HR generates a unique QR code per employee. The employee scans it from any device to auto-check in. Each code is valid for <span className="font-semibold text-white">1 hour</span> and can only be used <span className="text-rose-400 font-semibold">once</span>.
+                <p className="att-qr-text text-sm text-slate-400 mb-6 leading-relaxed">
+                  {t('hrm.attendance.qr.desc1')}<span className="att-qr-highlight font-semibold text-white">{t('hrm.attendance.qr.desc2')}</span>{t('hrm.attendance.qr.desc3')}<span className="att-qr-highlight-danger text-rose-400 font-semibold">{t('hrm.attendance.qr.desc4')}</span>
                 </p>
                 <form onSubmit={handleQrGenerate} className="space-y-4">
                   <div>
-                    <label className="form-label">Select Employee *</label>
-                    <select name="employee_id" required className="form-input">
-                      <option value="">— Select Employee —</option>
+                    <label className="form-label att-form-label">{t('hrm.attendance.qr.selectEmp')}</label>
+                    <select name="employee_id" required className="form-input att-form-input">
+                      <option value="">{t('hrm.attendance.form.selectEmployee')}</option>
                       {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
                     </select>
                   </div>
-                  <button type="submit" disabled={qrMutation.isPending} className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-colors">
-                    {qrMutation.isPending ? 'Generating...' : '📱 Generate QR Code'}
+                  <button type="submit" disabled={qrMutation.isPending} className="att-qr-submit w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-colors">
+                    {qrMutation.isPending ? t('hrm.attendance.qr.generating') : `📱 ${t('hrm.attendance.qr.generateBtn')}`}
                   </button>
                 </form>
 
                 {generatedQrToken && (
-                  <div className="mt-6 p-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 text-center animate-fade-in">
-                    <p className="text-sm text-slate-300 mb-4">Generated QR Token successfully!</p>
+                  <div className="att-qr-result-box mt-6 p-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 text-center animate-fade-in">
+                    <p className="att-qr-result-title text-sm text-slate-300 mb-4">{t('hrm.attendance.qr.successTitle')}</p>
                     <div className="inline-block p-4 bg-white rounded-xl mb-3">
                       <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${generatedQrToken}`} alt="QR Code" className="w-32 h-32" />
                     </div>
-                    <p className="text-xs font-mono text-cyan-400 break-all">{generatedQrToken}</p>
-                    <p className="text-xs text-slate-500 mt-2">Print or share this QR code with the employee.</p>
+                    <p className="att-qr-result-token text-xs font-mono text-cyan-400 break-all">{generatedQrToken}</p>
+                    <p className="att-qr-result-subtitle text-xs text-slate-500 mt-2">{t('hrm.attendance.qr.successDesc')}</p>
                   </div>
                 )}
               </div>
 
               {/* Active QR Tokens List */}
               <div>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Active QR Tokens</h3>
+                <h3 className="att-qr-section-title text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{t('hrm.attendance.qr.activeTokens')}</h3>
                 {tokens.length > 0 ? (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                     {tokens.map(tok => (
-                      <div key={tok.id} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <div key={tok.id} className="att-qr-token-card flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
                         <div>
-                          <p className="text-sm font-medium text-white">{tok.Full_name}</p>
-                          <p className="text-xs font-mono text-cyan-400">{tok.token?.slice(0, 16)}...</p>
+                          <p className="att-qr-token-name text-sm font-medium text-white">{tok.Full_name}</p>
+                          <p className="att-qr-token-val text-xs font-mono text-cyan-400">{tok.token?.slice(0, 16)}...</p>
                         </div>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${tok.used ? 'text-emerald-400 bg-emerald-400/10' : 'text-amber-400 bg-amber-400/10 animate-pulse'}`}>
-                          {tok.used ? '✓ Used' : 'Active'}
+                        <span className={`att-qr-token-badge text-xs font-semibold px-2 py-0.5 rounded-full ${tok.used ? 'att-qr-token-used text-emerald-400 bg-emerald-400/10' : 'att-qr-token-active text-amber-400 bg-amber-400/10 animate-pulse'}`}>
+                          {tok.used ? `✓ ${t('hrm.attendance.qr.used')}` : t('hrm.attendance.qr.active')}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl p-8 text-center text-slate-500 text-sm" style={{ background: 'rgba(255,255,255,0.05)' }}>No QR tokens generated yet.</div>
+                  <div className="att-qr-empty-state rounded-xl p-8 text-center text-slate-500 text-sm" style={{ background: 'rgba(255,255,255,0.05)' }}>{t('hrm.attendance.qr.empty')}</div>
                 )}
               </div>
             </div>
@@ -500,109 +509,109 @@ export default function Attendance() {
         )}
         {/* Biometric Tab */}
         {activeTab === 'biometric' && (
-          <div className="p-6">
+          <div className="att-bio-wrapper p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Left Column: Devices */}
               <div className="space-y-6">
-                <div className="rounded-xl p-6 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><span>🖧</span> Register Biometric Device</h3>
+                <div className="att-bio-card rounded-xl p-6 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <h3 className="att-bio-card-title text-sm font-bold text-white mb-4 flex items-center gap-2"><span>🖧</span> {t('hrm.attendance.biometric.regDevice')}</h3>
                   <form onSubmit={(e) => { e.preventDefault(); addDeviceMutation.mutate(Object.fromEntries(new FormData(e.target))); e.target.reset(); }} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">DEVICE NAME *</label>
-                      <input name="device_name" required placeholder="e.g. ZKTeco Main Entrance" className="form-input" />
+                      <label className="form-label att-form-label block mb-1">{t('hrm.attendance.biometric.deviceName')}</label>
+                      <input name="device_name" required placeholder={t('hrm.attendance.biometric.placeholders.deviceName')} className="form-input att-form-input" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">IP ADDRESS</label>
-                        <input name="ip_address" placeholder="192.168.1.100" className="form-input" />
+                        <label className="form-label att-form-label block mb-1">{t('hrm.attendance.biometric.ipAddr')}</label>
+                        <input name="ip_address" placeholder="192.168.1.100" className="form-input att-form-input" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">PORT</label>
-                        <input name="port" placeholder="4370" className="form-input" />
+                        <label className="form-label att-form-label block mb-1">{t('hrm.attendance.biometric.port')}</label>
+                        <input name="port" placeholder="4370" className="form-input att-form-input" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">LOCATION</label>
-                      <input name="location" placeholder="Floor 1 — Main Entrance" className="form-input" />
+                      <label className="form-label att-form-label block mb-1">{t('hrm.attendance.biometric.location')}</label>
+                      <input name="location" placeholder="Floor 1 — Main Entrance" className="form-input att-form-input" />
                     </div>
-                    <button type="submit" disabled={addDeviceMutation.isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
-                      + Register Device
+                    <button type="submit" disabled={addDeviceMutation.isLoading} className="att-bio-submit w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
+                      + {t('hrm.attendance.biometric.regBtn')}
                     </button>
                   </form>
                 </div>
 
                 <div>
-                  <h3 className="text-xs font-bold text-slate-400 mb-3 tracking-wider uppercase">Registered Devices ({data?.biometric_devices?.length || 0})</h3>
+                  <h3 className="att-bio-section-title text-xs font-bold text-slate-400 mb-3 tracking-wider uppercase">{t('hrm.attendance.biometric.regDevices')} ({data?.biometric_devices?.length || 0})</h3>
                   <div className="space-y-3">
                     {data?.biometric_devices?.length > 0 ? data.biometric_devices.map(d => (
-                      <div key={d.id} className="p-4 bg-surface-850 border border-white/5 rounded-lg flex justify-between items-center group">
+                      <div key={d.id} className="att-bio-list-card p-4 bg-surface-850 border border-white/5 rounded-lg flex justify-between items-center group">
                         <div>
-                          <p className="font-bold text-slate-200">{d.device_name}</p>
-                          <p className="text-xs text-slate-400 mt-1">{d.ip_address || 'N/A'}:{d.port || 4370}</p>
+                          <p className="att-bio-name font-bold text-slate-200">{d.device_name}</p>
+                          <p className="att-bio-detail text-xs text-slate-400 mt-1">{d.ip_address || 'N/A'}:{d.port || 4370}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded flex items-center gap-1"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> Active</span>
-                          <button className="text-xs text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
-                          <button onClick={() => deleteDeviceMutation.mutate(d.id)} className="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                          <span className="att-bio-badge-active text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded flex items-center gap-1"><span className="att-bio-pulse-dot w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> {t('hrm.attendance.biometric.active')}</span>
+                          <button className="att-bio-action-edit text-xs text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">{t('hrm.attendance.biometric.edit')}</button>
+                          <button onClick={() => deleteDeviceMutation.mutate(d.id)} className="att-bio-action-delete text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{t('hrm.attendance.biometric.delete')}</button>
                         </div>
                       </div>
-                    )) : <p className="text-sm text-slate-500">No devices registered.</p>}
+                    )) : <p className="att-bio-empty-state text-sm text-slate-500">{t('hrm.attendance.biometric.noDevices')}</p>}
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Mappings */}
               <div className="space-y-6">
-                <div className="rounded-xl p-6 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><span>👆</span> Map Employee to Device</h3>
-                  <p className="text-xs text-slate-400 mb-5 leading-relaxed">When you enroll an employee on the physical device, it assigns them an ID number. Record that ID here so the system knows which attendance records belong to which employee when the device syncs.</p>
+                <div className="att-bio-card rounded-xl p-6 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <h3 className="att-bio-card-title text-sm font-bold text-white mb-4 flex items-center gap-2"><span>👆</span> {t('hrm.attendance.biometric.mapEmp')}</h3>
+                  <p className="att-bio-text text-xs text-slate-400 mb-5 leading-relaxed">{t('hrm.attendance.biometric.mapDesc')}</p>
                   
                   <form onSubmit={(e) => { e.preventDefault(); addMappingMutation.mutate(Object.fromEntries(new FormData(e.target))); e.target.reset(); }} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">EMPLOYEE *</label>
-                      <select name="employee_id" required className="form-input">
-                        <option value="">— Select Employee —</option>
+                      <label className="form-label att-form-label block mb-1">{t('hrm.attendance.form.employee')}</label>
+                      <select name="employee_id" required className="form-input att-form-input">
+                        <option value="">{t('hrm.attendance.form.selectEmployee')}</option>
                         {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">DEVICE *</label>
-                      <select name="device_id" required className="form-input">
-                        <option value="">— Select Device —</option>
+                      <label className="form-label att-form-label block mb-1">{t('hrm.attendance.biometric.device')}</label>
+                      <select name="device_id" required className="form-input att-form-input">
+                        <option value="">{t('hrm.attendance.biometric.selectDevice')}</option>
                         {data?.biometric_devices?.map(d => <option key={d.id} value={d.id}>{d.device_name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">BIOMETRIC ID ON DEVICE *</label>
-                      <input name="biometric_id" required placeholder="e.g. 001" className="form-input" />
-                      <p className="text-[10px] text-slate-500 mt-1">The employee's enrolment ID as shown on the device</p>
+                      <label className="form-label att-form-label block mb-1">{t('hrm.attendance.biometric.bioId')}</label>
+                      <input name="biometric_id" required placeholder={t('hrm.attendance.biometric.placeholders.bioId')} className="form-input att-form-input" />
+                      <p className="att-bio-help-text text-[10px] text-slate-500 mt-1">{t('hrm.attendance.biometric.bioIdHelp')}</p>
                     </div>
-                    <button type="submit" disabled={addMappingMutation.isLoading} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
-                      👆 Save Mapping
+                    <button type="submit" disabled={addMappingMutation.isLoading} className="att-bio-submit w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
+                      👆 {t('hrm.attendance.biometric.saveMapBtn')}
                     </button>
                   </form>
                 </div>
 
                 <div>
-                  <h3 className="text-xs font-bold text-slate-400 mb-3 tracking-wider uppercase">Enrolled Employees ({data?.biometric_registrations?.length || 0})</h3>
+                  <h3 className="att-bio-section-title text-xs font-bold text-slate-400 mb-3 tracking-wider uppercase">{t('hrm.attendance.biometric.enrolledEmp')} ({data?.biometric_registrations?.length || 0})</h3>
                   <div className="space-y-3">
                     {data?.biometric_registrations?.length > 0 ? data.biometric_registrations.map(r => (
-                      <div key={r.id} className="p-4 bg-surface-850 border border-white/5 rounded-lg flex justify-between items-center group">
+                      <div key={r.id} className="att-bio-list-card p-4 bg-surface-850 border border-white/5 rounded-lg flex justify-between items-center group">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-surface-950 border border-white/5 flex items-center justify-center text-xs font-bold text-slate-400">{(r.Full_name || '?')[0]}</div>
+                          <div className="att-bio-avatar w-8 h-8 rounded-full bg-surface-950 border border-white/5 flex items-center justify-center text-xs font-bold text-slate-400">{(r.Full_name || '?')[0]}</div>
                           <div>
-                            <p className="font-bold text-slate-200">{r.Full_name}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Device ID: <span className="font-mono text-cyan-400">{r.biometric_id}</span></p>
+                            <p className="att-bio-name font-bold text-slate-200">{r.Full_name}</p>
+                            <p className="att-bio-detail text-xs text-slate-400 mt-0.5">Device ID: <span className="att-bio-highlight font-mono text-cyan-400">{r.biometric_id}</span></p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">✓ Enrolled</span>
-                          <button onClick={() => setEditMappingTarget(r)} className="text-xs text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
-                          <button onClick={() => setDeleteMappingTarget(r)} className="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                          <span className="att-bio-badge-enrolled text-xs font-medium text-emerald-400 flex items-center gap-1">✓ {t('hrm.attendance.biometric.enrolled')}</span>
+                          <button onClick={() => setEditMappingTarget(r)} className="att-bio-action-edit text-xs text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">{t('hrm.attendance.biometric.edit')}</button>
+                          <button onClick={() => setDeleteMappingTarget(r)} className="att-bio-action-delete text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{t('hrm.attendance.biometric.delete')}</button>
                         </div>
                       </div>
-                    )) : <p className="text-sm text-slate-500">No employees mapped yet.</p>}
+                    )) : <p className="att-bio-empty-state text-sm text-slate-500">{t('hrm.attendance.biometric.noMaps')}</p>}
                   </div>
                 </div>
               </div>
@@ -650,32 +659,32 @@ export default function Attendance() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditMappingTarget(null)} />
           <div className="relative rounded-2xl w-full max-w-md m-4 p-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <h2 className="text-base font-bold text-white mb-4">Edit Mapping</h2>
+            <h2 className="text-base font-bold text-white mb-4">{t('hrm.attendance.biometric.editMap')}</h2>
             <form onSubmit={(e) => { 
               e.preventDefault(); 
               editMappingMutation.mutate({ id: editMappingTarget.id, body: Object.fromEntries(new FormData(e.target)) }); 
             }} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">EMPLOYEE *</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t('hrm.attendance.form.employee').replace('*','')}</label>
                 <select name="employee_id" required defaultValue={editMappingTarget.employee_id} className="form-input">
-                  <option value="">— Select Employee —</option>
+                  <option value="">{t('hrm.attendance.form.selectEmployee')}</option>
                   {employees.map(e => <option key={e.id} value={e.id}>{e.Full_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">DEVICE *</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t('hrm.attendance.biometric.device').replace('*','')}</label>
                 <select name="device_id" required defaultValue={editMappingTarget.device_id} className="form-input">
-                  <option value="">— Select Device —</option>
+                  <option value="">{t('hrm.attendance.biometric.selectDevice')}</option>
                   {data?.biometric_devices?.map(d => <option key={d.id} value={d.id}>{d.device_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">BIOMETRIC ID ON DEVICE *</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t('hrm.attendance.biometric.bioId').replace('*','')}</label>
                 <input name="biometric_id" required defaultValue={editMappingTarget.biometric_id} className="form-input" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditMappingTarget(null)} className="flex-1 px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl">Cancel</button>
-                <button type="submit" disabled={editMappingMutation.isPending} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl">Update</button>
+                <button type="button" onClick={() => setEditMappingTarget(null)} className="flex-1 px-4 py-2.5 bg-white/5 text-slate-400 rounded-xl">{t('hrm.attendance.biometric.cancel')}</button>
+                <button type="submit" disabled={editMappingMutation.isPending} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl">{t('hrm.attendance.biometric.update')}</button>
               </div>
             </form>
           </div>

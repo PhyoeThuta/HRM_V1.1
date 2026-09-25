@@ -89,22 +89,22 @@ export default function SopReportTab({ positions }) {
   return (
     <div className="space-y-8">
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-end bg-surface-800 p-4 rounded-xl border border-slate-700">
+      <div className="sop-filter-box flex flex-wrap gap-4 items-end bg-surface-800 p-4 rounded-xl border border-slate-700">
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1">Select Month</label>
+          <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">Select Month</label>
           <input
             type="month"
             value={month}
             onChange={e => setMonth(e.target.value)}
-            className="bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500"
+            className="sop-input bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1">Filter by Position</label>
+          <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">Filter by Position</label>
           <select
             value={positionId}
             onChange={e => setPositionId(e.target.value)}
-            className="bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 w-48"
+            className="sop-input bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 w-48"
           >
             <option value="">All Positions</option>
             {positions.map(p => (
@@ -115,28 +115,28 @@ export default function SopReportTab({ positions }) {
       </div>
 
       {isLoading ? (
-        <div className="p-10 text-center text-slate-400">Loading report...</div>
+        <div className="sop-empty-state p-10 text-center text-slate-400">Loading report...</div>
       ) : employees.length === 0 ? (
-        <div className="p-10 text-center text-slate-400">No employees found for the selected filters.</div>
+        <div className="sop-empty-state p-10 text-center text-slate-400">No employees found for the selected filters.</div>
       ) : (
         <>
           {/* ── Daily Grid ── */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+          <div className="sop-grid-section">
+            <h3 className="sop-section-title text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
               <span className="text-indigo-400">📅</span> Daily Tracking Grid
-              <span className="text-xs text-slate-500 font-normal">— click ❌ to see missed tasks</span>
+              <span className="sop-section-subtitle text-xs text-slate-500 font-normal">— click ❌ to see missed tasks</span>
             </h3>
-            <div className="bg-surface-800 rounded-xl overflow-hidden border border-slate-700 overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300 min-w-max">
+            <div className="sop-table-wrapper bg-surface-800 rounded-xl overflow-hidden border border-slate-700 overflow-x-auto">
+              <table className="sop-table w-full text-left text-sm text-slate-300 min-w-max">
                 <thead className="bg-[#2a2f45] text-slate-400">
                   <tr>
-                    <th className="p-3 font-medium sticky left-0 bg-[#2a2f45] z-10 border-r border-slate-700 min-w-[130px]">Employee</th>
-                    <th className="p-3 font-medium text-center text-rose-400 border-r border-slate-700 bg-rose-500/5 min-w-[90px]">Missed</th>
+                    <th className="sop-th-sticky p-3 font-medium sticky left-0 bg-[#2a2f45] z-10 border-r border-slate-700 min-w-[130px]">Employee</th>
+                    <th className="sop-th-missed p-3 font-medium text-center text-rose-400 border-r border-slate-700 bg-rose-500/5 min-w-[90px]">Missed</th>
                     {daysArray.map(d => {
                       const dateObj = new Date(`${month}-${String(d).padStart(2, '0')}T12:00:00`);
                       const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                       return (
-                        <th key={d} className={`p-1 font-medium text-center w-10 border-r border-slate-700/50 ${isWeekend ? 'text-indigo-300 bg-indigo-500/5' : ''}`}>
+                        <th key={d} className={`sop-th-day p-1 font-medium text-center w-10 border-r border-slate-700/50 ${isWeekend ? 'sop-th-weekend text-indigo-300 bg-indigo-500/5' : ''}`}>
                           <div className="text-[10px] text-slate-500">{dayNames[dateObj.getDay()]}</div>
                           <div>{d}</div>
                         </th>
@@ -146,7 +146,7 @@ export default function SopReportTab({ positions }) {
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
                   {activeEmployees.length === 0 ? (
-                    <tr><td colSpan={daysArray.length + 2} className="p-8 text-center text-slate-500">No SOPs assigned to any employee this month.</td></tr>
+                    <tr><td colSpan={daysArray.length + 2} className="sop-empty-state p-8 text-center text-slate-500">No SOPs assigned to any employee this month.</td></tr>
                   ) : activeEmployees.map(emp => {
                     let missedCount = 0;
                     const todayStr = new Date().toISOString().slice(0, 10);
@@ -155,7 +155,7 @@ export default function SopReportTab({ positions }) {
                       const dayRecords = sopsByEmp[emp.id]?.[dateStr];
 
                       if (!dayRecords) {
-                        return <td key={d} className="p-1 text-center text-slate-600 border-r border-slate-700/50">-</td>;
+                        return <td key={d} className="sop-td-empty p-1 text-center text-slate-600 border-r border-slate-700/50">-</td>;
                       }
 
                       const allCompleted = dayRecords.every(r => r.is_completed);
@@ -163,7 +163,7 @@ export default function SopReportTab({ positions }) {
 
                       if (allCompleted) {
                         return (
-                          <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-emerald-500/5">
+                          <td key={d} className="sop-td-completed p-1 text-center border-r border-slate-700/50 bg-emerald-500/5">
                             {anyVideo ? (
                               <a href={anyVideo.proof_video_url} target="_blank" rel="noreferrer" title="Watch Video"
                                 className="text-emerald-400 hover:text-emerald-300 text-lg cursor-pointer">✅</a>
@@ -176,7 +176,7 @@ export default function SopReportTab({ positions }) {
                         // Check if it's a future date
                         if (dateStr > todayStr) {
                           return (
-                            <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-white/5">
+                            <td key={d} className="sop-td-pending p-1 text-center border-r border-slate-700/50 bg-white/5">
                               <span className="text-slate-500 text-xs" title="Pending">⏳</span>
                             </td>
                           );
@@ -186,7 +186,7 @@ export default function SopReportTab({ positions }) {
                         const missedTasks = dayRecords.filter(r => !r.is_completed).map(r => r.task_description).filter(Boolean);
                         const dateObj = new Date(dateStr + 'T12:00:00');
                         return (
-                          <td key={d} className="p-1 text-center border-r border-slate-700/50 bg-rose-500/5">
+                          <td key={d} className="sop-td-missed p-1 text-center border-r border-slate-700/50 bg-rose-500/5">
                             <button
                               onClick={() => setMissedModal({
                                 empName: emp.Full_name,
@@ -195,7 +195,7 @@ export default function SopReportTab({ positions }) {
                                 tasks: missedTasks
                               })}
                               title="Click to see missed tasks"
-                              className="text-rose-400 text-lg hover:text-rose-200 hover:scale-125 transition-all duration-150 cursor-pointer"
+                              className="sop-btn-missed text-rose-400 text-lg hover:text-rose-200 hover:scale-125 transition-all duration-150 cursor-pointer"
                             >❌</button>
                           </td>
                         );
@@ -203,15 +203,15 @@ export default function SopReportTab({ positions }) {
                     });
 
                     return (
-                      <tr key={emp.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-3 font-medium sticky left-0 bg-surface-800 z-10 border-r border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                      <tr key={emp.id} className="sop-tr hover:bg-white/5 transition-colors">
+                        <td className="sop-td-sticky p-3 font-medium sticky left-0 bg-surface-800 z-10 border-r border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                           {emp.Full_name}
                         </td>
-                        <td className="p-3 text-center font-bold text-rose-400 border-r border-slate-700 bg-rose-500/5">
+                        <td className="sop-td-missed-count p-3 text-center font-bold text-rose-400 border-r border-slate-700 bg-rose-500/5">
                           {missedCount > 0 ? (
-                            <span className="bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full text-xs">{missedCount} days</span>
+                            <span className="sop-badge-missed bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full text-xs">{missedCount} days</span>
                           ) : (
-                            <span className="text-emerald-400 text-xs">Perfect ✓</span>
+                            <span className="sop-badge-perfect text-emerald-400 text-xs">Perfect ✓</span>
                           )}
                         </td>
                         {rowCells}
@@ -224,8 +224,8 @@ export default function SopReportTab({ positions }) {
           </div>
 
           {/* ── Auto Monthly Summary ── */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+          <div className="sop-summary-section">
+            <h3 className="sop-section-title text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
               <span className="text-amber-400">📋</span> Monthly Summary — {monthLabel}
             </h3>
             <div className="space-y-4">
@@ -234,32 +234,32 @@ export default function SopReportTab({ positions }) {
                 const barColor = totalCount === 0 ? 'bg-slate-600' : pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
                 return (
-                  <div key={emp.id} className={`bg-surface-800 rounded-xl border ${totalCount === 0 ? 'border-slate-700/50 opacity-70' : 'border-slate-700'} overflow-hidden`}>
+                  <div key={emp.id} className={`sop-summary-card bg-surface-800 rounded-xl border ${totalCount === 0 ? 'border-slate-700/50 opacity-70' : 'border-slate-700'} overflow-hidden`}>
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
+                    <div className="sop-summary-header flex items-center justify-between p-4 border-b border-slate-700/50">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <div className="sop-summary-icon w-9 h-9 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
                           {emp.Full_name.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-white font-semibold text-sm">{emp.Full_name}</p>
-                          <p className="text-xs text-slate-400">{completedCount} completed / {totalCount} assigned</p>
+                          <p className="sop-summary-name text-white font-semibold text-sm">{emp.Full_name}</p>
+                          <p className="sop-summary-meta text-xs text-slate-400">{completedCount} completed / {totalCount} assigned</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         {missedCount > 0 && (
-                          <span className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1 rounded-full">
+                          <span className="sop-summary-warning text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1 rounded-full">
                             ⚠️ {missedCount} day{missedCount !== 1 ? 's' : ''} missed
                           </span>
                         )}
                         <div className="text-right">
-                          <p className={`text-lg font-bold ${totalCount === 0 ? 'text-slate-500' : pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</p>
+                          <p className={`sop-summary-pct text-lg font-bold ${totalCount === 0 ? 'text-slate-500' : pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Progress bar */}
-                    <div className="px-4 py-2 bg-surface-850/50">
+                    <div className="sop-summary-bar-bg px-4 py-2 bg-surface-850/50">
                       <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
                         <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
                       </div>
@@ -270,7 +270,7 @@ export default function SopReportTab({ positions }) {
                       <div className="p-4 space-y-2">
                         <p className="text-xs font-semibold text-rose-400 mb-3">Missed Task Details:</p>
                         {missedDays.map(({ dateKey, dayName, day, tasks }) => (
-                          <div key={dateKey} className="flex gap-3 items-start bg-rose-500/5 border border-rose-500/10 rounded-lg p-3">
+                          <div key={dateKey} className="sop-summary-missed-box flex gap-3 items-start bg-rose-500/5 border border-rose-500/10 rounded-lg p-3">
                             <div className="text-center min-w-[48px]">
                               <p className="text-[10px] text-slate-500">{dayName}</p>
                               <p className="text-rose-400 font-bold text-lg leading-none">{day}</p>
@@ -293,7 +293,7 @@ export default function SopReportTab({ positions }) {
                         ))}
                       </div>
                     ) : totalCount > 0 ? (
-                      <div className="p-4 text-center text-emerald-400 text-sm">
+                      <div className="p-4 text-center text-emerald-400 text-sm font-bold">
                         🎉 All SOP tasks completed for {monthLabel}!
                       </div>
                     ) : null}
@@ -301,7 +301,7 @@ export default function SopReportTab({ positions }) {
                 );
               })}
               {monthlySummary.length === 0 && (
-                 <div className="p-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-surface-800">
+                 <div className="sop-empty-state p-10 text-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-surface-800">
                    No employees found to report on.
                  </div>
               )}
@@ -312,25 +312,25 @@ export default function SopReportTab({ positions }) {
 
       {/* ── Missed Task Detail Modal ── */}
       {missedModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setMissedModal(null)}>
-          <div className="bg-surface-800 w-full max-w-md rounded-2xl shadow-2xl border border-rose-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="sop-modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setMissedModal(null)}>
+          <div className="sop-modal-content bg-surface-800 w-full max-w-md rounded-2xl shadow-2xl border border-rose-500/30 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Modal header */}
-            <div className="p-5 border-b border-slate-700 bg-rose-500/5">
+            <div className="sop-modal-header p-5 border-b border-slate-700 bg-rose-500/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-white font-bold text-base">Missed SOP Tasks</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <h3 className="sop-modal-title text-white font-bold text-base">Missed SOP Tasks</h3>
+                  <p className="sop-modal-subtitle text-xs text-slate-400 mt-0.5">
                     {missedModal.empName} — {missedModal.dayName}, {missedModal.dateStr}
                   </p>
                 </div>
-                <button onClick={() => setMissedModal(null)} className="text-slate-400 hover:text-white transition-colors text-xl">✕</button>
+                <button onClick={() => setMissedModal(null)} className="sop-modal-close text-slate-400 hover:text-white transition-colors text-xl">✕</button>
               </div>
             </div>
             {/* Modal body */}
             <div className="p-5 space-y-3">
               {missedModal.tasks.length > 0 ? (
                 missedModal.tasks.map((task, i) => (
-                  <div key={i} className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
+                  <div key={i} className="sop-missed-task flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
                     <span className="text-rose-400 font-bold text-base">✗</span>
                     <p className="text-sm text-slate-200 whitespace-pre-line">{task}</p>
                   </div>
@@ -339,8 +339,8 @@ export default function SopReportTab({ positions }) {
                 <p className="text-sm text-slate-400 text-center py-4">No task description recorded for this day.</p>
               )}
             </div>
-            <div className="p-4 border-t border-slate-700">
-              <button onClick={() => setMissedModal(null)} className="w-full bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">
+            <div className="sop-modal-footer p-4 border-t border-slate-700">
+              <button onClick={() => setMissedModal(null)} className="sop-btn-cancel w-full bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">
                 Close
               </button>
             </div>
