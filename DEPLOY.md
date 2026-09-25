@@ -1,5 +1,5 @@
 # Production Deployment Guide
-## BBD HRM — GCP VM + Docker + Nginx + Certbot
+## BBD HRM — GCP VM + Docker + Nginx + Certbot (bbd-hrm.aiautono.io)
 
 ---
 
@@ -77,7 +77,7 @@ NODE_ENV=production
 PORT=8080
 
 # CORS — must match your actual domain
-ALLOWED_ORIGINS=https://hrm.duolinkmm.com
+ALLOWED_ORIGINS=https://bbd-hrm.aiautono.io
 
 # Auth
 JWT_SECRET=your_very_long_random_secret_here
@@ -101,7 +101,7 @@ TELEGRAM_CHAT_ID=your_chat_id
 GOOGLE_AI_API_KEY=your_gemini_key
 
 # Frontend onboarding
-FRONTEND_ONBOARDING_URL=https://hrm.duolinkmm.com
+FRONTEND_ONBOARDING_URL=https://bbd-hrm.aiautono.io
 ```
 
 ```bash
@@ -113,12 +113,12 @@ chmod 600 /opt/bbd/.env.production
 
 ```bash
 # Copy the Nginx config from the repo
-sudo cp nginx/hrm.conf /etc/nginx/sites-available/hrm.duolinkmm.com
-sudo ln -s /etc/nginx/sites-available/hrm.duolinkmm.com /etc/nginx/sites-enabled/
+sudo cp nginx/hrm.conf /etc/nginx/sites-available/bbd-hrm.aiautono.io
+sudo ln -s /etc/nginx/sites-available/bbd-hrm.aiautono.io /etc/nginx/sites-enabled/
 
 # Get TLS certificate (first time)
 # This temporarily configures Nginx for HTTP-only for the ACME challenge
-sudo certbot --nginx -d hrm.duolinkmm.com
+sudo certbot --nginx -d bbd-hrm.aiautono.io
 
 # Verify auto-renewal is configured
 sudo certbot renew --dry-run
@@ -159,7 +159,7 @@ pm2 save
 sudo nginx -t && sudo systemctl reload nginx
 
 # 6. Verify production endpoint
-curl https://hrm.duolinkmm.com/api/health
+curl https://bbd-hrm.aiautono.io/api/health
 ```
 
 ---

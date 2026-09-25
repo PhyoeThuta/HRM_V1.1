@@ -39,7 +39,7 @@ export async function checkAndNotifyDailyFeedback() {
     // 3. For each customer, generate a unique link and send Zernio message
     for (const customer of customersToNotify) {
       try {
-        // Link: e.g. https://hrm.duolinkmm.com/daily-feedback/[customer_id]?date=YYYY-MM-DD
+        // Link: e.g. https://bbd-hrm.aiautono.io/daily-feedback/[customer_id]?date=YYYY-MM-DD
         const domain = process.env.FRONTEND_URL || 'http://localhost:5173';
         const link = `${domain}/daily-feedback/${customer.id}?date=${today}`;
         

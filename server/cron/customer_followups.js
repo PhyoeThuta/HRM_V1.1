@@ -217,7 +217,7 @@ export async function checkAndNotifyFormReminders() {
     const zernioAccountId = process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230';
 
     for (const inq of inquiries) {
-      const link = `https://hrm.duolinkmm.com/enroll?token=${inq.onboarding_token}`;
+      const link = `https://bbd-hrm.aiautono.io/enroll?token=${inq.onboarding_token}`;
       const messageText = `မင်္ဂလာပါ ${inq.prospect_name} ရှင်၊ မနေ့က ပို့ထားတဲ့ ဖောင်လေး ဖြည့်ဖို့ ကျန်နေသေးလို့ပါရှင်။ \n\nအောက်က လင့်ခ်လေးကို နှိပ်ပြီး အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော် ✨\n${link}`;
 
       // Insert message into DB to track it

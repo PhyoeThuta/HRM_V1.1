@@ -182,8 +182,8 @@ jobs:
             # 3. Ensure correct symlink is active
             # 4. Validate + reload nginx
             NGINX_CONF_SRC="/opt/bbd/nginx/hrm.conf"
-            NGINX_CONF_DST="/etc/nginx/sites-available/hrm.duolinkmm.com"
-            NGINX_ENABLED="/etc/nginx/sites-enabled/hrm.duolinkmm.com"
+            NGINX_CONF_DST="/etc/nginx/sites-available/bbd-hrm.aiautono.io"
+            NGINX_ENABLED="/etc/nginx/sites-enabled/bbd-hrm.aiautono.io"
             NGINX_OLD_LINK="/etc/nginx/sites-enabled/hrm_react"
 
             if [ -f "${NGINX_CONF_SRC}" ]; then
@@ -197,9 +197,15 @@ jobs:
               sudo rm -f "${NGINX_OLD_LINK}"
             fi
 
+            # Remove retired old domain symlink
+            if [ -L "/etc/nginx/sites-enabled/hrm.duolinkmm.com" ]; then
+              echo "=== Removing retired domain nginx config ==="
+              sudo rm -f "/etc/nginx/sites-enabled/hrm.duolinkmm.com"
+            fi
+
             # Create symlink if not already enabled
             if [ ! -L "${NGINX_ENABLED}" ]; then
-              echo "=== Creating nginx symlink for hrm.duolinkmm.com ==="
+              echo "=== Creating nginx symlink for bbd-hrm.aiautono.io ==="
               sudo ln -s "${NGINX_CONF_DST}" "${NGINX_ENABLED}"
             fi
 

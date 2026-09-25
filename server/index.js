@@ -9,9 +9,9 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import { auditMiddleware } from './middleware/auditContext.js';
 dotenv.config();
-process.env.TZ = 'Asia/Bangkok'; // Ensure Bangkok (UTC+7) timezone across all server operations
-
+process.env.TZ = 'Asia/Bangkok';
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
@@ -46,6 +46,7 @@ import operationsRoutes from './routes/operations.js';
 import telegramRouter from './routes/telegram.js';
 import dailyFeedbackRouter from './routes/daily_feedback.js';
 import performanceRouter from './routes/performance.js';
+import manualRouter from './routes/manual.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -73,8 +74,8 @@ app.use(helmet({
 }));
 
 const defaultAllowedOrigins = [
-  'https://hrm.duolinkmm.com',
-  'http://hrm.duolinkmm.com',
+  'https://bbd-hrm.aiautono.io',
+  'http://bbd-hrm.aiautono.io',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:8080'
@@ -104,7 +105,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // Increased for video
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
-
+app.use(auditMiddleware);
 app.use('/api/uploads', express.static('uploads')); // Serve safely under /api path
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
@@ -163,6 +164,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
 app.use('/api/daily-feedback', dailyFeedbackRouter);
 app.use('/api/performance', performanceRouter);
+app.use('/api/manual', manualRouter);
 // ── Test Endpoints (Admin-Only) ─────────────────────────────────────────────
 // These endpoints are protected by requireAdmin to prevent unauthorized Cron triggering.
 app.post('/api/test/trigger-birthdays', requireAdmin, async (req, res) => {
