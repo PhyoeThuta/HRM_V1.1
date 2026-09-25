@@ -163,7 +163,6 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
 app.use('/api/daily-feedback', dailyFeedbackRouter);
 app.use('/api/performance', performanceRouter);
-app.use('/api/manual', manualRouter);
 // ── Test Endpoints (Admin-Only) ─────────────────────────────────────────────
 // These endpoints are protected by requireAdmin to prevent unauthorized Cron triggering.
 app.post('/api/test/trigger-birthdays', requireAdmin, async (req, res) => {
