@@ -9,9 +9,9 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
-import { auditMiddleware } from './middleware/auditContext.js';
 dotenv.config();
-process.env.TZ = 'Asia/Bangkok';
+process.env.TZ = 'Asia/Bangkok'; // Ensure Bangkok (UTC+7) timezone across all server operations
+
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
@@ -46,7 +46,7 @@ import operationsRoutes from './routes/operations.js';
 import telegramRouter from './routes/telegram.js';
 import dailyFeedbackRouter from './routes/daily_feedback.js';
 import performanceRouter from './routes/performance.js';
-import manualRouter from './routes/manual.js';
+
 
 const app = express();
 const server = http.createServer(app);
@@ -84,13 +84,13 @@ const defaultAllowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    
+
     let allowedOrigins = defaultAllowedOrigins;
     if (process.env.ALLOWED_ORIGINS) {
       const customOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
       allowedOrigins = Array.from(new Set([...allowedOrigins, ...customOrigins]));
     }
-    
+
     if (allowedOrigins.includes(origin) || origin.includes('duolinkmm.com') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
       return callback(null, true);
     }
@@ -105,7 +105,6 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // Increased for video
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
-app.use(auditMiddleware);
 app.use('/api/uploads', express.static('uploads')); // Serve safely under /api path
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
@@ -231,7 +230,7 @@ app.use((err, req, res, next) => {
 
   // Always log the full error server-side for debugging.
   console.error(`[SERVER ERROR] ${req.method} ${req.originalUrl}`, err.stack || err);
-  
+
   // Only send a safe, generic message to the client.
   const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json({ error: err.message || 'Internal server error' });
