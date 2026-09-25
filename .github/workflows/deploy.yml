@@ -153,18 +153,21 @@ jobs:
             # Rolling replace: start new container, old one is stopped automatically
             IMAGE_TAG="${IMAGE_TAG}" docker compose up -d --pull never
 
-            # Wait for health check to pass (max 60s)
-            echo "=== Waiting for health check ==="
+            # Wait for health check to pass
+            # Docker healthcheck: start_period=20s, interval=30s, retries=3
+            # Worst case to reach "healthy": 20 + (3 × 30) = 110s
+            # We poll for up to 300s (30 attempts × 10s) to be safe
+            echo "=== Waiting for health check (up to 300s) ==="
             HEALTHY=false
-            for i in $(seq 1 12); do
+            for i in $(seq 1 30); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' bbd_hrm_app 2>/dev/null || echo "starting")
-              echo "Health: ${STATUS} (attempt ${i}/12)"
+              echo "Health: ${STATUS} (attempt ${i}/30)"
               if [ "${STATUS}" = "healthy" ]; then
                 HEALTHY=true
                 echo "=== Container is healthy! ==="
                 break
               fi
-              sleep 5
+              sleep 10
             done
 
             if [ "${HEALTHY}" = "false" ]; then
