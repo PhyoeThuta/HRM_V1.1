@@ -23,7 +23,8 @@ router.get('/', verifyToken, async (req, res) => {
       onboardingRes,
       candidatesRes,
       payrollsRes,
-      announcementsRes
+      announcementsRes,
+      positionsRes
     ] = await Promise.all([
       supabase.from('Employees').select('id,employee_id,Full_name,status,Dept_id'),
       hrmModule.getAttendanceSummaryForPayroll(today),
@@ -33,6 +34,7 @@ router.get('/', verifyToken, async (req, res) => {
       supabase.from('recruitment_candidates').select('id,status'),
       payrollModule.getPaidPayrolls(),
       supabase.from('announcements').select('*'),
+      supabase.from('positions').select('id,is_hiring'),
     ]);
 
     const employees = employeesRes.data || [];
@@ -43,6 +45,7 @@ router.get('/', verifyToken, async (req, res) => {
     const candidates = candidatesRes.data || [];
     const payrolls = payrollsRes;
     const rawAnnouncements = announcementsRes.data || [];
+    const positionsData = positionsRes.data || [];
 
     const totalStaff = employees.length;
     const activeStaff = employees.filter(e => String(e.status || '').toLowerCase() === 'active').length;
@@ -54,7 +57,7 @@ router.get('/', verifyToken, async (req, res) => {
     const rejectedLeaves = leaveReqs.filter(l => String(l.status || '').toLowerCase() === 'rejected').length;
     const pendingClear = offboarding.filter(o => String(o.settlement_status || '').toLowerCase().startsWith('hold')).length;
     const activeOnboard = onboarding.filter(o => ['Pre-boarding', 'In Progress'].includes(o.status)).length;
-    const openPositions = new Set(candidates.filter(c => ['Applied', 'Screening', 'Interview'].includes(c.status)).map(c => c.status)).size;
+    const openPositions = positionsData.filter(p => p.is_hiring === true).length;
     const totalPayroll = payrolls.filter(p => p.payment_status === 'Paid').reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
     const offboardedCount = offboarding.length;
     const turnoverRate = totalStaff > 0 ? ((offboardedCount / totalStaff) * 100).toFixed(1) : '0.0';
