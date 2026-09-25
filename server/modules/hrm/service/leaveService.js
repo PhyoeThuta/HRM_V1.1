@@ -58,6 +58,11 @@ export const leaveService = {
   },
 
   createLeaveRequest: async (data, documentUrl) => {
+    const start = new Date(data.start_date);
+    const end = new Date(data.end_date);
+    if (end < start) {
+      throw new Error('Invalid date range: end date cannot be earlier than start date.');
+    }
     return await leaveRepository.createLeaveRequest({
       employee_id: data.employee_id,
       leave_type_id: data.leave_type_id,
@@ -81,7 +86,10 @@ export const leaveService = {
     if (status === 'Approved' && reqData.status !== 'Approved') {
       const start = new Date(reqData.start_date);
       const end = new Date(reqData.end_date);
-      const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (end < start) {
+        throw new Error('Invalid date range: end date cannot be earlier than start date.');
+      }
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
       
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
       
@@ -96,7 +104,10 @@ export const leaveService = {
     if (status !== 'Approved' && reqData.status === 'Approved') {
       const start = new Date(reqData.start_date);
       const end = new Date(reqData.end_date);
-      const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (end < start) {
+        throw new Error('Invalid date range: end date cannot be earlier than start date.');
+      }
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
       
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
       

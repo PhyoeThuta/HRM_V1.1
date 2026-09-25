@@ -394,6 +394,11 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     await cascade('peer_voting_records', 'voter_id');
     await cascade('employee_daily_schedules');
     await cascade('employee_onboarding');
+    await cascade('handovers');
+    await cascade('handovers', 'successor_id');
+    await cascade('employee_career_timeline');
+    await cascade('corporate_offboarding');
+    await cascade('daily_sops');
 
     // Also nullify Manager_id in Employees where this user is the manager
     await supabase.from('Employees').update({ Manager_id: null }).eq('Manager_id', eid);
