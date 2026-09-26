@@ -14,6 +14,7 @@ export default function Positions() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [announceTarget, setAnnounceTarget] = useState(null);
+  const [staffTarget, setStaffTarget] = useState(null);
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
@@ -27,17 +28,32 @@ export default function Positions() {
 
   const addMutation = useMutation({
     mutationFn: (body) => api.post('/positions', body),
-    onSuccess: () => { qc.invalidateQueries(['positions']); setShowModal(false); },
+    onSuccess: () => { 
+      qc.invalidateQueries(['positions']); 
+      setShowModal(false);
+      toast.success(t('hrm.positions.toast.addSuccess') || 'Position added successfully');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.positions.toast.addError') || 'Failed to add position')
   });
 
   const editMutation = useMutation({
     mutationFn: ({ id, body }) => api.put(`/positions/${id}`, body),
-    onSuccess: () => { qc.invalidateQueries(['positions']); setEditTarget(null); },
+    onSuccess: () => { 
+      qc.invalidateQueries(['positions']); 
+      setEditTarget(null);
+      toast.success(t('hrm.positions.toast.editSuccess') || 'Position updated successfully');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.positions.toast.editError') || 'Failed to update position')
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/positions/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['positions']); setDeleteTarget(null); },
+    onSuccess: () => { 
+      qc.invalidateQueries(['positions']); 
+      setDeleteTarget(null);
+      toast.success(t('hrm.positions.toast.deleteSuccess') || 'Position deleted successfully');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.positions.toast.deleteError') || 'Failed to delete position')
   });
 
   const handleSave = (e) => {
@@ -92,7 +108,7 @@ export default function Positions() {
 
   const mapPositionTitle = (title) => {
     if (!title) return title;
-    const key = title.toLowerCase().replace(/\s+/g, '');
+    const key = title.trim().toLowerCase().replace(/\s+/g, '');
     const translated = t(`hrm.positions.names.${key}`);
     if (translated && !translated.startsWith('hrm.')) return translated;
     return title;
@@ -172,20 +188,23 @@ export default function Positions() {
             </div>
             
             <div className="pos-footer mt-6 flex items-center justify-between border-t border-white/5 pt-4">
-              <span className="pos-staff-badge px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-full">
+              <button 
+                onClick={() => setStaffTarget(p)}
+                className="pos-staff-badge px-3 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-full transition-colors cursor-pointer border border-indigo-500/20 hover:border-indigo-500/40"
+              >
                 {p.emp_count || 0} {t('hrm.positions.staff')}
-              </span>
+              </button>
               <div className="flex items-center gap-3">
                 {p.is_hiring && isAdmin() && (
                   <button
-                    title="Compose Facebook announcement (image + text)"
+                    title={t('hrm.positions.composeFbAnnouncement')}
                     onClick={() => setAnnounceTarget(p)}
                     className="pos-action-announce flex items-center justify-center w-7 h-7 rounded-lg bg-brand-green/20 text-brand-green hover:bg-brand-green hover:text-black transition-colors"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                   </button>
                 )}
-                <div className="flex items-center gap-2" title="Publish to Career Page">
+                <div className="flex items-center gap-2" title={t('hrm.positions.publishCareerPage')}>
                   <span className="pos-hiring-label text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t('hrm.positions.hiring')}</span>
                   <button 
                     onClick={() => editMutation.mutate({ id: p.id, body: { is_hiring: !p.is_hiring } })}
@@ -260,6 +279,48 @@ export default function Positions() {
               <button onClick={() => deleteMutation.mutate(deleteTarget.id)} className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-rose-600/20">
                 {t('common.actions.delete')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {staffTarget && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setStaffTarget(null)} />
+          <div className="relative bg-surface-850 border border-white/10 rounded-2xl w-full max-w-md m-4 p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+              <div>
+                <h2 className="text-lg font-bold text-white">{mapPositionTitle(staffTarget.title)}</h2>
+                <p className="text-sm text-slate-400 mt-1">{staffTarget.emp_count} {t('hrm.positions.staff')}</p>
+              </div>
+              <button onClick={() => setStaffTarget(null)} className="text-slate-400 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+              {(!staffTarget.staff || staffTarget.staff.length === 0) ? (
+                <div className="py-8 text-center text-slate-500 text-sm italic">
+                  {t('hrm.positions.noStaffAssigned') || 'No staff currently assigned to this position.'}
+                </div>
+              ) : (
+                staffTarget.staff.map(emp => (
+                  <div key={emp.id} className="flex items-center gap-4 p-3 rounded-xl bg-surface-800 border border-white/5 hover:border-white/10 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                    {emp.avatar_url ? (
+                      <img src={emp.avatar_url} alt={emp.Full_name} className="w-10 h-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm uppercase">
+                        {(emp.Full_name || '?').charAt(0)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{emp.Full_name || '—'}</p>
+                      <p className="text-xs text-slate-400 truncate">{emp.employee_id || '—'}</p>
+                    </div>
+                    <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

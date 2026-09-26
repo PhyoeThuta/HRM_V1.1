@@ -36,10 +36,10 @@ export default function EditEmployee() {
     onSuccess: () => {
       qc.invalidateQueries(['employees']);
       qc.invalidateQueries(['employee', id]);
-      toast.success('Employee updated successfully');
+      toast.success(t('hrm.editEmployee.success') || 'Employee updated successfully');
       navigate(`/employees/${id}`);
     },
-    onError: (e) => toast.error(e.response?.data?.error || 'Update failed')
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.editEmployee.error') || 'Update failed')
   });
 
   const handleSave = (e) => {
@@ -70,7 +70,15 @@ export default function EditEmployee() {
               <label className="form-label">{t('hrm.editEmployee.position')}</label>
               <select className="form-input" value={form.position_id} onChange={e => set('position_id', e.target.value)}>
                 <option value="">— {t('hrm.editEmployee.selectPosition')} —</option>
-                {formData?.positions?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                {formData?.positions?.map(p => {
+                  let displayTitle = p.title;
+                  if (p.title) {
+                    const key = p.title.trim().toLowerCase().replace(/\s+/g, '');
+                    const translated = t(`hrm.positions.names.${key}`);
+                    if (translated && !translated.startsWith('hrm.')) displayTitle = translated;
+                  }
+                  return <option key={p.id} value={p.id}>{displayTitle}</option>;
+                })}
               </select>
             </div>
             
@@ -89,13 +97,27 @@ export default function EditEmployee() {
             <div>
               <label className="form-label">{t('hrm.editEmployee.employmentType')}</label>
               <select className="form-input" value={form.employment_type} onChange={e => set('employment_type', e.target.value)}>
-                {['Full-Time', 'Part-Time', 'Contract', 'Internship'].map(t => <option key={tType} value={t}>{t}</option>)}
+                {['Full-Time', 'Part-Time', 'Contract', 'Internship'].map(empType => {
+                  let trans = empType;
+                  if (empType === 'Full-Time') trans = t('hrm.employees.empTypes.fullTime') || empType;
+                  if (empType === 'Part-Time') trans = t('hrm.employees.empTypes.partTime') || empType;
+                  if (empType === 'Contract') trans = t('hrm.employees.empTypes.contract') || empType;
+                  if (empType === 'Internship') trans = t('hrm.employees.empTypes.internship') || empType;
+                  return <option key={empType} value={empType}>{trans}</option>;
+                })}
               </select>
             </div>
             <div>
               <label className="form-label">{t('hrm.editEmployee.status')}</label>
               <select className="form-input" value={form.status} onChange={e => set('status', e.target.value)}>
-                {['Active', 'On Leave', 'Offboarding', 'Inactive'].map(s => <option key={s} value={s}>{s === 'Active' ? t('hrm.employees.active') : s === 'Inactive' ? t('hrm.employees.inactive') : s}</option>)}
+                {['Active', 'On Leave', 'Offboarding', 'Inactive'].map(s => {
+                  let trans = s;
+                  if (s === 'Active') trans = t('hrm.employees.active') || s;
+                  if (s === 'Inactive') trans = t('hrm.employees.inactive') || s;
+                  if (s === 'On Leave') trans = t('hrm.employees.onLeave') || s;
+                  if (s === 'Offboarding') trans = t('hrm.employees.offboarding') || s;
+                  return <option key={s} value={s}>{trans}</option>;
+                })}
               </select>
             </div>
 

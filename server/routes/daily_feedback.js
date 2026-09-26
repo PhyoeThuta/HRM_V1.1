@@ -12,6 +12,24 @@ router.get('/:customer_id', async (req, res) => {
 
     if (!date) return res.status(400).json({ error: 'Date is required' });
 
+    // Validate customer_id format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(customer_id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
+
+    // Check if customer exists
+    const { data: customer, error: customerError } = await supabaseAdmin
+      .schema('crm')
+      .from('customers')
+      .select('id')
+      .eq('id', customer_id)
+      .single();
+
+    if (customerError || !customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
     // 1. Query OpsHub Auto Generated Orders (operations_orders) for this customer and date
     const { data: customerOrders } = await supabase
       .from('operations_orders')

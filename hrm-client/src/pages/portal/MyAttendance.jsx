@@ -64,7 +64,7 @@ export default function MyAttendance() {
   };
 
   return (
-    <Layout title="My Attendance" subtitle="Your complete attendance history">
+    <Layout title={t('portal.attendance.title')} subtitle={t('portal.attendance.subtitle')}>
       
       {/* Tabs */}
       <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-2">
@@ -72,27 +72,27 @@ export default function MyAttendance() {
           onClick={() => setActiveTab('records')}
           className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${activeTab === 'records' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
         >
-          📅 My Records
+          📅 {t('portal.attendance.tabs.records')}
         </button>
         <button 
           onClick={() => setActiveTab('overtime')}
           className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${activeTab === 'overtime' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
         >
-          ⏱️ Overtime
+          ⏱️ {t('portal.attendance.tabs.overtime')}
         </button>
       </div>
 
       {activeTab === 'records' && (
         <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h3 className="text-sm font-bold text-white">Attendance Records</h3>
-          <p className="text-xs text-slate-400">{records.length} records total</p>
+          <h3 className="text-sm font-bold text-white">{t('portal.attendance.recordsTitle')}</h3>
+          <p className="text-xs text-slate-400">{records.length} {t('portal.attendance.recordsTotal')}</p>
         </div>
         
         {isLoading ? (
           <div className="py-12 flex justify-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : records.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 text-sm">No attendance records found.</div>
+          <div className="py-16 text-center text-slate-500 text-sm">{t('portal.attendance.noRecords')}</div>
         ) : (
           <div className="flex flex-col">
             {sortedMonths.map(month => {
@@ -107,7 +107,7 @@ export default function MyAttendance() {
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-indigo-400 font-bold">📅 {formatMonthTitle(month)}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-lg bg-white/5 text-slate-400">{monthRecords.length} days</span>
+                      <span className="text-xs px-2 py-0.5 rounded-lg bg-white/5 text-slate-400">{monthRecords.length} {t('portal.attendance.days')}</span>
                     </div>
                     <span className="text-slate-400 text-xs transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : '' }}>▼</span>
                   </div>

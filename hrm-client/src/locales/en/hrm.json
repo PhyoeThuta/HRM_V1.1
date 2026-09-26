@@ -576,7 +576,22 @@
       "reason": "Reason",
       "reasonPlaceholder": "Reason for leave...",
       "cancel": "Cancel",
-      "submit": "Submit"
+      "submit": "Submit",
+      "offboardingActive": "Offboarding Active",
+      "employee": "Employee",
+      "status": "Status",
+      "submitted": "Submitted",
+      "attachment": "Attachment",
+      "viewDocument": "View Document",
+      "handovers": "Handovers",
+      "coverage": "Coverage",
+      "return": "Return",
+      "hrSignature": "HR Signature",
+      "capturedOnApproval": "Captured on approval",
+      "hrApprovalSignature": "HR Approval Signature",
+      "noSignatureOnFile": "No signature on file",
+      "naRejected": "N/A (Rejected)",
+      "requiredWhenApproving": "Required when approving"
     },
     "coverage": {
       "title": "Start coverage handover",
@@ -651,7 +666,10 @@
       "personalbusiness": "Personal Business Leave",
       "sick": "Medical and health related absence",
       "unpaid": "Approved leave without pay"
-    }
+    },
+    "wfLeave": "Leave Process",
+    "wfCoverage": "Coverage Process",
+    "wfReturn": "Return Process"
   },
   "payroll": {
     "title": "Payroll",
@@ -813,8 +831,30 @@
       "operationsupervisor": "Operation Supervisor",
       "executiveassistant": "Executive Assistant",
       "marketingsupervisor": "Marketing Supervisor",
-      "itofficer": "IT Officer"
-    }
+      "itofficer": "IT Officer",
+      "videocontentcreator": "Video Content Creator",
+      "headchef": "Head Chef",
+      "assistantchef": "Assistant Chef",
+      "salesadmin": "Sales Admin",
+      "accountant": "Accountant",
+      "commis": "Commis",
+      "housekeeper": "House Keeper",
+      "housekeepingsupervisor": "House Keeping Supervisor",
+      "kitchenhelper": "Kitchen Helper",
+      "contentcreator": "Content Creator",
+      "projectmanager": "Project Manager"
+    },
+    "toast": {
+      "addSuccess": "Position added successfully",
+      "addError": "Failed to add position",
+      "editSuccess": "Position updated successfully",
+      "editError": "Failed to update position",
+      "deleteSuccess": "Position deleted successfully",
+      "deleteError": "Failed to delete position"
+    },
+    "composeFbAnnouncement": "Compose Facebook announcement (image + text)",
+    "publishCareerPage": "Publish to Career Page",
+    "noStaffAssigned": "No staff currently assigned to this position."
   },
   "recruitment": {
     "title": "Recruitment",
@@ -890,7 +930,21 @@
     "general": "General",
     "noDocs": "No documents found",
     "trySelecting": "Try selecting another category or employee folder.",
-    "docs": "Documents"
+    "docs": "Documents",
+    "documentsCount": "Documents Count",
+    "verifiedSigned": "Verified & Signed",
+    "viewFile": "View File",
+    "noDocumentsFound": "No Documents Found",
+    "noDocumentsDesc": "This employee has no documents uploaded yet.",
+    "perEmployeeVault": "Per Employee Vault",
+    "perEmployeeDesc": "Manage documents per employee",
+    "position": "Position",
+    "department": "Department",
+    "openFolder": "Open Folder",
+    "pendingBossApproval": "Pending Boss Approval",
+    "readyHrSign": "Ready for HR Sign",
+    "totalPipeline": "Total Pipeline",
+    "target": "Target"
   },
   "kpi": {
     "title": "KPI",
@@ -1185,7 +1239,8 @@
     "owner": "Owner",
     "noTasks": "No tasks found. The offboarding task list will appear here.",
     "allOffboarding": "All Offboarding",
-    "conductExitInterview": "Conduct Exit Interview"
+    "conductExitInterview": "Conduct Exit Interview",
+    "allCleared": "All items cleared"
   },
   "handovers": {
     "categories": {
@@ -1289,6 +1344,15 @@
       "Important file & folder locations": "Important file & folder locations",
       "Handover document upload": "Handover document upload",
       "Systems & tools used": "Systems & tools used"
+    },
+    "toast": {
+      "succAssigned": "Handover assigned successfully",
+      "succError": "Error assigning handover",
+      "approved": "Handover approved",
+      "approveError": "Error approving handover",
+      "waived": "Handover waived",
+      "waiveInfo": "Handover waived successfully",
+      "waiveError": "Error waiving handover"
     }
   },
   "orgChart": {
@@ -1413,5 +1477,31 @@
       "cancel": "Cancel",
       "assignBtn": "Assign KPI"
     }
+  },
+  "editEmployee": {
+    "title": "Edit Employee",
+    "loading": "Loading...",
+    "subtitle": "Update profile for",
+    "employee": "Employee",
+    "empId": "Employee ID",
+    "fullName": "Full Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "department": "Department",
+    "selectDept": "-- Select Department --",
+    "position": "Position",
+    "selectPosition": "-- Select Position --",
+    "manager": "Manager/Boss",
+    "none": "-- None --",
+    "hireDate": "Hire Date",
+    "dob": "Date of Birth",
+    "salary": "Base Salary",
+    "employmentType": "Employment Type",
+    "status": "Account Status",
+    "nationalId": "National ID / NRC",
+    "address": "Home Address",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes"
   }
 }

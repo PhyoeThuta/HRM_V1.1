@@ -150,7 +150,7 @@ export default function Employees() {
       setFlash({ type: 'success', msg: res.data.message || t('hrm.employees.toast.added') || 'Employee added successfully' });
       setTimeout(() => setFlash(null), 4000);
     },
-    onError: (e) => setFlash({ type: 'error', msg: e.response?.data?.error || 'Failed to add employee' }),
+    onError: (e) => setFlash({ type: 'error', msg: e.response?.data?.error || t('hrm.employees.toast.addError') || 'Failed to add employee' }),
   });
 
   const deleteMutation = useMutation({
@@ -166,11 +166,19 @@ export default function Employees() {
   const hardDeleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/employees/${id}/hard`),
     onSuccess: () => { qc.invalidateQueries(['employees-recycle']); setFlash({ type: 'success', msg: t('hrm.employees.toast.hardDeleted') || 'Employee permanently deleted' }); setTimeout(() => setFlash(null), 3000); setHardDeleteTarget(null); },
-    onError: (err) => { setFlash({ type: 'error', msg: err.response?.data?.error || 'Failed to hard delete employee' }); setTimeout(() => setFlash(null), 5000); setHardDeleteTarget(null); }
+    onError: (err) => { setFlash({ type: 'error', msg: err.response?.data?.error || t('hrm.employees.toast.hardDeleteError') || 'Failed to hard delete employee' }); setTimeout(() => setFlash(null), 5000); setHardDeleteTarget(null); }
   });
 
   const employees = data?.employees || [];
   const departments = formData?.departments || [];
+
+  const mapPosTitle = (title) => {
+    if (!title) return title;
+    const key = title.trim().toLowerCase().replace(/\s+/g, '');
+    const translated = t(`hrm.positions.names.${key}`);
+    if (translated && !translated.startsWith('hrm.')) return translated;
+    return title;
+  };
 
   // Filter and group employees
   const filteredEmployees = employees.filter(emp => {
@@ -305,7 +313,7 @@ export default function Employees() {
                               </div>
                             </td>
                             <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
-                            <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
+                            <td className="py-3.5 px-5 text-slate-300">{mapPosTitle(emp.pos_title) || '—'}</td>
                             <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
                             <td className="emp-email py-3.5 px-5">{emp.email || '—'}</td>
                             <td className="emp-hire-date py-3.5 px-5">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
@@ -352,7 +360,7 @@ export default function Employees() {
                         </div>
                       </td>
                       <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{emp.pos_title || '—'}</td>
+                      <td className="py-3.5 px-5 text-slate-300">{mapPosTitle(emp.pos_title) || '—'}</td>
                       <td className="py-3.5 px-5"><StatusBadge status={emp.status} /></td>
                       <td className="emp-email py-3.5 px-5">{emp.email || '—'}</td>
                       <td className="emp-hire-date py-3.5 px-5">{(emp.hire_date || '').slice(0, 10) || '—'}</td>
@@ -447,7 +455,7 @@ function BulkImportModal({ open, onClose, onRefresh }) {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!selectedFile) return toast.error('Please select an Excel (.xlsx/.xls) or CSV file');
+    if (!selectedFile) return toast.error(t('hrm.employees.selectFileError') || 'Please select an Excel (.xlsx/.xls) or CSV file');
 
     setLoading(true);
     const formData = new FormData();
@@ -457,12 +465,12 @@ function BulkImportModal({ open, onClose, onRefresh }) {
       const res = await api.post('/employees/bulk-import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success(res.data?.message || 'Bulk update completed successfully!');
+      toast.success(res.data?.message || t('hrm.employees.bulkSuccess') || 'Bulk update completed successfully!');
       setLoading(false);
       onClose();
       if (onRefresh) onRefresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Import failed');
+      toast.error(err.response?.data?.error || t('hrm.employees.bulkError') || 'Import failed');
       setLoading(false);
     }
   };

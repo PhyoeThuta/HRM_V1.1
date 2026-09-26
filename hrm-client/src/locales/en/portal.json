@@ -1,1 +1,54 @@
-{}
+{
+  "attendance": {
+    "title": "My Attendance",
+    "subtitle": "Your complete attendance history",
+    "tabs": {
+      "records": "My Records",
+      "overtime": "Overtime"
+    },
+    "recordsTitle": "Attendance Records",
+    "recordsTotal": "records total",
+    "noRecords": "No attendance records found.",
+    "days": "days"
+  },
+  "overtime": {
+    "title": "My Overtime",
+    "subtitle": "View assignments and request OT.",
+    "requestBtn": "Request OT",
+    "origins": {
+      "self": "You Requested",
+      "boss": "Assigned by Boss"
+    },
+    "status": {
+      "pendingBoss": "Waiting for Approval",
+      "actionRequired": "Action Required",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "actions": {
+      "waiting": "Waiting...",
+      "closed": "Closed",
+      "accept": "Accept",
+      "decline": "Decline"
+    },
+    "empty": "You have no overtime requests.",
+    "modal": {
+      "title": "Request Overtime",
+      "date": "Date *",
+      "start": "Start Time *",
+      "end": "End Time *",
+      "reason": "Reason / Task",
+      "reasonPlh": "Why are you requesting overtime?",
+      "cancel": "Cancel",
+      "submit": "Submit Request",
+      "sending": "Sending..."
+    },
+    "toast": {
+      "profileNotLoaded": "Employee profile not fully loaded yet.",
+      "reqSuccess": "Overtime requested successfully!",
+      "reqFailed": "Failed to request overtime",
+      "statusUpdate": "Overtime status updated!",
+      "statusFailed": "Failed to update status"
+    }
+  }
+}

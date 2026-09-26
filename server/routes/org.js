@@ -89,11 +89,22 @@ router.get('/positions', async (req, res) => {
   try {
     const [positions, employees] = await Promise.all([
       dbFetch('positions', '*', {}, { order: 'title', ascending: true }),
-      dbFetch('Employees', 'id,position_id'),
+      dbFetch('Employees', 'id,position_id,Full_name,employee_id,avatar_url', { status: 'Active' }),
     ]);
-    const countMap = {};
-    employees.forEach(e => { countMap[e.position_id] = (countMap[e.position_id] || 0) + 1; });
-    positions.forEach(p => { p.emp_count = countMap[p.id] || 0; });
+    const empsMap = {};
+    employees.forEach(e => { 
+      if (!empsMap[e.position_id]) empsMap[e.position_id] = [];
+      empsMap[e.position_id].push(e);
+    });
+    positions.forEach(p => { 
+      p.staff = empsMap[p.id] || [];
+      p.emp_count = p.staff.length; 
+    });
+    
+    // DEBUG LOG
+    const pWithStaff = positions.find(p => p.emp_count === 1);
+    console.log('[DEBUG /positions] Found position with 1 staff:', pWithStaff?.title, 'staff array:', pWithStaff?.staff);
+
     return res.json({ positions });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
