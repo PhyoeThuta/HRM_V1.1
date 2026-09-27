@@ -36,7 +36,16 @@ export function generateRefreshToken(user) {
 }
 
 export function verifyToken(req, res, next) {
-  const token = req.cookies?.token;
+  const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+  let token = null;
+
+  if (isMobile) {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+  } else {
+    token = req.cookies?.token;
+  }
 
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });

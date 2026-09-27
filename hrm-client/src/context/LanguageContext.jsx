@@ -57,28 +57,43 @@ export const LanguageProvider = ({ children }) => {
     }
   };
 
-  const t = useCallback((path) => {
+  const t = useCallback((path, options = {}) => {
     const keys = path.split('.');
     let current = translations[language];
     
     for (const key of keys) {
-      if (current === undefined || current === null) return path;
+      if (current === undefined || current === null) {
+        current = null;
+        break;
+      }
       current = current[key];
     }
     
-    if (current === undefined || current === null) {
+    let result = current;
+    if (result === undefined || result === null) {
       // Fallback to English if translation is missing in the chosen language
       if (language !== 'en') {
         let fallback = translations['en'];
         for (const key of keys) {
-          if (fallback === undefined || fallback === null) return path;
+          if (fallback === undefined || fallback === null) {
+            fallback = null;
+            break;
+          }
           fallback = fallback[key];
         }
-        return fallback !== undefined ? fallback : path;
+        result = (fallback !== undefined && fallback !== null) ? fallback : path;
+      } else {
+        result = path;
       }
-      return path;
     }
-    return current;
+    
+    if (typeof result === 'string' && Object.keys(options).length > 0) {
+      for (const [key, value] of Object.entries(options)) {
+        result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+      }
+    }
+    
+    return result;
   }, [language]);
 
   

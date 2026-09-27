@@ -203,20 +203,20 @@ export default function UserManual() {
   return (
     <div className="flex h-[calc(100vh-100px)] bg-surface-800 rounded-lg shadow overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 border-r border-white/10 flex flex-col bg-surface-850">
+      <aside className="w-64 border-r border-white/10 flex flex-col bg-surface-850">
         <div className="p-4 border-b border-white/10">
           <input
             type="text"
             placeholder={t('common.manual.searchPlaceholder')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md bg-surface-900 border-white/10 text-white placeholder-slate-400"
+            className="w-full px-3 py-2 border rounded-md bg-surface-900 border-white/20 dashboard-text-primary placeholder-slate-400 font-bold focus:outline-none focus:border-brand-green transition-colors shadow-sm"
           />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {categories.map(cat => (
             <div key={cat.id} className="mb-4">
-              <h3 className="font-semibold text-slate-200 px-2 py-1 uppercase text-xs tracking-wider flex justify-between group">
+              <h3 className="font-extrabold dashboard-text-primary px-2 py-1 uppercase text-xs tracking-wider flex justify-between group">
                 {getTranslated(cat.name)}
                 {canEdit && (
                   <button onClick={() => addArticle.mutate(cat.id)} className="hidden group-hover:block text-blue-500 hover:text-blue-700 text-lg leading-none">+</button>
@@ -232,8 +232,8 @@ export default function UserManual() {
                       }}
                       className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
                         activeArticle?.id === art.id 
-                          ? 'bg-indigo-500/20 text-indigo-400 font-medium' 
-                          : 'text-slate-300 hover:bg-white/5'
+                          ? 'bg-brand-green text-slate-900 font-extrabold shadow-md' 
+                          : 'dashboard-text-primary font-bold hover:bg-white/10 opacity-90 hover:opacity-100'
                       }`}
                     >
                       {getTranslated(art.title)}
@@ -258,8 +258,8 @@ export default function UserManual() {
 
           {canEdit && deletedArticles.length > 0 && (
             <div className="mb-4 mt-8 pt-4 border-t border-white/10">
-              <h3 className="font-semibold text-slate-300 px-2 py-1 uppercase text-xs tracking-wider flex items-center gap-2">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              <h3 className="font-extrabold dashboard-text-primary px-2 py-1 uppercase text-xs tracking-wider flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 dashboard-text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 {t('common.manual.recycleBin')}
               </h3>
               <ul className="mt-1 space-y-1">
@@ -272,11 +272,11 @@ export default function UserManual() {
                       }}
                       className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
                         activeArticle?.id === art.id 
-                          ? 'bg-rose-500/10 text-rose-400 font-medium' 
-                          : 'text-slate-400 hover:bg-surface-800'
+                          ? 'bg-rose-500 text-white font-extrabold shadow-md' 
+                          : 'dashboard-text-secondary font-bold hover:bg-surface-800'
                       }`}
                     >
-                      <span className="opacity-80">{getTranslated(art.title)}</span>
+                      <span className="opacity-90">{getTranslated(art.title)}</span>
                     </button>
                   </li>
                 ))}
@@ -284,7 +284,7 @@ export default function UserManual() {
             </div>
           )}
         </div>
-      </div>
+      </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">

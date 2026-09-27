@@ -25,11 +25,17 @@ router.get('/departments', async (req, res) => {
   try {
     const [depts, employees] = await Promise.all([
       dbFetch('Departments', '*', {}, { order: 'Department_name', ascending: true }),
-      dbFetch('Employees', 'id,Dept_id'),
+      dbFetch('Employees', 'id,Dept_id,Full_name,employee_id,avatar_url', { status: 'Active' }),
     ]);
-    const countMap = {};
-    employees.forEach(e => { countMap[e.Dept_id] = (countMap[e.Dept_id] || 0) + 1; });
-    depts.forEach(d => { d.emp_count = countMap[d.id] || 0; });
+    const empsMap = {};
+    employees.forEach(e => { 
+      if (!empsMap[e.Dept_id]) empsMap[e.Dept_id] = [];
+      empsMap[e.Dept_id].push(e);
+    });
+    depts.forEach(d => { 
+      d.staff = empsMap[d.id] || [];
+      d.emp_count = d.staff.length;
+    });
     return res.json({ departments: depts });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });

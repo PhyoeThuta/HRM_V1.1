@@ -579,11 +579,11 @@ export default function Leave() {
                   <p>{signatureModalTarget.offboarding_warning || t('hrm.leave.sig.offboardWarn')}</p>
                 </div>
               )}
-              <div className="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+              <div className="border border-slate-300 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-surface-850 overflow-hidden">
                 <SignatureCanvas 
                   ref={sigCanvas} 
-                  penColor="#ffffff"
-                  canvasProps={{ width: 500, height: 200, className: 'w-full h-[200px] cursor-crosshair' }} 
+                  penColor="#0f172a"
+                  canvasProps={{ width: 500, height: 200, className: 'w-full h-[200px] cursor-crosshair dark:invert' }} 
                 />
               </div>
               <div className="flex justify-end">

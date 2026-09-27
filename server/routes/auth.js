@@ -75,6 +75,15 @@ router.post('/login', async (req, res) => {
     const token = generateToken(payload);
     const refreshToken = generateRefreshToken(user);
 
+    const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+    if (isMobile) {
+      return res.json({
+        user: payload,
+        accessToken: token,
+        refreshToken: refreshToken
+      });
+    }
+
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -100,16 +109,21 @@ router.post('/login', async (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('token', { sameSite: 'strict' });
-  res.clearCookie('refresh_token', { sameSite: 'strict' });
+  const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+  if (!isMobile) {
+    res.clearCookie('token', { sameSite: 'strict' });
+    res.clearCookie('refresh_token', { sameSite: 'strict' });
+  }
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // POST /api/auth/refresh
 router.post('/refresh', async (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
+  const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+  const refreshToken = isMobile ? req.body.refreshToken : req.cookies.refresh_token;
+
   if (!refreshToken) {
-    console.log('[AUTH REFRESH] Failed: No refresh token cookie found in req.cookies');
+    console.log('[AUTH REFRESH] Failed: No refresh token found');
     return res.status(401).json({ error: 'No refresh token' });
   }
 
@@ -139,6 +153,10 @@ router.post('/refresh', async (req, res) => {
 
     const newToken = generateToken(payload);
     
+    if (isMobile) {
+      return res.json({ user: payload, accessToken: newToken });
+    }
+
     res.cookie('token', newToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

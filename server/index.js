@@ -253,3 +253,5 @@ server.listen(PORT, () => {
   startDailyFeedbackCron();
   startKitchenAlertCron(); // 05:00 AM ICT Kitchen Daily Alert (Telegram + Messenger)
 });
+
+// Triggered restart to load new .env variables

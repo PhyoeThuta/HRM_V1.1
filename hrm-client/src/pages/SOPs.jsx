@@ -54,34 +54,34 @@ export default function SOPs() {
       qc.invalidateQueries(['sop-templates']);
       setShowTemplateModal(false);
       setTemplateForm({ position_id: '', task_description: '' });
-      toast.success('Template saved!');
+      toast.success(t('hrm.sops.toast.tplSaved'));
     },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to save template')
+    onError: (err) => toast.error(err.response?.data?.error || t('hrm.sops.toast.tplSaveErr'))
   });
 
   const deleteTplMutation = useMutation({
     mutationFn: (id) => api.delete(`/sops/templates/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['sop-templates']); toast.success('Template deleted'); }
+    onSuccess: () => { qc.invalidateQueries(['sop-templates']); toast.success(t('hrm.sops.toast.tplDeleted')); }
   });
 
   const autoAssignMutation = useMutation({
     mutationFn: (month) => api.post('/sops/auto-assign', { month }),
     onSuccess: (res) => {
       qc.invalidateQueries(['sops']);
-      toast.success(`✅ Created ${res.data.created} records! (${res.data.skipped} skipped - already existed)`);
+      toast.success(t('hrm.sops.toast.autoAssignSuccess', { created: res.data.created, skipped: res.data.skipped }));
     },
-    onError: (err) => toast.error(err.response?.data?.error || 'Auto-assign failed')
+    onError: (err) => toast.error(err.response?.data?.error || t('hrm.sops.toast.autoAssignErr'))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (ids) => api.post('/sops/bulk-delete', { ids }),
-    onSuccess: () => { qc.invalidateQueries(['sops']); setDeleteTarget(null); toast.success('SOP deleted'); }
+    onSuccess: () => { qc.invalidateQueries(['sops']); setDeleteTarget(null); toast.success(t('hrm.sops.toast.sopDeleted')); }
   });
 
   const editMutation = useMutation({
     mutationFn: ({ ids, task_description }) => api.patch('/sops/bulk-update', { ids, task_description }),
-    onSuccess: () => { qc.invalidateQueries(['sops']); setEditTarget(null); toast.success('Task updated!'); },
-    onError: () => toast.error('Failed to update task')
+    onSuccess: () => { qc.invalidateQueries(['sops']); setEditTarget(null); toast.success(t('hrm.sops.toast.taskUpdated')); },
+    onError: () => toast.error(t('hrm.sops.toast.taskUpdateErr'))
   });
 
   // ─── Helpers ──────────────────────────────────────────────────────
@@ -152,10 +152,10 @@ export default function SOPs() {
             </div>
 
             {loadingTemplates ? (
-              <div className="sop-empty-state py-8 text-center text-slate-400 text-sm">Loading templates...</div>
+              <div className="sop-empty-state py-8 text-center text-slate-400 text-sm">{t('hrm.sops.loadingTemplates')}</div>
             ) : templates.length === 0 ? (
               <div className="sop-empty-state py-10 text-center bg-surface-800 rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
-                No SOP templates yet. Click "+ New Template" to add one.
+                {t('hrm.sops.noTemplates')}
               </div>
             ) : (
               <div className="grid gap-4">
@@ -168,7 +168,7 @@ export default function SOPs() {
                         </div>
                         <div>
                           <p className="sop-tpl-title text-white font-bold text-sm">{tpl.position_title}</p>
-                          <p className="sop-tpl-meta text-xs text-slate-500">Last updated: {new Date(tpl.updated_at).toLocaleDateString()}</p>
+                          <p className="sop-tpl-meta text-xs text-slate-500">{t('hrm.sops.lastUpdated')} {new Date(tpl.updated_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                       {isAdmin() && (
@@ -177,13 +177,13 @@ export default function SOPs() {
                             onClick={() => openEditTemplate(tpl)}
                             className="sop-btn-edit text-indigo-400 text-xs hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
                           >
-                            ✏️ Edit
+                            ✏️ {t('common.actions.edit')}
                           </button>
                           <button
                             onClick={() => deleteTplMutation.mutate(tpl.id)}
                             className="sop-btn-delete text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors"
                           >
-                            Delete
+                            {t('common.actions.delete')}
                           </button>
                         </div>
                       )}
@@ -203,7 +203,7 @@ export default function SOPs() {
               <h2 className="sop-section-title text-lg font-bold text-white mb-4">🗓️ {t('hrm.sops.monthlyAutoAssign')}</h2>
               <div className="sop-form-box bg-surface-800 rounded-2xl border border-white/5 p-6">
                 <p className="sop-form-text text-sm text-slate-400 mb-5">
-                  Select a month and click the button. The system will automatically create SOP tasks for <strong className="text-white">every day of the month</strong> for all employees based on the templates above. Already-existing records will be skipped.
+                  <span dangerouslySetInnerHTML={{ __html: t('hrm.sops.autoAssignDesc') }} />
                 </p>
                 <div className="flex flex-wrap items-end gap-4">
                   <div>
@@ -221,14 +221,14 @@ export default function SOPs() {
                     className="sop-btn-accent px-6 py-2.5 bg-brand-orange hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2"
                   >
                     {autoAssignMutation.isPending ? (
-                      <><span className="sop-spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Assigning...</>
+                      <><span className="sop-spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {t('hrm.sops.assigning')}</>
                     ) : (
                       <><span>⚡</span> {t('hrm.sops.autoAssignBtn')} {autoMonth}</>
                     )}
                   </button>
                 </div>
                 {templates.length === 0 && (
-                  <p className="text-xs text-amber-400 mt-3">⚠️ No templates found. Please add at least one SOP template first.</p>
+                  <p className="text-xs text-amber-400 mt-3">{t('hrm.sops.noTemplatesWarning')}</p>
                 )}
               </div>
             </section>
@@ -253,7 +253,7 @@ export default function SOPs() {
                 <div className="py-10 text-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block" /></div>
               ) : Object.entries(groupedSops).length === 0 ? (
                 <div className="sop-empty-state py-12 text-center bg-surface-800 rounded-2xl border border-dashed border-slate-700 text-slate-500 text-sm">
-                  No SOP records found. Use the Auto-Assign button above to generate this month's records.
+                  {t('hrm.sops.noRecords')}
                 </div>
               ) : Object.entries(groupedSops).map(([posTitle, groupSops]) => {
                 const total = groupSops.length;
@@ -299,23 +299,23 @@ export default function SOPs() {
                                 <div>
                                   <p className="sop-task-title text-xs text-indigo-400 font-semibold mb-1">{title}</p>
                                   <p className="sop-task-desc text-sm text-white font-medium whitespace-pre-line">{desc}</p>
-                                  <p className="sop-task-meta text-xs text-slate-400 mt-1.5">Assigned to {taskTotal} employee{taskTotal !== 1 && 's'}</p>
+                                  <p className="sop-task-meta text-xs text-slate-400 mt-1.5">{t('hrm.sops.assignedTo', { count: taskTotal })}</p>
                                 </div>
                                 <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                                  <span className="sop-task-badge text-xs font-bold px-2 py-1 bg-white/5 text-slate-300 rounded">{taskCompleted} / {taskTotal} Completed</span>
+                                  <span className="sop-task-badge text-xs font-bold px-2 py-1 bg-white/5 text-slate-300 rounded">{taskCompleted} / {taskTotal} {t('hrm.sops.completedText')}</span>
                                   {isAdmin() && (
                                     <>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setEditText(desc); setEditTarget({ ids: taskSops.map(t => t.id), desc }); }}
                                         className="sop-btn-edit text-indigo-400 text-xs hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg transition-colors"
                                       >
-                                        ✏️ Edit
+                                        ✏️ {t('common.actions.edit')}
                                       </button>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(taskSops.map(t => t.id)); }}
                                         className="sop-btn-delete text-rose-400 text-xs hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors"
                                       >
-                                        Delete
+                                        {t('common.actions.delete')}
                                       </button>
                                     </>
                                   )}
@@ -335,10 +335,10 @@ export default function SOPs() {
                                       )}
                                       {s.proof_video_url ? (
                                         <button onClick={() => setActiveVideoUrl(s.proof_video_url)} className="sop-btn-video text-xs px-3 py-1.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded font-bold transition-colors flex items-center gap-1.5">
-                                          ▶ View Video
+                                          {t('hrm.sops.viewVideo')}
                                         </button>
                                       ) : (
-                                        <span className="sop-no-video text-[10px] text-slate-500 italic">No video</span>
+                                        <span className="sop-no-video text-[10px] text-slate-500 italic">{t('hrm.sops.noVideo')}</span>
                                       )}
                                     </div>
                                   </div>
@@ -368,7 +368,7 @@ export default function SOPs() {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setActiveVideoUrl(null)} />
           <div className="sop-modal-content relative bg-surface-850 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 overflow-hidden flex flex-col">
             <div className="sop-modal-header flex justify-between items-center p-4 border-b border-white/10">
-              <h3 className="sop-modal-title text-white font-bold">SOP Proof Video</h3>
+              <h3 className="sop-modal-title text-white font-bold">{t('hrm.sops.proofVideoTitle')}</h3>
               <button onClick={() => setActiveVideoUrl(null)} className="sop-modal-close text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
             <video src={activeVideoUrl} controls className="w-full max-h-[70vh]" autoPlay />
@@ -383,26 +383,26 @@ export default function SOPs() {
             <div className="sop-modal-header p-5 border-b border-slate-700 bg-indigo-500/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="sop-modal-title text-white font-bold text-base">📋 SOP Template</h3>
-                  <p className="sop-modal-subtitle text-xs text-slate-400 mt-0.5">Define standard daily tasks for a position</p>
+                  <h3 className="sop-modal-title text-white font-bold text-base">{t('hrm.sops.tplModalTitle')}</h3>
+                  <p className="sop-modal-subtitle text-xs text-slate-400 mt-0.5">{t('hrm.sops.tplModalSubtitle')}</p>
                 </div>
                 <button onClick={() => setShowTemplateModal(false)} className="sop-modal-close text-slate-400 hover:text-white text-xl">✕</button>
               </div>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">Position</label>
+                <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">{t('hrm.sops.position')}</label>
                 <select
                   value={templateForm.position_id}
                   onChange={e => setTemplateForm(f => ({ ...f, position_id: e.target.value }))}
                   className="sop-input w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl p-2.5 focus:border-indigo-500 outline-none"
                 >
-                  <option value="">Select position...</option>
+                  <option value="">{t('hrm.sops.selectPosition')}</option>
                   {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
               <div>
-                <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">Standard Daily Tasks</label>
+                <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">{t('hrm.sops.standardTasks')}</label>
                 <textarea
                   rows={8}
                   value={templateForm.task_description}
@@ -410,19 +410,19 @@ export default function SOPs() {
                   placeholder={"1. Clean the kitchen\n2. Wash the dishes\n3. Help the chef"}
                   className="sop-input w-full bg-[#0f121b] border border-slate-700 focus:border-indigo-500 text-white text-sm rounded-xl p-3 resize-none outline-none transition-colors"
                 />
-                <p className="text-xs text-slate-500 mt-1">These tasks will be auto-assigned to all employees in this position every day of the selected month.</p>
+                <p className="text-xs text-slate-500 mt-1">{t('hrm.sops.tplTasksHelp')}</p>
               </div>
             </div>
             <div className="sop-modal-footer p-5 pt-0 flex gap-3">
               <button onClick={() => setShowTemplateModal(false)} className="sop-btn-cancel flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">
-                Cancel
+                {t('common.actions.cancel')}
               </button>
               <button
                 onClick={() => saveTplMutation.mutate(templateForm)}
                 disabled={saveTplMutation.isPending || !templateForm.position_id || !templateForm.task_description.trim()}
                 className="sop-btn-primary flex-1 bg-brand-green hover:bg-emerald-500 disabled:opacity-50 text-black rounded-xl py-2.5 text-sm font-bold transition-colors"
               >
-                {saveTplMutation.isPending ? 'Saving...' : 'Save Template'}
+                {saveTplMutation.isPending ? t('common.actions.saving') : t('hrm.sops.saveTemplate')}
               </button>
             </div>
           </div>
@@ -436,14 +436,14 @@ export default function SOPs() {
             <div className="sop-modal-header p-5 border-b border-slate-700 bg-indigo-500/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="sop-modal-title text-white font-bold text-base">✏️ Edit SOP Task</h3>
-                  <p className="sop-modal-subtitle text-xs text-slate-400 mt-0.5">Changes apply to all {editTarget.ids.length} assigned employees</p>
+                  <h3 className="sop-modal-title text-white font-bold text-base">{t('hrm.sops.editTaskTitle')}</h3>
+                  <p className="sop-modal-subtitle text-xs text-slate-400 mt-0.5">{t('hrm.sops.editTaskSubtitle', { count: editTarget.ids.length })}</p>
                 </div>
                 <button onClick={() => setEditTarget(null)} className="sop-modal-close text-slate-400 hover:text-white text-xl">✕</button>
               </div>
             </div>
             <div className="p-5">
-              <label className="sop-label block text-xs font-semibold text-slate-400 mb-2">Task Description</label>
+              <label className="sop-label block text-xs font-semibold text-slate-400 mb-2">{t('hrm.sops.taskDesc')}</label>
               <textarea
                 rows={6}
                 value={editText}
@@ -452,13 +452,13 @@ export default function SOPs() {
               />
             </div>
             <div className="sop-modal-footer p-5 pt-0 flex gap-3">
-              <button onClick={() => setEditTarget(null)} className="sop-btn-cancel flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">Cancel</button>
+              <button onClick={() => setEditTarget(null)} className="sop-btn-cancel flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 text-sm font-medium transition-colors">{t('common.actions.cancel')}</button>
               <button
                 onClick={() => editMutation.mutate({ ids: editTarget.ids, task_description: editText })}
                 disabled={editMutation.isPending || !editText.trim()}
                 className="sop-btn-primary flex-1 bg-brand-green hover:bg-emerald-500 disabled:opacity-50 text-black rounded-xl py-2.5 text-sm font-bold transition-colors"
               >
-                {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+                {editMutation.isPending ? t('common.actions.saving') : t('common.actions.save')}
               </button>
             </div>
           </div>
@@ -469,7 +469,7 @@ export default function SOPs() {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteMutation.mutate(deleteTarget)}
-        itemName="this Daily SOP for all assigned employees"
+        itemName={t('hrm.sops.deleteConfirmItem')}
       />
     </Layout>
   );
