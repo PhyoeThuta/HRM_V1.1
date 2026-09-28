@@ -57,7 +57,7 @@ export default function Leave() {
   const { data, isLoading } = useQuery({ queryKey: ['leave'], queryFn: () => api.get('/leave').then(r => r.data) });
 
   const submitMutation = useMutation({
-    mutationFn: (body) => api.post('/leave/request', body),
+    mutationFn: (fd) => api.post('/leave/request', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
     onSuccess: () => { qc.invalidateQueries(['leave']); setShowModal(false); },
   });
 
@@ -131,7 +131,7 @@ export default function Leave() {
   const handleRequestSubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    submitMutation.mutate(Object.fromEntries(fd));
+    submitMutation.mutate(fd);
   };
 
   const handleTypeSubmit = (e) => {
@@ -414,6 +414,7 @@ export default function Leave() {
               <div><label className="form-label">{t('hrm.leave.modal.start')}</label><input type="date" name="start_date" className="form-input" /></div>
               <div><label className="form-label">{t('hrm.leave.modal.end')}</label><input type="date" name="end_date" className="form-input" /></div>
               <div><label className="form-label">{t('hrm.leave.modal.reason')}</label><textarea name="reason" rows="3" className="form-input" placeholder={t('hrm.leave.modal.reasonPlaceholder')} /></div>
+              <div><label className="form-label">{t('hrm.leave.modal.attachment') || 'Attachment'}</label><input type="file" name="attachment" className="form-input p-1" /></div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 text-sm text-slate-400 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>{t('hrm.leave.modal.cancel')}</button>
                 <button type="submit" className="flex-1 text-sm font-semibold text-white py-2.5 rounded-xl" style={{ background: '#4f46e5' }}>{t('hrm.leave.modal.submit')}</button>
