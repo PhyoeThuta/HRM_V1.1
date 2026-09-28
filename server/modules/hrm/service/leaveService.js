@@ -94,10 +94,17 @@ export const leaveService = {
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
       
       if (balance) {
-        if (balance.balance < diffDays) {
+        const entitled = parseInt(balance.entitled_days || 0);
+        const used = parseInt(balance.used_days || 0);
+        const remain = entitled - used;
+
+        if (remain < diffDays) {
           throw new Error('Insufficient leave balance.');
         }
-        await leaveRepository.updateLeaveBalance(balance.id, { balance: balance.balance - diffDays });
+        await leaveRepository.updateLeaveBalance(balance.id, {
+          used_days: used + diffDays,
+          remain_days: remain - diffDays
+        });
       }
     }
     
@@ -112,7 +119,14 @@ export const leaveService = {
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
       
       if (balance) {
-        await leaveRepository.updateLeaveBalance(balance.id, { balance: balance.balance + diffDays });
+        const entitled = parseInt(balance.entitled_days || 0);
+        const used = parseInt(balance.used_days || 0);
+        const remain = entitled - used;
+        
+        await leaveRepository.updateLeaveBalance(balance.id, {
+          used_days: Math.max(0, used - diffDays),
+          remain_days: Math.min(entitled, remain + diffDays)
+        });
       }
     }
 

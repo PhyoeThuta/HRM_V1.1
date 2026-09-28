@@ -110,7 +110,10 @@ export default function Payroll() {
     let deductions = 0;
     if (finalKpi < 100) {
         const missRatio = (100 - finalKpi) / 100.0;
-        deductions = kpiLinkedAmount * missRatio;
+        deductions += kpiLinkedAmount * missRatio;
+    }
+    if (data.unpaid_leave_deduction) {
+        deductions += data.unpaid_leave_deduction;
     }
     
     let bonuses = 0;
@@ -133,7 +136,8 @@ export default function Payroll() {
                 <span>KPI-Linked Portion (${kpiLinkedPct}%)</span>
                 <span>${kpiLinkedAmount.toFixed(2)} THB</span>
             </div>
-            ${deductions > 0 ? `<div class="flex justify-between items-center text-xs text-rose-400"><span>Missed KPI Deduction</span><span>-${deductions.toFixed(2)} THB</span></div>` : ''}
+            ${data.unpaid_leave_deduction > 0 ? `<div class="flex justify-between items-center text-xs text-rose-400"><span>Unpaid Leave Deduction (${data.unpaid_leave_days} days)</span><span>-${data.unpaid_leave_deduction.toFixed(2)} THB</span></div>` : ''}
+            ${deductions > (data.unpaid_leave_deduction || 0) ? `<div class="flex justify-between items-center text-xs text-rose-400"><span>Missed KPI Deduction</span><span>-${(deductions - (data.unpaid_leave_deduction || 0)).toFixed(2)} THB</span></div>` : ''}
             ${bonuses > 0 ? `<div class="flex justify-between items-center text-xs text-cyan-400"><span>Over-achievement Bonus</span><span>+${bonuses.toFixed(2)} THB</span></div>` : ''}
         `;
     }
@@ -402,6 +406,12 @@ export default function Payroll() {
                             <span className="payroll-breakdown-label text-slate-300">{t('hrm.payroll.settingsModal.peer').replace(' (%)', '')} ({calcData.auto_weights.peer_voting}%)</span>
                             <span className="payroll-breakdown-val text-emerald-400 font-mono">{calcData.peer_score}%</span>
                         </div>
+                        {calcData.unpaid_leave_days > 0 && (
+                            <div className="flex justify-between">
+                                <span className="payroll-breakdown-label text-rose-400">Unpaid Leave ({calcData.unpaid_leave_days} days)</span>
+                                <span className="payroll-breakdown-val text-rose-400 font-mono">-{calcData.unpaid_leave_deduction} THB</span>
+                            </div>
+                        )}
                         
                         {calcData.manual_metrics.map((m, i) => (
                             <div key={i} className="flex justify-between items-center pt-2">

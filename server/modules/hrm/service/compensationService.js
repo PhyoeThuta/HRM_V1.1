@@ -46,8 +46,14 @@ export const compensationService = {
     });
     
     let approved_leave_days = 0;
+    let unpaid_leave_days = 0;
     try {
-      const leaves = await dbFetch('Leave_Request', '*', { employee_id, status: 'Approved' });
+      const [{ data: leaveTypes }, leaves] = await Promise.all([
+        supabase.from('Leave_type').select('id, is_paid'),
+        dbFetch('Leave_Request', '*', { employee_id, status: 'Approved' })
+      ]);
+      const unpaidTypeIds = new Set((leaveTypes || []).filter(t => t.is_paid === false).map(t => t.id));
+      
       leaves.forEach(l => {
         const lStart = new Date(l.start_date);
         const lEnd = new Date(l.end_date);
@@ -64,6 +70,9 @@ export const compensationService = {
             currentDate.setDate(currentDate.getDate() + 1);
           }
           approved_leave_days += diffDays;
+          if (unpaidTypeIds.has(l.leave_type_id)) {
+            unpaid_leave_days += diffDays;
+          }
         }
       });
     } catch(e) { 
@@ -137,7 +146,8 @@ export const compensationService = {
       total_sops_count,
       sop_score,
       peer_votes_count,
-      peer_score
+      peer_score,
+      unpaid_leave_days
     };
   },
   
