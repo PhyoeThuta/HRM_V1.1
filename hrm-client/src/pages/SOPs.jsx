@@ -7,6 +7,8 @@ import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 import SopReportTab from '../components/sop/SopReportTab';
 import { useLanguage } from '../context/LanguageContext';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 export default function SOPs() {
   const { t } = useLanguage();
@@ -208,11 +210,14 @@ export default function SOPs() {
                 <div className="flex flex-wrap items-end gap-4">
                   <div>
                     <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">{t('hrm.sops.month')}</label>
-                    <input
-                      type="month"
-                      value={autoMonth}
-                      onChange={e => setAutoMonth(e.target.value)}
-                      className="sop-input bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 outline-none"
+                    <DatePicker
+                      selected={autoMonth ? new Date(autoMonth + '-01T00:00:00') : null}
+                      onChange={date => {
+                        if (date) setAutoMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+                      }}
+                      dateFormat="yyyy-MM"
+                      showMonthYearPicker
+                      className="sop-input bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 outline-none w-full"
                     />
                   </div>
                   <button

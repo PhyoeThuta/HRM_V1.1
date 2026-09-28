@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
 import { useLanguage } from '../../context/LanguageContext';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 export default function SopReportTab({ positions }) {
   const { t, language } = useLanguage();
@@ -95,11 +97,14 @@ export default function SopReportTab({ positions }) {
       <div className="sop-filter-box flex flex-wrap gap-4 items-end bg-surface-800 p-4 rounded-xl border border-slate-700">
         <div>
           <label className="sop-label block text-xs font-semibold text-slate-400 mb-1">{t('hrm.sops.selectMonth')}</label>
-          <input
-            type="month"
-            value={month}
-            onChange={e => setMonth(e.target.value)}
-            className="sop-input bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500"
+          <DatePicker
+            selected={month ? new Date(month + '-01T00:00:00') : null}
+            onChange={date => {
+              if (date) setMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+            }}
+            dateFormat="yyyy-MM"
+            showMonthYearPicker
+            className="sop-input bg-[#0f121b] border border-slate-700 text-white text-sm rounded-lg p-2 focus:border-indigo-500 w-full"
           />
         </div>
         <div>

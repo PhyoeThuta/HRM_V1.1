@@ -5,12 +5,15 @@ import api from '../api/client';
 import toast from 'react-hot-toast';
 import { utils, writeFile } from 'xlsx';
 import { useLanguage } from '../context/LanguageContext';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 export default function Payroll() {
   const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [calcData, setCalcData] = useState(null);
+  const [recordMonth, setRecordMonth] = useState(new Date());
   
   // Settings state
   const [kpiSettings, setKpiSettings] = useState({
@@ -352,7 +355,19 @@ export default function Payroll() {
                 </select>
               </div>
               <div className="col-span-2 flex gap-3">
-                <div className="flex-1"><label className="payroll-label form-label">{t('hrm.payroll.recordModal.month')}</label><input type="month" name="month" id="month_input" required className="form-input payroll-input" /></div>
+                <div className="flex-1">
+                  <label className="payroll-label form-label">{t('hrm.payroll.recordModal.month')}</label>
+                  <DatePicker
+                    name="month"
+                    id="month_input"
+                    selected={recordMonth}
+                    onChange={date => setRecordMonth(date)}
+                    dateFormat="yyyy-MM"
+                    showMonthYearPicker
+                    required
+                    className="form-input payroll-input w-full"
+                  />
+                </div>
                 <div className="w-1/3"><label className="payroll-label form-label">{t('hrm.payroll.recordModal.workingDays')}</label><input type="number" id="working_days_input" defaultValue="26" required className="form-input payroll-input" /></div>
                 <div className="flex items-end">
                   <button 

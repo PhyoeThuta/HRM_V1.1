@@ -5,6 +5,8 @@ import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../context/LanguageContext';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 Chart.register(...registerables);
 
@@ -355,10 +357,13 @@ export default function PerformanceTracker() {
       {/* ── Controls ─────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="pt-filters flex flex-wrap items-center gap-3">
-          <input
-            type="month"
-            value={month}
-            onChange={e => setMonth(e.target.value)}
+          <DatePicker
+            selected={month ? new Date(month + '-01T00:00:00') : null}
+            onChange={date => {
+              if (date) setMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+            }}
+            dateFormat="yyyy-MM"
+            showMonthYearPicker
             className="pt-input form-input text-sm px-3 py-2 rounded-xl w-40"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
           />
