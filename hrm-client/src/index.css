@@ -4201,6 +4201,21 @@ html[data-theme='light'] .prose-invert table th {
   color: #1A1A1A !important;
   background-color: #F5F3ED !important;
 }
+}
 html[data-theme='light'] .prose-invert table td {
   color: #1A1A1A !important;
+}
+
+/* ======================== REACT DATEPICKER FIXES ======================== */
+.react-datepicker__month-wrapper {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+}
+.react-datepicker__month-text,
+.react-datepicker__quarter-text {
+  flex: 1 1 0px !important;
+  width: auto !important;
+  display: inline-block !important;
+  margin: 2px !important;
 }
