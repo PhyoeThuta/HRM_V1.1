@@ -200,11 +200,37 @@ export default function UserManual() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      toast.loading(t('common.manual.generatingPdf') || 'Generating PDF...', { id: 'pdf-download' });
+      const response = await api.get('/manual/export/pdf', {
+        params: { language },
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `BBD_HRM_User_Manual_${language.toUpperCase()}.pdf`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      toast.success(t('common.manual.pdfDownloaded') || 'PDF downloaded successfully', { id: 'pdf-download' });
+    } catch (err) {
+      console.error('PDF download error:', err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        toast.error(t('common.manual.unauthorizedPdf') || 'Unauthorized to download PDF', { id: 'pdf-download' });
+      } else {
+        toast.error(t('common.manual.pdfDownloadError') || 'Failed to download PDF', { id: 'pdf-download' });
+      }
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-100px)] bg-surface-800 rounded-lg shadow overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/10 flex flex-col bg-surface-850">
-        <div className="p-4 border-b border-white/10">
+        <div className="p-4 border-b border-white/10 space-y-3">
           <input
             type="text"
             placeholder={t('common.manual.searchPlaceholder')}
@@ -212,6 +238,15 @@ export default function UserManual() {
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full px-3 py-2 border rounded-md bg-surface-900 border-white/20 dashboard-text-primary placeholder-slate-400 font-bold focus:outline-none focus:border-brand-green transition-colors shadow-sm"
           />
+          <button
+            onClick={handleDownloadPdf}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-brand-green/10 hover:bg-brand-green/20 text-brand-green border border-brand-green/20 rounded-md text-sm font-bold transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download PDF Manual
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {categories.map(cat => (

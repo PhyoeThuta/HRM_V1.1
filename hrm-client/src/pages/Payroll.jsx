@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import api from '../api/client';
 import toast from 'react-hot-toast';
@@ -10,6 +11,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 export default function Payroll() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [calcData, setCalcData] = useState(null);
@@ -256,6 +258,9 @@ export default function Payroll() {
           <p className="payroll-card-value text-3xl font-black text-white">{totalPaid.toLocaleString()} THB</p>
         </div>
         <div className="md:col-span-2 flex items-center justify-end gap-3 flex-wrap">
+          <button onClick={() => navigate('/payroll/workspace')} className="payroll-btn-workspace px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-sm font-semibold rounded-xl shadow-lg transition-colors flex items-center gap-2">
+            <span>🧮</span> Open Calculation Workspace
+          </button>
           <button onClick={exportToExcel} className="payroll-btn-export px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors flex items-center gap-2">
             <span>📊</span> {t('hrm.payroll.exportBtn')}
           </button>

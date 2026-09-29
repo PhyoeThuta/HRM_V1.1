@@ -2632,6 +2632,14 @@ html[data-theme='light'] .payroll-btn-delete {
 html[data-theme='light'] .payroll-btn-delete:hover {
   background: #FEF2F2 !important;
 }
+html[data-theme='light'] .payroll-btn-workspace {
+  background: #FEF2F2 !important;
+  color: #DC2626 !important;
+  border: 1px solid #FECACA !important;
+}
+html[data-theme='light'] .payroll-btn-workspace:hover {
+  background: #FEE2E2 !important;
+}
 html[data-theme='light'] .payroll-empty {
   color: #737373 !important;
 }

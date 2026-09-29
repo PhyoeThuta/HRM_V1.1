@@ -1,6 +1,9 @@
 import express from 'express';
 import { dbFetch, dbInsert, dbUpdate, dbDelete, dbFetchOne, supabase, supabaseAdmin } from '../lib/supabase.js';
 import { verifyToken } from '../middleware/auth.js';
+import puppeteer from 'puppeteer';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -280,6 +283,150 @@ router.delete('/articles/:id', async (req, res) => {
     
     res.json({ success: true });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/manual/export/pdf - Export full manual as PDF
+router.get('/export/pdf', async (req, res) => {
+  try {
+    const { data: categories } = await supabase.from('hrm_manual_categories').select('*').order('order_index');
+    const { data: articles } = await supabase.from('hrm_manual_articles')
+      .select('id, category_id, title, published_content, version')
+      .eq('status', 'published')
+      .order('order_index');
+
+    const lang = req.query.language === 'my' ? 'my' : 'en';
+
+    let translations = {};
+    try {
+      const localePath = path.join(process.cwd(), '../hrm-client/src/locales', lang, 'common.json');
+      const rawLocale = fs.readFileSync(localePath, 'utf8');
+      translations = JSON.parse(rawLocale).manual || {};
+    } catch (e) {
+      console.error('[PDF Export] Failed to load locale:', e.message);
+    }
+
+    const getTranslated = (keyName) => {
+      if (!keyName) return '';
+      const baseName = keyName.replace(/\s*\(.*\)\s*$/, '').trim();
+      if (translations[baseName]) return translations[baseName];
+      if (translations[baseName.toUpperCase()]) return translations[baseName.toUpperCase()];
+      if (translations[baseName.toLowerCase()]) return translations[baseName.toLowerCase()];
+      return baseName;
+    };
+
+    const extractContent = (contentRaw) => {
+      if (!contentRaw) return '';
+      try {
+        const parsed = JSON.parse(contentRaw);
+        return parsed[lang] || parsed.my || ''; 
+      } catch(e) {
+        return contentRaw;
+      }
+    };
+
+    // Filter out categories typically excluded in public/dashboard views if needed
+    const excludedKeywords = ['crm', 'employee portal', 'administration'];
+    const filteredCategories = (categories || []).filter(c => {
+      const lowerName = c.name?.toLowerCase() || '';
+      return !excludedKeywords.some(kw => lowerName.includes(kw));
+    });
+    const excludedCategoryIds = (categories || []).filter(c => !filteredCategories.includes(c)).map(c => c.id);
+    const filteredArticles = (articles || []).filter(a => !excludedCategoryIds.includes(a.category_id));
+
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>BBD HR User Manual</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap');
+          body { font-family: 'Padauk', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px; }
+          .cover { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 80vh; text-align: center; }
+          .cover h1 { font-size: 48px; margin-bottom: 10px; color: #1e3a8a; }
+          .cover h2 { font-size: 24px; color: #64748b; font-weight: normal; margin-bottom: 40px; }
+          .cover p { font-size: 16px; color: #94a3b8; }
+          .page-break { page-break-before: always; }
+          .toc { margin-top: 50px; }
+          .toc h2 { font-size: 28px; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
+          .toc-category { font-size: 18px; font-weight: bold; margin-top: 15px; }
+          .toc-article { font-size: 16px; margin-left: 20px; color: #475569; padding: 2px 0; }
+          .category-title { font-size: 32px; color: #1e3a8a; border-bottom: 3px solid #e2e8f0; padding-bottom: 10px; margin-top: 40px; margin-bottom: 20px; }
+          .article-title { font-size: 24px; color: #334155; margin-top: 40px; margin-bottom: 15px; }
+          .content { font-size: 14px; }
+          .content img { max-width: 100%; height: auto; border-radius: 4px; margin: 10px 0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+          th { background-color: #f8fafc; font-weight: bold; }
+          ul, ol { margin-bottom: 15px; }
+          p { margin-bottom: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="cover">
+          <h1>BBD HR User Manual</h1>
+          <h2>HRM / Corporate HR Automation System</h2>
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+        </div>
+        <div class="page-break"></div>
+        
+        <div class="toc">
+          <h2>Table of Contents</h2>
+    `;
+
+    filteredCategories.forEach(cat => {
+      const catArticles = filteredArticles.filter(a => a.category_id === cat.id);
+      if (catArticles.length > 0) {
+        html += `<div class="toc-category">${getTranslated(cat.name)}</div>`;
+        catArticles.forEach(a => {
+          html += `<div class="toc-article">• ${getTranslated(a.title)}</div>`;
+        });
+      }
+    });
+
+    html += `</div>`;
+
+    filteredCategories.forEach(cat => {
+      const catArticles = filteredArticles.filter(a => a.category_id === cat.id);
+      if (catArticles.length > 0) {
+        html += `<div class="page-break"></div>`;
+        html += `<h1 class="category-title">${getTranslated(cat.name)}</h1>`;
+        
+        catArticles.forEach(a => {
+          html += `<h2 class="article-title">${getTranslated(a.title)}</h2>`;
+          html += `<div class="content">${extractContent(a.published_content)}</div>`;
+        });
+      }
+    });
+
+    html += `
+      </body>
+      </html>
+    `;
+
+    const browser = await puppeteer.launch({ 
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '40px', right: '40px', bottom: '40px', left: '40px' },
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate: '<div style="font-size:10px; width:100%; text-align:center; color:#94a3b8; font-family: sans-serif;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>'
+    });
+    await browser.close();
+
+    const fileName = `BBD_HRM_User_Manual_${lang.toUpperCase()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error('[PDF Export Error]', e);
     res.status(500).json({ error: e.message });
   }
 });
