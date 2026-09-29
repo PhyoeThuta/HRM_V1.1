@@ -71,8 +71,12 @@ export async function calculatePayroll(employee_id, month, req_working_days = 26
     total_sops_count,
     sop_score,
     peer_votes_count,
-    peer_score
+    peer_score,
+    unpaid_leave_days
   } = context;
+  
+  const daily_rate = (base_salary || 0) / working_days;
+  const unpaid_leave_deduction = Math.round(daily_rate * (unpaid_leave_days || 0) * 100) / 100;
   
   // 4. Calculate Final KPI & Salary
   const auto_kpi_contribution = (attendance_score * (w_att/100)) + (punctuality_score * (w_punct/100)) + (sop_score * (w_sops/100)) + (peer_score * (w_peer/100));
@@ -93,6 +97,8 @@ export async function calculatePayroll(employee_id, month, req_working_days = 26
     sop_score: parseFloat(sop_score.toFixed(2)),
     peer_votes_count,
     peer_score: parseFloat(peer_score.toFixed(2)),
+    unpaid_leave_days,
+    unpaid_leave_deduction,
     auto_weights: settings.auto_weights,
     manual_metrics: settings.manual_metrics || [],
     target_bonus_percentage: settings.target_bonus_percentage || 15

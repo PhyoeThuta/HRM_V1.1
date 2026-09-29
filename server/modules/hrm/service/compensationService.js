@@ -52,20 +52,39 @@ export const compensationService = {
         supabase.from('Leave_type').select('id, is_paid'),
         dbFetch('Leave_Request', '*', { employee_id, status: 'Approved' })
       ]);
-      const unpaidTypeIds = new Set((leaveTypes || []).filter(t => t.is_paid === false).map(t => t.id));
+      const unpaidTypeIds = new Set((leaveTypes || []).filter(t => t.is_paid === false || t.is_paid === 'false').map(t => t.id));
       
       leaves.forEach(l => {
+        // Ensure lStart and lEnd are correctly compared without UTC timezone shifting issues
+        // l.start_date is "2026-09-30", which parses as 2026-09-30T00:00:00.000Z
         const lStart = new Date(l.start_date);
         const lEnd = new Date(l.end_date);
-        if (lStart <= mEnd && lEnd >= mStart) {
-          const effectiveStart = lStart < mStart ? mStart : lStart;
-          const effectiveEnd = lEnd > mEnd ? mEnd : lEnd;
+        // mStart is "2026-09-01T00:00:00.000Z", mEnd is "2026-09-30T16:59:59.999Z" (in local time)
+        // Convert them all to YYYY-MM-DD strings for safe comparison
+        const lStartStr = l.start_date;
+        const lEndStr = l.end_date;
+        const mStartStr = getBkkDateString(mStart);
+        const mEndStr = getBkkDateString(mEnd);
+        
+        if (lStartStr <= mEndStr && lEndStr >= mStartStr) {
+          const effectiveStartStr = lStartStr < mStartStr ? mStartStr : lStartStr;
+          const effectiveEndStr = lEndStr > mEndStr ? mEndStr : lEndStr;
           let diffDays = 0;
-          let currentDate = new Date(effectiveStart);
-          while (currentDate <= effectiveEnd) {
+          let currentDate = new Date(effectiveStartStr);
+          // Set to noon to avoid daylight saving time skips
+          currentDate.setHours(12, 0, 0, 0);
+          const effectiveEndDate = new Date(effectiveEndStr);
+          effectiveEndDate.setHours(12, 0, 0, 0);
+          
+          while (currentDate <= effectiveEndDate) {
             const dStr = getBkkDateString(currentDate);
-            if (!attendance_dates.has(dStr)) {
-               diffDays++;
+            const dayOfWeek = currentDate.getDay(); // 0 is Sunday
+            
+            // Only count if it's a working day (Assuming 26 working days = Sunday off)
+            if (dayOfWeek !== 0) {
+              if (!attendance_dates.has(dStr)) {
+                 diffDays++;
+              }
             }
             currentDate.setDate(currentDate.getDate() + 1);
           }

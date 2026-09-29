@@ -1,7 +1,7 @@
 import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
-import { supabase } from '../lib/supabase.js';
+import { supabase, supabaseAdmin } from '../lib/supabase.js';
 import {
   getActiveHandoversForOutgoing,
   getActiveHandoversForIncoming,
@@ -945,23 +945,92 @@ router.get('/documents', async (req, res) => {
   }
 });
 
-// POST /api/documents
-router.post('/documents', requireAdmin, async (req, res) => {
+// GET /api/documents/download/:id
+router.get('/documents/download/:id', verifyToken, async (req, res) => {
   try {
-    const { title, category, file_url, description, employee_id } = req.body;
+    let doc = await dbFetchOne('employee_documents', '*', { id: req.params.id });
+    if (!doc) doc = await dbFetchOne('doc_approval_requests', '*', { id: req.params.id });
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    
+    const adminRoles = ['boss', 'hr_manager', 'general_manager', 'admin'];
+    const isAdmin = req.user && adminRoles.includes(req.user.role);
+    if (!isAdmin) {
+      if (doc.employee_id !== null && doc.employee_id !== req.user.employee_id) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to view this document.' });
+      }
+    }
+
+    if (doc.file_url && doc.file_url.startsWith('company_documents/')) {
+      const path = doc.file_url.replace('company_documents/', '');
+      const { data, error } = await supabaseAdmin.storage
+        .from('company_documents')
+        .createSignedUrl(path, 60);
+      if (error) throw error;
+      return res.redirect(data.signedUrl);
+    } else {
+      return res.redirect(doc.file_url);
+    }
+  } catch (e) {
+    return res.status(500).json({ error: 'Internal server error processing document link' });
+  }
+});
+
+// POST /api/documents
+router.post('/documents', requireAdmin, upload.single('document_file'), async (req, res) => {
+  try {
+    const { title, category, description, employee_id } = req.body;
+    let file_url = req.body.file_url;
+    let uploadedFilename = null;
     if (!title) return res.status(400).json({ error: 'Title is required' });
+    if (!req.file) return res.status(400).json({ error: 'A PDF document file is strictly required for vault uploads' });
 
-    const doc = await dbInsert('employee_documents', {
-      title,
-      category: category || 'General',
-      file_url: file_url || '/sample_promotion_letter.pdf',
-      description: description || '',
-      employee_id: (employee_id && employee_id !== 'GENERAL') ? employee_id : null,
-      uploaded_by_user_id: req.user.id,
-      created_at: new Date().toISOString(),
-    });
+    if (req.file) {
+      if (req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({ error: 'Only PDF files are allowed' });
+      }
+      const buffer = req.file.buffer;
+      if (buffer.length < 5 || buffer.toString('utf8', 0, 5) !== '%PDF-') {
+        return res.status(400).json({ error: 'Invalid PDF file signature' });
+      }
+      if (req.file.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: 'File size must be under 10MB' });
+      }
+      const safeName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}_${safeName}`;
+      const { error } = await supabaseAdmin.storage
+        .from('company_documents')
+        .upload(filename, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+      if (error) throw new Error('Failed to upload secure document: ' + error.message);
+      file_url = `company_documents/${filename}`;
+      uploadedFilename = filename;
+    }
 
-    return res.json({ success: true, document: doc });
+    try {
+      const doc = await dbInsert('employee_documents', {
+        title,
+        category: category || 'General',
+        doc_type: category || 'General',
+        file_url: file_url,
+        description: description || '',
+        employee_id: (employee_id && employee_id !== 'GENERAL') ? employee_id : null,
+        uploaded_by_user_id: req.user.id,
+        created_at: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, document: doc });
+    } catch (dbError) {
+      if (uploadedFilename) {
+        try {
+          await supabaseAdmin.storage.from('company_documents').remove([uploadedFilename]);
+        } catch (cleanupError) {
+          console.error('[STORAGE CLEANUP FAILED]', cleanupError);
+        }
+      }
+      throw dbError; // Handled by outer catch
+    }
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -1246,6 +1315,18 @@ router.post('/documents/hr-sign/:id', requireAdmin, async (req, res) => {
 // DELETE /api/documents/request/:id
 router.delete('/documents/request/:id', requireAdmin, async (req, res) => {
   try {
+    let doc = await dbFetchOne('doc_approval_requests', '*', { id: req.params.id });
+    if (!doc) doc = await dbFetchOne('employee_documents', '*', { id: req.params.id });
+    
+    if (doc && doc.file_url && doc.file_url.startsWith('company_documents/')) {
+      const path = doc.file_url.replace('company_documents/', '');
+      try {
+        await supabaseAdmin.storage.from('company_documents').remove([path]);
+      } catch (cleanupError) {
+        console.error('[STORAGE DELETE FAILED]', cleanupError);
+      }
+    }
+
     try {
       await dbDelete('doc_approval_requests', req.params.id);
     } catch (e) {
@@ -1260,6 +1341,16 @@ router.delete('/documents/request/:id', requireAdmin, async (req, res) => {
 // DELETE /api/documents/:id
 router.delete('/documents/:id', requireAdmin, async (req, res) => {
   try {
+    const doc = await dbFetchOne('employee_documents', '*', { id: req.params.id });
+    if (doc && doc.file_url && doc.file_url.startsWith('company_documents/')) {
+      const path = doc.file_url.replace('company_documents/', '');
+      try {
+        await supabaseAdmin.storage.from('company_documents').remove([path]);
+      } catch (cleanupError) {
+        console.error('[STORAGE DELETE FAILED]', cleanupError);
+      }
+    }
+
     await dbDelete('employee_documents', req.params.id);
     await dbInsert('sys_audit_logs', {
       user_id: req.user.id,

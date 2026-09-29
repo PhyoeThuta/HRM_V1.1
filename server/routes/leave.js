@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { supabase, dbInsert } from '../lib/supabase.js';
+import { supabase, supabaseAdmin, dbInsert } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 import { leaveService } from '../modules/hrm/service/leaveService.js';
 
@@ -30,7 +30,7 @@ router.post('/request', upload.single('attachment'), async (req, res) => {
     if (req.file) {
       const fileExt = req.file.originalname.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const { data, error } = await supabase.storage
+      const { data, error } = await supabaseAdmin.storage
         .from('leave_documents')
         .upload(fileName, req.file.buffer, {
           contentType: req.file.mimetype,
@@ -41,7 +41,7 @@ router.post('/request', upload.single('attachment'), async (req, res) => {
         console.error('[STORAGE UPLOAD ERROR]', error);
         return res.status(500).json({ error: 'Failed to upload document. Please try again.' });
       } else {
-        const { data: pubData } = supabase.storage.from('leave_documents').getPublicUrl(fileName);
+        const { data: pubData } = supabaseAdmin.storage.from('leave_documents').getPublicUrl(fileName);
         documentUrl = pubData.publicUrl;
       }
     }

@@ -78,7 +78,11 @@ export default function Documents() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (body) => api.post('/documents', body),
+    mutationFn: (body) => api.post('/documents', body, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }),
     onSuccess: () => {
       qc.invalidateQueries(['documents']);
       setShowUploadModal(false);
@@ -129,7 +133,7 @@ export default function Documents() {
   const handleUploadSubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    uploadMutation.mutate(Object.fromEntries(fd));
+    uploadMutation.mutate(fd);
   };
 
   const handleReqSubmit = (e) => {
@@ -372,7 +376,7 @@ export default function Documents() {
                           </button>
                         )}
                         <a
-                          href={doc.file_url}
+                          href={doc.file_url?.startsWith('company_documents/') ? `${api.defaults.baseURL}/documents/download/${doc.id}` : doc.file_url}
                           target="_blank"
                           rel="noreferrer"
                           className="dv-btn-view px-3.5 py-1.5 bg-indigo-600/15 hover:bg-indigo-600 text-indigo-400 hover:text-white text-xs font-bold rounded-lg transition-all border border-indigo-500/30 flex items-center gap-1.5"
@@ -568,7 +572,7 @@ export default function Documents() {
 
                         {req.file_url && (
                           <a
-                            href={req.file_url}
+                            href={req.file_url?.startsWith('company_documents/') ? `${api.defaults.baseURL}/documents/download/${req.id}` : req.file_url}
                             target="_blank"
                             rel="noreferrer"
                             className="dv-btn-req-view px-3.5 py-1.5 bg-white/5 hover:bg-white/10 text-indigo-400 text-xs font-bold rounded-lg transition-all border border-white/10"
@@ -831,8 +835,8 @@ export default function Documents() {
               </div>
 
               <div>
-                <label className="dv-label form-label text-xs">File URL / Download Link *</label>
-                <input type="url" name="file_url" required placeholder="https://..." className="form-input dv-input text-sm font-mono" />
+                <label className="dv-label form-label text-xs">PDF Document File *</label>
+                <input type="file" name="document_file" accept="application/pdf" required className="form-input dv-input text-sm" />
               </div>
 
               <div>

@@ -7,6 +7,26 @@ import {
 } from '../../../lib/handoverHelpers.js';
 import { dbFetch, dbFetchOne } from '../../../lib/supabase.js';
 
+export function getWorkingDays(startDateStr, endDateStr) {
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  if (end < start) return 0;
+  
+  start.setHours(12, 0, 0, 0);
+  end.setHours(12, 0, 0, 0);
+  
+  let count = 0;
+  let currentDate = new Date(start);
+  
+  while (currentDate <= end) {
+    if (currentDate.getDay() !== 0) { // 0 is Sunday
+      count++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return count;
+}
+
 export const leaveService = {
   getLeaveOverview: async (isAdmin, employeeId) => {
     const reqFilter = isAdmin ? {} : { employee_id: employeeId };
@@ -89,16 +109,18 @@ export const leaveService = {
       if (end < start) {
         throw new Error('Invalid date range: end date cannot be earlier than start date.');
       }
-      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = getWorkingDays(reqData.start_date, reqData.end_date);
       
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
+      const { data: leaveType } = await supabase.from('Leave_type').select('is_paid').eq('id', reqData.leave_type_id).single();
+      const isPaid = leaveType ? leaveType.is_paid !== false : true;
       
       if (balance) {
         const entitled = parseInt(balance.entitled_days || 0);
         const used = parseInt(balance.used_days || 0);
         const remain = entitled - used;
 
-        if (remain < diffDays) {
+        if (isPaid && remain < diffDays) {
           throw new Error('Insufficient leave balance.');
         }
         await leaveRepository.updateLeaveBalance(balance.id, {
@@ -114,7 +136,7 @@ export const leaveService = {
       if (end < start) {
         throw new Error('Invalid date range: end date cannot be earlier than start date.');
       }
-      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = getWorkingDays(reqData.start_date, reqData.end_date);
       
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
       

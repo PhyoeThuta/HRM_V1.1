@@ -65,10 +65,12 @@ export default function Leave() {
     mutationFn: ({ id, status, e_signature }) => api.put(`/leave/${id}/status`, { status, e_signature }),
     onSuccess: (res) => {
       qc.invalidateQueries(['leave']);
+      toast.success(t('hrm.leave.toast.statusUpdate') || 'Leave status updated');
       if (res.data?.warning?.message) {
         toast(res.data.warning.message, { icon: '⚠️', duration: 8000 });
       }
     },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to update leave status'),
   });
 
   const deleteMutation = useMutation({
@@ -600,13 +602,24 @@ export default function Leave() {
               </button>
               <button 
                 onClick={() => {
-                  if (sigCanvas.current.isEmpty()) {
-                    alert(t('hrm.leave.toast.noSig') || "Please provide a signature first.");
-                    return;
+                  try {
+                    if (!sigCanvas.current || typeof sigCanvas.current.isEmpty !== 'function') {
+                       toast.error("Signature pad is still loading, please wait.");
+                       return;
+                    }
+                    if (sigCanvas.current.isEmpty()) {
+                      alert(t('hrm.leave.toast.noSig') || "Please provide a signature first.");
+                      return;
+                    }
+                    const canvas = sigCanvas.current.getCanvas();
+                    if (!canvas) throw new Error("Could not get canvas");
+                    const e_signature = canvas.toDataURL('image/png');
+                    statusMutation.mutate({ id: signatureModalTarget.id, status: 'Approved', e_signature });
+                    setSignatureModalTarget(null);
+                  } catch (err) {
+                    console.error("Signature processing error:", err);
+                    toast.error("Error processing signature: " + err.message);
                   }
-                  const e_signature = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
-                  statusMutation.mutate({ id: signatureModalTarget.id, status: 'Approved', e_signature });
-                  setSignatureModalTarget(null);
                 }}
                 className="px-5 py-2 text-sm font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/25"
               >
