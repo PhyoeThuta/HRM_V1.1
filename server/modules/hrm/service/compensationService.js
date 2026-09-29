@@ -1,8 +1,12 @@
 import { dbFetch, dbFetchOne, supabase } from '../../../lib/supabase.js';
-
-function getBkkDateString(dateInput) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(dateInput));
-}
+import { getBkkDateString } from '../../../lib/dateUtils.js';
+import {
+  calculateLeaveDaysInMonth,
+  calculateAttendanceScore,
+  calculatePunctualityScore,
+  calculateSopScore,
+  calculatePeerScore,
+} from '../engine/payrollCalculationEngine.js';
 
 export const compensationService = {
   getEmployeeCompensationContext: async (employee_id, month, req_working_days = 26) => {
@@ -54,40 +58,37 @@ export const compensationService = {
       ]);
       const unpaidTypeIds = new Set((leaveTypes || []).filter(t => t.is_paid === false || t.is_paid === 'false').map(t => t.id));
       
+      const mStartStr = getBkkDateString(mStart);
+      const mEndStr   = getBkkDateString(mEnd);
+
       leaves.forEach(l => {
-        // Ensure lStart and lEnd are correctly compared without UTC timezone shifting issues
-        // l.start_date is "2026-09-30", which parses as 2026-09-30T00:00:00.000Z
-        const lStart = new Date(l.start_date);
-        const lEnd = new Date(l.end_date);
-        // mStart is "2026-09-01T00:00:00.000Z", mEnd is "2026-09-30T16:59:59.999Z" (in local time)
-        // Convert them all to YYYY-MM-DD strings for safe comparison
+        // Use engine function for cross-month-safe, Sunday-skipping day count.
+        // attendance_dates are excluded so leave days already present are not double-counted.
         const lStartStr = l.start_date;
-        const lEndStr = l.end_date;
-        const mStartStr = getBkkDateString(mStart);
-        const mEndStr = getBkkDateString(mEnd);
-        
+        const lEndStr   = l.end_date;
+
         if (lStartStr <= mEndStr && lEndStr >= mStartStr) {
+          // Count working days this leave overlaps with the payroll month.
+          // Then subtract any days the employee was physically present (already in attendance_dates).
+          const totalDays = calculateLeaveDaysInMonth(lStartStr, lEndStr, mStartStr, mEndStr);
+
+          // Subtract attendance days that fall inside the leave period
+          // (employee was present on some leave days — should not double-count)
           const effectiveStartStr = lStartStr < mStartStr ? mStartStr : lStartStr;
-          const effectiveEndStr = lEndStr > mEndStr ? mEndStr : lEndStr;
-          let diffDays = 0;
-          let currentDate = new Date(effectiveStartStr);
-          // Set to noon to avoid daylight saving time skips
-          currentDate.setHours(12, 0, 0, 0);
-          const effectiveEndDate = new Date(effectiveEndStr);
-          effectiveEndDate.setHours(12, 0, 0, 0);
-          
-          while (currentDate <= effectiveEndDate) {
-            const dStr = getBkkDateString(currentDate);
-            const dayOfWeek = currentDate.getDay(); // 0 is Sunday
-            
-            // Only count if it's a working day (Assuming 26 working days = Sunday off)
-            if (dayOfWeek !== 0) {
-              if (!attendance_dates.has(dStr)) {
-                 diffDays++;
-              }
+          const effectiveEndStr   = lEndStr   > mEndStr   ? mEndStr   : lEndStr;
+          let attendedDuringLeave = 0;
+          let cur = new Date(effectiveStartStr);
+          cur.setHours(12, 0, 0, 0);
+          const effEnd = new Date(effectiveEndStr);
+          effEnd.setHours(12, 0, 0, 0);
+          while (cur <= effEnd) {
+            if (cur.getDay() !== 0 && attendance_dates.has(getBkkDateString(cur))) {
+              attendedDuringLeave++;
             }
-            currentDate.setDate(currentDate.getDate() + 1);
+            cur.setDate(cur.getDate() + 1);
           }
+
+          const diffDays = totalDays - attendedDuringLeave;
           approved_leave_days += diffDays;
           if (unpaidTypeIds.has(l.leave_type_id)) {
             unpaid_leave_days += diffDays;
@@ -100,10 +101,11 @@ export const compensationService = {
     }
 
     const actual_attendance = attendance_dates.size + approved_leave_days;
-    const attendance_score = Math.min(100.0, (actual_attendance / working_days) * 100);
-    
+    const attendance_score  = calculateAttendanceScore(actual_attendance, working_days);
+
+    // BBD Rule: approved leave counts as on-time (employees not penalised for approved absence)
     on_time_count += approved_leave_days;
-    const punctuality_score = actual_attendance > 0 ? Math.min(100.0, (on_time_count / actual_attendance * 100)) : 0;
+    const punctuality_score = calculatePunctualityScore(on_time_count, actual_attendance);
     
     // 2. SOPs
     let sop_score = 100.0;
@@ -124,9 +126,7 @@ export const compensationService = {
           total_sops_count += taskCount;
           if (s.is_completed) completed_sops_count += taskCount;
         });
-        if (total_sops_count > 0) {
-          sop_score = (completed_sops_count / total_sops_count) * 100;
-        }
+        sop_score = calculateSopScore(completed_sops_count, total_sops_count);
       }
     } catch (e) {
       console.error('SOP fetch error', e);
@@ -148,7 +148,7 @@ export const compensationService = {
       if (all_votes && all_votes.length > 0) {
         peer_votes_count = all_votes.length;
         const avg_stars = all_votes.reduce((acc, v) => acc + parseFloat(v.score || 0), 0) / all_votes.length;
-        peer_score = (avg_stars / 5.0) * 100;
+        peer_score = calculatePeerScore(avg_stars, 5);
       }
     } catch (e) {
       console.error('Peer voting fetch error', e);

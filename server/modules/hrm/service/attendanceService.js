@@ -1,10 +1,7 @@
 import crypto from 'crypto';
 import { attendanceRepository } from '../repository/attendanceRepository.js';
 import { dbFetchOne } from '../../../lib/supabase.js';
-
-function getBkkDateString(dateInput) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(dateInput));
-}
+import { getBkkDateString } from '../../../lib/dateUtils.js';
 
 const checkIsLate = async (employee_id, check_in_time, claimed_shift_id = null) => {
   try {

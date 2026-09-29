@@ -3,6 +3,7 @@ import { dbFetch, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin, requireFinance } from '../middleware/auth.js';
 import { calculatePayroll } from './payroll_engine.js';
 import { hrmModule } from '../modules/hrm/index.js';
+import { calculateBonus, calculateNetSalary } from '../modules/hrm/engine/payrollCalculationEngine.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -66,18 +67,14 @@ router.post('/', requireAdmin, async (req, res) => {
     // Perform Server-Side Calculation (Trust Boundary)
     const calc = await calculatePayroll(d.employee_id, d.month);
     
-    // Validate or enforce calculations here.
     // We trust basic_salary, allowances, deductions from HR, but we calculate bonus.
     const basic = parseFloat(d.basic_salary || calc.base_salary || 0);
     const allow = parseFloat(d.allowances || 0);
     const deduc = parseFloat(d.deductions || 0);
     
-    // Auto bonus formula: (target_bonus_percentage / 100) * basic * (kpi_contribution / 100)
-    const targetBonusPct = calc.target_bonus_percentage / 100;
-    let computedBonus = basic * targetBonusPct * (calc.auto_kpi_contribution / 100);
-    computedBonus = Math.round(computedBonus * 100) / 100;
-    
-    const computedNet = basic + allow + computedBonus - deduc;
+    // Bonus and net computed by the canonical engine — single source of truth
+    const computedBonus = calculateBonus(basic, calc.target_bonus_percentage, calc.auto_kpi_contribution);
+    const computedNet   = calculateNetSalary(basic, allow, computedBonus, deduc);
 
     const result = await dbInsert('payrolls', {
       employee_id: d.employee_id, month: d.month,
@@ -120,11 +117,9 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const allow = parseFloat(d.allowances || 0);
     const deduc = parseFloat(d.deductions || 0);
     
-    const targetBonusPct = calc.target_bonus_percentage / 100;
-    let computedBonus = basic * targetBonusPct * (calc.auto_kpi_contribution / 100);
-    computedBonus = Math.round(computedBonus * 100) / 100;
-    
-    const computedNet = basic + allow + computedBonus - deduc;
+    // Bonus and net computed by the canonical engine — single source of truth
+    const computedBonus = calculateBonus(basic, calc.target_bonus_percentage, calc.auto_kpi_contribution);
+    const computedNet   = calculateNetSalary(basic, allow, computedBonus, deduc);
 
     await dbUpdate('payrolls', req.params.id, {
       basic_salary: basic,

@@ -2,10 +2,15 @@ import express from 'express';
 import { dbFetch, dbFetchOne, supabase, dbInsert, dbUpdate } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 import { hrmModule } from '../modules/hrm/index.js';
-
-function getBkkDateString(dateInput) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(dateInput));
-}
+import { getBkkDateString } from '../lib/dateUtils.js';
+import {
+  BBD_SALARY_DIVISOR,
+  calculateDailyRate,
+  calculateUnpaidDeduction,
+  calculateKpiContribution,
+  calculateBonus,
+  calculateNetSalary,
+} from '../modules/hrm/engine/payrollCalculationEngine.js';
 
 const defaultSettings = {
   target_bonus_percentage: 15,
@@ -53,14 +58,14 @@ export async function saveSettings(settings) {
 export async function calculatePayroll(employee_id, month, req_working_days = 26) {
   const context = await hrmModule.getEmployeeCompensationContext(employee_id, month, req_working_days);
   const base_salary = context.base_salary;
-  const working_days = parseInt(req_working_days || 26);
+  const working_days = parseInt(req_working_days || BBD_SALARY_DIVISOR);
   
   // Fetch Settings
   const settings = await getSettings();
-  const w_att = settings.auto_weights.attendance || 0;
-  const w_punct = settings.auto_weights.punctuality || 0;
-  const w_sops = settings.auto_weights.sops || 0;
-  const w_peer = settings.auto_weights.peer_voting || 0;
+  const w_att   = settings.auto_weights.attendance    || 0;
+  const w_punct = settings.auto_weights.punctuality   || 0;
+  const w_sops  = settings.auto_weights.sops          || 0;
+  const w_peer  = settings.auto_weights.peer_voting   || 0;
   
   const {
     actual_attendance,
@@ -75,11 +80,14 @@ export async function calculatePayroll(employee_id, month, req_working_days = 26
     unpaid_leave_days
   } = context;
   
-  const daily_rate = (base_salary || 0) / working_days;
-  const unpaid_leave_deduction = Math.round(daily_rate * (unpaid_leave_days || 0) * 100) / 100;
+  const daily_rate              = calculateDailyRate(base_salary || 0, working_days);
+  const unpaid_leave_deduction  = calculateUnpaidDeduction(daily_rate, unpaid_leave_days || 0);
   
   // 4. Calculate Final KPI & Salary
-  const auto_kpi_contribution = (attendance_score * (w_att/100)) + (punctuality_score * (w_punct/100)) + (sop_score * (w_sops/100)) + (peer_score * (w_peer/100));
+  const auto_kpi_contribution = calculateKpiContribution(
+    { attendance: attendance_score, punctuality: punctuality_score, sop: sop_score, peer: peer_score },
+    { attendance: w_att, punctuality: w_punct, sops: w_sops, peer_voting: w_peer }
+  );
   
   return {
     success: true,
