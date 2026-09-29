@@ -112,7 +112,7 @@ export const leaveService = {
       const diffDays = getWorkingDays(reqData.start_date, reqData.end_date);
       
       const balance = await leaveRepository.getLeaveBalanceByComposite(reqData.employee_id, reqData.leave_type_id);
-      const { data: leaveType } = await supabase.from('Leave_type').select('is_paid').eq('id', reqData.leave_type_id).single();
+      const leaveType = await dbFetchOne('Leave_type', 'is_paid', { id: reqData.leave_type_id });
       const isPaid = leaveType ? leaveType.is_paid !== false : true;
       
       if (balance) {
