@@ -21,6 +21,10 @@ export default function Payroll() {
     auto_weights: { attendance: 40, punctuality: 0, sops: 40, peer_voting: 20 },
     manual_metrics: []
   });
+  // Phase 2: Payroll Policy state
+  const [payrollPolicy, setPayrollPolicy] = useState(null);
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policyError, setPayrollPolicyError] = useState('');
 
   const qc = useQueryClient();
 
@@ -60,6 +64,8 @@ export default function Payroll() {
   // Load settings
   useEffect(() => {
     api.get('/payroll-engine/settings').then(r => setKpiSettings(r.data)).catch(console.error);
+    // Phase 2: load payroll policy
+    api.get('/payroll-policy').then(r => setPayrollPolicy(r.data.policy)).catch(console.error);
   }, []);
 
   const handleSave = (e) => {
@@ -162,6 +168,49 @@ export default function Payroll() {
       manual_metrics: metrics
     };
     settingsMutation.mutate(s);
+  };
+
+  const handlePolicySave = async () => {
+    if (!payrollPolicy) return;
+    const WEEKDAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+    // Collect selected holidays from checkboxes
+    const selectedHolidays = WEEKDAYS.filter(d =>
+      document.getElementById(`holiday_${d}`)?.checked
+    );
+    const divisor = parseInt(document.getElementById('policy_divisor')?.value || 26);
+    const peerMax = parseInt(document.getElementById('policy_peer_max')?.value || 5);
+    const defaultSop = parseFloat(document.getElementById('policy_default_sop')?.value || 100);
+    const defaultPeer = parseFloat(document.getElementById('policy_default_peer')?.value || 100);
+    const timezone = document.getElementById('policy_timezone')?.value || 'Asia/Bangkok';
+    const apLeave = document.getElementById('policy_approved_leave')?.checked;
+
+    if (divisor <= 0 || divisor > 365) { toast.error('Salary divisor must be between 1 and 365'); return; }
+    if (peerMax <= 0) { toast.error('Peer score max stars must be > 0'); return; }
+    if (defaultSop < 0 || defaultSop > 100) { toast.error('Default SOP score must be 0–100'); return; }
+    if (defaultPeer < 0 || defaultPeer > 100) { toast.error('Default Peer score must be 0–100'); return; }
+    if (selectedHolidays.length === 7) { toast.error('Cannot mark all days as holidays'); return; }
+
+    setPolicyLoading(true);
+    setPayrollPolicyError('');
+    try {
+      const r = await api.put('/payroll-policy', {
+        salary_divisor: divisor,
+        weekly_holidays: selectedHolidays,
+        timezone,
+        approved_leave_counts_as_punctual: apLeave,
+        peer_score_max_stars: peerMax,
+        default_sop_score: defaultSop,
+        default_peer_score: defaultPeer,
+      });
+      setPayrollPolicy(r.data.policy);
+      toast.success('Payroll policy saved!');
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Failed to save policy';
+      setPayrollPolicyError(msg);
+      toast.error('Policy save failed. Check values.');
+    } finally {
+      setPolicyLoading(false);
+    }
   };
 
   const addManualMetricRow = () => {
@@ -336,6 +385,96 @@ export default function Payroll() {
                         ))}
                     </div>
                 </div>
+                {/* ─── Phase 2: Payroll Policy Configuration ─── */}
+                {payrollPolicy && (
+                  <div className="border-t border-white/10 pt-6">
+                    <h3 className="payroll-modal-section-title text-base font-bold text-white mb-1 flex items-center gap-2">
+                      <span>🏢</span> Payroll Policy Configuration
+                    </h3>
+                    <p className="text-xs text-slate-400 mb-4">Company-level payroll rules. Changes affect all future payroll calculations.</p>
+
+                    {policyError && (
+                      <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs whitespace-pre-wrap">{policyError}</div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Salary Divisor */}
+                      <div>
+                        <label className="payroll-label text-xs font-bold text-slate-400 uppercase mb-1 block">Salary Divisor</label>
+                        <input id="policy_divisor" type="number" min="1" max="365" defaultValue={payrollPolicy.salary_divisor}
+                          className="form-input payroll-input" />
+                        <p className="text-xs text-slate-500 mt-1">BBD = 26 (Mon–Sat). Days in month for daily rate.</p>
+                      </div>
+
+                      {/* Peer Score Max Stars */}
+                      <div>
+                        <label className="payroll-label text-xs font-bold text-slate-400 uppercase mb-1 block">Peer Score Max Stars</label>
+                        <input id="policy_peer_max" type="number" min="1" max="100" defaultValue={payrollPolicy.peer_score_max_stars}
+                          className="form-input payroll-input" />
+                        <p className="text-xs text-slate-500 mt-1">BBD = 5 stars = 100% score</p>
+                      </div>
+
+                      {/* Default SOP Score */}
+                      <div>
+                        <label className="payroll-label text-xs font-bold text-slate-400 uppercase mb-1 block">Default SOP Score (no data)</label>
+                        <input id="policy_default_sop" type="number" min="0" max="100" step="0.01" defaultValue={payrollPolicy.default_sop_score}
+                          className="form-input payroll-input" />
+                        <p className="text-xs text-slate-500 mt-1">Score given when no SOPs assigned</p>
+                      </div>
+
+                      {/* Default Peer Score */}
+                      <div>
+                        <label className="payroll-label text-xs font-bold text-slate-400 uppercase mb-1 block">Default Peer Score (no votes)</label>
+                        <input id="policy_default_peer" type="number" min="0" max="100" step="0.01" defaultValue={payrollPolicy.default_peer_score}
+                          className="form-input payroll-input" />
+                        <p className="text-xs text-slate-500 mt-1">Score given when no peer votes received</p>
+                      </div>
+                    </div>
+
+                    {/* Timezone */}
+                    <div className="mt-4">
+                      <label className="payroll-label text-xs font-bold text-slate-400 uppercase mb-1 block">Timezone</label>
+                      <input id="policy_timezone" type="text" defaultValue={payrollPolicy.timezone}
+                        className="form-input payroll-input w-full" placeholder="Asia/Bangkok" />
+                      <p className="text-xs text-slate-500 mt-1">IANA timezone string (e.g. Asia/Bangkok)</p>
+                    </div>
+
+                    {/* Weekly Holidays */}
+                    <div className="mt-4">
+                      <label className="payroll-label text-xs font-bold text-slate-400 uppercase mb-2 block">Weekly Holidays (non-working days)</label>
+                      <div className="flex flex-wrap gap-3">
+                        {['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'].map(day => (
+                          <label key={day} className="flex items-center gap-2 cursor-pointer">
+                            <input id={`holiday_${day}`} type="checkbox"
+                              defaultChecked={(payrollPolicy.weekly_holidays || ['SUNDAY']).map(h=>h.toUpperCase()).includes(day)}
+                              className="w-4 h-4 accent-indigo-500" />
+                            <span className="text-xs text-slate-300 font-medium">{day.charAt(0)+day.slice(1).toLowerCase()}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">BBD = Sunday only. Checked = holiday (excluded from payroll).</p>
+                    </div>
+
+                    {/* Approved Leave Punctuality */}
+                    <div className="mt-4">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input id="policy_approved_leave" type="checkbox"
+                          defaultChecked={payrollPolicy.approved_leave_counts_as_punctual}
+                          className="w-4 h-4 accent-indigo-500" />
+                        <div>
+                          <span className="text-sm text-white font-medium">Approved leave counts as punctual</span>
+                          <p className="text-xs text-slate-400">When checked, approved leave days are not penalized in punctuality score (BBD default: ON)</p>
+                        </div>
+                      </label>
+                    </div>
+
+                    <button type="button" onClick={handlePolicySave} disabled={policyLoading}
+                      className="mt-4 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl w-full transition-colors">
+                      {policyLoading ? 'Saving Policy...' : '💾 Save Payroll Policy'}
+                    </button>
+                  </div>
+                )}
+
                 <div className="payroll-modal-footer flex gap-3 pt-4 border-t border-white/5">
                     <button type="button" onClick={() => setShowSettingsModal(false)} className="payroll-btn-cancel flex-1 py-3 bg-white/5 rounded-xl text-slate-300">{t('hrm.payroll.settingsModal.cancel')}</button>
                     <button type="submit" className="payroll-btn-save flex-1 py-3 bg-indigo-600 rounded-xl text-white font-bold">{t('hrm.payroll.settingsModal.save')}</button>

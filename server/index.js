@@ -31,6 +31,7 @@ import overtimeRouter from './routes/overtime.js';
 import leaveRouter from './routes/leave.js';
 import payrollRouter from './routes/payroll.js';
 import payrollEngineRouter from './routes/payroll_engine.js';
+import payrollPolicyRouter from './routes/payroll_policy.js';
 import bossRouter from './routes/api_boss.js';
 import orgRouter from './routes/org.js';
 import recruitmentRouter from './routes/recruitment.js';
@@ -155,6 +156,7 @@ app.use('/api/overtime', overtimeRouter);
 app.use('/api/leave', leaveRouter);
 app.use('/api/payroll', payrollRouter);
 app.use('/api/payroll-engine', payrollEngineRouter);
+app.use('/api/payroll-policy', payrollPolicyRouter);
 app.use('/api', orgRouter);           // /api/departments, /api/positions
 app.use('/api/recruitment', recruitmentRouter);
 app.use('/api', lifecycleRouter);     // /api/onboarding, /api/offboarding

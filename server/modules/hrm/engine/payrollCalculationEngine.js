@@ -1,7 +1,7 @@
 /**
  * payrollCalculationEngine.js — Pure Payroll Calculation Engine
  *
- * Phase 1 of the BBD HRM Payroll Architecture Refactor.
+ * Phase 2 of the BBD HRM Payroll Architecture Refactor.
  *
  * ╔══════════════════════════════════════════════════════════════════════════╗
  * ║  DESIGN RULES — READ BEFORE EDITING                                     ║
@@ -11,58 +11,68 @@
  * ║  3. Every function receives all required inputs as parameters.           ║
  * ║  4. Every function returns a single value or plain object.               ║
  * ║  5. All functions are independently unit-testable without mocking.       ║
- * ║  6. All BBD-specific values (e.g. 26 working days) are PRESERVED         ║
- * ║     exactly. They will be externalized into Company Policy in Phase 2.   ║
+ * ║  6. Company-specific policy values come from a `policy` parameter.       ║
+ * ║     The engine itself contains no company-specific hardcoded constants.  ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  *
- * BBD Business Rules currently embedded (to be moved to Policy in Phase 2):
+ * Phase 2 Policy Integration:
  *
- *   - BBD_SALARY_DIVISOR = 26
- *     BBD operates Monday–Saturday. Sunday is the weekly holiday.
- *     The salary is divided by 26 to compute the daily rate.
- *     This will become `policy.salaryDivisor` in Phase 2.
+ *   All company-specific constants have been moved to policy parameters:
  *
- *   - Sunday (getDay() === 0) is skipped in leave and unpaid-leave counting.
- *     This will become `policy.weeklyHolidays` in Phase 2.
+ *   - policy.salary_divisor         (was BBD_SALARY_DIVISOR = 26)
+ *   - policy.weekly_holidays         (was getDay() !== 0)
+ *   - policy.approved_leave_counts_as_punctual  (was hardcoded BBD behavior)
+ *   - policy.peer_score_max_stars    (was hardcoded 5)
+ *   - policy.default_sop_score       (was hardcoded 100)
+ *   - policy.default_peer_score      (was hardcoded 100)
  *
- *   - Approved leave days count as "on-time" for punctuality score.
- *     This is a BBD HR policy: employees on approved leave are not penalised.
- *     This will become `policy.approvedLeaveCountsAsPunctual` in Phase 2.
+ * BBD Backward Compatibility:
  *
- *   - Peer score scale: 5 stars = 100%.
- *     This will become `policy.peerScoreMaxStars` in Phase 2.
- *
- *   - No-SOP-data default = 100 (full score if nothing assigned).
- *     This will become `policy.defaultSopScore` in Phase 2.
- *
- *   - No-peer-vote default = 100 (full score if no votes received).
- *     This will become `policy.defaultPeerScore` in Phase 2.
- *
- *   - Rounding: Math.round(val * 100) / 100 for all monetary values.
+ *   Functions that accept a `policy` parameter use BBD_DEFAULT_POLICY as the
+ *   default argument value, so all existing callers that do not pass policy
+ *   continue to produce numerically identical results.
  */
 
-// ─── BBD LEGACY DEFAULTS (Phase 2 will move these to Company Policy) ─────────
+// ─── BBD LEGACY CONSTANT (kept for external callers that reference it) ────────
 
 /**
  * BBD salary divisor: 26 working days (Mon–Sat, Sunday off).
- * INTENTIONALLY hardcoded for Phase 1. Do NOT change this value.
- * See Phase 2 for company-policy-driven configuration.
+ * Retained for backward compatibility. New code should use policy.salary_divisor.
  * @type {number}
+ * @deprecated Use policy.salary_divisor from payrollPolicyService instead.
  */
 export const BBD_SALARY_DIVISOR = 26;
+
+/**
+ * BBD Default Policy inline constant for use as default parameter values.
+ * Mirrors BBD_DEFAULT_POLICY from payrollPolicyService but defined here
+ * to avoid any circular dependency (service → engine is forbidden).
+ * @type {object}
+ */
+const _BBD_POLICY_DEFAULTS = Object.freeze({
+  salary_divisor:                   26,
+  weekly_holidays:                  ['SUNDAY'],
+  approved_leave_counts_as_punctual: true,
+  peer_score_max_stars:             5,
+  default_sop_score:                100,
+  default_peer_score:               100,
+});
 
 // ─── 1. DAILY RATE ────────────────────────────────────────────────────────────
 
 /**
  * Calculate the daily rate for salary deduction purposes.
+ * Uses policy.salary_divisor if provided (Phase 2), falls back to 26 (BBD default).
  *
- * @param {number} baseSalary    Employee base salary (monthly)
- * @param {number} workingDays   Salary divisor (BBD default: 26)
- * @returns {number}             Daily rate (unrounded — round at deduction step)
+ * @param {number} baseSalary        Employee base salary (monthly)
+ * @param {number} [workingDays]     Explicit override (payroll UI). If omitted, uses policy.
+ * @param {object} [policy]          Company payroll policy object
+ * @returns {number}                 Daily rate (unrounded — round at deduction step)
  */
-export function calculateDailyRate(baseSalary, workingDays) {
-  if (!workingDays || workingDays <= 0) return 0;
-  return baseSalary / workingDays;
+export function calculateDailyRate(baseSalary, workingDays, policy = _BBD_POLICY_DEFAULTS) {
+  const divisor = workingDays ?? policy.salary_divisor ?? _BBD_POLICY_DEFAULTS.salary_divisor;
+  if (!divisor || divisor <= 0) return 0;
+  return baseSalary / divisor;
 }
 
 // ─── 2. UNPAID LEAVE DEDUCTION ───────────────────────────────────────────────
@@ -117,14 +127,17 @@ export function calculatePunctualityScore(onTimeCount, actualAttendance) {
 
 /**
  * Calculate SOP completion score as a percentage.
- * If no SOPs are assigned, defaults to 100 (BBD policy: no tasks = full score).
+ * If no SOPs are assigned, defaults to policy.default_sop_score (BBD: 100).
  *
  * @param {number} completedCount  Number of completed SOP tasks
  * @param {number} totalCount      Total number of assigned SOP tasks
+ * @param {object} [policy]        Company payroll policy object
  * @returns {number}               Score 0–100
  */
-export function calculateSopScore(completedCount, totalCount) {
-  if (!totalCount || totalCount <= 0) return 100.0;
+export function calculateSopScore(completedCount, totalCount, policy = _BBD_POLICY_DEFAULTS) {
+  if (!totalCount || totalCount <= 0) {
+    return policy.default_sop_score ?? _BBD_POLICY_DEFAULTS.default_sop_score;
+  }
   return (completedCount / totalCount) * 100;
 }
 
@@ -132,16 +145,20 @@ export function calculateSopScore(completedCount, totalCount) {
 
 /**
  * Calculate peer review score as a percentage.
- * If no votes exist, defaults to 100 (BBD policy: no votes = full score).
- * Scale: maxStars (default 5) = 100%.
+ * If no votes exist, defaults to policy.default_peer_score (BBD: 100).
+ * Scale: policy.peer_score_max_stars (BBD: 5) = 100%.
  *
- * @param {number} avgStars    Average star rating received
- * @param {number} maxStars    Maximum possible stars (BBD: 5)
- * @returns {number}           Score 0–100
+ * @param {number|null} avgStars  Average star rating received
+ * @param {number}      [maxStars] Explicit max stars override (for backward compat)
+ * @param {object}      [policy]  Company payroll policy object
+ * @returns {number}              Score 0–100
  */
-export function calculatePeerScore(avgStars, maxStars = 5) {
-  if (avgStars === null || avgStars === undefined) return 100.0;
-  return (avgStars / maxStars) * 100;
+export function calculatePeerScore(avgStars, maxStars, policy = _BBD_POLICY_DEFAULTS) {
+  if (avgStars === null || avgStars === undefined) {
+    return policy.default_peer_score ?? _BBD_POLICY_DEFAULTS.default_peer_score;
+  }
+  const scale = maxStars ?? policy.peer_score_max_stars ?? _BBD_POLICY_DEFAULTS.peer_score_max_stars;
+  return (avgStars / scale) * 100;
 }
 
 // ─── 7. KPI CONTRIBUTION ─────────────────────────────────────────────────────
@@ -195,26 +212,42 @@ export function calculateNetSalary(basic, allowances, bonus, deductions) {
   return basic + (allowances || 0) + (bonus || 0) - (deductions || 0);
 }
 
-// ─── 10. LEAVE–MONTH INTERSECTION ───────────────────────────────────────────
+// ─── 10. WORKING DAY CHECK ───────────────────────────────────────────────────
+
+/**
+ * Determine whether a given Date is a working day according to policy.
+ * Replaces the hardcoded `getDay() !== 0` check with a policy-driven lookup.
+ *
+ * @param {Date}    date    Date to check
+ * @param {Set<number>} holidaySet  Set of JS day indices (0=Sun) that are holidays
+ * @returns {boolean}       True if the date is a working day
+ */
+export function isWorkingDay(date, holidaySet) {
+  return !holidaySet.has(date.getDay());
+}
+
+// ─── 11. LEAVE–MONTH INTERSECTION ───────────────────────────────────────────
 
 /**
  * Calculate the number of payroll-relevant working days a leave record
- * overlaps with a given payroll month. Skips Sundays (BBD weekly holiday).
+ * overlaps with a given payroll month. Skips days in policy.weekly_holidays.
  *
  * Uses noon-anchoring (setHours(12,0,0,0)) to prevent DST-related off-by-one
  * errors during day iteration. Date strings are compared as plain YYYY-MM-DD
  * strings to avoid UTC timezone shifting.
  *
- * BBD Rule: Sunday (getDay() === 0) is not counted.
- * Phase 2 will replace `getDay() !== 0` with `!policy.weeklyHolidays.includes(getDay())`.
- *
- * @param {string} leaveStartStr   Leave start date 'YYYY-MM-DD'
- * @param {string} leaveEndStr     Leave end date 'YYYY-MM-DD' (inclusive)
- * @param {string} monthStartStr   Payroll month start 'YYYY-MM-DD'
- * @param {string} monthEndStr     Payroll month end 'YYYY-MM-DD' (inclusive)
- * @returns {number}               Number of working days in the intersection
+ * @param {string}    leaveStartStr   Leave start date 'YYYY-MM-DD'
+ * @param {string}    leaveEndStr     Leave end date 'YYYY-MM-DD' (inclusive)
+ * @param {string}    monthStartStr   Payroll month start 'YYYY-MM-DD'
+ * @param {string}    monthEndStr     Payroll month end 'YYYY-MM-DD' (inclusive)
+ * @param {Set<number>} [holidaySet]  Set of JS day indices for weekly holidays.
+ *                                   Defaults to {0} (Sunday only — BBD default).
+ * @returns {number}                  Number of working days in the intersection
  */
-export function calculateLeaveDaysInMonth(leaveStartStr, leaveEndStr, monthStartStr, monthEndStr) {
+export function calculateLeaveDaysInMonth(
+  leaveStartStr, leaveEndStr, monthStartStr, monthEndStr,
+  holidaySet = new Set([0]) // Default: Sunday only (BBD)
+) {
   // No overlap — fast exit
   if (leaveStartStr > monthEndStr || leaveEndStr < monthStartStr) return 0;
 
@@ -229,8 +262,7 @@ export function calculateLeaveDaysInMonth(leaveStartStr, leaveEndStr, monthStart
   effectiveEndDate.setHours(12, 0, 0, 0);
 
   while (currentDate <= effectiveEndDate) {
-    // BBD Rule: Sunday (0) is the weekly holiday — not counted as a working day
-    if (currentDate.getDay() !== 0) {
+    if (isWorkingDay(currentDate, holidaySet)) {
       diffDays++;
     }
     currentDate.setDate(currentDate.getDate() + 1);

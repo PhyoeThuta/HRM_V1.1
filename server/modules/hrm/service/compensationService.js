@@ -6,15 +6,23 @@ import {
   calculatePunctualityScore,
   calculateSopScore,
   calculatePeerScore,
+  isWorkingDay,
 } from '../engine/payrollCalculationEngine.js';
+import { getPayrollPolicy, getWeeklyHolidaySet } from './payrollPolicyService.js';
 
 export const compensationService = {
-  getEmployeeCompensationContext: async (employee_id, month, req_working_days = 26) => {
+  getEmployeeCompensationContext: async (employee_id, month, req_working_days = null) => {
     const employee = await dbFetchOne('Employees', 'id, Full_name, position_id, salary', { id: employee_id });
     if (!employee) throw new Error('Employee not found');
-    
-    const base_salary = parseFloat(employee.salary || 3000.0);
-    const working_days = parseInt(req_working_days || 26);
+
+    // Load company payroll policy (Phase 2)
+    const policy = await getPayrollPolicy('bbd');
+    const holidaySet = getWeeklyHolidaySet(policy);
+
+    const base_salary  = parseFloat(employee.salary || 3000.0);
+    // If caller passes explicit working_days (from payroll UI), use it.
+    // Otherwise use policy.salary_divisor (Phase 2). BBD default = 26.
+    const working_days = req_working_days ? parseInt(req_working_days) : policy.salary_divisor;
     
     const startDate = `${month}-01T00:00:00.000Z`;
     const mStart = new Date(`${month}-01`);
@@ -67,13 +75,11 @@ export const compensationService = {
         const lStartStr = l.start_date;
         const lEndStr   = l.end_date;
 
-        if (lStartStr <= mEndStr && lEndStr >= mStartStr) {
-          // Count working days this leave overlaps with the payroll month.
-          // Then subtract any days the employee was physically present (already in attendance_dates).
-          const totalDays = calculateLeaveDaysInMonth(lStartStr, lEndStr, mStartStr, mEndStr);
+      if (lStartStr <= mEndStr && lEndStr >= mStartStr) {
+          // Count working days this leave overlaps with the payroll month using policy holiday set.
+          const totalDays = calculateLeaveDaysInMonth(lStartStr, lEndStr, mStartStr, mEndStr, holidaySet);
 
           // Subtract attendance days that fall inside the leave period
-          // (employee was present on some leave days — should not double-count)
           const effectiveStartStr = lStartStr < mStartStr ? mStartStr : lStartStr;
           const effectiveEndStr   = lEndStr   > mEndStr   ? mEndStr   : lEndStr;
           let attendedDuringLeave = 0;
@@ -82,7 +88,7 @@ export const compensationService = {
           const effEnd = new Date(effectiveEndStr);
           effEnd.setHours(12, 0, 0, 0);
           while (cur <= effEnd) {
-            if (cur.getDay() !== 0 && attendance_dates.has(getBkkDateString(cur))) {
+            if (isWorkingDay(cur, holidaySet) && attendance_dates.has(getBkkDateString(cur))) {
               attendedDuringLeave++;
             }
             cur.setDate(cur.getDate() + 1);
@@ -103,8 +109,10 @@ export const compensationService = {
     const actual_attendance = attendance_dates.size + approved_leave_days;
     const attendance_score  = calculateAttendanceScore(actual_attendance, working_days);
 
-    // BBD Rule: approved leave counts as on-time (employees not penalised for approved absence)
-    on_time_count += approved_leave_days;
+    // Policy-driven punctuality rule: approved leave may count as on-time
+    if (policy.approved_leave_counts_as_punctual) {
+      on_time_count += approved_leave_days;
+    }
     const punctuality_score = calculatePunctualityScore(on_time_count, actual_attendance);
     
     // 2. SOPs
@@ -126,7 +134,7 @@ export const compensationService = {
           total_sops_count += taskCount;
           if (s.is_completed) completed_sops_count += taskCount;
         });
-        sop_score = calculateSopScore(completed_sops_count, total_sops_count);
+        sop_score = calculateSopScore(completed_sops_count, total_sops_count, policy);
       }
     } catch (e) {
       console.error('SOP fetch error', e);
@@ -148,7 +156,7 @@ export const compensationService = {
       if (all_votes && all_votes.length > 0) {
         peer_votes_count = all_votes.length;
         const avg_stars = all_votes.reduce((acc, v) => acc + parseFloat(v.score || 0), 0) / all_votes.length;
-        peer_score = calculatePeerScore(avg_stars, 5);
+        peer_score = calculatePeerScore(avg_stars, policy.peer_score_max_stars, policy);
       }
     } catch (e) {
       console.error('Peer voting fetch error', e);
