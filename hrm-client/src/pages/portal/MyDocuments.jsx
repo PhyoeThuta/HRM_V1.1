@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
 import Layout from '../../components/layout/Layout';
+import toast from 'react-hot-toast';
 
 const CATEGORIES = [
   'All',
@@ -165,7 +166,7 @@ export default function MyDocuments() {
                   <span className="text-[10px] text-slate-500 font-mono">{(d.created_at || '').split('T')[0]}</span>
                   <button 
                     type="button"
-                    onClick={() => d.file_url ? window.open(d.file_url, '_blank') : alert('No file link available')}
+                    onClick={() => d.file_url ? window.open(d.file_url, '_blank') : toast.error('No file link available')}
                     className="px-3.5 py-1.5 bg-indigo-600/15 hover:bg-indigo-600 text-indigo-400 hover:text-white text-xs font-bold rounded-lg transition-all border border-indigo-500/30 flex items-center gap-1.5"
                   >
                     <span>View File</span>
