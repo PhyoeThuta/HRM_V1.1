@@ -15,6 +15,7 @@ import Departments from './pages/Departments';
 import Positions from './pages/Positions';
 import Payroll from './pages/Payroll';
 import PayrollWorkspace from './pages/PayrollWorkspace';
+import RewardsMgmt from './pages/payroll/RewardsMgmt';
 import Recruitment from './pages/Recruitment';
 import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
@@ -56,6 +57,7 @@ import MyLeaves from './pages/portal/MyLeaves';
 import MyPayslips from './pages/portal/MyPayslips';
 import MyDocuments from './pages/portal/MyDocuments';
 import MyProfile from './pages/portal/MyProfile';
+import MyRewards from './pages/portal/MyRewards';
 
 import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
@@ -197,6 +199,7 @@ function AppRoutes() {
       <Route path="/leave" element={<Protected allowedRoles={adminRoles}><Leave /></Protected>} />
       <Route path="/payroll" element={<Protected allowedRoles={adminRoles}><Payroll /></Protected>} />
       <Route path="/payroll/workspace" element={<Protected allowedRoles={['boss', 'hr_manager', 'general_manager', 'admin']}><PayrollWorkspace /></Protected>} />
+      <Route path="/payroll/rewards" element={<Protected allowedRoles={adminRoles}><RewardsMgmt /></Protected>} />
       <Route path="/recruitment" element={<Protected allowedRoles={adminRoles}><Recruitment /></Protected>} />
       <Route path="/documents" element={<Protected allowedRoles={adminRoles}><Documents /></Protected>} />
       <Route path="/onboarding" element={<Protected allowedRoles={adminRoles}><Onboarding /></Protected>} />
@@ -263,6 +266,7 @@ function AppRoutes() {
       <Route path="/portal/leaves" element={<EmployeeRoute><MyLeaves /></EmployeeRoute>} />
       <Route path="/portal/payslips" element={<EmployeeRoute><MyPayslips /></EmployeeRoute>} />
       <Route path="/portal/documents" element={<EmployeeRoute><MyDocuments /></EmployeeRoute>} />
+      <Route path="/portal/rewards" element={<EmployeeRoute><MyRewards /></EmployeeRoute>} />
       <Route path="/portal/profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
       <Route path="/boss/kpi" element={<Protected allowedRoles={['boss']}><BossKPI /></Protected>} />
 

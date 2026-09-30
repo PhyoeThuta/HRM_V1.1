@@ -1570,5 +1570,26 @@
     "cancel": "Cancel",
     "saving": "Saving...",
     "saveChanges": "Save Changes"
+  },
+  "rewards": {
+    "title": "Rewards & Claims",
+    "requestBonus": "Request Bonus / Claim",
+    "claimType": "Claim Type",
+    "spotBonus": "Spot Bonus (Google Review)",
+    "emergencyCallout": "Emergency Call-out",
+    "expenseClaim": "Expense Claim",
+    "other": "Other",
+    "amount": "Amount",
+    "description": "Description",
+    "uploadProof": "Upload Proof",
+    "submit": "Submit",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "approvedAmount": "Approved Amount",
+    "adminRemarks": "Admin Remarks",
+    "history": "History",
+    "issueBonus": "Issue Bonus",
+    "employee": "Employee"
   }
 }

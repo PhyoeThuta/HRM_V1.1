@@ -106,7 +106,7 @@ const ICONS = {
 
 const hrmRoutes = [
   '/dashboard', '/employees', '/departments', '/positions', '/attendance',
-  '/leave', '/payroll', '/payroll/workspace', '/recruitment', '/documents', '/sops', '/birthdays',
+  '/leave', '/payroll', '/payroll/workspace', '/payroll/rewards', '/recruitment', '/documents', '/sops', '/birthdays',
   '/peer-voting', '/onboarding', '/offboarding', '/handovers', '/performance', '/org-chart', '/user-manual'
 ];
 
@@ -214,6 +214,7 @@ export default function Sidebar({ isOpen, close }) {
             <NavItem to="/portal/handover/incoming" label="Incoming Handover" icon={ICONS.handover} />
             <NavItem to="/portal/payslips" label="Payslips" icon={ICONS.payroll} />
             <NavItem to="/portal/documents" label="My Documents" icon={ICONS.documents} />
+            <NavItem to="/portal/rewards" label="My Rewards" icon={ICONS.documents} />
             <NavItem to="/portal/sops" label={t('hrm.navigation.dailySops')} icon={ICONS.sops} />
 
             <NavSection title="Profile" />
@@ -240,6 +241,7 @@ export default function Sidebar({ isOpen, close }) {
               <NavItem to="/leave" label={t('hrm.navigation.leaveMgmt')} icon={ICONS.leave} />
               <NavItem to="/payroll" end label={t('hrm.navigation.payrollKpi')} icon={ICONS.payroll} />
               <NavItem to="/payroll/workspace" label="Calc Workspace" icon={ICONS.boss} />
+              <NavItem to="/payroll/rewards" label="Rewards & Claims" icon={ICONS.documents} />
               <NavItem to="/recruitment" label={t('hrm.navigation.recruitment')} icon={ICONS.recruitment} />
               <NavItem to="/documents" label={t('hrm.navigation.documentVault')} icon={ICONS.documents} />
               <NavItem to="/sops" label={t('hrm.navigation.dailySops')} icon={ICONS.sops} />

@@ -41,6 +41,7 @@ import miscRouter from './routes/misc.js';
 import publicRouter from './routes/public.js';
 import financeRouter from './routes/finance.js';
 import crmRouter from './routes/crm.js';
+import rewardsRouter from './routes/rewards.js';
 import analyticsRouter from './routes/analytics.js';
 import enrollRouter from './routes/enroll.js';
 import inventoryRoutes from './routes/inventory.js';
@@ -155,6 +156,7 @@ app.use('/api/attendance', attendanceRouter);
 app.use('/api/overtime', overtimeRouter);
 app.use('/api/leave', leaveRouter);
 app.use('/api/payroll', payrollRouter);
+app.use('/api/rewards', rewardsRouter);
 app.use('/api/payroll-engine', payrollEngineRouter);
 app.use('/api/payroll-policy', payrollPolicyRouter);
 app.use('/api', orgRouter);           // /api/departments, /api/positions
