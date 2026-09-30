@@ -40,10 +40,34 @@ router.get('/', async (req, res) => {
       .from('Employees')
       .select('*', { count: 'exact' })
       .is('deleted_at', null)
+      .eq('employment_status', 'Active')
       .order('created_at', { ascending: false })
       .range(from, to);
       
-    const { data: employees, count, error } = await q;
+    let { data: employees, count, error } = await q;
+
+    // Fallback if the employment_status column doesn't exist yet (migration not run)
+    if (error && error.code === '42703' && error.message.includes('employment_status')) {
+      const fallbackQuery = supabase
+        .from('Employees')
+        .select('*', { count: 'exact' })
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      const res = await fallbackQuery;
+      employees = res.data;
+      count = res.count;
+      error = res.error;
+      
+      // Inject dummy fields so the UI doesn't crash
+      if (employees) {
+        employees = employees.map(e => ({
+          ...e,
+          employment_status: e.employment_status || 'Active'
+        }));
+      }
+    }
+
     if (error) throw error;
 
     const enriched = await enrichEmployees(employees || []);
@@ -67,6 +91,40 @@ router.get('/recycle-bin', requireAdmin, async (req, res) => {
 
     const enriched = await enrichEmployees(employees || []);
     return res.json({ employees: enriched, total: count });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/employees/former
+router.get('/former', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let q = supabase
+      .from('Employees')
+      .select('*', { count: 'exact' })
+      .is('deleted_at', null)
+      .eq('employment_status', 'Resigned')
+      .order('resign_date', { ascending: false })
+      .range(from, to);
+      
+    let { data: employees, count, error } = await q;
+
+    // Fallback if the employment_status column doesn't exist yet
+    if (error && error.code === '42703' && error.message.includes('employment_status')) {
+      employees = [];
+      count = 0;
+      error = null;
+    }
+
+    if (error) throw error;
+
+    const enriched = await enrichEmployees(employees || []);
+    return res.json({ employees: enriched, total: count, page, limit });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

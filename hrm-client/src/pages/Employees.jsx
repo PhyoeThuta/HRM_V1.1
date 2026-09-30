@@ -141,6 +141,11 @@ export default function Employees() {
     queryFn: () => api.get('/employees/recycle-bin').then(r => r.data),
     enabled: tab === 'recycle'
   });
+  const { data: formerData, isLoading: formerLoading } = useQuery({ 
+    queryKey: ['employees-former', page], 
+    queryFn: () => api.get(`/employees/former?page=${page}&limit=20`).then(r => r.data),
+    enabled: tab === 'former'
+  });
   const { data: formData } = useQuery({ queryKey: ['employees-form-data'], queryFn: () => api.get('/employees/form-data').then(r => r.data), enabled: showModal });
 
   const addMutation = useMutation({
@@ -223,13 +228,19 @@ export default function Employees() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex gap-4 border-b border-white/10 w-full sm:w-auto">
           <button 
-            onClick={() => setTab('active')} 
+            onClick={() => { setTab('active'); setPage(1); }} 
             className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'active' ? 'text-brand-green border-b-2 border-brand-green' : 'text-slate-400 hover:text-white'}`}
           >
             {t('hrm.employees.activeDirectory')}
           </button>
           <button 
-            onClick={() => setTab('recycle')} 
+            onClick={() => { setTab('former'); setPage(1); }} 
+            className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'former' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-slate-400 hover:text-white'}`}
+          >
+            {t('hrm.employees.formerDirectory') || 'Former Employees'}
+          </button>
+          <button 
+            onClick={() => { setTab('recycle'); setPage(1); }} 
             className={`pb-2 px-1 text-sm font-semibold transition-colors ${tab === 'recycle' ? 'text-rose-400 border-b-2 border-rose-400' : 'text-slate-400 hover:text-white'}`}
           >
             {t('hrm.employees.recycleBin')}
@@ -282,9 +293,15 @@ export default function Employees() {
             <table className="w-full text-sm">
               <thead className="bg-surface-850">
                 <tr>
-                  {[t('hrm.employees.cols.empId'), t('hrm.employees.cols.fullName'), t('hrm.employees.cols.department'), t('hrm.employees.cols.position'), t('hrm.employees.cols.status'), t('hrm.employees.cols.email'), t('hrm.employees.cols.hireDate')].map(h => (
-                    <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
-                  ))}
+                  {tab === 'former' ? (
+                    [t('hrm.employees.cols.resignCode') || 'Resign Code', t('hrm.employees.cols.fullName'), t('hrm.employees.cols.department'), t('hrm.employees.cols.position'), t('hrm.employees.cols.exitDate') || 'Exit Date', t('hrm.employees.cols.email')].map(h => (
+                      <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                    ))
+                  ) : (
+                    [t('hrm.employees.cols.empId'), t('hrm.employees.cols.fullName'), t('hrm.employees.cols.department'), t('hrm.employees.cols.position'), t('hrm.employees.cols.status'), t('hrm.employees.cols.email'), t('hrm.employees.cols.hireDate')].map(h => (
+                      <th key={h} className="text-left py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                    ))
+                  )}
                   <th className="text-right py-3.5 px-5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('hrm.employees.cols.actions')}</th>
                 </tr>
               </thead>
@@ -348,6 +365,32 @@ export default function Employees() {
                       <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-brand-green hover:underline font-semibold">{t('hrm.employees.addFirstEmployee')}</button>
                     </td></tr>
                   )
+                ) : tab === 'former' ? (
+                  (formerData?.employees || []).length > 0 ? formerData.employees.map(emp => (
+                    <tr key={emp.id} className="emp-row transition-colors group cursor-pointer" onClick={() => window.location.href = `/employees/${emp.id}`}>
+                      <td className="py-3.5 px-5"><span className="emp-id-badge bg-amber-400/10 text-amber-400 border border-amber-400/20">{emp.resign_code || '—'}</span></td>
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="emp-avatar">{(emp.Full_name || '?')[0]}</div>
+                          <span className="font-medium">{emp.Full_name || '—'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-5 text-slate-300">{emp.dept_name || '—'}</td>
+                      <td className="py-3.5 px-5 text-slate-300">{mapPosTitle(emp.pos_title) || '—'}</td>
+                      <td className="emp-hire-date py-3.5 px-5">{(emp.resign_date || '').slice(0, 10) || '—'}</td>
+                      <td className="emp-email py-3.5 px-5">{emp.email || '—'}</td>
+                      <td className="py-3.5 px-5" onClick={e => e.stopPropagation()}>
+                        <div className="emp-action-group">
+                          <Link to={`/employees/${emp.id}`} className="emp-action-view">
+                            <span className="text-sm">📄</span>
+                            <span className="emp-action-text">{t('hrm.employees.view')}</span>
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="8" className="py-16 text-center text-slate-400 text-sm">{t('hrm.employees.noEmployeesFound')}</td></tr>
+                  )
                 ) : (
                   /* Recycle Bin Rendering */
                   (recycleData?.employees || []).length > 0 ? recycleData.employees.map(emp => (
@@ -387,10 +430,10 @@ export default function Employees() {
         )}
         
         {/* Pagination Controls */}
-        {tab === 'active' && data?.total > 0 && !isLoading && (
+        {(tab === 'active' || tab === 'former') && (data?.total > 0 || formerData?.total > 0) && !isLoading && !formerLoading && (
           <div className="emp-pagination px-6 py-4 border-t border-white/5 flex items-center justify-between">
             <span className="text-xs text-slate-400">
-              {t('hrm.employees.showing')} <span className="font-bold text-white">{(page - 1) * 20 + 1}</span> {t('hrm.employees.to')} <span className="font-bold text-white">{Math.min(page * 20, data.total)}</span> {t('hrm.employees.of')} <span className="font-bold text-white">{data.total}</span> {t('hrm.employees.employeesCount')}
+              {t('hrm.employees.showing')} <span className="font-bold text-white">{(page - 1) * 20 + 1}</span> {t('hrm.employees.to')} <span className="font-bold text-white">{Math.min(page * 20, (tab === 'active' ? data.total : formerData.total))}</span> {t('hrm.employees.of')} <span className="font-bold text-white">{(tab === 'active' ? data.total : formerData.total)}</span> {t('hrm.employees.employeesCount')}
             </span>
             <div className="flex items-center gap-2">
               <button 
@@ -401,7 +444,7 @@ export default function Employees() {
                 {t('hrm.employees.prev')}
               </button>
               <button 
-                disabled={page * 20 >= data.total}
+                disabled={page * 20 >= (tab === 'active' ? data.total : formerData.total)}
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors"
               >

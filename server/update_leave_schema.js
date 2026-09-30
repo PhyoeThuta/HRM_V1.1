@@ -1,11 +1,11 @@
-import { supabase } from './lib/supabase.js';
+import { supabaseAdmin } from './lib/supabase.js';
 
 async function run() {
   console.log('Running Leave Request Schema Update...');
 
   // 1. Create the bucket
   console.log('Creating leave_documents bucket...');
-  const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('leave_documents', { public: true });
+  const { data: bucketData, error: bucketError } = await supabaseAdmin.storage.createBucket('leave_documents', { public: true });
   if (bucketError) {
     if (bucketError.message.includes('already exists')) {
       console.log('Bucket already exists.');

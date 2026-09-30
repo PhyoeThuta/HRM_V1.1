@@ -12,7 +12,7 @@ export default function EditEmployee() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [form, setForm] = useState({ employee_id: '', Full_name: '', email: '', phone: '', Dept_id: '', position_id: '', Manager_id: '', hire_date: '', date_of_birth: '', salary: '', national_id: '', address: '', employment_type: 'Full-Time', status: 'Active' });
+  const [form, setForm] = useState({ employee_id: '', Full_name: '', email: '', phone: '', Dept_id: '', position_id: '', Manager_id: '', hire_date: '', date_of_birth: '', salary: '', national_id: '', address: '', employment_type: 'Full-Time', status: 'Active', employment_status: 'Active', resign_code: '', resign_date: '', resign_reason: '' });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const { data: formData, isLoading: isFormLoading } = useQuery({ queryKey: ['employees-form-data'], queryFn: () => api.get('/employees/form-data').then(r => r.data) });
@@ -26,7 +26,9 @@ export default function EditEmployee() {
         Dept_id: e.Dept_id || '', position_id: e.position_id || '', Manager_id: e.Manager_id || '',
         hire_date: e.hire_date ? e.hire_date.slice(0, 10) : '', date_of_birth: e.date_of_birth ? e.date_of_birth.slice(0, 10) : '',
         salary: e.salary || '', national_id: e.national_id || '', address: e.address || '',
-        employment_type: e.employment_type || 'Full-Time', status: e.status || 'Active'
+        employment_type: e.employment_type || 'Full-Time', status: e.status || 'Active',
+        employment_status: e.employment_status || 'Active', resign_code: e.resign_code || '',
+        resign_date: e.resign_date ? e.resign_date.slice(0, 10) : '', resign_reason: e.resign_reason || ''
       });
     }
   }, [empData]);
@@ -108,7 +110,7 @@ export default function EditEmployee() {
               </select>
             </div>
             <div>
-              <label className="form-label">{t('hrm.editEmployee.status')}</label>
+              <label className="form-label text-slate-400">ACCOUNT STATUS</label>
               <select className="form-input" value={form.status} onChange={e => set('status', e.target.value)}>
                 {['Active', 'On Leave', 'Offboarding', 'Inactive'].map(s => {
                   let trans = s;
@@ -120,6 +122,30 @@ export default function EditEmployee() {
                 })}
               </select>
             </div>
+            <div>
+              <label className="form-label font-bold text-brand-green">{t('hrm.employees.labels.employmentStatus') || 'EMPLOYMENT STATUS'}</label>
+              <select className="form-input font-bold" value={form.employment_status} onChange={e => set('employment_status', e.target.value)}>
+                <option value="Active">{t('hrm.employees.active') || 'Active'}</option>
+                <option value="Resigned">{t('hrm.employees.resigned') || 'Resigned'}</option>
+              </select>
+            </div>
+
+            {form.employment_status === 'Resigned' && (
+              <>
+                <div>
+                  <label className="form-label">{t('hrm.employees.labels.resignCode') || 'Resign Code'}</label>
+                  <input readOnly disabled className="form-input opacity-50 cursor-not-allowed" value={form.resign_code || 'Auto-generated on save'} />
+                </div>
+                <div>
+                  <label className="form-label">{t('hrm.employees.labels.resignDate') || 'Resignation Date'}</label>
+                  <input type="date" className="form-input" value={form.resign_date} onChange={e => set('resign_date', e.target.value)} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="form-label">{t('hrm.employees.labels.resignReason') || 'Resignation Reason'}</label>
+                  <input className="form-input" value={form.resign_reason} onChange={e => set('resign_reason', e.target.value)} />
+                </div>
+              </>
+            )}
 
             <div className="md:col-span-2"><label className="form-label">{t('hrm.editEmployee.nationalId')}</label><input className="form-input" value={form.national_id} onChange={e => set('national_id', e.target.value)} /></div>
             <div className="md:col-span-2"><label className="form-label">{t('hrm.editEmployee.address')}</label><input className="form-input" value={form.address} onChange={e => set('address', e.target.value)} /></div>

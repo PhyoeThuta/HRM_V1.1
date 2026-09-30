@@ -3,7 +3,9 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from the server folder
+// Load environment variables
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// fallback for if run from root
 dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') });
 
 const PORT = process.env.PORT || 8080;

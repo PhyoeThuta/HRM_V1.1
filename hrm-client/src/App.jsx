@@ -14,6 +14,7 @@ import Portal from './pages/Portal';
 import Departments from './pages/Departments';
 import Positions from './pages/Positions';
 import Payroll from './pages/Payroll';
+import PayrollWorkspace from './pages/PayrollWorkspace';
 import Recruitment from './pages/Recruitment';
 import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
@@ -195,6 +196,7 @@ function AppRoutes() {
       <Route path="/attendance" element={<Protected allowedRoles={adminRoles}><Attendance /></Protected>} />
       <Route path="/leave" element={<Protected allowedRoles={adminRoles}><Leave /></Protected>} />
       <Route path="/payroll" element={<Protected allowedRoles={adminRoles}><Payroll /></Protected>} />
+      <Route path="/payroll/workspace" element={<Protected allowedRoles={['boss', 'hr_manager', 'general_manager', 'admin']}><PayrollWorkspace /></Protected>} />
       <Route path="/recruitment" element={<Protected allowedRoles={adminRoles}><Recruitment /></Protected>} />
       <Route path="/documents" element={<Protected allowedRoles={adminRoles}><Documents /></Protected>} />
       <Route path="/onboarding" element={<Protected allowedRoles={adminRoles}><Onboarding /></Protected>} />

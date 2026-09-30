@@ -47,7 +47,9 @@
       "status": "Status",
       "email": "Email",
       "hireDate": "Hire Date",
-      "actions": "Actions"
+      "actions": "Actions",
+      "resignCode": "Resign Code",
+      "exitDate": "Exit Date"
     },
     "noEmployeesFound": "No employees found.",
     "addFirstEmployee": "Add your first employee",
@@ -88,7 +90,11 @@
       "nationalId": "National ID",
       "employmentType": "Employment Type",
       "address": "Address",
-      "status": "Status"
+      "status": "Status",
+      "employmentStatus": "Employment Status",
+      "resignCode": "Resign Code",
+      "resignDate": "Resignation Date",
+      "resignReason": "Resignation Reason"
     },
     "selects": {
       "dept": "— Select Department —",
@@ -115,7 +121,10 @@
     },
     "active": "Active",
     "inactive": "Inactive",
-    "onLeave": "On Leave"
+    "onLeave": "On Leave",
+    "offboarding": "Offboarding",
+    "resigned": "Resigned",
+    "formerDirectory": "Former Employees"
   },
   "employeeProfile": {
     "loadingHandover": "Loading handover history...",

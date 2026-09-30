@@ -17,6 +17,7 @@ export const employeeService = {
         national_id: d.national_id || null, address: d.address || null,
         employment_type: d.employment_type || 'Full-Time',
         status: d.status || 'Active',
+        employment_status: d.employment_status || 'Active',
         salary: d.salary ? parseFloat(d.salary) : null,
         created_at: new Date().toISOString(),
       }).filter(([, v]) => v !== null && v !== undefined && v !== '')
@@ -89,6 +90,22 @@ export const employeeService = {
     const newPosId = d.position_id || null;
     const newDeptId = d.Dept_id || null;
 
+    let resign_code = oldEmp.resign_code;
+    let resign_date = oldEmp.resign_date;
+    let resign_reason = oldEmp.resign_reason;
+
+    if (d.employment_status === 'Resigned') {
+      if (oldEmp.employment_status !== 'Resigned') {
+        if (!resign_code) {
+          const { data: codeData, error: codeErr } = await supabase.rpc('generate_resign_code');
+          if (codeErr) throw new Error('Failed to generate resign code: ' + codeErr.message);
+          resign_code = codeData;
+        }
+      }
+      resign_date = d.resign_date || resign_date || new Date().toISOString().split('T')[0];
+      resign_reason = d.resign_reason !== undefined ? d.resign_reason : resign_reason;
+    }
+
     const ok = await dbUpdate('Employees', empId, {
       employee_id: d.employee_id, Full_name: d.Full_name, email: d.email || null, phone: d.phone || null,
       Dept_id: newDeptId, position_id: newPosId,
@@ -97,6 +114,10 @@ export const employeeService = {
       national_id: d.national_id || null, address: d.address || null,
       employment_type: d.employment_type || 'Full-Time',
       status: d.status || 'Active',
+      employment_status: d.employment_status || 'Active',
+      resign_code,
+      resign_date,
+      resign_reason,
       salary: newSalary,
       updated_at: new Date().toISOString(),
     });
