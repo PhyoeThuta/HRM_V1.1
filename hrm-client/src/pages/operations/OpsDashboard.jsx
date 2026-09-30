@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import OpsNavBar from './OpsNavBar';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function OpsDashboard() {
   const queryClient = useQueryClient();
@@ -12,6 +13,8 @@ export default function OpsDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [planForm, setPlanForm] = useState({ date: new Date().toISOString().split('T')[0], meal_type: 'LUNCH', with_rice: true, selectedMenus: [] });
   const [editingMenuId, setEditingMenuId] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
 
   // Generate 7 days for the calendar
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
@@ -186,7 +189,13 @@ export default function OpsDashboard() {
                         <button onClick={() => handleEditClick(dm)} className="text-slate-400 hover:text-indigo-400 transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
-                        <button onClick={() => { if(window.confirm('Delete this menu?')) deletePlanMutation.mutate(dm.id); }} className="text-slate-400 hover:text-rose-400 transition-colors">
+                        <button 
+                          onClick={() => {
+                            setPlanToDelete(dm.id);
+                            setShowConfirm(true);
+                          }} 
+                          className="text-slate-400 hover:text-rose-400 transition-colors"
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
@@ -295,6 +304,19 @@ export default function OpsDashboard() {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setPlanToDelete(null);
+        }}
+        onConfirm={() => deletePlanMutation.mutate(planToDelete)}
+        title="Delete Menu Plan?"
+        message="Are you sure you want to delete this menu plan? This action cannot be undone."
+        confirmText="Yes, Delete Plan"
+        confirmStyle="danger"
+      />
     </Layout>
   );
 }

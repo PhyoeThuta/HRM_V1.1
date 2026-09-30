@@ -196,6 +196,20 @@ router.put('/approvals/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/attendance/approvals/bulk-approve
+router.post('/approvals/bulk-approve', requireAdmin, async (req, res) => {
+  try {
+    const { record_ids } = req.body;
+    if (!record_ids || !Array.isArray(record_ids)) return res.status(400).json({ error: 'record_ids array required' });
+    for (const id of record_ids) {
+      await attendanceService.updateApproval(id, { shift_approval_status: 'Approved' });
+    }
+    return res.json({ success: true, count: record_ids.length });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // --- Rosters & Shifts API ---
 
 // GET schedules for a date range

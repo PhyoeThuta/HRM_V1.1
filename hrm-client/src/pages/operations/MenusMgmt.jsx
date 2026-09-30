@@ -6,6 +6,7 @@ import api from '../../api/client';
 import OpsNavBar from './OpsNavBar';
 import CostingImportModal from '../../components/operations/CostingImportModal';
 import MenuPlanImportModal from '../../components/operations/MenuPlanImportModal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function MenusMgmt() {
   const queryClient = useQueryClient();
@@ -14,6 +15,8 @@ export default function MenusMgmt() {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [menuToDelete, setMenuToDelete] = useState(null);
   
   const [formData, setFormData] = useState({ name_en: '', name_mm: '', code: '', sales_prices: '', total_bill_of_materials: '' });
   const [recipeForm, setRecipeForm] = useState({ inventory_item_id: '', quantity: '', unit_of_measure: '' });
@@ -141,7 +144,13 @@ export default function MenusMgmt() {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => { if(window.confirm('Delete this menu?')) deleteMutation.mutate(menu.id) }} className="p-2 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => { 
+                        setMenuToDelete(menu.id); 
+                        setShowConfirm(true); 
+                      }} 
+                      className="p-2 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors"
+                    >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </td>
@@ -273,6 +282,19 @@ export default function MenusMgmt() {
       <MenuPlanImportModal 
         isOpen={isPlanModalOpen}
         onClose={() => setIsPlanModalOpen(false)}
+      />
+
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setMenuToDelete(null);
+        }}
+        onConfirm={() => deleteMutation.mutate(menuToDelete)}
+        title="Delete Menu?"
+        message="Are you sure you want to delete this menu? This action cannot be undone."
+        confirmText="Yes, Delete Menu"
+        confirmStyle="danger"
       />
     </Layout>
   );

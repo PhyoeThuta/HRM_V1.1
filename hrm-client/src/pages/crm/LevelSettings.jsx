@@ -3,11 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { crmApi } from '../../api/crm';
 import Layout from '../../components/layout/Layout';
 import toast from 'react-hot-toast';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function LevelSettings() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSetting, setEditingSetting] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [settingToDelete, setSettingToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     level_name: '',
@@ -84,9 +87,8 @@ export default function LevelSettings() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this level setting?')) {
-      deleteMutation.mutate(id);
-    }
+    setSettingToDelete(id);
+    setShowConfirm(true);
   };
 
   const colors = [
@@ -270,6 +272,19 @@ export default function LevelSettings() {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setSettingToDelete(null);
+        }}
+        onConfirm={() => deleteMutation.mutate(settingToDelete)}
+        title="Delete Level Setting?"
+        message="Are you sure you want to delete this level setting? Customer tiers might be affected."
+        confirmText="Yes, Delete Setting"
+        confirmStyle="danger"
+      />
     </Layout>
   );
 }

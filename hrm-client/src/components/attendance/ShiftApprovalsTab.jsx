@@ -3,21 +3,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../context/LanguageContext';
+import ConfirmModal from '../common/ConfirmModal';
 
 export default function ShiftApprovalsTab() {
   const qc = useQueryClient();
   const { t } = useLanguage();
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  // Fetch all attendance records for the selected date
+  // Fetch all attendance records (API returns latest 500)
   const { data: records = [], isLoading } = useQuery({
-    queryKey: ['attendance_approvals', filterDate],
-    queryFn: () => api.get('/attendance').then(r => {
-      // Filter for the selected date
-      return r.data.records.filter(record => 
-        record.check_in && record.check_in.startsWith(filterDate)
-      );
-    })
+    queryKey: ['attendance_approvals'],
+    queryFn: () => api.get('/attendance').then(r => r.data.records)
   });
 
   // Fetch all shifts for the dropdown
@@ -37,6 +34,16 @@ export default function ShiftApprovalsTab() {
     onError: (err) => toast.error(err.response?.data?.error || t('hrm.attendance.toast.apprError') || 'Failed to update status')
   });
 
+  const bulkApproveMutation = useMutation({
+    mutationFn: (ids) => api.post('/attendance/approvals/bulk-approve', { record_ids: ids }),
+    onSuccess: () => {
+      toast.success('Successfully approved all pending records!');
+      qc.invalidateQueries(['attendance_approvals']);
+      qc.invalidateQueries(['attendance']);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to bulk approve')
+  });
+
   const handleApprove = (record, overrideShiftId = null) => {
     updateStatusMutation.mutate({ 
       id: record.id, 
@@ -53,8 +60,15 @@ export default function ShiftApprovalsTab() {
     });
   };
 
+  // Pending records should ALWAYS show up regardless of the selected date (so nothing is forgotten)
   const pendingRecords = records.filter(r => r.shift_approval_status === 'Pending');
-  const processedRecords = records.filter(r => r.shift_approval_status !== 'Pending');
+  
+  // Processed records are filtered by the selected date for clean history viewing
+  const processedRecords = records.filter(r => 
+    r.shift_approval_status !== 'Pending' && 
+    r.check_in && 
+    r.check_in.startsWith(filterDate)
+  );
 
   if (isLoading) return <div className="p-4 text-slate-400">{t('hrm.attendance.roster.approvals.loading')}</div>;
 
@@ -172,10 +186,22 @@ export default function ShiftApprovalsTab() {
       </div>
 
       <div className="mb-8">
-        <h3 className="att-approval-section-title text-sm font-bold text-amber-400 flex items-center gap-2 mb-2">
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-          {t('hrm.attendance.roster.approvals.pendingSec')} ({pendingRecords.length})
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="att-approval-section-title text-sm font-bold text-amber-400 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            {t('hrm.attendance.roster.approvals.pendingSec')} ({pendingRecords.length})
+          </h3>
+          
+          {pendingRecords.length > 0 && (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={bulkApproveMutation.isPending}
+              className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg shadow-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              {bulkApproveMutation.isPending ? 'Processing...' : 'Approve All'}
+            </button>
+          )}
+        </div>
         {renderTable(pendingRecords, true)}
       </div>
 
@@ -186,6 +212,16 @@ export default function ShiftApprovalsTab() {
         </h3>
         {renderTable(processedRecords, false)}
       </div>
+
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={() => bulkApproveMutation.mutate(pendingRecords.map(r => r.id))}
+        title="Approve All Records?"
+        message="Are you sure you want to approve ALL pending records with their claimed shifts? This will lock their attendance."
+        confirmText="Yes, Approve All"
+        confirmStyle="primary"
+      />
     </div>
   );
 }

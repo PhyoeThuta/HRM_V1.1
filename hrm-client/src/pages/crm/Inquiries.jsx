@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 import { getCrmSocket, joinInquiryRoom, leaveInquiryRoom, disconnectCrmSocket } from '../../lib/crmSocket';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function Inquiries() {
   const { user } = useAuth();
@@ -20,6 +21,8 @@ export default function Inquiries() {
   const [packages, setPackages] = useState([]);
   const [showPaidModal, setShowPaidModal] = useState(false);
   const [selectedPackageForPaid, setSelectedPackageForPaid] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [inquiryToDelete, setInquiryToDelete] = useState(null);
 
   useEffect(() => {
     selectedIdRef.current = selectedInquiry?.id || null;
@@ -160,13 +163,18 @@ export default function Inquiries() {
     }
   };
 
-  const handleDeleteInquiry = async (id, e) => {
+  const triggerDeleteInquiry = (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this lead forever?')) return;
+    setInquiryToDelete(id);
+    setShowConfirm(true);
+  };
+
+  const handleDeleteInquiry = async () => {
+    if (!inquiryToDelete) return;
     try {
-      await crmApi.deleteInquiry(id);
+      await crmApi.deleteInquiry(inquiryToDelete);
       toast.success('Lead deleted');
-      if (selectedInquiry?.id === id) {
+      if (selectedInquiry?.id === inquiryToDelete) {
         setSelectedInquiry(null);
         setMessages([]);
       }
@@ -315,7 +323,7 @@ export default function Inquiries() {
                       <h4 className="font-bold text-white text-sm">{inq.prospect_name}</h4>
                     </div>
                     <button 
-                      onClick={(e) => handleDeleteInquiry(inq.id, e)}
+                      onClick={(e) => triggerDeleteInquiry(inq.id, e)}
                       className="text-slate-600 hover:text-rose-500 transition-colors px-1"
                       title="Delete Lead"
                     >
@@ -624,6 +632,18 @@ export default function Inquiries() {
         </div>
       )}
 
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setInquiryToDelete(null);
+        }}
+        onConfirm={handleDeleteInquiry}
+        title="Delete Lead?"
+        message="Are you sure you want to delete this lead forever? This action cannot be undone."
+        confirmText="Yes, Delete Lead"
+        confirmStyle="danger"
+      />
     </Layout>
   );
 }

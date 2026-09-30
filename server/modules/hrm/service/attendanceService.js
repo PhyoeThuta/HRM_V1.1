@@ -47,18 +47,18 @@ const checkIsLate = async (employee_id, check_in_time, claimed_shift_id = null) 
       }
     }
 
-    const myanmarFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Yangon',
+    const bkkFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Bangkok',
       hour: 'numeric',
       minute: 'numeric',
       hour12: false
     });
-    const parts = myanmarFormatter.formatToParts(dt);
-    const mmHour = parseInt(parts.find(p => p.type === 'hour').value);
-    const mmMin = parseInt(parts.find(p => p.type === 'minute').value);
+    const parts = bkkFormatter.formatToParts(dt);
+    const bkkHour = parseInt(parts.find(p => p.type === 'hour').value);
+    const bkkMin = parseInt(parts.find(p => p.type === 'minute').value);
     
-    if (mmHour > 9) return true;
-    if (mmHour === 9 && mmMin > 15) return true;
+    if (bkkHour > 9) return true;
+    if (bkkHour === 9 && bkkMin > 15) return true;
     return false;
   } catch (e) {
     console.error('[checkIsLate error]', e);
@@ -70,14 +70,27 @@ const calcOvertime = async (employee_id, check_out_time) => {
   try {
     const dt = new Date(check_out_time);
     const todayStr = getBkkDateString(dt);
+    
+    const yesterdayDt = new Date(dt);
+    yesterdayDt.setDate(yesterdayDt.getDate() - 1);
+    const yesterdayStr = getBkkDateString(yesterdayDt);
 
-    const otRequests = await attendanceRepository.getOvertimeRequests({
+    let otRequests = await attendanceRepository.getOvertimeRequests({
       employee_id: employee_id,
       ot_date: todayStr,
       status: 'Approved'
     });
-    const otRequest = otRequests[0];
+    
+    // Night shift fallback: If check-out is after midnight, the OT request was likely filed for the shift's start date (yesterday)
+    if (!otRequests || otRequests.length === 0) {
+      otRequests = await attendanceRepository.getOvertimeRequests({
+        employee_id: employee_id,
+        ot_date: yesterdayStr,
+        status: 'Approved'
+      });
+    }
 
+    const otRequest = otRequests[0];
     if (!otRequest) {
       return 0;
     }
@@ -86,6 +99,12 @@ const calcOvertime = async (employee_id, check_out_time) => {
     const dailySchedule = await attendanceRepository.getDailySchedule(employee_id, todayStr, false);
     if (dailySchedule && dailySchedule.shift_id) {
       activeShiftId = dailySchedule.shift_id;
+    }
+    
+    // Night shift fallback for schedule lookup
+    if (!activeShiftId) {
+       const yesterdaySchedule = await attendanceRepository.getDailySchedule(employee_id, yesterdayStr, false);
+       if (yesterdaySchedule && yesterdaySchedule.shift_id) activeShiftId = yesterdaySchedule.shift_id;
     }
 
     if (!activeShiftId) {
@@ -107,20 +126,38 @@ const calcOvertime = async (employee_id, check_out_time) => {
       const shift = await attendanceRepository.getShiftById(activeShiftId);
       if (shift && shift.end_time) {
         const [hours, minutes, seconds] = shift.end_time.split(':');
-        const endDt = new Date(`${todayStr}T${hours}:${minutes}:${seconds || '00'}+07:00`);
+        // The shift end_time date is based on the logical shift date. If we fell back to yesterday's schedule, use yesterdayStr
+        const baseDateStr = (dailySchedule && dailySchedule.shift_id) ? todayStr : (yesterdayStr || todayStr);
+        const endDt = new Date(`${baseDateStr}T${hours}:${minutes}:${seconds || '00'}+07:00`);
+        
+        // Night shift logic: if end_time is earlier than start_time, it means the shift ends the next day
+        if (shift.start_time && shift.end_time < shift.start_time) {
+          endDt.setDate(endDt.getDate() + 1);
+        }
 
         const diffMs = dt - endDt;
         if (diffMs > 0) {
-          const diffHours = diffMs / 3600000;
-          if (diffHours >= 1) { 
-            return Math.round(diffHours * 10) / 10;
+          const actualDiffHours = diffMs / 3600000;
+          
+          // Strict error logging as requested by user instead of silent catch
+          const approvedHours = parseFloat(otRequest.requested_hours);
+          if (isNaN(approvedHours)) {
+            console.error(`[calcOvertime Error] Invalid requested_hours for OT Request ID: ${otRequest.id}. Fallback to 0.`);
+          }
+          const validApprovedHours = isNaN(approvedHours) ? 0 : approvedHours;
+          
+          // Cap the overtime by the exact hours the Boss approved
+          const validOtHours = Math.min(actualDiffHours, validApprovedHours);
+
+          if (validOtHours >= 1) { 
+            return Math.round(validOtHours * 10) / 10;
           }
         }
       }
     }
     return 0;
   } catch (e) {
-    console.error('[calcOvertime error]', e);
+    console.error(`[calcOvertime Critical Error] Failed to calculate OT for employee ${employee_id}`, e);
     throw e;
   }
 };
@@ -186,12 +223,20 @@ export const attendanceService = {
             if (shift && shift.end_time) {
               const [hours, minutes, seconds] = shift.end_time.split(':');
               const endDt = new Date(`${rTodayStr}T${hours}:${minutes}:${seconds || '00'}+07:00`);
+              
+              // Night shift logic for early leave calculation
+              if (shift.start_time && shift.end_time < shift.start_time) {
+                endDt.setDate(endDt.getDate() + 1);
+              }
+              
               if (new Date(r.check_out) < endDt) {
                 isEarlyLeave = true;
               }
             }
           }
-        } catch { }
+        } catch (err) {
+          console.error(`[getAttendance] Failed to calculate check_out data for record ID: ${r.id}`, err);
+        }
       }
       return { ...r, Full_name: emp.Full_name || '—', employee_code: emp.employee_id || '—', work_hours_calc: workHours, is_early_leave: isEarlyLeave };
     });
@@ -369,6 +414,22 @@ export const attendanceService = {
         shift_approval_status: shiftAppStatus,
         special_shift_reason: specialReason,
       });
+
+      if (shiftAppStatus === 'Pending') {
+        const { dbInsert } = await import('../../../lib/supabase.js');
+        const notiPayload = {
+          title: 'Shift Approval Required',
+          message: 'An employee self-declared a shift during Check-in.',
+          link_url: '/attendance',
+          is_read: false,
+          created_at: new Date().toISOString()
+        };
+        await Promise.all([
+          dbInsert('system_notifications', { ...notiPayload, recipient_role: 'hr_manager' }),
+          dbInsert('system_notifications', { ...notiPayload, recipient_role: 'boss' })
+        ]);
+      }
+
       return { success: true, message: 'Photo Check-in successful' };
     }
   },
@@ -479,14 +540,14 @@ export const attendanceService = {
   deleteRoster: async (id) => attendanceRepository.deleteRoster(id),
 
   updateDefaultShift: async (employeeId, shiftId) => {
-    const { supabase } = await import('../../../../lib/supabase.js');
+    const { supabase } = await import('../../../lib/supabase.js');
     await supabase.from('Employees').update({ default_shift_id: shiftId || null }).eq('id', employeeId);
   },
 
   // Overtime
   getAllOvertimeRequests: async () => {
     const requests = await attendanceRepository.getOvertimeRequests({}, { order: 'created_at', ascending: false });
-    const { supabase } = await import('../../../../lib/supabase.js');
+    const { supabase } = await import('../../../lib/supabase.js');
     const [employeesRes, positionsRes] = await Promise.all([
       supabase.from('Employees').select('id,Full_name,position_id'),
       supabase.from('positions').select('id,title')
