@@ -155,7 +155,10 @@ export default function Documents() {
   // Filter vault documents
   const filteredDocs = rawDocs
     .filter(doc => activeCategory === 'All' || doc.category === activeCategory)
-    .filter(doc => !selectedEmpId || doc.employee_id === selectedEmpId)
+    .filter(doc => {
+      if (selectedEmpId) return String(doc.employee_id) === String(selectedEmpId);
+      return !doc.employee_id;
+    })
     .filter(doc => {
       if (!search) return true;
       const q = search.toLowerCase();
@@ -179,7 +182,11 @@ export default function Documents() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setMainTab('vault')}
+            onClick={() => {
+              setMainTab('vault');
+              setSelectedEmpId('');
+              setActiveCategory('All');
+            }}
             className={`dv-main-tab px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               mainTab === 'vault'
                 ? 'dv-main-tab-active bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
@@ -423,7 +430,10 @@ export default function Documents() {
                   key={emp.id}
                   onClick={() => {
                     setSelectedEmpId(isSelected ? '' : emp.id);
-                    if (!isSelected) setMainTab('vault');
+                    if (!isSelected) {
+                      setMainTab('vault');
+                      setActiveCategory('All');
+                    }
                   }}
                   className={`dv-emp-card rounded-2xl p-5 cursor-pointer transition-all duration-200 border ${
                     isSelected
