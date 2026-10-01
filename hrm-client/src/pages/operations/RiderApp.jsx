@@ -487,9 +487,9 @@ export default function RiderApp() {
     if (autoPickup === 'true' && orderId && activeDeliveries.length > 0) {
       const group = activeDeliveries.find(g => g.orders.some(o => String(o.id) === orderId));
       if (group) {
-        // If not already ON_THE_WAY, set it!
-        if (group.status !== 'ON_THE_WAY') {
-          handleUpdateStatus(group, 'ON_THE_WAY');
+        // If not already PICKING_UP or ON_THE_WAY, set it to PICKING_UP!
+        if (group.status !== 'PICKING_UP' && group.status !== 'ON_THE_WAY') {
+          handleUpdateStatus(group, 'PICKING_UP');
         }
         // Remove params from URL so it doesn't run again
         setSearchParams({});
