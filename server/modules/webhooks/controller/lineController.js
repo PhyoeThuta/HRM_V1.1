@@ -60,7 +60,6 @@ export async function handleLineEvent(event) {
     return Promise.resolve(null);
   }
 
-  const userId = event.source.userId;
   const text = event.message.text.trim();
 
   // Basic Echo Bot for testing the connection
