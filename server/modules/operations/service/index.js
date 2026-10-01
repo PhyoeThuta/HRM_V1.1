@@ -3,6 +3,7 @@ import { inventoryModule } from '../../inventory/index.js';
 import { supabaseAdmin } from '../../../lib/supabase.js';
 import { crmModule } from '../../crm/index.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
+import { sendOrderAssignmentToLine } from '../../webhooks/service/lineService.js';
 import xlsx from 'xlsx';
 // MENUS
 // ==========================================
@@ -440,6 +441,32 @@ export async function assignRiderToOrder(orderId, riderId) {
       rider_id: riderId,
       status: 'ASSIGNED'
     });
+  }
+
+  // Phase 3: Trigger LINE Notification
+  if (riderId) {
+    try {
+      const orders = await opsRepo.getOrdersByIds([orderId]);
+      if (orders && orders.length > 0) {
+        const order = orders[0];
+        const customers = await crmModule.getCustomerDeliveryInfo([order.customer_id]);
+        const customer = customers && customers.length > 0 ? customers[0] : null;
+
+        const orderData = {
+          orderId: order.id,
+          customerName: customer ? customer.full_name : 'Unknown',
+          deliveryAddress: order.custom_delivery_address || (customer ? customer.address : 'Not specified'),
+          phone: customer ? customer.phone : 'Not specified'
+        };
+
+        // Fire and forget LINE Notification
+        sendOrderAssignmentToLine(riderId, orderData).catch(err => {
+          console.error('[LINE_NOTIFY_ERROR_IN_OPS]', err);
+        });
+      }
+    } catch (notifyErr) {
+      console.error('[OPS_ASSIGN_RIDER_NOTIFY_ERROR]', notifyErr);
+    }
   }
 
   return { success: true };

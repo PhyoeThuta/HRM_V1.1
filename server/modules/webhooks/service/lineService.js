@@ -1,4 +1,11 @@
 import { supabaseAdmin } from '../../../lib/supabase.js';
+import { messagingApi } from '@line/bot-sdk';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const client = new messagingApi.MessagingApiClient({
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
+});
 
 /**
  * Validates a bot linking code and links the LINE user ID to the corresponding system user.
@@ -71,4 +78,157 @@ export async function generateBotLinkingCode(userId) {
   }
   
   return newCode;
+}
+
+/**
+ * Sends a beautiful Flex Message to the Rider when an order is assigned.
+ * @param {string} riderSysUserId The sys_users ID of the Rider
+ * @param {object} orderData The order details
+ */
+export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
+  try {
+    // 1. Fetch the LINE User ID from sys_users
+    const { data: user, error: findError } = await supabaseAdmin
+      .from('sys_users')
+      .select('line_user_id')
+      .eq('id', riderSysUserId)
+      .single();
+
+    if (findError || !user || !user.line_user_id) {
+      console.log(`[LINE NOTIFICATION] Rider ${riderSysUserId} does not have a linked LINE account.`);
+      return { success: false, reason: 'not_linked' };
+    }
+
+    // 2. Build the Flex Message Card
+    const flexMessage = {
+      type: 'flex',
+      altText: `New Order Assigned: #${orderData.orderId || 'BBD-XXX'}`,
+      contents: {
+        type: 'bubble',
+        size: 'mega',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '📦 NEW ORDER ASSIGNED',
+              color: '#ffffff',
+              weight: 'bold',
+              size: 'sm'
+            }
+          ],
+          backgroundColor: '#06C755',
+          paddingAll: '15px'
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: `Order #${orderData.orderId || 'BBD-XXX'}`,
+              weight: 'bold',
+              size: 'xl',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: `Customer: ${orderData.customerName || 'Unknown'}`,
+              size: 'sm',
+              color: '#666666',
+              margin: 'sm'
+            },
+            {
+              type: 'separator',
+              margin: 'lg'
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              margin: 'lg',
+              spacing: 'sm',
+              contents: [
+                {
+                  type: 'box',
+                  layout: 'baseline',
+                  spacing: 'sm',
+                  contents: [
+                    {
+                      type: 'text',
+                      text: '📍 Address',
+                      color: '#aaaaaa',
+                      size: 'sm',
+                      flex: 2
+                    },
+                    {
+                      type: 'text',
+                      text: orderData.deliveryAddress || 'Not specified',
+                      wrap: true,
+                      color: '#333333',
+                      size: 'sm',
+                      flex: 5
+                    }
+                  ]
+                },
+                {
+                  type: 'box',
+                  layout: 'baseline',
+                  spacing: 'sm',
+                  contents: [
+                    {
+                      type: 'text',
+                      text: '📞 Phone',
+                      color: '#aaaaaa',
+                      size: 'sm',
+                      flex: 2
+                    },
+                    {
+                      type: 'text',
+                      text: orderData.phone || 'Not specified',
+                      wrap: true,
+                      color: '#333333',
+                      size: 'sm',
+                      flex: 5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              style: 'primary',
+              height: 'sm',
+              color: '#06C755',
+              action: {
+                type: 'uri',
+                label: 'View in Rider App',
+                uri: 'https://bbd-hrm.aiautono.io/rider-app'
+              }
+            }
+          ],
+          flex: 0
+        }
+      }
+    };
+
+    // 3. Send the message
+    await client.pushMessage({
+      to: user.line_user_id,
+      messages: [flexMessage]
+    });
+
+    console.log(`[LINE NOTIFICATION] Successfully sent order assignment to ${user.line_user_id}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[LINE NOTIFICATION ERROR]`, error.message);
+    return { success: false, error: error.message };
+  }
 }
