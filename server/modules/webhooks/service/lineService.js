@@ -210,7 +210,7 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
               action: {
                 type: 'uri',
                 label: '🚀 Pick Up Order',
-                uri: `https://bbd-hrm.aiautono.io/rider-app?auto_pickup=true&order_id=${orderData.orderId}`
+                uri: `https://bbd-hrm.aiautono.io/operations/rider?auto_pickup=true&order_id=${orderData.orderId}`
               }
             },
             {
