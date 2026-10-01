@@ -593,7 +593,7 @@ export default function RiderApp() {
   // Google Maps for simulator route
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyAacR3YSTZD75OoUALFHnBG3-iwyuzoad0'
   });
 
   // Fetch simulator route when destination is set

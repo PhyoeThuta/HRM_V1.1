@@ -31,7 +31,7 @@ export default function CustomerTracking() {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyAacR3YSTZD75OoUALFHnBG3-iwyuzoad0'
   });
 
   // Fetch Customer Address
@@ -187,11 +187,7 @@ export default function CustomerTracking() {
           <div className="flex items-center justify-center h-full text-white font-bold">Loading Google Maps...</div>
         )}
 
-        {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
-          <div className="absolute top-4 left-4 right-4 z-[400] bg-red-500/90 text-white p-3 rounded-xl font-bold text-sm text-center shadow-lg backdrop-blur-md">
-            ⚠️ API Key Missing! Please add VITE_GOOGLE_MAPS_API_KEY to your .env file.
-          </div>
-        )}
+
 
         {!riderLocation && isLoaded && (
           <div className="absolute inset-0 z-[400] flex items-center justify-center bg-surface-950/80 backdrop-blur-sm pointer-events-none">
