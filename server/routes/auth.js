@@ -176,6 +176,55 @@ router.get('/me', verifyToken, (req, res) => {
   return res.json({ user: req.user });
 });
 
+// GET /api/auth/magic-link
+router.get('/magic-link', async (req, res) => {
+  try {
+    const { token, redirect } = req.query;
+    if (!token) return res.status(400).send('Missing token');
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.purpose !== 'magic_link') return res.status(401).send('Invalid token purpose');
+    
+    const user = await dbFetchOne('sys_users', '*', { id: decoded.id });
+    if (!user || !user.is_active) return res.status(401).send('Invalid or inactive user');
+    
+    let stored = user.password_hash || '';
+    let mustChange = stored.startsWith('MUST_CHANGE:');
+    
+    const payload = {
+      id: String(user.id),
+      username: user.username,
+      role: user.role,
+      full_name: user.full_name || user.username,
+      employee_id: String(user.employee_id || ''),
+      must_change_password: mustChange,
+    };
+    
+    const newToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(user);
+    
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+    
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+    
+    res.redirect(redirect || '/');
+  } catch (e) {
+    console.error('[AUTH MAGIC LINK]', e);
+    return res.status(401).send('Magic link expired or invalid. Please login normally.');
+  }
+});
+
+
 
 // POST /api/auth/change-password
 router.post('/change-password', verifyToken, async (req, res) => {

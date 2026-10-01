@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '../../../lib/supabase.js';
 import { messagingApi } from '@line/bot-sdk';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../../../middleware/auth.js';
 dotenv.config();
 
 const client = new messagingApi.MessagingApiClient({
@@ -98,6 +100,11 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
       console.log(`[LINE NOTIFICATION] Rider ${riderSysUserId} does not have a linked LINE account.`);
       return { success: false, reason: 'not_linked' };
     }
+
+    // Generate Magic Link Token (valid for 30 days)
+    const magicToken = jwt.sign({ id: riderSysUserId, purpose: 'magic_link' }, JWT_SECRET, { expiresIn: '30d' });
+    const redirectUrl = `/operations/rider?auto_pickup=true&order_id=${orderData.orderId}`;
+    const magicUri = `https://bbd-hrm.aiautono.io/api/auth/magic-link?token=${magicToken}&redirect=${encodeURIComponent(redirectUrl)}`;
 
     // 2. Build the Flex Message Card
     const flexMessage = {
@@ -210,7 +217,7 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
               action: {
                 type: 'uri',
                 label: '🚀 Pick Up Order',
-                uri: `https://bbd-hrm.aiautono.io/operations/rider?auto_pickup=true&order_id=${orderData.orderId}`
+                uri: magicUri
               }
             },
             {
