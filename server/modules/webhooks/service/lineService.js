@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../../../config/supabaseAdmin.js';
+import { supabaseAdmin } from '../../../lib/supabase.js';
 
 /**
  * Validates a bot linking code and links the LINE user ID to the corresponding system user.
