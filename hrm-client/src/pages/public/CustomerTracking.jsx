@@ -29,7 +29,7 @@ export default function CustomerTracking() {
   const lastFetchTime = useRef(0);
   const mapRef = useRef(null);
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
   });
@@ -183,6 +183,10 @@ export default function CustomerTracking() {
               />
             )}
           </GoogleMap>
+        ) : loadError ? (
+          <div className="flex items-center justify-center h-full text-red-500 font-bold px-4 text-center">
+            Google Maps failed to load. Error: {loadError.message || 'Check API Key Restrictions or Quota.'}
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-white font-bold">Loading Google Maps...</div>
         )}
