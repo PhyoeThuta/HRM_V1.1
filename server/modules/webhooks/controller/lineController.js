@@ -1,5 +1,6 @@
 import { middleware, messagingApi } from '@line/bot-sdk';
 import dotenv from 'dotenv';
+import { linkLineAccount } from '../service/lineService.js';
 dotenv.config();
 
 const config = {
@@ -34,13 +35,29 @@ export async function handleLineEvent(event) {
   }
   
   if (text.startsWith('LINK-')) {
-    return client.replyMessage({
-      replyToken: event.replyToken,
-      messages: [{
-        type: 'text',
-        text: `We received your link request for: ${text}.\n(Backend linking logic will be implemented in the next step!)`
-      }]
-    });
+    // Extract the code (e.g. from "LINK-A7X9B2" -> "A7X9B2")
+    const code = text.replace('LINK-', '').trim().toUpperCase();
+    
+    // Call the database service to bind the user
+    const result = await linkLineAccount(code, userId);
+
+    if (result.success) {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: `✅ Account successfully linked! Welcome, ${result.user.full_name}. You will now receive order notifications here.`
+        }]
+      });
+    } else {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: `❌ Invalid or expired code. Please check your Dashboard and try again.`
+        }]
+      });
+    }
   }
 
   // Fallback

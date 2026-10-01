@@ -8,6 +8,7 @@ import multer from 'multer';
 import { hrmModule } from '../modules/hrm/index.js';
 import { payrollModule } from '../modules/payroll/index.js';
 import { identityModule } from '../modules/identity/index.js';
+import { generateBotLinkingCode } from '../modules/webhooks/service/lineService.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
@@ -158,6 +159,55 @@ router.get('/:id', async (req, res) => {
     const profile = await hrmModule.getEmployeeProfile(req.params.id);
     if (!profile) return res.status(404).json({ error: 'Employee not found' });
     return res.json(profile);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/employees/:id/line-status
+router.get('/:id/line-status', async (req, res) => {
+  try {
+    const eid = req.params.id;
+    const isAdmin = ['boss', 'hr_manager', 'general_manager'].includes(req.user.role);
+    if (!isAdmin && req.user.employee_id !== parseInt(eid) && req.user.employee_id !== eid) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const sysUser = await dbFetchOne('sys_users', 'bot_linking_code, line_user_id', { employee_id: eid });
+    if (!sysUser) return res.json({ isLinked: false, code: null });
+
+    return res.json({ 
+      isLinked: !!sysUser.line_user_id, 
+      code: sysUser.bot_linking_code 
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/employees/:id/line-link-code
+router.post('/:id/line-link-code', async (req, res) => {
+  try {
+    const eid = req.params.id;
+    // Allow if user is admin, boss, or the employee themselves
+    const isAdmin = ['boss', 'hr_manager', 'general_manager'].includes(req.user.role);
+    if (!isAdmin && req.user.employee_id !== parseInt(eid) && req.user.employee_id !== eid) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Find the corresponding sys_user id for this employee
+    const sysUser = await dbFetchOne('sys_users', 'id, full_name, bot_linking_code, line_user_id', { employee_id: eid });
+    if (!sysUser) {
+      return res.status(404).json({ error: 'System user account not found for this employee' });
+    }
+
+    // If already has a code, just return it
+    if (sysUser.bot_linking_code) {
+      return res.json({ success: true, code: sysUser.bot_linking_code, isLinked: !!sysUser.line_user_id });
+    }
+
+    const newCode = await generateBotLinkingCode(sysUser.id);
+    return res.json({ success: true, code: newCode, isLinked: !!sysUser.line_user_id });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

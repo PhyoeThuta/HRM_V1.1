@@ -15,6 +15,74 @@ const STATUS_COLORS = {
   pending_review: 'text-purple-400 bg-purple-500/10',
 };
 
+function LineIntegrationSection({ employeeId }) {
+  const { t } = useLanguage();
+  const qc = useQueryClient();
+
+  const { data: lineData, isLoading } = useQuery({
+    queryKey: ['line-status', employeeId],
+    queryFn: () => api.get(`/employees/${employeeId}/line-status`).then(r => r.data),
+    refetchInterval: (data) => data?.code && !data?.isLinked ? 3000 : false, // Poll every 3s if waiting for user to link
+  });
+
+  const code = lineData?.code;
+  const isLinked = lineData?.isLinked;
+
+  const generateMutation = useMutation({
+    mutationFn: () => api.post(`/employees/${employeeId}/line-link-code`).then(r => r.data),
+    onSuccess: (data) => {
+      qc.setQueryData(['line-status', employeeId], data);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error || 'Failed to generate code');
+    }
+  });
+
+  return (
+    <div className="p-6 rounded-2xl border border-white/5 bg-surface-800">
+      <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest flex items-center gap-2">
+        <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22.5 10.5C22.5 5.8 17.8 2 12 2C6.2 2 1.5 5.8 1.5 10.5C1.5 14.2 4.1 17.4 7.6 18.5C8 18.6 8.3 18.9 8.4 19.3L8.8 21.3C8.8 21.6 9.1 21.8 9.4 21.7C10.7 21 14.3 18.8 17.2 16.2C20.5 13.3 22.5 11.9 22.5 10.5Z"/>
+        </svg>
+        LINE Integration
+      </h3>
+      
+      {isLinked ? (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+          <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-bold text-emerald-400 mb-1">Account Connected</h4>
+          <p className="text-xs text-emerald-500/80">This employee receives notifications via LINE.</p>
+        </div>
+      ) : code ? (
+        <div className="p-4 rounded-xl bg-surface-850 border border-white/5 text-center">
+          <p className="text-xs text-slate-400 mb-3">Send this code to our Official LINE Bot:</p>
+          <div className="bg-surface-900 border border-white/10 rounded-xl py-3 px-4 mb-3 select-all cursor-pointer hover:border-brand-orange/50 transition-colors">
+            <code className="text-lg font-mono font-bold text-brand-orange tracking-widest">
+              LINK-{code}
+            </code>
+          </div>
+          <p className="text-[10px] text-slate-500">The code will expire after it is used once.</p>
+        </div>
+      ) : (
+        <div className="text-center">
+          <p className="text-xs text-slate-400 mb-4">Link this employee to their LINE account to enable instant notifications.</p>
+          <button 
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isLoading}
+            className="w-full bg-[#06C755] hover:bg-[#05b34c] text-white font-bold text-sm py-2.5 rounded-xl transition-colors disabled:opacity-50"
+          >
+            {generateMutation.isLoading ? 'Generating...' : 'Generate LINE Code'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HandoverHistorySection({ employeeId }) {
   const { t } = useLanguage();
   const [detailId, setDetailId] = useState(null);
@@ -251,6 +319,8 @@ export default function EmployeeProfile() {
               </div>
             </div>
           </div>
+
+          <LineIntegrationSection employeeId={id} />
         </div>
 
         {/* Right Col: Details */}
