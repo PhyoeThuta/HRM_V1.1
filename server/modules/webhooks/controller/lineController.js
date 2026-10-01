@@ -1,6 +1,8 @@
 import { middleware, messagingApi } from '@line/bot-sdk';
 import dotenv from 'dotenv';
 import { linkLineAccount } from '../service/lineService.js';
+import { updateRiderStatus } from '../../operations/service/index.js';
+import { supabaseAdmin } from '../../../lib/supabase.js';
 dotenv.config();
 
 const config = {
@@ -15,7 +17,45 @@ const client = new messagingApi.MessagingApiClient({
 });
 
 export async function handleLineEvent(event) {
-  // We only care about message events for now
+  const userId = event.source.userId;
+
+  // Handle Button Clicks (Postback)
+  if (event.type === 'postback') {
+    const data = new URLSearchParams(event.postback.data);
+    const action = data.get('action');
+    const orderId = data.get('order_id');
+    const status = data.get('status');
+
+    if (action === 'status_update') {
+      try {
+        // Find the system user ID for this LINE user
+        const { data: user } = await supabaseAdmin
+          .from('sys_users')
+          .select('id')
+          .eq('line_user_id', userId)
+          .single();
+        
+        if (user) {
+          // Update the order status directly from LINE!
+          await updateRiderStatus(orderId, status, null, user.id);
+          
+          let statusText = status === 'ON_THE_WAY' ? '🚀 Picked Up & On the way!' : '✅ Delivered!';
+          return client.replyMessage({
+            replyToken: event.replyToken,
+            messages: [{ type: 'text', text: `Order #${orderId} status updated to: ${statusText}` }]
+          });
+        }
+      } catch (e) {
+        console.error('[LINE_POSTBACK_ERROR]', e);
+        return client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: '❌ Failed to update order status. Please try again later.' }]
+        });
+      }
+    }
+  }
+
+  // Handle Text Messages
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }

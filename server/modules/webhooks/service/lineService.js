@@ -208,9 +208,22 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
               height: 'sm',
               color: '#06C755',
               action: {
-                type: 'uri',
-                label: 'View in Rider App',
-                uri: 'https://bbd-hrm.aiautono.io/rider-app'
+                type: 'postback',
+                label: '🚀 Pick Up Order',
+                data: `action=status_update&order_id=${orderData.orderId}&status=ON_THE_WAY`,
+                displayText: 'I have picked up the order!'
+              }
+            },
+            {
+              type: 'button',
+              style: 'secondary',
+              height: 'sm',
+              color: '#eeeeee',
+              action: {
+                type: 'postback',
+                label: '✅ Mark Delivered',
+                data: `action=status_update&order_id=${orderData.orderId}&status=DELIVERED`,
+                displayText: 'I have delivered the order!'
               }
             }
           ],
