@@ -150,26 +150,15 @@ router.put('/orders/batch-status', async (req, res) => {
       }
     }
     
-    // Update all orders (with fallback if proof_of_delivery_url column is not present)
-    let updatedOrders = null;
-    try {
-      const resUpdate = await supabase
-        .from('operations_orders')
-        .update(updateData)
-        .in('id', order_ids)
-        .select();
-      if (resUpdate.error) throw resUpdate.error;
-      updatedOrders = resUpdate.data;
-    } catch (e) {
-      delete updateData.proof_of_delivery_url;
-      const resUpdate = await supabase
-        .from('operations_orders')
-        .update(updateData)
-        .in('id', order_ids)
-        .select();
-      if (resUpdate.error) throw resUpdate.error;
-      updatedOrders = resUpdate.data;
-    }
+    // Update all orders (No fallback, let it throw if error)
+    const resUpdate = await supabase
+      .from('operations_orders')
+      .update(updateData)
+      .in('id', order_ids)
+      .select();
+      
+    if (resUpdate.error) throw resUpdate.error;
+    const updatedOrders = resUpdate.data;
 
     // Process inventory deduction if DELIVERED
     if (delivery_status === 'DELIVERED' && updatedOrders && updatedOrders.length > 0) {

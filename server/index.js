@@ -50,7 +50,7 @@ import telegramRouter from './routes/telegram.js';
 import dailyFeedbackRouter from './routes/daily_feedback.js';
 import performanceRouter from './routes/performance.js';
 import manualRouter from './routes/manual.js';
-
+import webhooksRouter from './routes/webhooks.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -105,6 +105,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 }));
+
+// Webhooks (Must be before express.json() to allow raw body for signature verification)
+app.use('/api/webhooks', webhooksRouter);
 
 app.use(express.json({ limit: '50mb' })); // Increased for video
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

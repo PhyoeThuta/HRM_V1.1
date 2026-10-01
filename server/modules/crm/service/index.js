@@ -235,8 +235,7 @@ export async function getKitchenDashboard(targetDate) {
   if (error) throw error;
 
   if (!packages || packages.length === 0) {
-    const { data: fallbackPkgs } = await crmRepo.getAllPackagesWithCustomerInfo();
-    packages = fallbackPkgs || [];
+    packages = [];
   }
 
   // CROSS-DOMAIN READS directly in Service Layer
@@ -867,11 +866,7 @@ export async function getActivePackagesForDate(targetDate) {
   const { data: packages, error: pkgErr } = await crmRepo.getCustomerPackagesGteExpiresAt(targetDate);
   if (pkgErr) throw pkgErr;
 
-  let activePackages = packages;
-  if (!activePackages || activePackages.length === 0) {
-    const { data: fallbackPkgs } = await crmRepo.getAllCustomerPackages();
-    activePackages = fallbackPkgs || [];
-  }
+  let activePackages = packages || [];
 
   return activePackages;
 }

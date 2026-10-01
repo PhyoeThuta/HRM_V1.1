@@ -275,7 +275,34 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
 
   const targetDate = inputDate || getBkkDate();
 
-  // 1. Fetch planned menus for target date
+  // 0. Sunday Block (BBD doesn't deliver on Sundays)
+  const dObj = new Date(targetDate);
+  if (dObj.getDay() === 0) {
+    return { success: true, generatedCount: 0, message: 'BBD does not deliver on Sundays.' };
+  }
+
+  // 1. Fetch active customer packages overlapping target date via CRM boundary
+  let activePackages = [];
+  try {
+    activePackages = await crmModule.getActivePackagesForDate(targetDate);
+  } catch (pkgErr) {
+    throw pkgErr;
+  }
+
+  if (!activePackages || activePackages.length === 0) {
+    return { success: true, generatedCount: 0, message: 'No active customer packages found in database.' };
+  }
+
+  // Extract needed meal types from active packages
+  const neededMealTypes = new Set();
+  activePackages.forEach(pkg => {
+    const pkgMeals = (pkg.meal_type || 'LUNCH, DINNER').toUpperCase();
+    if (pkgMeals.includes('BREAKFAST')) neededMealTypes.add('Breakfast');
+    if (pkgMeals.includes('LUNCH')) neededMealTypes.add('Lunch');
+    if (pkgMeals.includes('DINNER')) neededMealTypes.add('Dinner');
+  });
+
+  // 2. Fetch planned menus for target date
   let dailyMenus = await opsRepo.getDailyMenusByDate(targetDate);
 
   // Fallback: If no daily menus scheduled for target date, check menu plans or catalog and auto-create
@@ -285,11 +312,10 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
     const catMenus = await opsRepo.getCatalogMenusLimitTwo();
 
     if (catMenus && catMenus.length > 0) {
-      // Auto-create Lunch and Dinner daily menus for targetDate
-      const newDailyMenus = [
-        { date: targetDate, meal_type: 'Lunch', with_rice: true, created_by: userId },
-        { date: targetDate, meal_type: 'Dinner', with_rice: true, created_by: userId }
-      ];
+      // Auto-create daily menus dynamically based on needed meal types
+      const newDailyMenus = Array.from(neededMealTypes).map(meal => ({
+        date: targetDate, meal_type: meal, with_rice: true, created_by: userId
+      }));
       
       const createdMenus = await opsRepo.createDailyMenusBulk(newDailyMenus);
       
@@ -312,18 +338,6 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
     const err = new Error('No daily menus planned for date ' + targetDate);
     err.status = 400;
     throw err;
-  }
-
-  // 2. Fetch active customer packages overlapping target date via CRM boundary
-  let activePackages = [];
-  try {
-    activePackages = await crmModule.getActivePackagesForDate(targetDate);
-  } catch (pkgErr) {
-    throw pkgErr;
-  }
-
-  if (!activePackages || activePackages.length === 0) {
-    return { success: true, generatedCount: 0, message: 'No active customer packages found in database.' };
   }
 
   // 3. Fetch existing orders to prevent duplicates
@@ -470,11 +484,11 @@ export async function uploadPodPhoto(imageStr) {
       }
     }
   } catch (e) {
-    console.warn('[POD_PHOTO_STORAGE_WARN]', e.message);
+    console.error('[POD_PHOTO_STORAGE_ERROR]', e.message);
+    const err = new Error('Failed to upload proof of delivery photo to storage: ' + e.message);
+    err.status = 500;
+    throw err;
   }
-
-// Fallback to original image if storage fails (mirrors legacy behavior)
-  return { success: true, url: imageStr };
 }
 
 // ==========================================

@@ -76,6 +76,17 @@ export async function getOrCreateItemForCosting(name, uom) {
     category: 'RECIPE_INGREDIENT',
     unit_of_measure: uom
   }, true);
+
+  if (newItem) {
+    await repository.createBalance({
+      item_id: newItem.id,
+      current_quantity: 0,
+      min_quantity: 0,
+      one_unit_cost: 0,
+      created_by: null
+    });
+  }
+  
   return { id: newItem.id, created: true };
 }
 
@@ -169,9 +180,21 @@ export async function deductStockForBOM(deductions, orderId, userId) {
     const now = new Date().toISOString();
     
     for (const [itemId, deductQty] of Object.entries(deductions)) {
-      const balData = await repository.getBalanceByItemId(itemId);
+      let balData = await repository.getBalanceByItemId(itemId);
       if (!balData) {
-        throw new Error(`Missing inventory balance for item ${itemId}`);
+        // Auto-create a zero balance instead of throwing an error
+        await repository.createBalance({
+          item_id: itemId,
+          current_quantity: 0,
+          min_quantity: 0,
+          created_by: userId
+        });
+        balData = await repository.getBalanceByItemId(itemId);
+      }
+      
+      const newQty = parseFloat(balData.current_quantity) - parseFloat(deductQty);
+      if (newQty < 0) {
+        console.warn(`[INVENTORY LOW STOCK WARNING] Item ID: ${itemId} is now in negative stock (${newQty}).`);
       }
       
       await repository.createTransaction({
@@ -184,7 +207,7 @@ export async function deductStockForBOM(deductions, orderId, userId) {
       });
 
       await repository.updateBalance(balData.id, {
-        current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
+        current_quantity: newQty,
         updated_by: userId,
         updated_at: now
       });
