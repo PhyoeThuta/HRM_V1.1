@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { getCrmSocket } from '../../lib/crmSocket';
@@ -367,6 +367,7 @@ export default function RiderApp() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [simulatorMode, setSimulatorMode] = useState(() => {
     const saved = localStorage.getItem('simMode');
     return saved !== 'false'; // Default to true for testing
@@ -477,6 +478,24 @@ export default function RiderApp() {
 
   const activeDeliveries = groupedOrders.filter(g => g.status !== 'DELIVERED');
   const completedDeliveries = groupedOrders.filter(g => g.status === 'DELIVERED');
+
+  // Auto-pickup logic for LINE deep link
+  useEffect(() => {
+    const autoPickup = searchParams.get('auto_pickup');
+    const orderId = searchParams.get('order_id');
+
+    if (autoPickup === 'true' && orderId && activeDeliveries.length > 0) {
+      const group = activeDeliveries.find(g => g.orders.some(o => String(o.id) === orderId));
+      if (group) {
+        // If not already ON_THE_WAY, set it!
+        if (group.status !== 'ON_THE_WAY') {
+          handleUpdateStatus(group, 'ON_THE_WAY');
+        }
+        // Remove params from URL so it doesn't run again
+        setSearchParams({});
+      }
+    }
+  }, [activeDeliveries, searchParams, setSearchParams]);
 
   // Auto-start GPS on page load if already ON_THE_WAY (e.g. after refresh)
   useEffect(() => {

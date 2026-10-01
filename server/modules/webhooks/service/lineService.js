@@ -208,10 +208,9 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
               height: 'sm',
               color: '#06C755',
               action: {
-                type: 'postback',
+                type: 'uri',
                 label: '🚀 Pick Up Order',
-                data: `action=status_update&order_id=${orderData.orderId}&status=ON_THE_WAY`,
-                displayText: 'I have picked up the order!'
+                uri: `https://bbd-hrm.aiautono.io/rider-app?auto_pickup=true&order_id=${orderData.orderId}`
               }
             },
             {
