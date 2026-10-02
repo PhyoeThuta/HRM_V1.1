@@ -692,7 +692,6 @@ export async function updateRiderStatus(id, status, proofUrl, userId) {
 
   const assignmentUpdate = { status, updated_at: now };
   if (status === 'ON_THE_WAY') assignmentUpdate.picked_up_at = now;
-  if (proofUrl) assignmentUpdate.proof_of_delivery_url = proofUrl;
 
   await opsRepo.updateRiderAssignmentWithFallback(id, assignmentUpdate);
 
