@@ -77,6 +77,148 @@ function SpotPhotoPreview({ photoUrl, customerName }) {
   );
 }
 
+
+const GroupCard = ({ group, actions, riders, onAssignRider, onUpdateStatus, isUpdatingStatus }) => {
+  const queryClient = useQueryClient();
+  const assignedRider = riders?.find(r => r.id === group.orders[0]?.rider_id);
+  const orderId = group.orders[0]?.id;
+  const initialAddress = group.orders[0]?.custom_delivery_address || group.customer?.delivery_address || '';
+  
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [addressInput, setAddressInput] = useState(initialAddress);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+  const handleSaveAddress = async () => {
+    setIsSavingAddress(true);
+    try {
+      await api.put(`/operations/orders/${orderId}`, { custom_delivery_address: addressInput });
+      toast.success('Address updated for this delivery');
+      setIsEditingAddress(false);
+      queryClient.invalidateQueries(['orders']);
+    } catch (err) {
+      toast.error('Failed to update address');
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  return (
+    <div className="bg-surface-900 border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h4 className="font-black text-white text-lg">{group.customer?.full_name}</h4>
+          <p className="text-slate-400 font-bold text-sm">{group.customer?.phone}</p>
+        </div>
+        <div className="flex flex-col gap-1 items-end">
+          {group.orders.map(o => (
+            <span key={o.id} className={`px-2 py-1 rounded-lg text-[10px] font-black ${o.daily_menus?.meal_type === 'LUNCH' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+              {o.daily_menus?.meal_type} x{o.count}
+            </span>
+          ))}
+        </div>
+      </div>
+      
+      <div className="mb-3">
+        {!isEditingAddress ? (
+          <div className="flex items-start justify-between gap-2 group/address">
+            <p className="text-slate-300 text-sm flex-1">
+              <span className="text-brand-primary">📍</span> {initialAddress || 'No Address Provided'}
+            </p>
+            <button 
+              onClick={() => setIsEditingAddress(true)}
+              className="text-slate-500 hover:text-white opacity-0 group-hover/address:opacity-100 transition-opacity"
+              title="Edit today's delivery address"
+            >
+              ✏️
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 mt-1">
+            <textarea 
+              value={addressInput} 
+              onChange={e => setAddressInput(e.target.value)}
+              className="w-full bg-surface-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary"
+              rows={2}
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setIsEditingAddress(false)} className="text-xs px-3 py-1.5 text-slate-400 hover:text-white">Cancel</button>
+              <button onClick={handleSaveAddress} disabled={isSavingAddress} className="text-xs px-3 py-1.5 bg-brand-primary text-black font-bold rounded-lg hover:bg-brand-primary/90">
+                {isSavingAddress ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        )}
+        {(() => {
+          const { photoUrl: spotPhotoUrl, cleanNotes } = parseDeliverySpotPhotoAndNotes(group.customer);
+          const podPhotoUrl = getProofOfDeliveryPhoto(group);
+          return (
+            <>
+              {cleanNotes && (
+                <p className="text-emerald-400 text-xs mt-2 font-bold bg-emerald-500/10 p-2 rounded-lg inline-block">
+                  Note: {cleanNotes}
+                </p>
+              )}
+              {spotPhotoUrl && (
+                <SpotPhotoPreview photoUrl={spotPhotoUrl} customerName={group.customer?.full_name} />
+              )}
+              {podPhotoUrl && podPhotoUrl !== spotPhotoUrl && (
+                <div className="mt-2.5">
+                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-1">
+                    📸 Proof of Delivery (Rider POD)
+                  </span>
+                  <SpotPhotoPreview photoUrl={podPhotoUrl} customerName={`${group.customer?.full_name} - Delivered Proof`} />
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
+
+      {/* Rider Assignment Section */}
+      <div className="mb-4 pt-3 border-t border-white/5">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">🏍️ Assign Rider</label>
+        <select
+          value={group.orders[0]?.rider_id || ''}
+          onChange={(e) => onAssignRider(group.orders.map(o => o.id), e.target.value)}
+          className="w-full bg-surface-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-fuchsia-500 transition-colors"
+        >
+          <option value="">— Unassigned —</option>
+          {riders?.map(r => (
+            <option key={r.id} value={r.id}>{r.full_name}</option>
+          ))}
+        </select>
+        {assignedRider && (
+          <p className="text-fuchsia-400 text-xs mt-1.5 font-bold">🏍️ {assignedRider.full_name} • {group.orders[0]?.rider_status || 'ASSIGNED'}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-2 mt-4 pt-4 border-t border-white/5">
+        <a 
+          href={`/track/${group.customer_id}`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex-1 py-2 px-4 rounded-xl font-bold text-sm text-center bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-all border border-brand-primary/30"
+        >
+          🗺️ View Map
+        </a>
+        {actions.map((action, idx) => (
+          <button
+            key={idx}
+            onClick={() => {
+              if (action.onClick) action.onClick(group);
+              else onUpdateStatus(group.orders.map(o => o.id), action.status);
+            }}
+            disabled={isUpdatingStatus}
+            className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${action.className} disabled:opacity-50`}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function DeliveryDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -224,145 +366,6 @@ export default function DeliveryDashboard() {
     updateBatchStatusMutation.mutate({ orderIds, status });
   };
 
-  const GroupCard = ({ group, actions }) => {
-    const assignedRider = riders?.find(r => r.id === group.orders[0]?.rider_id);
-    const orderId = group.orders[0]?.id;
-    const initialAddress = group.orders[0]?.custom_delivery_address || group.customer?.delivery_address || '';
-    
-    const [isEditingAddress, setIsEditingAddress] = useState(false);
-    const [addressInput, setAddressInput] = useState(initialAddress);
-    const [isSavingAddress, setIsSavingAddress] = useState(false);
-
-    const handleSaveAddress = async () => {
-      setIsSavingAddress(true);
-      try {
-        await api.put(`/operations/orders/${orderId}`, { custom_delivery_address: addressInput });
-        toast.success('Address updated for this delivery');
-        setIsEditingAddress(false);
-        queryClient.invalidateQueries(['orders']);
-      } catch (err) {
-        toast.error('Failed to update address');
-      } finally {
-        setIsSavingAddress(false);
-      }
-    };
-
-    return (
-    <div className="bg-surface-900 border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h4 className="font-black text-white text-lg">{group.customer?.full_name}</h4>
-          <p className="text-slate-400 font-bold text-sm">{group.customer?.phone}</p>
-        </div>
-        <div className="flex flex-col gap-1 items-end">
-          {group.orders.map(o => (
-            <span key={o.id} className={`px-2 py-1 rounded-lg text-[10px] font-black ${o.daily_menus?.meal_type === 'LUNCH' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
-              {o.daily_menus?.meal_type} x{o.count}
-            </span>
-          ))}
-        </div>
-      </div>
-      
-      <div className="mb-3">
-        {!isEditingAddress ? (
-          <div className="flex items-start justify-between gap-2 group/address">
-            <p className="text-slate-300 text-sm flex-1">
-              <span className="text-brand-primary">📍</span> {initialAddress || 'No Address Provided'}
-            </p>
-            <button 
-              onClick={() => setIsEditingAddress(true)}
-              className="text-slate-500 hover:text-white opacity-0 group-hover/address:opacity-100 transition-opacity"
-              title="Edit today's delivery address"
-            >
-              ✏️
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 mt-1">
-            <textarea 
-              value={addressInput} 
-              onChange={e => setAddressInput(e.target.value)}
-              className="w-full bg-surface-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary"
-              rows={2}
-            />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setIsEditingAddress(false)} className="text-xs px-3 py-1.5 text-slate-400 hover:text-white">Cancel</button>
-              <button onClick={handleSaveAddress} disabled={isSavingAddress} className="text-xs px-3 py-1.5 bg-brand-primary text-black font-bold rounded-lg hover:bg-brand-primary/90">
-                {isSavingAddress ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        )}
-        {(() => {
-          const { photoUrl: spotPhotoUrl, cleanNotes } = parseDeliverySpotPhotoAndNotes(group.customer);
-          const podPhotoUrl = getProofOfDeliveryPhoto(group);
-          return (
-            <>
-              {cleanNotes && (
-                <p className="text-emerald-400 text-xs mt-2 font-bold bg-emerald-500/10 p-2 rounded-lg inline-block">
-                  Note: {cleanNotes}
-                </p>
-              )}
-              {spotPhotoUrl && (
-                <SpotPhotoPreview photoUrl={spotPhotoUrl} customerName={group.customer?.full_name} />
-              )}
-              {podPhotoUrl && podPhotoUrl !== spotPhotoUrl && (
-                <div className="mt-2.5">
-                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-1">
-                    📸 Proof of Delivery (Rider POD)
-                  </span>
-                  <SpotPhotoPreview photoUrl={podPhotoUrl} customerName={`${group.customer?.full_name} - Delivered Proof`} />
-                </div>
-              )}
-            </>
-          );
-        })()}
-      </div>
-
-      {/* Rider Assignment Section */}
-      <div className="mb-4 pt-3 border-t border-white/5">
-        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">🏍️ Assign Rider</label>
-        <select
-          value={group.orders[0]?.rider_id || ''}
-          onChange={(e) => handleAssignRider(group.orders.map(o => o.id), e.target.value)}
-          className="w-full bg-surface-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-fuchsia-500 transition-colors"
-        >
-          <option value="">— Unassigned —</option>
-          {riders?.map(r => (
-            <option key={r.id} value={r.id}>{r.full_name}</option>
-          ))}
-        </select>
-        {assignedRider && (
-          <p className="text-fuchsia-400 text-xs mt-1.5 font-bold">🏍️ {assignedRider.full_name} • {group.orders[0]?.rider_status || 'ASSIGNED'}</p>
-        )}
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-2 mt-4 pt-4 border-t border-white/5">
-        <a 
-          href={`/track/${group.customer_id}`} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex-1 py-2 px-4 rounded-xl font-bold text-sm text-center bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-all border border-brand-primary/30"
-        >
-          🗺️ View Map
-        </a>
-        {actions.map((action, idx) => (
-          <button
-            key={idx}
-            onClick={() => {
-              if (action.onClick) action.onClick(group);
-              else handleUpdateStatus(group.orders.map(o => o.id), action.status);
-            }}
-            disabled={updateBatchStatusMutation.isPending}
-            className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${action.className} disabled:opacity-50`}
-          >
-            {action.label}
-          </button>
-        ))}
-      </div>
-    </div>
-    );
-  };
 
   return (
     <Layout title="Delivery Dashboard" subtitle="Live tracking and status updates for deliveries">
@@ -468,7 +471,7 @@ export default function DeliveryDashboard() {
                         className: 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
                       }
                     ]}
-                  />
+                   riders={riders} onAssignRider={handleAssignRider} onUpdateStatus={handleUpdateStatus} isUpdatingStatus={updateBatchStatusMutation.isPending} />
                 ))}
               </div>
             </div>
@@ -489,7 +492,7 @@ export default function DeliveryDashboard() {
                       { label: '↩️ Back', status: 'PENDING', className: 'bg-slate-700 hover:bg-slate-600 text-white' },
                       { label: '✅ Delivered', status: 'DELIVERED', className: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' }
                     ]}
-                  />
+                   riders={riders} onAssignRider={handleAssignRider} onUpdateStatus={handleUpdateStatus} isUpdatingStatus={updateBatchStatusMutation.isPending} />
                 ))}
               </div>
             </div>
@@ -509,7 +512,7 @@ export default function DeliveryDashboard() {
                     actions={[
                       { label: '↩️ Undo', status: 'ON_THE_WAY', className: 'bg-slate-700 hover:bg-slate-600 text-white' }
                     ]}
-                  />
+                   riders={riders} onAssignRider={handleAssignRider} onUpdateStatus={handleUpdateStatus} isUpdatingStatus={updateBatchStatusMutation.isPending} />
                 ))}
               </div>
             </div>
