@@ -702,7 +702,6 @@ export async function updateRiderStatus(id, status, proofUrl, userId) {
   const orderUpdate = { delivery_status, updated_by: userId, updated_at: now };
   if (status === 'DELIVERED') {
     orderUpdate.delivered_at = now;
-    if (proofUrl) orderUpdate.proof_of_delivery_url = proofUrl;
   }
   
   await opsRepo.updateOrderDeliveryStatus(id, orderUpdate);

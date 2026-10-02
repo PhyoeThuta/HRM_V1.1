@@ -145,9 +145,6 @@ router.put('/orders/batch-status', async (req, res) => {
     };
     if (delivery_status === 'DELIVERED') {
       updateData.delivered_at = now;
-      if (proof_of_delivery_url) {
-        updateData.proof_of_delivery_url = proof_of_delivery_url;
-      }
     }
     
     // Update all orders (No fallback, let it throw if error)
