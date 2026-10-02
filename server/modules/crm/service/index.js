@@ -624,6 +624,10 @@ export async function getCustomerDeliveryInfo(customerIds) {
 }
 
 export async function updateDeliveryProof(customerId, proofUrl) {
+  if (proofUrl && proofUrl.startsWith('data:image')) {
+    console.warn('[CRM] Ignored appending base64 image to delivery notes.');
+    return { success: false, message: 'Base64 image ignored' };
+  }
   const currentNotes = await crmRepo.getCustomerDeliveryNotes(customerId);
   let newNotes = currentNotes;
   if (!currentNotes.includes(proofUrl)) {

@@ -504,11 +504,15 @@ export async function uploadPodPhoto(imageStr) {
         upsert: true
       });
 
-    if (!uploadErr) {
-      const { data: publicUrlData } = supabaseAdmin.storage.from('gallery').getPublicUrl(`proof_of_delivery/${filename}`);
-      if (publicUrlData?.publicUrl) {
-        return { success: true, url: publicUrlData.publicUrl };
-      }
+    if (uploadErr) {
+      throw new Error(`Storage upload failed: ${uploadErr.message}`);
+    }
+
+    const { data: publicUrlData } = supabaseAdmin.storage.from('gallery').getPublicUrl(`proof_of_delivery/${filename}`);
+    if (publicUrlData?.publicUrl) {
+      return { success: true, url: publicUrlData.publicUrl };
+    } else {
+      throw new Error('Failed to retrieve public URL from storage.');
     }
   } catch (e) {
     console.error('[POD_PHOTO_STORAGE_ERROR]', e.message);
