@@ -3,6 +3,8 @@ import multer from 'multer';
 import { dbFetch, dbInsert, supabase, supabaseAdmin } from '../lib/supabase.js';
 import { crmModule } from '../modules/crm/index.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -61,6 +63,24 @@ router.post('/apply', upload.single('resume'), async (req, res) => {
     let aiScore = null;
     let aiReasoning = null;
     let finalStatus = 'Applied';
+    let resumeText = '';
+
+    if (req.file) {
+      try {
+        if (req.file.mimetype === 'application/pdf') {
+          const pdfData = await pdfParse(req.file.buffer);
+          resumeText = pdfData.text;
+        } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          const docxData = await mammoth.extractRawText({ buffer: req.file.buffer });
+          resumeText = docxData.value;
+        } else {
+          resumeText = req.file.buffer.toString('utf-8').substring(0, 5000); // Fallback for txt
+        }
+      } catch (err) {
+        console.error('[Resume Text Extraction Error]', err);
+        resumeText = 'Could not extract text from the provided resume file due to an error.';
+      }
+    }
 
     // Evaluate with Gemini
     if (process.env.GEMINI_API_KEY) {
@@ -72,11 +92,22 @@ router.post('/apply', upload.single('resume'), async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const prompt = `
-        Evaluate this job application for the position: "${posTitle}".
-        Candidate Cover Letter/Notes/Resume Text: ${cover_letter || 'No cover letter provided. Assume general match.'}
+        You are a strict and professional Senior HR Manager. Evaluate this job application for the position: "${posTitle}".
+        
+        Candidate Cover Letter / Notes: 
+        ${cover_letter || 'No cover letter provided.'}
+        
+        Candidate Uploaded Resume Text:
+        ${resumeText || 'No resume file provided or text could not be extracted.'}
+        
+        Evaluate the candidate purely based on their resume experience and how well it matches the ${posTitle} position requirements.
+        If their resume experience is completely unrelated (e.g., AI Specialist applying for Assistant Chef), give them a very low score (1-3).
         
         Return ONLY valid JSON in exactly this format:
-        {"score": <integer 1-10>, "reasoning": "<brief justification>"}
+        {
+          "score": <integer 1-10>, 
+          "reasoning": "<brief justification in English>\\n\\nမြန်မာလို အကျဉ်းချုပ်: <Burmese summary of strengths, weaknesses, and why they got this score>"
+        }
         `;
         const result = await model.generateContent(prompt);
         const respText = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
