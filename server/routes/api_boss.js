@@ -246,7 +246,7 @@ router.post('/chat', async (req, res) => {
             },
             required: ["schema", "table", "columns"]
           }
-
+        },
         {
           name: "approve_leave_requests",
           description: "Approve pending leave requests. If employee_id is provided, approve only that employee's request. Otherwise approve ALL pending requests.",
