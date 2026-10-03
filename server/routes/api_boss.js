@@ -357,8 +357,7 @@ router.post('/chat', async (req, res) => {
       ]
     }];
 
-    const modelName = process.env.BOSS_AI_MODEL || "gemini-1.5-flash";
-    const model = genAI.getGenerativeModel({ model: modelName, tools });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", tools });
     
     const generateWithRetry = async (req) => {
       let retries = 3;
