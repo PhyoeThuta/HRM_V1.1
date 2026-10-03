@@ -168,11 +168,6 @@ router.post('/chat', async (req, res) => {
       .order('created_at', { ascending: true })
       .limit(10); // Provide some history
 
-    let historyStr = "";
-    if (pastMessages && pastMessages.length > 0) {
-      historyStr = "\n\nPAST CONVERSATION HISTORY:\n" + pastMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
-    }
-
     const prompt = `You are Busy Boss Diet AI, an omniscient and ACTION-TAKING AI executive assistant for the Boss.
     CURRENT DATE: ${new Date().toISOString().split('T')[0]}
 
@@ -210,16 +205,11 @@ router.post('/chat', async (req, res) => {
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
-    ${historyStr}
     
     2. Try to answer using 'fetch_table_records' if specific statistics, records, or aggregations are asked (e.g., total salaries, attendance counts). The limit has been increased to 5000 so you can fetch large datasets and aggregate them yourself.
     3. HUMAN-IN-THE-LOOP REQUIRED: Before executing ANY action tools (e.g. approve_leave_requests, extend_customer_package, create_kpi_task, send_team_announcement, etc.), YOU MUST explicitly ask the user for confirmation and WAIT for their "Yes" or "Confirm" response. Do NOT execute actions on your own initiative or based on assumptions.
     
-    Answer concisely in the Boss's language.
-    
-    === UNTRUSTED USER INPUT ===
-    The boss asks: <user_input>${message}</user_input>
-    === END UNTRUSTED USER INPUT ===`;
+    Answer concisely in the Boss's language.`;
 
     const tools = [{
       functionDeclarations: [
@@ -345,7 +335,11 @@ router.post('/chat', async (req, res) => {
       ]
     }];
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", tools });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash", 
+      tools,
+      systemInstruction: prompt 
+    });
     
     const generateWithRetry = async (req) => {
       let retries = 3;
@@ -363,7 +357,14 @@ router.post('/chat', async (req, res) => {
       }
     };
 
-    let history = [{ role: 'user', parts: [{ text: prompt }] }];
+    let history = [];
+    if (pastMessages && pastMessages.length > 0) {
+      history = pastMessages.map(m => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+    }
+    history.push({ role: 'user', parts: [{ text: message }] });
     let finalResponseText = "";
     let toolCallCount = 0;
 
