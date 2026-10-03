@@ -193,6 +193,7 @@ router.post('/chat', async (req, res) => {
     - public.boss_kpi_assignments (id, title, description, assigned_to_id, status, deadline)
     - public.attendance_records (id, employee_id, check_in, check_out, is_late, created_at) — Use this to check who is late (is_late=true) or who forgot to check out (check_out=null).
     - public.operations_orders (id, date, customer_id, daily_menu_id, count, delivery_status, created_at) — Use this to check delivery statuses for orders on a specific date.
+    - public.payrolls (id, employee_id, month, basic_salary, net_salary, payment_status, calculation_source, created_at) — Use this to check employee salaries.
     
     AVAILABLE ACTIONS (you can take these when the Boss commands you):
     - approve_leave_requests: Approve all pending leave requests or a specific one
@@ -211,10 +212,8 @@ router.post('/chat', async (req, res) => {
     ${contextStr}
     ${historyStr}
     
-    2. When writing SQL for 'execute_analytics_query', ensure it is purely READ-ONLY (SELECT).
-    3. If 'execute_analytics_query' returns a SQL error, analyze the error and try again with a corrected SQL query.
-    4. For simple record lookups (e.g., "What is John's phone number?"), you may use 'fetch_table_records'.
-    5. HUMAN-IN-THE-LOOP REQUIRED: Before executing ANY action tools (e.g. approve_leave_requests, extend_customer_package, create_kpi_task, send_team_announcement, etc.), YOU MUST explicitly ask the user for confirmation and WAIT for their "Yes" or "Confirm" response. Do NOT execute actions on your own initiative or based on assumptions.
+    2. Try to answer using 'fetch_table_records' if specific statistics, records, or aggregations are asked (e.g., total salaries, attendance counts). The limit has been increased to 5000 so you can fetch large datasets and aggregate them yourself.
+    3. HUMAN-IN-THE-LOOP REQUIRED: Before executing ANY action tools (e.g. approve_leave_requests, extend_customer_package, create_kpi_task, send_team_announcement, etc.), YOU MUST explicitly ask the user for confirmation and WAIT for their "Yes" or "Confirm" response. Do NOT execute actions on your own initiative or based on assumptions.
     
     Answer concisely in the Boss's language.
     
