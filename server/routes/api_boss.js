@@ -129,7 +129,8 @@ router.post('/chat', async (req, res) => {
       hrmModule.getAllLeaveRequests()
     ]);
 
-    let contextStr = `BASIC HR OVERVIEW:\nActive Employees: ${employees.length}\n`;
+    let employeeListStr = employees ? employees.map(e => `${e.Full_name} (ID: ${e.id})`).join(', ') : '';
+    let contextStr = `BASIC HR OVERVIEW:\nActive Employees (${employees?.length || 0}): ${employeeListStr}\n`;
 
     // --- RAG (Retrieval-Augmented Generation) SEMANTIC SEARCH ---
     // Generate embedding for the user's message
@@ -173,6 +174,8 @@ router.post('/chat', async (req, res) => {
     }
 
     const prompt = `You are Busy Boss Diet AI, an omniscient and ACTION-TAKING AI executive assistant for the Boss.
+    CURRENT DATE: ${new Date().toISOString().split('T')[0]}
+
     BILINGUAL INSTRUCTION: You are fully bilingual in English and Myanmar (Burmese).
     - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script).
     - If the user asks in English, reply in English.
@@ -396,6 +399,7 @@ router.post('/chat', async (req, res) => {
       }
       
       const call = functionCalls[0];
+      console.log('\n[BOSS CHAT] AI called tool:', call.name, '\n[BOSS CHAT] Args:', JSON.stringify(call.args, null, 2));
       let apiRes = {};
       
       try {
