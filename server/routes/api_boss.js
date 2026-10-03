@@ -125,7 +125,7 @@ router.post('/chat', async (req, res) => {
       employees, kpiAssigns, leaves
     ] = await Promise.all([
       dbFetch('Employees', 'id, Full_name, status, Dept_id', { status: 'Active' }),
-      dbFetch('boss_kpi_assignments', 'id, title, status, employee_id'),
+      dbFetch('boss_kpi_assignments', 'id, title, status, assigned_to_id'),
       hrmModule.getAllLeaveRequests()
     ]);
 
@@ -140,7 +140,6 @@ router.post('/chat', async (req, res) => {
       queryEmbedding = embedResult.embedding.values;
     } catch (embErr) {
       console.error('[BOSS CHAT] Embedding failed:', embErr);
-      throw embErr;
     }
 
     let extraKnowledge = "";
@@ -188,7 +187,7 @@ router.post('/chat', async (req, res) => {
     - crm.feedbacks (id, customer_id, rating, comment, created_at) — Use this to read customer feedbacks.
     - public.Employees (id, Full_name, Dept_id, phone, status)
     - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
-    - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
+    - public.boss_kpi_assignments (id, title, description, assigned_to_id, status, deadline)
     - public.attendance_records (id, employee_id, check_in, check_out, is_late, created_at) — Use this to check who is late (is_late=true) or who forgot to check out (check_out=null).
     - public.operations_orders (id, date, customer_id, daily_menu_id, count, delivery_status, created_at) — Use this to check delivery statuses for orders on a specific date.
     
@@ -521,8 +520,8 @@ router.post('/chat', async (req, res) => {
           const { title, description, employee_id, due_date } = call.args;
           const { data: task, error } = await supabaseAdmin.from('boss_kpi_assignments').insert({
             title, description: description || null,
-            assigned_to_emp: employee_id,
-            due_date: due_date || null,
+            assigned_to_id: employee_id,
+            deadline: due_date || null,
             status: 'Assigned',
             created_at: new Date().toISOString()
           }).select().single();
@@ -752,9 +751,9 @@ router.post('/kpi', async (req, res) => {
     const d = req.body;
     await dbInsert('boss_kpi_assignments', {
       title: d.title, description: d.description || null,
-      assigned_to_role: d.assigned_to_role || null,
-      assigned_to_emp: d.assigned_to_emp || null,
-      due_date: d.due_date || null,
+      assigned_to_name: d.assigned_to_role || null,
+      assigned_to_id: d.assigned_to_emp || null,
+      deadline: d.due_date || null,
       status: 'Assigned',
       created_at: new Date().toISOString()
     });
