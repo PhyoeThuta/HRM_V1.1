@@ -246,18 +246,7 @@ router.post('/chat', async (req, res) => {
             },
             required: ["schema", "table", "columns"]
           }
-        },
-        {
-          name: "execute_analytics_query",
-          description: "Execute a dynamic Read-Only SQL (PostgreSQL) query to get EXACT analytical data, aggregations, counts, sums, or complex joins.",
-          parameters: {
-            type: "OBJECT",
-            properties: {
-              sql_query: { type: "STRING", description: "The raw PostgreSQL SELECT query to execute. MUST be read-only." }
-            },
-            required: ["sql_query"]
-          }
-        },
+
         {
           name: "approve_leave_requests",
           description: "Approve pending leave requests. If employee_id is provided, approve only that employee's request. Otherwise approve ALL pending requests.",
@@ -429,7 +418,7 @@ router.post('/chat', async (req, res) => {
           };
         } else if (call.name === "fetch_table_records") {
           const { schema, table, columns, filter_column, filter_value, limit, date_filter_column, date_filter_value } = call.args;
-          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 50, 200));
+          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 500, 5000));
           if (filter_column && filter_value !== undefined) {
             const valLower = String(filter_value).toLowerCase();
             if (valLower === 'true') {
@@ -462,15 +451,6 @@ router.post('/chat', async (req, res) => {
           const { data, error } = await q;
           if (error) throw error;
           apiRes = { records: data || [] };
-
-        } else if (call.name === "execute_analytics_query") {
-          const { sql_query } = call.args;
-          const { data, error } = await supabaseAdmin.rpc('execute_read_only_sql', { query_text: sql_query });
-          if (error) {
-            apiRes = { error: "SQL Execution Failed", details: error.message || error, suggestion: "Check your SQL syntax and try again." };
-          } else {
-            apiRes = { data: data || [] };
-          }
 
         } else if (call.name === "approve_leave_requests") {
           const { employee_id } = call.args;
