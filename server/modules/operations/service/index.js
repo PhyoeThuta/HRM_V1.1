@@ -435,7 +435,7 @@ export async function assignRiderToOrder(orderId, riderId) {
         const orderData = {
           orderId: order.id,
           customerName: customer ? customer.full_name : 'Unknown',
-          deliveryAddress: order.custom_delivery_address || (customer ? customer.address : 'Not specified'),
+          deliveryAddress: order.custom_delivery_address || (customer ? (customer.delivery_address || customer.address) : 'Not specified'),
           phone: customer ? customer.phone : 'Not specified'
         };
 

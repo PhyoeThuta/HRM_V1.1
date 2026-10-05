@@ -251,14 +251,14 @@ export async function getSegmentInquiriesFollowUp() {
 export async function getCustomerDeliveryInfo(customerIds) {
   try {
     const { data: customers, error } = await supabaseAdmin.schema('crm').from('customers')
-      .select('id, full_name, phone, delivery_address, delivery_notes, delivery_spot_photo_url')
+      .select('id, full_name, phone, address, delivery_address, delivery_notes, delivery_spot_photo_url')
       .in('id', customerIds);
     if (error) throw error;
     return customers || [];
   } catch (e) {
     // Fallback if delivery_spot_photo_url column is missing
     const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-      .select('id, full_name, phone, delivery_address, delivery_notes')
+      .select('id, full_name, phone, address, delivery_address, delivery_notes')
       .in('id', customerIds);
     return customers || [];
   }
