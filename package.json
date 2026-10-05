@@ -7,5 +7,8 @@
     "dev": "npx concurrently \"npm run dev --prefix server\" \"npm run dev --prefix hrm-client\"",
     "build": "npm run build --prefix hrm-client",
     "start": "npm start --prefix server"
+  },
+  "dependencies": {
+    "puppeteer": "^25.12.0"
   }
 }

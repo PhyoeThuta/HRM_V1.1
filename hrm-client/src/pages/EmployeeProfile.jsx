@@ -110,7 +110,7 @@ function BotIntegrationSection({ employeeId }) {
               </div>
             )}
           </div>
-        ) : (!isTelegramLinked && !isLineLinked) ? (
+        ) : (!isTelegramLinked || !isLineLinked) ? (
           <button 
             onClick={() => generateMutation.mutate()}
             disabled={generateMutation.isLoading}
