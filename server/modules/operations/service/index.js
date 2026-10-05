@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../lib/supabase.js';
 import { crmModule } from '../../crm/index.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
 import { sendOrderAssignmentToLine } from '../../webhooks/service/lineService.js';
+import { sendOrderAssignmentToTelegram } from '../../webhooks/service/telegramRiderService.js';
 import xlsx from 'xlsx';
 // MENUS
 // ==========================================
@@ -442,6 +443,11 @@ export async function assignRiderToOrder(orderId, riderId) {
         // Fire and forget LINE Notification
         sendOrderAssignmentToLine(riderId, orderData).catch(err => {
           console.error('[LINE_NOTIFY_ERROR_IN_OPS]', err);
+        });
+
+        // Fire and forget Telegram Notification
+        sendOrderAssignmentToTelegram(riderId, orderData).catch(err => {
+          console.error('[TELEGRAM_NOTIFY_ERROR_IN_OPS]', err);
         });
       }
     } catch (notifyErr) {

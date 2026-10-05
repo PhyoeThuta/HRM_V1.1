@@ -1,5 +1,6 @@
 import express from 'express';
 import { lineMiddleware, handleLineEvent } from '../modules/webhooks/controller/lineController.js';
+import { handleTelegramWebhook } from '../modules/webhooks/controller/telegramRiderController.js';
 
 const router = express.Router();
 
@@ -23,5 +24,18 @@ router.post('/line', lineMiddleware, async (req, res) => {
     res.status(500).end();
   }
 });
+
+// Webhook for Telegram Rider Bot
+router.post('/telegram-rider', (req, res, next) => {
+  const webhookSecret = process.env.TELEGRAM_RIDER_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (incomingSecret !== webhookSecret) {
+      console.warn('[TELEGRAM RIDER WEBHOOK] Unauthorized request. IP:', req.ip);
+      return res.sendStatus(401);
+    }
+  }
+  next();
+}, handleTelegramWebhook);
 
 export default router;

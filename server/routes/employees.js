@@ -173,11 +173,12 @@ router.get('/:id/line-status', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    const sysUser = await dbFetchOne('sys_users', 'bot_linking_code, line_user_id', { employee_id: eid });
-    if (!sysUser) return res.json({ isLinked: false, code: null });
+    const sysUser = await dbFetchOne('sys_users', 'bot_linking_code, line_user_id, telegram_chat_id', { employee_id: eid });
+    if (!sysUser) return res.json({ isLinked: false, isTelegramLinked: false, code: null });
 
     return res.json({ 
       isLinked: !!sysUser.line_user_id, 
+      isTelegramLinked: !!sysUser.telegram_chat_id,
       code: sysUser.bot_linking_code 
     });
   } catch (e) {
@@ -196,18 +197,18 @@ router.post('/:id/line-link-code', async (req, res) => {
     }
 
     // Find the corresponding sys_user id for this employee
-    const sysUser = await dbFetchOne('sys_users', 'id, full_name, bot_linking_code, line_user_id', { employee_id: eid });
+    const sysUser = await dbFetchOne('sys_users', 'id, full_name, bot_linking_code, line_user_id, telegram_chat_id', { employee_id: eid });
     if (!sysUser) {
       return res.status(404).json({ error: 'System user account not found for this employee' });
     }
 
     // If already has a code, just return it
     if (sysUser.bot_linking_code) {
-      return res.json({ success: true, code: sysUser.bot_linking_code, isLinked: !!sysUser.line_user_id });
+      return res.json({ success: true, code: sysUser.bot_linking_code, isLinked: !!sysUser.line_user_id, isTelegramLinked: !!sysUser.telegram_chat_id });
     }
 
     const newCode = await generateBotLinkingCode(sysUser.id);
-    return res.json({ success: true, code: newCode, isLinked: !!sysUser.line_user_id });
+    return res.json({ success: true, code: newCode, isLinked: !!sysUser.line_user_id, isTelegramLinked: !!sysUser.telegram_chat_id });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
