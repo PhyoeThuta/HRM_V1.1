@@ -71,7 +71,7 @@ export default function AssignPackageForm({
     const selectedPkg = availablePackages.find(p => p.name === val);
     if (selectedPkg) {
       let days = 30;
-      const durStr = (selectedPkg.duration || '').toLowerCase();
+      const durStr = (selectedPkg.duration || '30 Days').toLowerCase();
       if (durStr.includes('month')) days = (parseInt(durStr) || 1) * 30;
       else if (durStr.includes('week')) days = (parseInt(durStr) || 1) * 7;
       else if (durStr.includes('day')) days = parseInt(durStr) || 1;
@@ -95,8 +95,8 @@ export default function AssignPackageForm({
       setPackageForm({
         ...packageForm,
         name: selectedPkg.name,
-        duration: selectedPkg.duration,
-        amount: selectedPkg.price,
+        duration: selectedPkg.duration || '30 Days',
+        amount: Number(selectedPkg.price) || 0,
         meal_type: mappedMealType,
         meal_count: mealsPerDay * mealDays,
         start_date: startDate.toISOString().split('T')[0],
@@ -111,18 +111,31 @@ export default function AssignPackageForm({
   const handleAssignPackage = async (e) => {
     e.preventDefault();
     try {
+      // Ensure data types are correct before sending
+      const payload = {
+        ...packageForm,
+        amount: Number(packageForm.amount),
+        meal_count: Number(packageForm.meal_count),
+        duration: packageForm.duration || '30 Days'
+      };
+
       if (editingPackageId) {
-        const updatedPkg = await crmApi.updateAssignedPackage(editingPackageId, packageForm);
+        const updatedPkg = await crmApi.updateAssignedPackage(editingPackageId, payload);
         toast.success('Package updated successfully!');
         onSuccess(updatedPkg, true);
       } else {
-        const newPkg = await crmApi.assignPackage(customerId, packageForm);
+        const newPkg = await crmApi.assignPackage(customerId, payload);
         toast.success('Package successfully assigned!');
         onSuccess(newPkg, false);
       }
       onClose();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to save package. Please check data format.');
+      if (err?.response?.data?.details && Array.isArray(err.response.data.details)) {
+        // Show the specific Zod validation error messages
+        err.response.data.details.forEach(detail => toast.error(`${detail.path.join('.')}: ${detail.message}`));
+      } else {
+        toast.error(err?.response?.data?.error || 'Failed to save package. Please check data format.');
+      }
       console.error(err);
     }
   };
