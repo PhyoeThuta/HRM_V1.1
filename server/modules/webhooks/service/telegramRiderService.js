@@ -105,6 +105,32 @@ export async function editTelegramMessageText(chatId, messageId, text) {
   }
 }
 
+export async function sendTelegramPhoto(chatId, photoUrl, caption, replyMarkup = null) {
+  if (!process.env.TELEGRAM_RIDER_BOT_TOKEN) {
+    console.warn('[TELEGRAM RIDER] Token missing. Skipping message.');
+    return;
+  }
+  try {
+    const payload = { chat_id: chatId, photo: photoUrl, caption, parse_mode: 'HTML' };
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
+    const response = await fetch(`${getTelegramApi()}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[TELEGRAM RIDER ERROR]', errorData);
+      throw new Error(JSON.stringify(errorData));
+    }
+  } catch (error) {
+    console.error('[TELEGRAM RIDER ERROR]', error.message);
+    throw error;
+  }
+}
+
 /**
  * Sends a well-formatted message to the Rider when an order is assigned.
  * @param {string} riderSysUserId The sys_users ID of the Rider
@@ -129,16 +155,22 @@ export async function sendOrderAssignmentToTelegram(riderSysUserId, orderData) {
     const redirectUrl = `/operations/rider?auto_pickup=true&order_id=${orderData.orderId}`;
     const magicUri = `https://bbd-hrm.aiautono.io/api/auth/magic-link?token=${magicToken}&redirect=${encodeURIComponent(redirectUrl)}`;
 
-    // 2. Build the Message Text
-    const text = `📦 <b>NEW ORDER ASSIGNED</b>\n\n` +
-                 `<b>Order:</b> #${orderData.orderId || 'BBD-XXX'}\n` +
-                 `<b>Customer:</b> ${orderData.customerName || 'Unknown'}\n\n` +
-                 `📍 <b>Address:</b>\n${orderData.deliveryAddress || 'Not specified'}\n\n` +
-                 `📞 <b>Phone:</b>\n${orderData.phone || 'Not specified'}`;
+    // 2. Build the Message Text (Using Blockquotes and Code blocks for a Card-like feel)
+    const text = `🚚 <b>NEW ORDER ASSIGNED</b>\n\n` +
+                 `<blockquote>` +
+                 `<b>Order ID:</b> <code>#${orderData.orderId || 'BBD-XXX'}</code>\n` +
+                 `<b>Customer:</b> ${orderData.customerName || 'Unknown'}\n` +
+                 `<b>Phone:</b> ${orderData.phone || 'Not specified'}\n` +
+                 `</blockquote>\n\n` +
+                 `📍 <b>Delivery Address:</b>\n` +
+                 `<code>${orderData.deliveryAddress || 'Not specified'}</code>`;
 
     // 3. Build Inline Keyboard
     const replyMarkup = {
       inline_keyboard: [
+        [
+          { text: '📍 Open Map', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(orderData.deliveryAddress || '')}` }
+        ],
         [
           { text: '🚀 Pick Up Order (Open App)', url: magicUri }
         ],
@@ -148,8 +180,9 @@ export async function sendOrderAssignmentToTelegram(riderSysUserId, orderData) {
       ]
     };
 
-    // 4. Send the message
-    await sendTelegramMessage(user.telegram_chat_id, text, replyMarkup);
+    // 4. Send the message with a visually appealing banner image
+    const bannerUrl = 'https://images.unsplash.com/photo-1617865916962-d9e8df457c15?q=80&w=800&auto=format&fit=crop';
+    await sendTelegramPhoto(user.telegram_chat_id, bannerUrl, text, replyMarkup);
 
     console.log(`[TELEGRAM NOTIFICATION] Successfully sent order assignment to ${user.telegram_chat_id}`);
     return { success: true };
