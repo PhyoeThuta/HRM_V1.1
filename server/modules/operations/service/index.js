@@ -390,32 +390,12 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
     
     // AUTO TRIGGER TELEGRAM CHEF ALERT
     try {
-      const fetch = (await import('node-fetch')).default || globalThis.fetch;
-      
-      // We need to fetch the Kitchen Dashboard data to get the BOM for the chef
-      const dashRes = await fetch(`${protocol}://${host}/api/crm/kitchen-dashboard?date=${targetDate}`, {
-        headers: { 'Authorization': authorizationHeader } // pass token
-      });
-      const dashData = await dashRes.json();
-      
-      if (dashData && dashData.dailyMenus) {
-        // Send to Chef Telegram
-        await fetch(`${protocol}://${host}/api/telegram/send-to-chef`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': authorizationHeader 
-          },
-          body: JSON.stringify({
-            targetDate,
-            dailyMenus: dashData.dailyMenus,
-            aggregatedBOM: dashData.aggregatedBOM
-          })
-        });
-      }
+      const { checkAndSendKitchenAlert } = await import('../../../cron/kitchen_alerts.js');
+      await checkAndSendKitchenAlert(targetDate);
     } catch (tgErr) {
       console.error('[AUTO GENERATE -> CHEF ALERT ERROR]', tgErr);
-      throw tgErr;
+      // We don't throw tgErr here because order generation succeeded and we don't want to 500 the whole request
+      // just because Telegram/Messenger alerts failed.
     }
   }
 
