@@ -26,7 +26,7 @@ router.post('/line', lineMiddleware, async (req, res) => {
 });
 
 // Webhook for Telegram Rider Bot
-router.post('/telegram-rider', (req, res, next) => {
+router.post('/telegram-rider', express.json(), (req, res, next) => {
   const webhookSecret = process.env.TELEGRAM_RIDER_WEBHOOK_SECRET;
   if (webhookSecret) {
     const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
