@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 import AssignPackageForm from '../../components/crm/AssignPackageForm';
 import { parseDeliverySpotPhotoAndNotes } from '../../utils/deliveryUtils';
+import CustomerPackagesList from '../../components/crm/CustomerPackagesList';
 
 export default function CustomerDetail() {
   const { id } = useParams();
