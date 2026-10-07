@@ -141,8 +141,25 @@ router.get('/customers', verifyToken, async (req, res) => {
       const totalSpend = rawPackages.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
       const packageCount = rawPackages.length;
       
-      const activePkg = rawPackages.find(p => ['Active', 'Paused', 'Booking Confirmed', 'Upcoming'].includes(p.status));
+      // Determine "is_active" using BOTH status and expiry date.
+      // This ensures the Customer List page is always consistent with the Dashboard count.
+      const _today = new Date();
+      _today.setHours(0, 0, 0, 0);
+
+      const activePkg = rawPackages.find(p => {
+        const hasValidStatus = ['Active', 'Paused', 'Booking Confirmed', 'Upcoming'].includes(p.status);
+        if (!hasValidStatus) return false;
+
+        // A package is only truly active if it has NOT expired yet
+        const expiresAtDate = p.expires_at ? new Date(p.expires_at) : null;
+        if (!expiresAtDate) return false; // No expiry date = treat as not active (data integrity)
+        expiresAtDate.setHours(0, 0, 0, 0);
+
+        return expiresAtDate >= _today;
+      });
+
       const isActive = !!activePkg;
+      // Only show package names for active packages to avoid confusing expired plan names
       const packageNames = rawPackages.map(p => p.name).filter(Boolean);
 
       // Determine level based on totalSpend range
