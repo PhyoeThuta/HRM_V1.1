@@ -654,7 +654,7 @@ export async function completeOnboarding(token, formData) {
       : (formData.delivery_notes || null);
 
     const custObj = {
-      full_name: formData.full_name,
+      full_name: formData.name || formData.full_name,
       facebook_name: inquiry.prospect_name || null,
       age: formData.age ? parseInt(formData.age) : null,
       gender: formData.gender || 'Unknown',
