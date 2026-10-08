@@ -73,12 +73,37 @@ export async function handleLineEvent(event) {
     });
   }
   
-  if (text.startsWith('LINK-')) {
-    // Extract the code (e.g. from "LINK-A7X9B2" -> "A7X9B2")
-    const code = text.replace('LINK-', '').trim().toUpperCase();
+  if (text.startsWith('LINK-') || text.startsWith('#LINK-')) {
+    // Extract the code (e.g. from "#LINK-CUS_A7X9B2" -> "CUS_A7X9B2")
+    const codeStr = text.replace('#LINK-', '').replace('LINK-', '').trim().toUpperCase();
     
-    // Call the database service to bind the user
-    const result = await linkLineAccount(code, userId);
+    // Check if it's a Customer (Magic Link prefix)
+    if (codeStr.startsWith('CUS_')) {
+      const customerId = codeStr.replace('CUS_', '');
+      
+      const { data: customer, error } = await supabaseAdmin.schema('crm')
+        .from('customers')
+        .update({ line_id: String(userId), preferred_channel: 'LINE' })
+        .eq('id', customerId)
+        .select('full_name')
+        .single();
+        
+      if (error || !customer) {
+        console.error('[LINE_CUSTOMER_LINK_ERROR]', error);
+        return client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ Failed to link account. Please try again or contact support.` }]
+        });
+      } else {
+        return client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ Welcome, ${customer.full_name}! နေ့စဉ် BBD Delivery Alert များနှင့် Menu များကို ဤနေရာမှ ပို့ပေးပါမည်။` }]
+        });
+      }
+    }
+
+    // Call the database service to bind the user (Rider Fallback)
+    const result = await linkLineAccount(codeStr, userId);
 
     if (result.success) {
       return client.replyMessage({
