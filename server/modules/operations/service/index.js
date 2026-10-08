@@ -295,6 +295,23 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
     return { success: true, generatedCount: 0, message: 'No active customer packages found in database.' };
   }
 
+  // Auto-activate any Upcoming packages that have reached their start date
+  const upcomingToActivate = activePackages.filter(p => p.status === 'Upcoming' || p.status === 'UPCOMING');
+  if (upcomingToActivate.length > 0) {
+    const upcomingIds = upcomingToActivate.map(p => p.id);
+    try {
+      await supabaseAdmin.schema('crm').from('customer_packages')
+        .update({ status: 'Active' })
+        .in('id', upcomingIds);
+      
+      activePackages = activePackages.map(p => 
+        upcomingIds.includes(p.id) ? { ...p, status: 'Active' } : p
+      );
+    } catch (actErr) {
+      console.error('[OPS_AUTO_ACTIVATE_ERROR]', actErr.message);
+    }
+  }
+
   // Extract needed meal types from active packages
   const neededMealTypes = new Set();
   activePackages.forEach(pkg => {

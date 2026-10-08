@@ -754,7 +754,8 @@ export async function completeOnboarding(token, formData) {
       amount: pkg.price || 0,
       payment_status: 'Paid',
       meal_type: mealType,
-      meal_count: calculatedMealCount
+      meal_count: calculatedMealCount,
+      start_date: startDate.toISOString().split('T')[0]
     });
   }
 

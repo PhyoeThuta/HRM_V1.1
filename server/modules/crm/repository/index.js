@@ -142,7 +142,9 @@ export async function getCustomerPackagesGteExpiresAt(targetDate) {
   return supabaseAdmin.schema('crm')
     .from('customer_packages')
     .select('*')
-    .or(`status.eq.Active,status.eq.ACTIVE,payment_status.eq.Paid`)
+    .eq('payment_status', 'Paid')
+    .in('status', ['Active', 'Upcoming', 'ACTIVE'])
+    .or(`start_date.lte.${targetDate},start_date.is.null`)
     .gte('expires_at', targetDate);
 }
 
