@@ -508,10 +508,19 @@ export default function CustomerEnrollment() {
   if (isSuccess) {
     // Magic Links for MVP testing (using Rider bot as requested)
     const telegramBotName = 'DDB565_bot'; 
-    const lineBotId = 'YOUR_LINE_BOT_ID'; // e.g. bbdbot
     
     const telegramLink = `https://t.me/${telegramBotName}?start=cus_${customerId}`;
-    const lineLink = `https://line.me/R/oaMessage/@${lineBotId}/?text=%23LINK-cus_${customerId}`;
+    const magicCode = `#LINK-cus_${customerId}`;
+
+    const handleLineCopy = (e) => {
+      e.preventDefault();
+      navigator.clipboard.writeText(magicCode);
+      toast.success('Code copied! Please paste and send this to the DDB LINE Bot.');
+      // Fallback attempt to open LINE generally if they are on mobile
+      setTimeout(() => {
+        window.open('https://line.me/R/', '_blank');
+      }, 1500);
+    };
 
     return (
       <div className="min-h-screen flex items-center justify-center overflow-hidden relative bg-slate-50 dark:bg-surface-950 py-12">
@@ -544,14 +553,16 @@ export default function CustomerEnrollment() {
                   Connect via Telegram
                 </a>
                 
-                <a 
-                  href={lineLink}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl bg-[#00B900] hover:bg-[#009900] text-white font-bold transition-all shadow-lg shadow-[#00B900]/20 hover:scale-[1.02]"
+                <button 
+                  onClick={handleLineCopy}
+                  className="flex flex-col items-center justify-center gap-1 w-full py-2.5 rounded-xl bg-[#00B900] hover:bg-[#009900] text-white font-bold transition-all shadow-lg shadow-[#00B900]/20 hover:scale-[1.02]"
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .26-.148.422-.397.422h-1.427V8.108c0-.26.159-.422.4-.422h1.427v1.125h-1.027v1.125h1.027v1.125h-1.027v1.125h1.027v1.125zm-3.24 2.746h-1.427V8.108h1.427v7.517zm-3.24-7.517v5.392h-1.027V8.108h1.027zM24 10.298C24 4.607 18.622 0 12 0 5.378 0 0 4.607 0 10.298c0 5.111 4.549 9.388 10.428 10.158.42.09.98.27 1.135.63.136.326.089.83.043 1.16l-.18 1.09c-.057.34-.265 1.29 1.135.7 1.398-.59 7.551-4.44 10.338-7.63C23.593 14.9 24 12.69 24 10.298z"/></svg>
-                  Connect via LINE
-                </a>
+                  <div className="flex items-center gap-3">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .26-.148.422-.397.422h-1.427V8.108c0-.26.159-.422.4-.422h1.427v1.125h-1.027v1.125h1.027v1.125h-1.027v1.125h1.027v1.125zm-3.24 2.746h-1.427V8.108h1.427v7.517zm-3.24-7.517v5.392h-1.027V8.108h1.027zM24 10.298C24 4.607 18.622 0 12 0 5.378 0 0 4.607 0 10.298c0 5.111 4.549 9.388 10.428 10.158.42.09.98.27 1.135.63.136.326.089.83.043 1.16l-.18 1.09c-.057.34-.265 1.29 1.135.7 1.398-.59 7.551-4.44 10.338-7.63C23.593 14.9 24 12.69 24 10.298z"/></svg>
+                    Connect via LINE
+                  </div>
+                  <span className="text-[10px] font-normal text-white/80">Click to copy code & open LINE to send to DDB Bot</span>
+                </button>
               </div>
             </div>
           </div>
