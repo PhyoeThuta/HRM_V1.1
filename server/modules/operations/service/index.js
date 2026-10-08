@@ -5,6 +5,7 @@ import { crmModule } from '../../crm/index.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../../../lib/crmRealtime.js';
 import { sendOrderAssignmentToLine } from '../../webhooks/service/lineService.js';
 import { sendOrderAssignmentToTelegram } from '../../webhooks/service/telegramRiderService.js';
+import { notificationRouter } from '../../webhooks/service/notificationRouter.js';
 import xlsx from 'xlsx';
 // MENUS
 // ==========================================
@@ -798,7 +799,7 @@ export async function updateRiderStatus(id, status, proofUrl, userId) {
 
   if (status === 'ON_THE_WAY' || status === 'DELIVERED') {
     if (order?.customer_id) {
-      sendDeliveryZernioMessage(order.customer_id, id, status, proofUrl).catch(e => console.error('[Rider Status Zernio]', e));
+      notificationRouter.sendDeliveryNotification(order.customer_id, id, status, proofUrl);
     }
   }
   

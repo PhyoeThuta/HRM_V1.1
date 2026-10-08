@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabase.js';
 import fetch from 'node-fetch';
 import { crmModule } from '../modules/crm/index.js';
+import { notificationRouter } from '../modules/webhooks/service/notificationRouter.js';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.CHEF_CHAT_ID || process.env.TELEGRAM_CHAT_ID; // Fallback to Chef/General chat ID if Admin ID is not set
@@ -108,76 +109,32 @@ export async function checkAndNotifyFollowups() {
         let sentViaZernio = false;
         let zernioError = null;
 
-        // Try to send via Zernio automatically
-        if (zernioApiKey && pkg.customer_id) {
+        if (pkg.customer_id) {
           try {
-            // Find inquiries for this customer to get conversationId
-            const { data: inquiries } = await supabaseAdmin.schema('crm')
-              .from('inquiries')
-              .select('id')
-              .eq('customer_id', pkg.customer_id);
-
-            if (inquiries && inquiries.length > 0) {
-              const inquiryIds = inquiries.map(i => i.id);
-              const { data: prospectMsgs } = await supabaseAdmin.schema('crm')
-                .from('inquiries_messages')
-                .select('metadata')
-                .in('inquiry_id', inquiryIds)
-                .eq('sender_type', 'prospect')
-                .not('metadata', 'is', null)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-              if (prospectMsgs && prospectMsgs.length > 0) {
-                const meta = prospectMsgs[0].metadata;
-                const conversationId = meta?.message?.conversationId || meta?.conversationId;
-
-                if (conversationId) {
-                  const zernioResponse = await fetch(`https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${zernioApiKey}`
-                    },
-                    body: JSON.stringify({
-                      accountId: zernioAccountId,
-                      message: messageText
-                    })
-                  });
-
-                  if (zernioResponse.ok) {
-                    sentViaZernio = true;
-                    // Save this automated message into the chat history (inquiries_messages) so it appears in the CRM Dashboard
-                    try {
-                      await supabaseAdmin.schema('crm')
-                        .from('inquiries_messages')
-                        .insert({
-                          inquiry_id: inquiryIds[0],
-                          message_text: messageText,
-                          sender_type: 'admin', // or 'ai_bot'
-                          metadata: { automated_reminder: true, conversationId }
-                        });
-                    } catch (saveErr) {
-                      console.error('[CRON] Failed to save automated message to inquiries_messages:', saveErr.message);
-                    }
-                  } else {
-                    const errObj = await zernioResponse.json();
-                    zernioError = errObj.error || 'Zernio API Error';
-                  }
-                } else {
-                  zernioError = 'No Conversation ID found in metadata';
-                }
-              } else {
-                zernioError = 'No prospect messages found to reply to';
+            const expireDateStr = expiresAt.toISOString().split('T')[0];
+            await notificationRouter.sendRenewalNotification(pkg.customer_id, customer.full_name, expireDateStr);
+            sentViaZernio = true; // Still using this var name for the success message below
+            
+            // Try to log it in inquiries_messages for CRM Dashboard history
+            try {
+              const { data: inqs } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', pkg.customer_id).limit(1);
+              if (inqs && inqs.length > 0) {
+                await supabaseAdmin.schema('crm').from('inquiries_messages').insert({
+                  inquiry_id: inqs[0].id,
+                  message_text: messageText,
+                  sender_type: 'admin',
+                  metadata: { automated_reminder: true, multi_channel: true }
+                });
               }
-            } else {
-              zernioError = 'No CRM inquiries found for customer';
+            } catch (e) {
+              console.error('[CRON] Failed to save automated log', e.message);
             }
+            
           } catch (e) {
             zernioError = e.message;
           }
         } else {
-          zernioError = 'Zernio API Key missing or no customer_id';
+          zernioError = 'No customer_id available for notification';
         }
 
         const fbLink = customer.facebook_name ? `https://m.me/${encodeURIComponent(customer.facebook_name)}` : 'No FB Link';

@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { notificationRouter } from '../modules/webhooks/service/notificationRouter.js';
 
 export async function checkAndNotifyDailyFeedback() {
   console.log('[CRON] Starting daily feedback check...');
@@ -36,38 +37,11 @@ export async function checkAndNotifyDailyFeedback() {
       }
     }
 
-    // 3. For each customer, generate a unique link and send Zernio message
-    for (const customer of customersToNotify) {
+    // 3. For each customer, route via notificationRouter
+    for (const customer of activePackages.map(p => p.customers).filter(Boolean)) {
       try {
-        // Link: e.g. https://bbd-hrm.aiautono.io/daily-feedback/[customer_id]?date=YYYY-MM-DD
-        const domain = process.env.FRONTEND_URL || 'http://localhost:5173';
-        const link = `${domain}/daily-feedback/${customer.id}?date=${today}`;
-        
-        const messageText = `Hi ${customer.full_name}, we hope you enjoyed your meals today! 🍲\n\nPlease let us know your feedback on today's menu by clicking the link below. Your ratings help us improve our quality! 👇\n\n${link}`;
-
-        // Send message via Zernio API (Assuming standard POST request to Zernio endpoint, similar to emitInquiryMessage logic, but direct)
-        // Here we'll just log it for the demo, or if you have a sendZernioMessage helper, we can use it.
-        const response = await fetch('https://api.zernio.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
-          },
-          body: JSON.stringify({
-            account_id: process.env.ZERNIO_ACCOUNT_ID,
-            to: customer.platform_id,
-            type: 'text',
-            text: messageText
-          })
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error(`[CRON] Failed to send to ${customer.full_name}:`, errText);
-          throw new Error(errText);
-        } else {
-          count++;
-        }
+        await notificationRouter.sendFeedbackNotification(customer.id, customer.full_name, today);
+        count++;
       } catch (err) {
         console.error(`[CRON] Error notifying ${customer?.full_name}:`, err.message);
         throw err;

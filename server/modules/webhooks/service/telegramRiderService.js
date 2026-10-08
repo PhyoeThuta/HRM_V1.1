@@ -191,3 +191,66 @@ export async function sendOrderAssignmentToTelegram(riderSysUserId, orderData) {
     return { success: false, error: error.message };
   }
 }
+
+// ==========================================
+// CUSTOMER TELEGRAM NOTIFICATIONS
+// ==========================================
+
+export async function sendCustomerDeliveryAlertToTelegram(telegramChatId, orderData) {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const trackLink = `${frontendUrl}/track/${orderData.orderId}`;
+    const isDelivered = orderData.status === 'DELIVERED';
+    
+    const bannerUrl = isDelivered 
+      ? 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=800&auto=format&fit=crop' 
+      : 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=800&auto=format&fit=crop';
+
+    const text = isDelivered 
+      ? `✅ <b>DELIVERED</b>\n\n<blockquote>ရောက်ပါပြီရှင့်! 🍽️\nမင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များကို အောင်မြင်စွာ ပို့ဆောင်ပြီးပါပြီ။</blockquote>`
+      : `🚚 <b>ON THE WAY</b>\n\n<blockquote>လာပို့နေပါပြီရှင့်! 🛵\nမင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များ ယခု စတင်ထွက်ခွာလာပါပြီ။</blockquote>`;
+
+    const replyMarkup = isDelivered ? null : {
+      inline_keyboard: [
+        [{ text: '📍 Live Tracking ကြည့်ရန်', url: trackLink }]
+      ]
+    };
+
+    await sendTelegramPhoto(telegramChatId, bannerUrl, text, replyMarkup);
+  } catch (error) {
+    console.error(`[TELEGRAM CUSTOMER DELIVERY ERROR]`, error.message);
+  }
+}
+
+export async function sendCustomerFeedbackToTelegram(telegramChatId, data) {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const feedbackLink = `${frontendUrl}/feedback/${data.customerId}?token=${data.token}`;
+    
+    const bannerUrl = 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop';
+    
+    const text = `⭐ <b>DAILY FEEDBACK</b>\n\n<blockquote>အရသာ ဘယ်လိုနေလဲရှင့်?\nယနေ့အတွက် BBD ရဲ့ အစားအသောက်နဲ့ ဝန်ဆောင်မှုအပေါ် သဘောထားလေးကို မှတ်ချက်ပေးလို့ရပါတယ်ရှင့်။</blockquote>`;
+
+    const replyMarkup = {
+      inline_keyboard: [
+        [{ text: '📝 Feedback ပေးရန်', url: feedbackLink }]
+      ]
+    };
+
+    await sendTelegramPhoto(telegramChatId, bannerUrl, text, replyMarkup);
+  } catch (error) {
+    console.error(`[TELEGRAM CUSTOMER FEEDBACK ERROR]`, error.message);
+  }
+}
+
+export async function sendCustomerRenewalToTelegram(telegramChatId, data) {
+  try {
+    const bannerUrl = 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=800&auto=format&fit=crop';
+    
+    const text = `⏳ <b>EXPIRING SOON</b>\n\n<blockquote>Package သက်တမ်းကုန်တော့မည်\n\nမင်္ဂလာပါ ${data.customerName}၊\nလူကြီးမင်းယူထားသော BBD Package သက်တမ်းသည် <b>${data.expireDateStr}</b> တွင် ကုန်ဆုံးမည်ဖြစ်ပါသဖြင့် ဆက်လက်မှာယူလိုပါက Admin သို့ ဆက်သွယ်နိုင်ပါသည်ရှင့် 💖</blockquote>`;
+
+    await sendTelegramPhoto(telegramChatId, bannerUrl, text, null);
+  } catch (error) {
+    console.error(`[TELEGRAM CUSTOMER RENEWAL ERROR]`, error.message);
+  }
+}

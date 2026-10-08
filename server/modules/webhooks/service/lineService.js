@@ -251,3 +251,197 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
     return { success: false, error: error.message };
   }
 }
+
+// ==========================================
+// CUSTOMER LINE NOTIFICATIONS (FLEX MESSAGES)
+// ==========================================
+
+export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const trackLink = `${frontendUrl}/track/${orderData.orderId}`;
+    const isDelivered = orderData.status === 'DELIVERED';
+    
+    const flexMessage = {
+      type: 'flex',
+      altText: isDelivered ? '✅ သင့် အစားအသောက် ရောက်ရှိပါပြီ' : '🚚 သင့် အစားအသောက် လာပို့နေပါပြီ',
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: isDelivered ? '#06C755' : '#FF9900',
+          contents: [
+            {
+              type: 'text',
+              text: isDelivered ? '✅ DELIVERED' : '🚚 ON THE WAY',
+              color: '#ffffff',
+              weight: 'bold',
+              size: 'sm'
+            }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: isDelivered ? 'ရောက်ပါပြီရှင့်! 🍽️' : 'လာပို့နေပါပြီရှင့်! 🛵',
+              weight: 'bold',
+              size: 'xl'
+            },
+            {
+              type: 'text',
+              text: isDelivered 
+                ? `မင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များကို အောင်မြင်စွာ ပို့ဆောင်ပြီးပါပြီ။` 
+                : `မင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များ ယခု စတင်ထွက်ခွာလာပါပြီ။`,
+              wrap: true,
+              color: '#666666',
+              size: 'sm'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: isDelivered ? [] : [
+            {
+              type: 'button',
+              style: 'primary',
+              color: '#FF9900',
+              action: {
+                type: 'uri',
+                label: '📍 Live Tracking ကြည့်ရန်',
+                uri: trackLink
+              }
+            }
+          ]
+        }
+      }
+    };
+
+    await client.pushMessage({ to: lineUserId, messages: [flexMessage] });
+  } catch (error) {
+    console.error(`[LINE CUSTOMER DELIVERY ERROR]`, error.message);
+  }
+}
+
+export async function sendCustomerFeedbackToLine(lineUserId, data) {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const feedbackLink = `${frontendUrl}/feedback/${data.customerId}?token=${data.token}`;
+    
+    const flexMessage = {
+      type: 'flex',
+      altText: '📝 BBD Menu Feedback',
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#4B5563',
+          contents: [
+            {
+              type: 'text',
+              text: '⭐ DAILY FEEDBACK',
+              color: '#ffffff',
+              weight: 'bold',
+              size: 'sm'
+            }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: 'အရသာ ဘယ်လိုနေလဲရှင့်?',
+              weight: 'bold',
+              size: 'xl'
+            },
+            {
+              type: 'text',
+              text: `ယနေ့အတွက် BBD ရဲ့ အစားအသောက်နဲ့ ဝန်ဆောင်မှုအပေါ် သဘောထားလေးကို မှတ်ချက်ပေးလို့ရပါတယ်ရှင့်။`,
+              wrap: true,
+              color: '#666666',
+              size: 'sm'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'button',
+              style: 'primary',
+              color: '#4B5563',
+              action: {
+                type: 'uri',
+                label: '📝 Feedback ပေးရန်',
+                uri: feedbackLink
+              }
+            }
+          ]
+        }
+      }
+    };
+    await client.pushMessage({ to: lineUserId, messages: [flexMessage] });
+  } catch (error) {
+    console.error(`[LINE CUSTOMER FEEDBACK ERROR]`, error.message);
+  }
+}
+
+export async function sendCustomerRenewalToLine(lineUserId, data) {
+  try {
+    const flexMessage = {
+      type: 'flex',
+      altText: '⏳ Package သက်တမ်းကုန်ဆုံးရန် နီးကပ်နေပါပြီ',
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#EF4444',
+          contents: [
+            {
+              type: 'text',
+              text: '⏳ EXPIRING SOON',
+              color: '#ffffff',
+              weight: 'bold',
+              size: 'sm'
+            }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: 'Package သက်တမ်းကုန်တော့မည်',
+              weight: 'bold',
+              size: 'lg'
+            },
+            {
+              type: 'text',
+              text: `မင်္ဂလာပါ ${data.customerName}၊\nလူကြီးမင်းယူထားသော BBD Package သက်တမ်းသည် ${data.expireDateStr} တွင် ကုန်ဆုံးမည်ဖြစ်ပါသဖြင့် ဆက်လက်မှာယူလိုပါက Admin သို့ ဆက်သွယ်နိုင်ပါသည်ရှင့် 💖`,
+              wrap: true,
+              color: '#666666',
+              size: 'sm'
+            }
+          ]
+        }
+      }
+    };
+    await client.pushMessage({ to: lineUserId, messages: [flexMessage] });
+  } catch (error) {
+    console.error(`[LINE CUSTOMER RENEWAL ERROR]`, error.message);
+  }
+}
