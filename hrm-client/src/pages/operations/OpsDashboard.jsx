@@ -397,30 +397,46 @@ export default function OpsDashboard() {
             ) : (
               /* Sync Result Summary */
               <>
-                <h3 className="text-xl font-bold text-white mb-4">✅ Sync Complete</h3>
+                <h3 className="text-xl font-bold text-white mb-4">
+                  {(syncResult.synced === 0 && syncResult.skipped === 0) ? '⚠️ No Data Found' : '✅ Sync Complete'}
+                </h3>
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between items-center p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                    <span className="text-emerald-400 font-bold">✅ Synced (New Daily Menus created)</span>
-                    <span className="text-2xl font-black text-emerald-400">{syncResult.synced}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10">
-                    <span className="text-slate-400 font-bold">⏭️ Skipped (Already planned)</span>
-                    <span className="text-2xl font-black text-slate-400">{syncResult.skipped}</span>
-                  </div>
-                  {syncResult.noMatchDishes && syncResult.noMatchDishes.length > 0 && (
-                    <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                      <p className="text-amber-400 font-bold mb-2">⚠️ Unmatched Dishes (not in Menu Catalog — please add manually)</p>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {syncResult.noMatchDishes.map((d, i) => (
-                          <p key={i} className="text-xs text-amber-300">• {d.date}: "{d.dish}"</p>
-                        ))}
+
+                  {/* Case: No monthly plan data for selected range */}
+                  {syncResult.synced === 0 && syncResult.skipped === 0 ? (
+                    <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                      <p className="text-amber-400 font-bold mb-2">⚠️ ရွေးချယ်ထားသော ကာလအတွက် Monthly Plan Data မရှိသေးပါ</p>
+                      <p className="text-amber-300 text-sm">
+                        October 2026 Menu Plan Excel ကို ဦးစွာ Import လုပ်ပါ:<br/>
+                        <strong className="text-white">Plan & Menus → Monthly Plan → Import Excel</strong><br/>
+                        ထို့နောက် ဤ Sync ကို ထပ်မံ ဆောင်ရွက်ပါ။
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                        <span className="text-emerald-400 font-bold">✅ Synced (New Daily Menus created)</span>
+                        <span className="text-2xl font-black text-emerald-400">{syncResult.synced}</span>
                       </div>
-                    </div>
-                  )}
-                  {(!syncResult.noMatchDishes || syncResult.noMatchDishes.length === 0) && (
-                    <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                      <p className="text-emerald-400 font-bold text-sm">🎉 All dishes matched successfully!</p>
-                    </div>
+                      <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-slate-400 font-bold">⏭️ Skipped (Already planned)</span>
+                        <span className="text-2xl font-black text-slate-400">{syncResult.skipped}</span>
+                      </div>
+                      {syncResult.noMatchDishes && syncResult.noMatchDishes.length > 0 ? (
+                        <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                          <p className="text-amber-400 font-bold mb-2">⚠️ Unmatched Dishes (Menu Catalog မှာ မရှိသေး — Manual ထည့်ပေးပါ)</p>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {syncResult.noMatchDishes.map((d, i) => (
+                              <p key={i} className="text-xs text-amber-300">• {d.date}: "{d.dish}"</p>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                          <p className="text-emerald-400 font-bold text-sm">🎉 All dishes matched successfully!</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 <button
