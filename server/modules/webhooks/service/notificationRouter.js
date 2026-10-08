@@ -13,7 +13,7 @@ export const notificationRouter = {
     try {
       const { data: customer } = await supabaseAdmin.schema('crm')
         .from('customers')
-        .select('full_name, preferred_channel, line_id, telegram_id, zernio_conversation_id')
+        .select('full_name, preferred_channel, line_id, telegram_id, facebook_name')
         .eq('id', customerId)
         .single();
         
@@ -45,7 +45,7 @@ export const notificationRouter = {
     try {
       const { data: customer } = await supabaseAdmin.schema('crm')
         .from('customers')
-        .select('preferred_channel, line_id, telegram_id, zernio_conversation_id')
+        .select('preferred_channel, line_id, telegram_id, facebook_name')
         .eq('id', customerId)
         .single();
         
@@ -70,7 +70,7 @@ export const notificationRouter = {
     try {
       const { data: customer } = await supabaseAdmin.schema('crm')
         .from('customers')
-        .select('preferred_channel, line_id, telegram_id, zernio_conversation_id')
+        .select('preferred_channel, line_id, telegram_id, facebook_name')
         .eq('id', customerId)
         .single();
         
@@ -94,8 +94,8 @@ export const notificationRouter = {
   // --- LEGACY ZERNIO HELPERS ---
   
   async _getZernioConversationId(customerId) {
-    const { data: custData } = await supabaseAdmin.schema('crm').from('customers').select('zernio_conversation_id, facebook_name').eq('id', customerId).single();
-    if (custData?.zernio_conversation_id) return custData.zernio_conversation_id;
+    const { data: custData } = await supabaseAdmin.schema('crm').from('customers').select('facebook_name').eq('id', customerId).single();
+    if (!custData) return null;
 
     // Try finding via inquiries
     const { data: inqs } = await supabaseAdmin.schema('crm').from('inquiries').select('id, metadata').eq('facebook_name', custData.facebook_name);
