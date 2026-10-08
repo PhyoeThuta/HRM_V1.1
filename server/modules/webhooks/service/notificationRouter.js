@@ -111,7 +111,7 @@ export const notificationRouter = {
   async _sendLegacyZernioFeedback(customerId, token) {
     const cid = await this._getZernioConversationId(customerId);
     if (!cid) return;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bbd-hrm.aiautono.io';
     const feedbackLink = `${frontendUrl}/feedback/${customerId}?token=${token}`;
     const text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် BBD ရဲ့ အစားအသောက် အရသာနဲ့ ဝန်ဆောင်မှုအပေါ် သဘောထားလေးကို အောက်ပါ Link ကနေတစ်ဆင့် မှတ်ချက်ပေးလို့ရပါတယ်ရှင့် 👇\n${feedbackLink}`;
     

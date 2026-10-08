@@ -198,7 +198,7 @@ export async function sendOrderAssignmentToTelegram(riderSysUserId, orderData) {
 
 export async function sendCustomerDeliveryAlertToTelegram(telegramChatId, orderData) {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bbd-hrm.aiautono.io';
     const trackLink = `${frontendUrl}/track/${orderData.orderId}`;
     const isDelivered = orderData.status === 'DELIVERED';
     
@@ -224,7 +224,7 @@ export async function sendCustomerDeliveryAlertToTelegram(telegramChatId, orderD
 
 export async function sendCustomerFeedbackToTelegram(telegramChatId, data) {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bbd-hrm.aiautono.io';
     const feedbackLink = `${frontendUrl}/feedback/${data.customerId}?token=${data.token}`;
     
     const bannerUrl = 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop';

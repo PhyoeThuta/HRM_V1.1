@@ -258,7 +258,7 @@ export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
 
 export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bbd-hrm.aiautono.io';
     const trackLink = `${frontendUrl}/track/${orderData.orderId}`;
     const isDelivered = orderData.status === 'DELIVERED';
     
@@ -331,7 +331,7 @@ export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
 
 export async function sendCustomerFeedbackToLine(lineUserId, data) {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bbd-hrm.aiautono.io';
     const feedbackLink = `${frontendUrl}/feedback/${data.customerId}?token=${data.token}`;
     
     const flexMessage = {
