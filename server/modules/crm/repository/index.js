@@ -399,7 +399,10 @@ export async function getInquiryByToken(token) {
     .select('*')
     .eq('onboarding_token', token)
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
   return data;
 }
 

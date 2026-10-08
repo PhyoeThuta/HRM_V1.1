@@ -289,6 +289,9 @@ router.post('/:token', async (req, res) => {
     if (error.message === 'Invalid or expired token.') {
       return res.status(404).json({ error: error.message });
     }
+    if (error.message === 'Form already submitted.') {
+      return res.status(400).json({ error: error.message });
+    }
     return res.status(500).json({ error: 'Failed to process enrollment' });
   }
 });

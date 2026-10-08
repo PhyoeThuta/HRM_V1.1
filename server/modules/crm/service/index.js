@@ -642,6 +642,7 @@ export async function completeOnboarding(token, formData) {
   // 1. Validate token
   const inquiry = await crmRepo.getInquiryByToken(token);
   if (!inquiry) throw new Error('Invalid or expired token.');
+  if (inquiry.onboarding_status === 'completed') throw new Error('Form already submitted.');
 
   let newCustomer = null;
   const release = await customerCreationMutex.acquire();
