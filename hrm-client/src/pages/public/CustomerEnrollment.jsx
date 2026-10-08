@@ -230,6 +230,7 @@ export default function CustomerEnrollment() {
   const [errorMsg, setErrorMsg] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [customerId, setCustomerId] = useState(null);
   const [formData, setFormData] = useState({});
   const [parsedAddresses, setParsedAddresses] = useState({});
   const [isParsingAddress, setIsParsingAddress] = useState({});
@@ -466,6 +467,7 @@ export default function CustomerEnrollment() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit enrollment');
       
+      setCustomerId(data.customer_id);
       setIsSuccess(true);
       toast.success('Your profile has been submitted successfully!');
     } catch (err) {
@@ -504,20 +506,54 @@ export default function CustomerEnrollment() {
   }
 
   if (isSuccess) {
+    // Magic Links for MVP testing (using Rider bot as requested)
+    const telegramBotName = 'DDB565_bot'; 
+    const lineBotId = 'YOUR_LINE_BOT_ID'; // e.g. bbdbot
+    
+    const telegramLink = `https://t.me/${telegramBotName}?start=cus_${customerId}`;
+    const lineLink = `https://line.me/R/oaMessage/@${lineBotId}/?text=%23LINK-cus_${customerId}`;
+
     return (
-      <div className="min-h-screen flex items-center justify-center overflow-hidden relative bg-slate-50 dark:bg-surface-950">
+      <div className="min-h-screen flex items-center justify-center overflow-hidden relative bg-slate-50 dark:bg-surface-950 py-12">
         <div className="absolute w-96 h-96 rounded-full opacity-20 animate-pulse" style={{ background: '#A3B81F', filter: 'blur(100px)', top: '-10%', left: '-10%' }} />
         <div className="absolute w-72 h-72 rounded-full opacity-20 animate-pulse" style={{ background: '#FF7700', filter: 'blur(100px)', bottom: '-10%', right: '10%', animationDelay: '2s' }} />
         
         <div className="relative z-10 w-full max-w-md px-4">
-          <div className="bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl p-10 rounded-3xl border border-white/50 dark:border-white/10 shadow-2xl text-center">
-            <div className="w-20 h-20 bg-brand-green/10 dark:bg-brand-green/20 text-brand-green rounded-full flex items-center justify-center mx-auto mb-6 border border-brand-green/30 shadow-[0_0_30px_rgba(163,184,31,0.3)]">
-              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl p-8 rounded-3xl border border-white/50 dark:border-white/10 shadow-2xl text-center">
+            <div className="w-16 h-16 bg-brand-green/10 dark:bg-brand-green/20 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4 border border-brand-green/30 shadow-[0_0_30px_rgba(163,184,31,0.3)]">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-3">Welcome! <br/> ကြိုဆိုပါတယ်</h2>
-            <p className="text-slate-500 dark:text-slate-400">Your details have been securely submitted. You are now officially enrolled in our program.</p>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Welcome! <br/> ကြိုဆိုပါတယ်</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Your details have been securely submitted. You are now officially enrolled in our program.</p>
+            
+            {/* Communication Channel Section */}
+            <div className="border-t border-slate-200 dark:border-white/10 pt-6 mt-2">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">
+                နေ့စဉ် Menu နှင့် Delivery Alert များ လက်ခံရရှိရန် ချိတ်ဆက်ပါ
+              </h3>
+              
+              <div className="space-y-3">
+                <a 
+                  href={telegramLink}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold transition-all shadow-lg shadow-[#2AABEE]/20 hover:scale-[1.02]"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                  Connect via Telegram
+                </a>
+                
+                <a 
+                  href={lineLink}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl bg-[#00B900] hover:bg-[#009900] text-white font-bold transition-all shadow-lg shadow-[#00B900]/20 hover:scale-[1.02]"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .26-.148.422-.397.422h-1.427V8.108c0-.26.159-.422.4-.422h1.427v1.125h-1.027v1.125h1.027v1.125h-1.027v1.125h1.027v1.125zm-3.24 2.746h-1.427V8.108h1.427v7.517zm-3.24-7.517v5.392h-1.027V8.108h1.027zM24 10.298C24 4.607 18.622 0 12 0 5.378 0 0 4.607 0 10.298c0 5.111 4.549 9.388 10.428 10.158.42.09.98.27 1.135.63.136.326.089.83.043 1.16l-.18 1.09c-.057.34-.265 1.29 1.135.7 1.398-.59 7.551-4.44 10.338-7.63C23.593 14.9 24 12.69 24 10.298z"/></svg>
+                  Connect via LINE
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>

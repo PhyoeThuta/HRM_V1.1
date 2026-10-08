@@ -82,6 +82,28 @@ export async function handleTelegramWebhook(req, res) {
 
 // Helper to link account and send reply
 async function processAccountLink(code, chatId) {
+  // Check if it's a Customer linking their account (Magic Link prefix)
+  if (code.startsWith('CUS_')) {
+    const customerId = code.replace('CUS_', '');
+    
+    // Update the customer's telegram_id in the database
+    const { data: customer, error } = await supabaseAdmin.schema('crm')
+      .from('customers')
+      .update({ telegram_id: String(chatId), preferred_channel: 'Telegram' })
+      .eq('id', customerId)
+      .select('full_name')
+      .single();
+      
+    if (error || !customer) {
+      console.error('[TELEGRAM_CUSTOMER_LINK_ERROR]', error);
+      await sendTelegramMessageLocal(chatId, `❌ <b>Failed to link account.</b>\nPlease try again or contact support.`);
+    } else {
+      await sendTelegramMessageLocal(chatId, `✅ <b>ချိတ်ဆက်မှု အောင်မြင်ပါသည်။</b>\nWelcome, ${customer.full_name}! နေ့စဉ် BBD Delivery Alert များနှင့် Menu များကို ဤနေရာမှ ပို့ပေးပါမည်။`);
+    }
+    return;
+  }
+
+  // Fallback to original logic (Rider linking)
   const result = await linkTelegramAccount(code, chatId);
   
   if (result.success) {
