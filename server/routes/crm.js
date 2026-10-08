@@ -1145,7 +1145,7 @@ router.post('/webhooks/zernio', async (req, res) => {
       try {
         const { data: currentInq } = await supabaseAdmin.schema('crm').from('inquiries').select('customer_id').eq('id', inquiryId).single();
         const targetCustId = currentInq?.customer_id || inquiryId;
-        const frontendUrl = process.env.FRONTEND_ONBOARDING_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = process.env.FRONTEND_ONBOARDING_URL || process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
         const feedbackUrl = `${frontendUrl}/feedback/${targetCustId}`;
 
         const autoFeedbackText = `အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackUrl}`;
@@ -1491,7 +1491,7 @@ router.post('/inquiries/:id/generate-link', verifyToken, async (req, res) => {
       
     if (error) throw error;
     
-    const baseUrl = process.env.DIET_BUDDY_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const baseUrl = req.headers.origin || process.env.DIET_BUDDY_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const link = `${baseUrl}/enroll?token=${data.onboarding_token}`;
     
     return res.json({ link });
@@ -1655,7 +1655,7 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
 
     // 2. Auto-send the form link via AI Bot (or admin)
     const token = inquiry.onboarding_token;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
     const link = `${frontendUrl}/enroll?token=${token}`;
     const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီရှင်။ 🎉\n\nအစ်ကို/အစ်မအတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော်။\n\n${link}`;
 
