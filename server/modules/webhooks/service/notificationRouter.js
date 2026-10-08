@@ -26,13 +26,18 @@ export const notificationRouter = {
         customerName: customer.full_name
       };
 
-      if (customer.preferred_channel === 'LINE' && customer.line_id) {
+      let sentToNewChannel = false;
+
+      if (customer.line_id) {
         await sendCustomerDeliveryAlertToLine(customer.line_id, orderData);
+        sentToNewChannel = true;
       } 
-      else if (customer.preferred_channel === 'Telegram' && customer.telegram_id) {
+      if (customer.telegram_id) {
         await sendCustomerDeliveryAlertToTelegram(customer.telegram_id, orderData);
+        sentToNewChannel = true;
       }
-      else {
+      
+      if (!sentToNewChannel) {
         // Fallback to Zernio
         await sendDeliveryZernioMessage(customerId, orderId, status, proofUrl).catch(e => console.error('[ROUTER ZERNIO FALLBACK]', e.message));
       }
@@ -51,13 +56,18 @@ export const notificationRouter = {
         
       if (!customer) return;
 
-      if (customer.preferred_channel === 'LINE' && customer.line_id) {
+      let sentToNewChannel = false;
+
+      if (customer.line_id) {
         await sendCustomerFeedbackToLine(customer.line_id, { customerId, customerName, token });
+        sentToNewChannel = true;
       } 
-      else if (customer.preferred_channel === 'Telegram' && customer.telegram_id) {
+      if (customer.telegram_id) {
         await sendCustomerFeedbackToTelegram(customer.telegram_id, { customerId, customerName, token });
+        sentToNewChannel = true;
       }
-      else {
+      
+      if (!sentToNewChannel) {
         // Fallback to Zernio HTTP Post
         await this._sendLegacyZernioFeedback(customerId, token);
       }
@@ -76,13 +86,18 @@ export const notificationRouter = {
         
       if (!customer) return;
 
-      if (customer.preferred_channel === 'LINE' && customer.line_id) {
+      let sentToNewChannel = false;
+
+      if (customer.line_id) {
         await sendCustomerRenewalToLine(customer.line_id, { customerId, customerName, expireDateStr });
+        sentToNewChannel = true;
       } 
-      else if (customer.preferred_channel === 'Telegram' && customer.telegram_id) {
+      if (customer.telegram_id) {
         await sendCustomerRenewalToTelegram(customer.telegram_id, { customerId, customerName, expireDateStr });
+        sentToNewChannel = true;
       }
-      else {
+      
+      if (!sentToNewChannel) {
         // Fallback to Zernio HTTP Post
         await this._sendLegacyZernioRenewal(customerId, expireDateStr);
       }
