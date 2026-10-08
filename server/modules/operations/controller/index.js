@@ -299,6 +299,27 @@ export async function autoGenerateOrders(req, res) {
 }
 
 // ==========================================
+// SMART SYNC: Monthly Plan → Daily Menus
+// ==========================================
+
+export async function syncMonthlyPlan(req, res) {
+  try {
+    const { start_date, end_date } = req.body;
+    if (!start_date || !end_date) {
+      return res.status(400).json({ error: 'start_date and end_date are required.' });
+    }
+    const result = await opsService.syncMonthlyPlanToDailyMenus(start_date, end_date, req.user.id);
+    return res.json({ success: true, ...result });
+  } catch (e) {
+    if (e.status === 400) {
+      return res.status(400).json({ error: e.message });
+    }
+    console.error('[SYNC MONTHLY PLAN ERROR]', e);
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// ==========================================
 // RIDER ASSIGNMENT
 // ==========================================
 

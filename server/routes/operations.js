@@ -108,6 +108,7 @@ router.delete('/recipes/:id', opsController.deleteRecipe);
 // ==========================================
 
 router.get('/daily-menus', opsController.getDailyMenus);
+router.post('/daily-menus/sync-from-plan', opsController.syncMonthlyPlan);
 router.post('/daily-menus', opsController.createDailyMenu);
 router.put('/daily-menus/:id', opsController.updateDailyMenu);
 router.delete('/daily-menus/:id', opsController.deleteDailyMenu);

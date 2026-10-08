@@ -197,6 +197,17 @@ export async function getMenuPlansByDate(date) {
   return data || [];
 }
 
+export async function getMenuPlansByDateRange(startDate, endDate) {
+  const { data, error } = await supabase
+    .from('operations_menu_plans')
+    .select('*')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getCatalogMenusLimitTwo() {
   const { data, error } = await supabase.from('operations_menus').select('id').limit(2);
   if (error) throw error;

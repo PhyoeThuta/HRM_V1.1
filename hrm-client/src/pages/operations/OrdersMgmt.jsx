@@ -43,7 +43,15 @@ export default function OrdersMgmt() {
       }
       setIsAutoGenerateModalOpen(false);
     },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to auto-generate orders')
+    onError: (err) => {
+      const msg = err.response?.data?.error || 'Failed to auto-generate orders';
+      // Give a more actionable hint for the most common error (no daily menus planned)
+      if (err.response?.status === 400 && msg.toLowerCase().includes('no daily menus')) {
+        toast.error(`⚠️ No daily menus for this date. Please go to Ops Hub and use "Sync from Monthly Plan" first.`, { duration: 6000 });
+      } else {
+        toast.error(msg);
+      }
+    }
   });
 
   const statusMutation = useMutation({

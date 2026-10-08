@@ -304,40 +304,15 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
     if (pkgMeals.includes('DINNER')) neededMealTypes.add('Dinner');
   });
 
-  // 2. Fetch planned menus for target date
-  let dailyMenus = await opsRepo.getDailyMenusByDate(targetDate);
-
-  // Fallback: If no daily menus scheduled for target date, check menu plans or catalog and auto-create
-  if (!dailyMenus || dailyMenus.length === 0) {
-    const menuPlans = await opsRepo.getMenuPlansByDate(targetDate);
-
-    const catMenus = await opsRepo.getCatalogMenusLimitTwo();
-
-    if (catMenus && catMenus.length > 0) {
-      // Auto-create daily menus dynamically based on needed meal types
-      const newDailyMenus = Array.from(neededMealTypes).map(meal => ({
-        date: targetDate, meal_type: meal, with_rice: true, created_by: userId
-      }));
-      
-      const createdMenus = await opsRepo.createDailyMenusBulk(newDailyMenus);
-      
-      if (createdMenus && createdMenus.length > 0) {
-        dailyMenus = createdMenus;
-        // Link first catalog menu
-        for (const cm of createdMenus) {
-          await opsRepo.createMenuTypes([{
-            daily_menus_id: cm.id,
-            menu_id: catMenus[0].id,
-            is_main: true,
-            created_by: userId
-          }]);
-        }
-      }
-    }
-  }
+  // 2. Fetch planned menus for target date (STRICT MODE)
+  // Daily Menus must be explicitly planned or synced from Monthly Plan before generating orders.
+  // Auto-creating menus from catalog is not allowed — it leads to incorrect default menus (e.g. same dish every day).
+  const dailyMenus = await opsRepo.getDailyMenusByDate(targetDate);
 
   if (!dailyMenus || dailyMenus.length === 0) {
-    const err = new Error('No daily menus planned for date ' + targetDate);
+    const err = new Error(
+      `No daily menus planned for ${targetDate}. Please sync from Monthly Plan or manually plan the daily menus for this date before generating orders.`
+    );
     err.status = 400;
     throw err;
   }
@@ -401,6 +376,106 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
   }
 
   return { success: true, generatedCount: newOrders.length };
+}
+
+// ==========================================
+// SMART SYNC: Monthly Plan → Daily Menus
+// ==========================================
+
+/**
+ * Syncs a date range from operations_menu_plans into operations_daily_menus.
+ * Matches plan dish names against the operations_menus catalog (case-insensitive).
+ * Skips dates that already have daily menus planned.
+ * Returns a summary: { synced, skipped, noMatchDishes }
+ */
+export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
+  // 1. Fetch all menu plans in the date range
+  const plans = await opsRepo.getMenuPlansByDateRange(startDate, endDate);
+  if (!plans || plans.length === 0) {
+    return { synced: 0, skipped: 0, noMatchDishes: [], message: 'No monthly plan entries found for this date range.' };
+  }
+
+  // 2. Fetch the full menu catalog for name matching
+  const catalog = await opsRepo.getAllMenus();
+  if (!catalog || catalog.length === 0) {
+    const err = new Error('Menu catalog is empty. Please import menus first via Costing Import.');
+    err.status = 400;
+    throw err;
+  }
+
+  // Build a normalized lookup map: lowercase name → menu object
+  const catalogMap = new Map();
+  for (const m of catalog) {
+    if (m.name_en) catalogMap.set(m.name_en.toLowerCase().trim(), m);
+    if (m.name_mm) catalogMap.set(m.name_mm.toLowerCase().trim(), m);
+  }
+
+  let synced = 0;
+  let skipped = 0;
+  const noMatchDishes = [];
+
+  for (const plan of plans) {
+    const planDate = plan.date;
+
+    // 3. Skip dates that already have daily menus planned
+    const existing = await opsRepo.getDailyMenusByDate(planDate);
+    if (existing && existing.length > 0) {
+      skipped++;
+      continue;
+    }
+
+    // 4. Determine with_rice from plan
+    const withRice = plan.has_rice !== 'NO RICE';
+
+    // 5. Collect all dish names from this plan row
+    const dishFields = ['main_dish_1', 'main_dish_2', 'side_dish_1', 'side_dish_2', 'soup', 'dessert'];
+    const dishNames = dishFields
+      .map(f => (plan[f] || '').trim())
+      .filter(n => n.length > 0);
+
+    // 6. Match dish names to catalog entries
+    const matchedMenuIds = [];
+    for (const dish of dishNames) {
+      const match = catalogMap.get(dish.toLowerCase());
+      if (match) {
+        if (!matchedMenuIds.includes(match.id)) {
+          matchedMenuIds.push(match.id);
+        }
+      } else {
+        // Record unmatched dish for reporting, but only once
+        if (!noMatchDishes.find(d => d.dish === dish)) {
+          noMatchDishes.push({ date: planDate, dish });
+        }
+      }
+    }
+
+    // 7. Create daily menus for LUNCH and DINNER for this date
+    // BBD serves both Lunch and Dinner by default
+    const mealTypes = ['Lunch', 'Dinner'];
+    for (const mealType of mealTypes) {
+      const dailyMenu = await opsRepo.createDailyMenu({
+        date: planDate,
+        meal_type: mealType,
+        with_rice: withRice,
+        created_by: userId
+      });
+
+      // 8. Link matched catalog menus to this daily menu
+      if (matchedMenuIds.length > 0) {
+        const menuTypes = matchedMenuIds.map((menuId, idx) => ({
+          daily_menus_id: dailyMenu.id,
+          menu_id: menuId,
+          is_main: idx === 0, // First item is main dish
+          created_by: userId
+        }));
+        await opsRepo.createMenuTypes(menuTypes);
+      }
+    }
+
+    synced++;
+  }
+
+  return { synced, skipped, noMatchDishes };
 }
 
 // ==========================================
