@@ -648,9 +648,9 @@ export async function completeOnboarding(token, formData) {
   try {
     const customer_code = await generateCustomerCode();
 
-    const formattedDeliveryNotes = formData.delivery_notes 
+    const formattedDeliveryNotes = Array.isArray(formData.delivery_notes)
       ? formData.delivery_notes.map(n => `[${n.date} - ${n.type}]: ${n.text}`).join(' | ') 
-      : null;
+      : (formData.delivery_notes || null);
 
     const custObj = {
       full_name: formData.full_name,
