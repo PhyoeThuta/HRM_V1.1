@@ -752,7 +752,7 @@ router.get('/inquiries', verifyToken, async (req, res) => {
         *,
         inquiries_messages ( id, message_text, sender_type, created_at )
       `)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (req.query.unlinked === 'true') {
       query = query.is('customer_id', null);
