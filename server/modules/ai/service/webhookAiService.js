@@ -50,7 +50,7 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
           properties: {
             intent: { type: SchemaType.STRING, description: "e.g., pricing_inquiry, general_question, needs_human, ready_to_buy" },
             sentiment: { type: SchemaType.STRING, description: "e.g., positive, curious, neutral, frustrated" },
-            recommended_action: { type: SchemaType.STRING, description: "1-2 sentences of what the admin should reply in Myanmar language / Burmese." },
+            recommended_action: { type: SchemaType.STRING, description: "Brief advice for the human admin on what to say next to the prospect in Burmese." },
             confidence_score: { type: SchemaType.INTEGER, description: "0 to 100 representing likelihood to purchase" },
             pipeline_status: { type: SchemaType.STRING, description: "Must be EXACTLY one of: 'new', 'in_progress', 'pending', 'converted', 'lost'. Set 'in_progress' for follow-up stage. Set 'pending' ONLY if prospect asks to buy/pay/transfer money now. Set 'new' for brief initial greetings." },
             auto_reply_text: { type: SchemaType.STRING, nullable: true, description: "The auto reply text or null if no reply needed." }
@@ -87,6 +87,11 @@ CRITICAL RULES FOR "auto_reply_text":
 5. QUALIFY BEFORE PITCHING: Don't just dump prices. If they ask for plans, ask them nicely about their weight loss or health goals first.
 6. CLOSING THE SALE: When they choose a plan, do NOT just dump the bank account. Confirm their choice, build excitement, ask for delivery details, and then provide payment info elegantly.
 7. HUMAN HANDOVER: If they ask complex questions not in the Knowledge Base, or seem frustrated, set intent to "needs_human" and reply gracefully: "ဒီအချက်လေးကို ပိုပြီး တိတိကျကျ ရှင်းပြပေးနိုင်ဖို့ ကျွန်တော်တို့ရဲ့ Consultant နဲ့ ခဏလေး ချိတ်ဆက်ပေးပါမယ် ခင်ဗျာ။"
+
+CRITICAL RULES FOR "recommended_action" (AI INSIGHTS FOR ADMIN):
+1. This is a private hint shown ONLY to the Admin. Be extremely logical.
+2. DO NOT hallucinate. If the customer just says "Hi" or "အေး hi", simply recommend: "Customer က နှုတ်ဆက်လာပါတယ်။ Diet Plan အကြောင်း စတင်မိတ်ဆက်ပေးပါ။"
+3. NEVER assume the customer is giving feedback or is happy unless they explicitly state it in the latest message. Base your recommendation ONLY on the latest message.
     `;
     
     const result = await model.generateContent(prompt);
