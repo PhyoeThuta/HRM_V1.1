@@ -9,26 +9,35 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
   }
   
   try {
-    // Fetch History & Packages Concurrently
-    const [historyRes, packagesRes] = await Promise.all([
+    // 1. Fetch Inquiry State, History, Packages, and RAG Knowledge Base Concurrently
+    const [inqRes, historyRes, packagesRes, kbRes] = await Promise.all([
+      supabaseAdmin.schema('crm').from('inquiries').select('customer_id, status, is_ai_enabled').eq('id', inquiryId).single(),
       supabaseAdmin.schema('crm').from('inquiries_messages')
         .select('sender_type, message_text')
         .eq('inquiry_id', inquiryId)
         .order('created_at', { ascending: true })
-        .limit(15),
-      supabaseAdmin.schema('crm').from('packages').select('*')
+        .limit(20),
+      supabaseAdmin.schema('crm').from('packages').select('*'),
+      supabaseAdmin.schema('public').from('ai_knowledge_base').select('question, answer').limit(50).catch(() => ({ data: [] })) // Optional RAG table
     ]);
 
+    const existingInq = inqRes.data;
     const history = historyRes.data;
     if (!history || history.length === 0) return;
       
     const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
-    const paymentInfo = process.env.PAYMENT_INFO_TEXT || 'KBZ Pay: 09XXXXXXX';
+    const paymentInfo = process.env.PAYMENT_INFO_TEXT || 'KBZ Pay: 09XXXXXXX (Phyoe Thuta)';
     
-    // Format Packages into a readable string
+    // Format Packages
     let activePackages = 'No active packages found.';
     if (packagesRes.data && packagesRes.data.length > 0) {
       activePackages = packagesRes.data.map(p => `- ${p.name} (${p.duration}): ${p.price} THB`).join('\n');
+    }
+
+    // Format Knowledge Base (RAG)
+    let knowledgeBase = '';
+    if (kbRes.data && kbRes.data.length > 0) {
+      knowledgeBase = kbRes.data.map(kb => `Q: ${kb.question}\nA: ${kb.answer}`).join('\n\n');
     }
     
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -39,7 +48,7 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
         responseSchema: {
           type: SchemaType.OBJECT,
           properties: {
-            intent: { type: SchemaType.STRING, description: "e.g., pricing_inquiry, general_question, complaint, ready_to_buy" },
+            intent: { type: SchemaType.STRING, description: "e.g., pricing_inquiry, general_question, needs_human, ready_to_buy" },
             sentiment: { type: SchemaType.STRING, description: "e.g., positive, curious, neutral, frustrated" },
             recommended_action: { type: SchemaType.STRING, description: "1-2 sentences of what the admin should reply in Myanmar language / Burmese." },
             confidence_score: { type: SchemaType.INTEGER, description: "0 to 100 representing likelihood to purchase" },
@@ -52,31 +61,38 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
     });
     
     const prompt = `
-You are BBD Enterprise's elite Sales Executive AI Copilot. 
-Analyze the following conversation history between a PROSPECT and our ADMIN.
+You are an Elite Agentic Sales Concierge for "Busy Boss Diet" (BBD). 
+Your goal is to converse naturally, build rapport, and assist the prospect without being annoying or robotic.
+
+BRAND IDENTITY & UNIQUE SELLING PROPOSITION (USP):
+BBD provides authentic, mouth-watering Myanmar curries (ဆီပြန်ဟင်း၊ အနှစ်တွေ) that are scientifically calorie-controlled. Customers can lose weight WITHOUT eating dry, tasteless "healthy" food (ဆီမပါ ပြားမပါ ချောက်ကပ်ကပ်). Always highlight this USP when pitching.
 
 AVAILABLE PACKAGES:
 ${activePackages}
 
+COMPANY KNOWLEDGE BASE (FAQ):
+${knowledgeBase}
+
 PAYMENT DETAILS:
 ${paymentInfo}
 
-CHAT HISTORY:
+CHAT HISTORY (CRITICAL - READ CAREFULLY):
 ${chatHistory}
 
-TASK:
-Provide the JSON response according to the schema.
-CRITICAL "BOSS" TONE RULE: For "auto_reply_text", you MUST reply in a highly premium, polite, and confident "Boss" style. Address the prospect respectfully as "Boss" (e.g., "မင်္ဂလာပါ Boss", "Boss လိုအပ်တဲ့ Package လေးက..."). Explain the packages clearly using the AVAILABLE PACKAGES data if they ask for prices or options.
-CRITICAL REPLY RULE: Do NOT send payment info unless the prospect explicitly asks 'How to pay?', 'Where to transfer?', or says they are ready to transfer money now. If they just say 'thank you' or 'ok', return null for auto_reply_text.
+CRITICAL RULES FOR "auto_reply_text":
+1. PREMIUM MINIMALIST TONE: Use a highly professional, confident, and polite Burmese tone (like a 5-Star Hotel Concierge). Address the user respectfully as "Boss". 
+2. NO EMOJIS: Do NOT use cheap emojis (e.g., 🥗, 💪, ✨). Use clean line breaks and elegant minimalist formatting. Do NOT use markdown asterisks (**).
+3. AVOID REPETITION: If you already pitched the packages earlier, DO NOT repeat the same pitch. 
+4. SHORT GREETINGS: If the user just says "Hi", reply with a VERY SHORT greeting: "မင်္ဂလာပါ Boss၊ BBD ကနေ ကြိုဆိုပါတယ်။ ကျန်းမာရေးနဲ့ Diet plan အတွက် ဘယ်လိုမျိုး အကူအညီပေးရမလဲ ခင်ဗျာ။"
+5. QUALIFY BEFORE PITCHING: Don't just dump prices. If they ask for plans, ask them nicely about their weight loss or health goals first.
+6. CLOSING THE SALE: When they choose a plan, do NOT just dump the bank account. Confirm their choice, build excitement, ask for delivery details, and then provide payment info elegantly.
+7. HUMAN HANDOVER: If they ask complex questions not in the Knowledge Base, or seem frustrated, set intent to "needs_human" and reply gracefully: "ဒီအချက်လေးကို ပိုပြီး တိတိကျကျ ရှင်းပြပေးနိုင်ဖို့ ကျွန်တော်တို့ရဲ့ Consultant နဲ့ ခဏလေး ချိတ်ဆက်ပေးပါမယ် ခင်ဗျာ။"
     `;
     
     const result = await model.generateContent(prompt);
     const aiText = result.response.text();
     const aiJson = JSON.parse(aiText);
     
-    // Check existing inquiry state first
-    const { data: existingInq } = await supabaseAdmin.schema('crm').from('inquiries').select('customer_id, status').eq('id', inquiryId).single();
-
     const updatePayload = { 
       updated_at: new Date().toISOString(),
       ai_analysis_result: {
@@ -86,6 +102,11 @@ CRITICAL REPLY RULE: Do NOT send payment info unless the prospect explicitly ask
       },
       service_interest_confidence: aiJson.confidence_score
     };
+
+    // If AI decided human handover is needed, turn off AI toggle
+    if (aiJson.intent === 'needs_human') {
+      updatePayload.is_ai_enabled = false;
+    }
 
     // Only update pipeline status if not already an enrolled customer
     if (!existingInq?.customer_id && existingInq?.status !== 'converted') {
@@ -100,37 +121,51 @@ CRITICAL REPLY RULE: Do NOT send payment info unless the prospect explicitly ask
 
     if (updated) emitInquiryUpdated(updated);
 
-    // Auto-Reply Logic
-    if (aiJson.auto_reply_text && conversationId && process.env.ZERNIO_API_KEY) {
-      try {
-        const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-        await fetch(zernioUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
-          },
-          body: JSON.stringify({
-            accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-            message: aiJson.auto_reply_text
-          })
-        });
-        
-        const { data: newMsg } = await supabaseAdmin.schema('crm')
-          .from('inquiries_messages')
-          .insert({
-            inquiry_id: inquiryId,
-            message_text: aiJson.auto_reply_text,
-            sender_type: 'ai_bot',
-            metadata: { auto_reply: true, conversationId }
-          })
-          .select().single();
+    // Auto-Reply Logic - ONLY IF AI IS ENABLED
+    if (existingInq?.is_ai_enabled !== false && aiJson.auto_reply_text && conversationId && process.env.ZERNIO_API_KEY) {
+      
+      // Implement Human-Like Random Delay (30 to 60 seconds)
+      const delayMs = Math.floor(Math.random() * (60000 - 30000 + 1) + 30000);
+      
+      // Use setTimeout to process in background without blocking the original webhook response
+      setTimeout(async () => {
+        try {
+          // Re-check if AI is still enabled after the delay (Admin might have turned it off while waiting)
+          const { data: currentInq } = await supabaseAdmin.schema('crm').from('inquiries').select('is_ai_enabled').eq('id', inquiryId).single();
+          if (currentInq?.is_ai_enabled === false) {
+            console.log('[CRM AI] Auto-reply aborted because AI was turned off during the delay window.');
+            return;
+          }
+
+          const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+          await fetch(zernioUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
+            },
+            body: JSON.stringify({
+              accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+              message: aiJson.auto_reply_text
+            })
+          });
           
-        if (newMsg) emitInquiryMessage(inquiryId, newMsg);
-      } catch (err) {
-        console.error('[CRM AI AUTO REPLY ERROR]', err);
-        throw err;
-      }
+          const { data: newMsg } = await supabaseAdmin.schema('crm')
+            .from('inquiries_messages')
+            .insert({
+              inquiry_id: inquiryId,
+              message_text: aiJson.auto_reply_text,
+              sender_type: 'ai_bot',
+              metadata: { auto_reply: true, conversationId }
+            })
+            .select().single();
+            
+          if (newMsg) emitInquiryMessage(inquiryId, newMsg);
+        } catch (err) {
+          console.error('[CRM AI AUTO REPLY DELAYED ERROR]', err);
+        }
+      }, delayMs);
+      
     }
   } catch (aiErr) {
     console.error('[CRM AI ANALYSIS ERROR]', aiErr);

@@ -228,6 +228,19 @@ export default function Inquiries() {
     }
   };
 
+  const handleToggleAi = async () => {
+    if (!selectedInquiry) return;
+    const newState = selectedInquiry.is_ai_enabled === false ? true : false;
+    try {
+      await crmApi.updateInquiry(selectedInquiry.id, { is_ai_enabled: newState });
+      setSelectedInquiry(prev => ({ ...prev, is_ai_enabled: newState }));
+      setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, is_ai_enabled: newState } : i));
+      toast.success(newState ? 'AI Auto-Reply Enabled' : 'AI Auto-Reply Disabled');
+    } catch (e) {
+      toast.error('Failed to toggle AI');
+    }
+  };
+
   const handleMarkPaid = async () => {
     if (!selectedPackageForPaid) {
       toast.error('Please select a package first');
@@ -369,6 +382,19 @@ export default function Inquiries() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* AI Toggle Button */}
+                    <button
+                      onClick={handleToggleAi}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                        selectedInquiry.is_ai_enabled !== false
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
+                      }`}
+                      title="Toggle AI Auto-Reply for this chat"
+                    >
+                      🤖 AI: {selectedInquiry.is_ai_enabled !== false ? 'ON' : 'OFF'}
+                    </button>
+
                     {/* Stage Selector Dropdown */}
                     <select
                       value={selectedInquiry.customer_id ? 'converted' : (selectedInquiry.status || 'new').toLowerCase()}
