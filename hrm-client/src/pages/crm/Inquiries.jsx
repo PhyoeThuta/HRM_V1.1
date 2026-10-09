@@ -216,7 +216,7 @@ export default function Inquiries() {
     }
   };
 
-  const [sendAs, setSendAs] = useState('prospect');
+  const [sendAs, setSendAs] = useState('admin');
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
