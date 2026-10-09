@@ -169,7 +169,7 @@ router.get('/customers', verifyToken, async (req, res) => {
           const min = setting.min_spend;
           const max = setting.max_spend;
 
-          if (totalSpend >= min && (max === null || isNaN(max) || totalSpend <= max)) {
+          if (totalSpend >= min) {
             calculatedLevel = { ...setting, min_spend: min, max_spend: max };
             break;
           }
