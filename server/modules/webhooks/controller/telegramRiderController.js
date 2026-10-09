@@ -96,9 +96,9 @@ async function processAccountLink(code, chatId) {
       
     if (error || !customer) {
       console.error('[TELEGRAM_CUSTOMER_LINK_ERROR]', error);
-      await sendTelegramMessageLocal(chatId, `❌ <b>Failed to link account.</b>\nPlease try again or contact support.`);
+      await sendTelegramMessageLocal(chatId, `❌ <b>ချိတ်ဆက်မှု မအောင်မြင်ပါ။</b>\nကျေးဇူးပြု၍ Code အမှန် ဟုတ်မဟုတ် ပြန်လည်စစ်ဆေးပေးပါ Boss။ ထပ်မံကြိုးစား၍ မရပါက Admin သို့ ဆက်သွယ်ပေးပါ။`);
     } else {
-      await sendTelegramMessageLocal(chatId, `✅ <b>ချိတ်ဆက်မှု အောင်မြင်ပါသည်။</b>\nWelcome, ${customer.full_name}! နေ့စဉ် BBD Delivery Alert များနှင့် Menu များကို ဤနေရာမှ ပို့ပေးပါမည်။`);
+      await sendTelegramMessageLocal(chatId, `<b>ချိတ်ဆက်မှု အောင်မြင်ပါသည်။</b>\nWelcome Boss. ${customer.full_name}\nBoss အတွက် နေ့စဉ် BBD Delivery Alert များ၊ အကြံပြုစာများနှင့် တိုင်ကြားစာများ အားလုံးကို ဤနေရာမှတစ်ဆင့် တိုက်ရိုက် ဆက်သွယ် ပေးပို့သွားမည် ဖြစ်ပါသည်။`);
     }
     return;
   }

@@ -676,10 +676,10 @@ export async function sendDeliveryZernioMessage(customerId, orderId, type = 'DEL
     
     if (type === 'ON_THE_WAY') {
       const trackLink = `${frontendUrl}/track/${orderId || customerId}`;
-      text = `မင်္ဂလာပါရှင့်။ သင့် အစားအသောက်များ လာပို့နေပါပြီရှင့် 🚚\n\nဒီ Link လေးကနေတစ်ဆင့် Rider ဘယ်ရောက်နေပြီလဲဆိုတာကို Live ကြည့်လို့ရပါတယ်ရှင့် 👇\n${trackLink}`;
+      text = `မင်္ဂလာပါ Boss ${custData.full_name}၊\nယနေ့အတွက် Boss ရဲ့ အစားအသောက်များ လာပို့နေပါပြီ။ 🚚\nအောက်ပါ Link လေးမှတစ်ဆင့် Rider ဘယ်ရောက်နေပြီလဲဆိုတာကို Live ကြည့်လို့ရပါတယ် 👇\n${trackLink}`;
     } else {
       const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
-      text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ 📦✨\n\n`;
+      text = `မင်္ဂလာပါ Boss ${custData.full_name}။\nယနေ့အတွက် Boss ရဲ့ BBD Meal ကို ပို့ဆောင်ပေးပြီးပါပြီ။ 📦✨\n\n`;
       if (proofUrl) {
         if (!proofUrl.startsWith('data:image') && (proofUrl.startsWith('http://') || proofUrl.startsWith('https://'))) {
           text += `📸 ပို့ဆောင်ပြီးကြောင်း အထောက်အထား (Proof of Delivery Photo):\n${proofUrl}\n\n`;
@@ -687,7 +687,7 @@ export async function sendDeliveryZernioMessage(customerId, orderId, type = 'DEL
           text += `📸 ပို့ဆောင်ပြီးကြောင်း အထောက်အထား (Proof Photo Attached)\n\n`;
         }
       }
-      text += `အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက် အကြံပြုလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
+      text += `BBD ၏ ဝန်ဆောင်မှု ပိုမိုကောင်းမွန်လာစေရန်အတွက် အရသာ၊ Delivery နှင့် အခြားအကြံပြုချက်များကို အောက်ပါ Link မှတစ်ဆင့် ဝင်ရောက် ရေးသားပေးပါရန် မေတ္တာရပ်ခံအပ်ပါသည် Boss။ 👇\n\n${feedbackLink}`;
     }
 
     const quickReplies = [

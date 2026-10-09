@@ -315,8 +315,8 @@ export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
             {
               type: 'text',
               text: isDelivered 
-                ? `မင်္ဂလာပါ ${orderData.customerName}၊\nယနေ့အတွက် နေ့လယ်စာ/ညစာလေး ပို့ဆောင်ပေးပြီးပါပြီ။\nအရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ အထွေထွေကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇` 
-                : `မင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များ ယခု စတင်ထွက်ခွာလာပါပြီ။`,
+                ? `မင်္ဂလာပါ Boss ${orderData.customerName}။\nယနေ့အတွက် Boss ရဲ့ BBD Meal ကို ပို့ဆောင်ပေးပြီးပါပြီ။ 📦✨\nBBD ၏ ဝန်ဆောင်မှု ပိုမိုကောင်းမွန်လာစေရန်အတွက် အရသာ၊ Delivery နှင့် အခြားအကြံပြုချက်များကို အောက်ပါ Link မှတစ်ဆင့် ဝင်ရောက် ရေးသားပေးပါရန် မေတ္တာရပ်ခံအပ်ပါသည် Boss။ 👇` 
+                : `မင်္ဂလာပါ Boss ${orderData.customerName}၊\nယနေ့အတွက် Boss ရဲ့ အစားအသောက်များ လာပို့နေပါပြီ။ 🚚\nအောက်ပါ ခလုတ်ကို နှိပ်ပြီး Rider ဘယ်ရောက်နေပြီလဲဆိုတာ Live ကြည့်လို့ရပါတယ် 👇`,
               wrap: true,
               color: '#666666',
               size: 'sm'
@@ -391,13 +391,14 @@ export async function sendCustomerFeedbackToLine(lineUserId, data) {
           contents: [
             {
               type: 'text',
-              text: 'အရသာ ဘယ်လိုနေလဲရှင့်?',
+              text: 'ယနေ့အတွက် BBD Meal အဆင်ပြေရဲ့လား Boss။',
               weight: 'bold',
-              size: 'xl'
+              size: 'xl',
+              wrap: true
             },
             {
               type: 'text',
-              text: `ယနေ့အတွက် BBD ရဲ့ အစားအသောက်နဲ့ ဝန်ဆောင်မှုအပေါ် သဘောထားလေးကို မှတ်ချက်ပေးလို့ရပါတယ်ရှင့်။`,
+              text: `ပိုမိုကောင်းမွန်သော ဝန်ဆောင်မှုများ ပေးနိုင်ရန်အတွက် Boss ၏ အကြံပြုချက်များကို ဤနေရာမှတစ်ဆင့် အမြဲကြိုဆိုလျက် ရှိပါသည်။`,
               wrap: true,
               color: '#666666',
               size: 'sm'
@@ -462,7 +463,7 @@ export async function sendCustomerRenewalToLine(lineUserId, data) {
             },
             {
               type: 'text',
-              text: `မင်္ဂလာပါ ${data.customerName}၊\nလူကြီးမင်းယူထားသော BBD Package သက်တမ်းသည် ${data.expireDateStr} တွင် ကုန်ဆုံးမည်ဖြစ်ပါသဖြင့် ဆက်လက်မှာယူလိုပါက Admin သို့ ဆက်သွယ်နိုင်ပါသည်ရှင့် 💖`,
+              text: `မင်္ဂလာပါ Boss ${data.customerName}၊\nBoss ယူထားသော BBD Package သက်တမ်းသည် ${data.expireDateStr} တွင် ကုန်ဆုံးမည်ဖြစ်ပါသဖြင့် Package သက်တမ်း ဆက်လက်တိုးလိုပါက Admin သို့ ဆက်သွယ်နိုင်ပါသည် Boss 💖`,
               wrap: true,
               color: '#666666',
               size: 'sm'

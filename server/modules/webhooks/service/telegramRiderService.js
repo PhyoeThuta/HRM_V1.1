@@ -219,8 +219,8 @@ export async function sendCustomerDeliveryAlertToTelegram(telegramChatId, orderD
       : 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=800&auto=format&fit=crop';
 
     const text = isDelivered 
-      ? `✅ <b>DELIVERED</b>\n\n<blockquote>ရောက်ပါပြီရှင့်! 🍽️\nမင်္ဂလာပါ ${orderData.customerName}၊\nယနေ့အတွက် နေ့လယ်စာ/ညစာလေး ပို့ဆောင်ပေးပြီးပါပြီ။\nအရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ အထွေထွေကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇</blockquote>`
-      : `🚚 <b>ON THE WAY</b>\n\n<blockquote>လာပို့နေပါပြီရှင့်! 🛵\nမင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များ ယခု စတင်ထွက်ခွာလာပါပြီ။</blockquote>`;
+      ? `✅ <b>DELIVERED</b>\n\n<blockquote>ရောက်ပါပြီ Boss! 🍽️\nမင်္ဂလာပါ Boss ${orderData.customerName}။\nယနေ့အတွက် Boss ရဲ့ BBD Meal ကို ပို့ဆောင်ပေးပြီးပါပြီ။ 📦✨\nBBD ၏ ဝန်ဆောင်မှု ပိုမိုကောင်းမွန်လာစေရန်အတွက် အရသာ၊ Delivery နှင့် အခြားအကြံပြုချက်များကို အောက်ပါ Link မှတစ်ဆင့် ဝင်ရောက် ရေးသားပေးပါရန် မေတ္တာရပ်ခံအပ်ပါသည် Boss။ 👇</blockquote>`
+      : `🚚 <b>ON THE WAY</b>\n\n<blockquote>လာပို့နေပါပြီ Boss! 🛵\nမင်္ဂလာပါ Boss ${orderData.customerName}၊\nယနေ့အတွက် Boss ရဲ့ အစားအသောက်များ လာပို့နေပါပြီ။ 🚚</blockquote>`;
 
     const replyMarkup = isDelivered ? {
       inline_keyboard: [
@@ -245,7 +245,7 @@ export async function sendCustomerFeedbackToTelegram(telegramChatId, data) {
     
     const bannerUrl = 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop';
     
-    const text = `⭐ <b>DAILY FEEDBACK</b>\n\n<blockquote>အရသာ ဘယ်လိုနေလဲရှင့်?\nယနေ့အတွက် BBD ရဲ့ အစားအသောက်နဲ့ ဝန်ဆောင်မှုအပေါ် သဘောထားလေးကို မှတ်ချက်ပေးလို့ရပါတယ်ရှင့်။</blockquote>`;
+    const text = `⭐ <b>DAILY FEEDBACK</b>\n\n<blockquote>ယနေ့အတွက် BBD Meal အဆင်ပြေရဲ့လား Boss။\nပိုမိုကောင်းမွန်သော ဝန်ဆောင်မှုများ ပေးနိုင်ရန်အတွက် Boss ၏ အကြံပြုချက်များကို ဤနေရာမှတစ်ဆင့် အမြဲကြိုဆိုလျက် ရှိပါသည်။</blockquote>`;
 
     const replyMarkup = {
       inline_keyboard: [
@@ -263,7 +263,7 @@ export async function sendCustomerRenewalToTelegram(telegramChatId, data) {
   try {
     const bannerUrl = 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=800&auto=format&fit=crop';
     
-    const text = `⏳ <b>EXPIRING SOON</b>\n\n<blockquote>Package သက်တမ်းကုန်တော့မည်\n\nမင်္ဂလာပါ ${data.customerName}၊\nလူကြီးမင်းယူထားသော BBD Package သက်တမ်းသည် <b>${data.expireDateStr}</b> တွင် ကုန်ဆုံးမည်ဖြစ်ပါသဖြင့် ဆက်လက်မှာယူလိုပါက Admin သို့ ဆက်သွယ်နိုင်ပါသည်ရှင့် 💖</blockquote>`;
+    const text = `⏳ <b>EXPIRING SOON</b>\n\n<blockquote>Package သက်တမ်းကုန်တော့မည်\n\nမင်္ဂလာပါ Boss ${data.customerName}၊\nBoss ယူထားသော BBD Package သက်တမ်းသည် <b>${data.expireDateStr}</b> တွင် ကုန်ဆုံးမည်ဖြစ်ပါသဖြင့် Package သက်တမ်း ဆက်လက်တိုးလိုပါက Admin သို့ ဆက်သွယ်နိုင်ပါသည် Boss 💖</blockquote>`;
 
     await sendTelegramPhoto(telegramChatId, bannerUrl, text, null);
   } catch (error) {

@@ -92,12 +92,12 @@ export async function handleLineEvent(event) {
         console.error('[LINE_CUSTOMER_LINK_ERROR]', error);
         return client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `❌ Failed to link account. Please try again or contact support.` }]
+          messages: [{ type: 'text', text: `❌ ချိတ်ဆက်မှု မအောင်မြင်ပါ။ ကျေးဇူးပြု၍ Code အမှန် ဟုတ်မဟုတ် ပြန်လည်စစ်ဆေးပေးပါ Boss။ ထပ်မံကြိုးစား၍ မရပါက Admin သို့ ဆက်သွယ်ပေးပါ။` }]
         });
       } else {
         return client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `✅ ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ Welcome, ${customer.full_name}! နေ့စဉ် BBD Delivery Alert များနှင့် Menu များကို ဤနေရာမှ ပို့ပေးပါမည်။` }]
+          messages: [{ type: 'text', text: `ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ Welcome Boss. ${customer.full_name}\nBoss အတွက် နေ့စဉ် BBD Delivery Alert များ၊ အကြံပြုစာများနှင့် တိုင်ကြားစာများ အားလုံးကို ဤနေရာမှတစ်ဆင့် တိုက်ရိုက် ဆက်သွယ် ပေးပို့သွားမည် ဖြစ်ပါသည်။` }]
         });
       }
     }
