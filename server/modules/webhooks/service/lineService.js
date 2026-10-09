@@ -260,6 +260,7 @@ export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
   try {
     const frontendUrl = process.env.FRONTEND_URL || 'https://bbd-hrm.aiautono.io';
     const trackLink = `${frontendUrl}/track/${orderData.orderId}`;
+    const feedbackLink = `${frontendUrl}/feedback/${orderData.customerId}`;
     const isDelivered = orderData.status === 'DELIVERED';
     
     const flexMessage = {
@@ -295,7 +296,7 @@ export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
             {
               type: 'text',
               text: isDelivered 
-                ? `မင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များကို အောင်မြင်စွာ ပို့ဆောင်ပြီးပါပြီ။` 
+                ? `မင်္ဂလာပါ ${orderData.customerName}၊\nယနေ့အတွက် နေ့လယ်စာ/ညစာလေး ပို့ဆောင်ပေးပြီးပါပြီ။\nအရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ အထွေထွေကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇` 
                 : `မင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များ ယခု စတင်ထွက်ခွာလာပါပြီ။`,
               wrap: true,
               color: '#666666',
@@ -307,7 +308,18 @@ export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
           type: 'box',
           layout: 'vertical',
           spacing: 'sm',
-          contents: isDelivered ? [] : [
+          contents: isDelivered ? [
+            {
+              type: 'button',
+              style: 'primary',
+              color: '#06C755',
+              action: {
+                type: 'uri',
+                label: '📝 အကြံပြု / တိုင်ကြားရန်',
+                uri: feedbackLink
+              }
+            }
+          ] : [
             {
               type: 'button',
               style: 'primary',

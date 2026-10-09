@@ -202,15 +202,21 @@ export async function sendCustomerDeliveryAlertToTelegram(telegramChatId, orderD
     const trackLink = `${frontendUrl}/track/${orderData.orderId}`;
     const isDelivered = orderData.status === 'DELIVERED';
     
+    const feedbackLink = `${frontendUrl}/feedback/${orderData.customerId}`;
+    
     const bannerUrl = isDelivered 
       ? 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=800&auto=format&fit=crop' 
       : 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=800&auto=format&fit=crop';
 
     const text = isDelivered 
-      ? `✅ <b>DELIVERED</b>\n\n<blockquote>ရောက်ပါပြီရှင့်! 🍽️\nမင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များကို အောင်မြင်စွာ ပို့ဆောင်ပြီးပါပြီ။</blockquote>`
+      ? `✅ <b>DELIVERED</b>\n\n<blockquote>ရောက်ပါပြီရှင့်! 🍽️\nမင်္ဂလာပါ ${orderData.customerName}၊\nယနေ့အတွက် နေ့လယ်စာ/ညစာလေး ပို့ဆောင်ပေးပြီးပါပြီ။\nအရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ အထွေထွေကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇</blockquote>`
       : `🚚 <b>ON THE WAY</b>\n\n<blockquote>လာပို့နေပါပြီရှင့်! 🛵\nမင်္ဂလာပါ ${orderData.customerName}၊\nသင့် အစားအသောက်များ ယခု စတင်ထွက်ခွာလာပါပြီ။</blockquote>`;
 
-    const replyMarkup = isDelivered ? null : {
+    const replyMarkup = isDelivered ? {
+      inline_keyboard: [
+        [{ text: '📝 အကြံပြု / တိုင်ကြားရန်', url: feedbackLink }]
+      ]
+    } : {
       inline_keyboard: [
         [{ text: '📍 Live Tracking ကြည့်ရန်', url: trackLink }]
       ]

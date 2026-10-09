@@ -33,6 +33,7 @@ export const notificationRouter = {
 
       const orderData = {
         orderId,
+        customerId,
         status,
         proofUrl,
         customerName: customer.full_name
