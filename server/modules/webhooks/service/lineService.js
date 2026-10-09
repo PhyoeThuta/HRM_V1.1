@@ -5,6 +5,8 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../../../middleware/auth.js';
 dotenv.config();
 
+const riderAssignmentCache = new Map();
+
 const client = new messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
@@ -88,6 +90,14 @@ export async function generateBotLinkingCode(userId) {
  * @param {object} orderData The order details
  */
 export async function sendOrderAssignmentToLine(riderSysUserId, orderData) {
+  const cacheKey = `rider_assign_${riderSysUserId}_${orderData.customerName}`;
+  if (riderAssignmentCache.has(cacheKey)) {
+    console.log(`[LINE RIDER] Debounced duplicate assignment for ${cacheKey}`);
+    return { success: true, reason: 'debounced' };
+  }
+  riderAssignmentCache.set(cacheKey, true);
+  setTimeout(() => riderAssignmentCache.delete(cacheKey), 60000);
+
   try {
     // 1. Fetch the LINE User ID from sys_users
     const { data: user, error: findError } = await supabaseAdmin

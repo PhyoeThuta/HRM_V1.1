@@ -5,6 +5,8 @@ import { JWT_SECRET } from '../../../middleware/auth.js';
 
 dotenv.config();
 
+const riderAssignmentCache = new Map();
+
 const getTelegramApi = () => `https://api.telegram.org/bot${process.env.TELEGRAM_RIDER_BOT_TOKEN}`;
 
 /**
@@ -137,6 +139,14 @@ export async function sendTelegramPhoto(chatId, photoUrl, caption, replyMarkup =
  * @param {object} orderData The order details
  */
 export async function sendOrderAssignmentToTelegram(riderSysUserId, orderData) {
+  const cacheKey = `rider_assign_${riderSysUserId}_${orderData.customerName}`;
+  if (riderAssignmentCache.has(cacheKey)) {
+    console.log(`[TELEGRAM RIDER] Debounced duplicate assignment for ${cacheKey}`);
+    return { success: true, reason: 'debounced' };
+  }
+  riderAssignmentCache.set(cacheKey, true);
+  setTimeout(() => riderAssignmentCache.delete(cacheKey), 60000);
+
   try {
     // 1. Fetch the Telegram Chat ID from sys_users
     const { data: user, error: findError } = await supabaseAdmin
