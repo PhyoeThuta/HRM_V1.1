@@ -980,7 +980,7 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     // 1. Ignore irrelevant events immediately
     const eventType = payload.event;
-    if (eventType && eventType !== 'message.received') {
+    if (eventType && eventType !== 'message.received' && eventType !== 'message_created') {
       console.log('[WEBHOOK IGNORED EVENT]', eventType);
       return res.status(200).json({ ok: true, ignored_event: eventType });
     }

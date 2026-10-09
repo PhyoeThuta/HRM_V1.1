@@ -518,7 +518,7 @@ export default function CustomerEnrollment() {
       toast.success('Code copied! Please paste and send this to the DDB LINE Bot.');
       // Fallback attempt to open LINE generally if they are on mobile
       setTimeout(() => {
-        window.open('https://line.me/R/ti/p/@027lyyeb', '_blank');
+        window.open('https://line.me/R/ti/p/@632bslnl', '_blank');
       }, 1500);
     };
 
