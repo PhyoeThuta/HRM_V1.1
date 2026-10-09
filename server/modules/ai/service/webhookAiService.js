@@ -54,9 +54,9 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
             recommended_action: { type: SchemaType.STRING, description: "Brief advice for the human admin on what to say next to the prospect in Burmese." },
             confidence_score: { type: SchemaType.INTEGER, description: "0 to 100 representing likelihood to purchase" },
             pipeline_status: { type: SchemaType.STRING, description: "Must be EXACTLY one of: 'new', 'in_progress', 'pending', 'converted', 'lost'. Set 'in_progress' for follow-up stage. Set 'pending' ONLY if prospect asks to buy/pay/transfer money now. Set 'new' for brief initial greetings." },
-            auto_reply_text: { type: SchemaType.STRING, nullable: true, description: "The auto reply text or null if no reply needed." }
+            auto_reply_text: { type: SchemaType.STRING, description: "The auto reply text. NEVER be null. Always reply gracefully even if the user just says ok." }
           },
-          required: ["intent", "sentiment", "recommended_action", "confidence_score", "pipeline_status"]
+          required: ["intent", "sentiment", "recommended_action", "confidence_score", "pipeline_status", "auto_reply_text"]
         }
       }
     });
@@ -113,7 +113,10 @@ CRITICAL RULES FOR "recommended_action" (AI INSIGHTS FOR ADMIN):
 
     // Only update pipeline status if not already an enrolled customer
     if (!existingInq?.customer_id && existingInq?.status !== 'converted') {
-      updatePayload.status = aiJson.pipeline_status || 'new';
+      const validStatuses = ['new', 'in_progress', 'pending', 'converted', 'lost'];
+      if (validStatuses.includes(aiJson.pipeline_status)) {
+        updatePayload.status = aiJson.pipeline_status;
+      }
     }
 
     const { data: updated } = await supabaseAdmin.schema('crm').from('inquiries')
