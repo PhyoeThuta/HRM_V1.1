@@ -4,12 +4,24 @@ import { sendCustomerDeliveryAlertToTelegram, sendCustomerFeedbackToTelegram, se
 import { sendDeliveryZernioMessage } from '../../operations/service/index.js';
 import fetch from 'node-fetch';
 
+// Simple in-memory cache to debounce duplicate notifications (e.g. 2 orders updated at the same time)
+const debounceCache = new Map();
+
 /**
  * Main router for sending messages to customers based on their preferred channel.
  */
 export const notificationRouter = {
   
   async sendDeliveryNotification(customerId, orderId, status, proofUrl) {
+    const cacheKey = `delivery_${customerId}_${status}`;
+    if (debounceCache.has(cacheKey)) {
+      console.log(`[NOTIFICATION ROUTER] Debounced duplicate delivery alert for ${cacheKey}`);
+      return;
+    }
+    // Set cache for 1 minute
+    debounceCache.set(cacheKey, true);
+    setTimeout(() => debounceCache.delete(cacheKey), 60000);
+
     try {
       const { data: customer } = await supabaseAdmin.schema('crm')
         .from('customers')
@@ -47,6 +59,15 @@ export const notificationRouter = {
   },
 
   async sendFeedbackNotification(customerId, customerName, token) {
+    const cacheKey = `feedback_${customerId}_${token}`;
+    if (debounceCache.has(cacheKey)) {
+      console.log(`[NOTIFICATION ROUTER] Debounced duplicate feedback alert for ${cacheKey}`);
+      return;
+    }
+    // Set cache for 1 minute
+    debounceCache.set(cacheKey, true);
+    setTimeout(() => debounceCache.delete(cacheKey), 60000);
+
     try {
       const { data: customer } = await supabaseAdmin.schema('crm')
         .from('customers')
@@ -77,6 +98,15 @@ export const notificationRouter = {
   },
 
   async sendRenewalNotification(customerId, customerName, expireDateStr) {
+    const cacheKey = `renewal_${customerId}_${expireDateStr}`;
+    if (debounceCache.has(cacheKey)) {
+      console.log(`[NOTIFICATION ROUTER] Debounced duplicate renewal alert for ${cacheKey}`);
+      return;
+    }
+    // Set cache for 1 minute
+    debounceCache.set(cacheKey, true);
+    setTimeout(() => debounceCache.delete(cacheKey), 60000);
+
     try {
       const { data: customer } = await supabaseAdmin.schema('crm')
         .from('customers')
