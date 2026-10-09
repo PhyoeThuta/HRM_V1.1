@@ -15,8 +15,8 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
       supabaseAdmin.schema('crm').from('inquiries_messages')
         .select('sender_type, message_text')
         .eq('inquiry_id', inquiryId)
-        .order('created_at', { ascending: true })
-        .limit(20),
+        .order('created_at', { ascending: false })
+        .limit(30),
       supabaseAdmin.schema('crm').from('packages').select('*'),
       supabaseAdmin.schema('public').from('ai_knowledge_base').select('question, answer').limit(50) // Supabase returns {data, error}, no need to catch()
     ]);
@@ -25,7 +25,8 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
     const history = historyRes.data;
     if (!history || history.length === 0) return;
       
-    const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
+    // Reverse so the oldest is first, newest is last
+    const chatHistory = history.reverse().map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
     const paymentInfo = process.env.PAYMENT_INFO_TEXT || 'KBZ Pay: 09XXXXXXX (Phyoe Thuta)';
     
     // Format Packages
@@ -82,9 +83,9 @@ ${chatHistory}
 CRITICAL RULES FOR "auto_reply_text":
 1. PREMIUM MINIMALIST TONE: Use a highly professional, confident, and polite Burmese tone (like a 5-Star Hotel Concierge). Address the user respectfully as "Boss". 
 2. NO EMOJIS: Do NOT use cheap emojis (e.g., 🥗, 💪, ✨). Use clean line breaks and elegant minimalist formatting. Do NOT use markdown asterisks (**).
-3. AVOID REPETITION: If you already pitched the packages earlier, DO NOT repeat the same pitch. 
+3. AVOID REPETITION: NEVER repeat the exact same sentence you just said in the previous message. Read the CHAT HISTORY carefully to see what you already said.
 4. SHORT GREETINGS: If the user just says "Hi", reply with a VERY SHORT greeting: "မင်္ဂလာပါ Boss၊ BBD ကနေ ကြိုဆိုပါတယ်။ ကျန်းမာရေးနဲ့ Diet plan အတွက် ဘယ်လိုမျိုး အကူအညီပေးရမလဲ ခင်ဗျာ။"
-5. QUALIFY BEFORE PITCHING: Don't just dump prices. If they ask for plans, ask them nicely about their weight loss or health goals first.
+5. QUALIFY & LISTEN BEFORE PITCHING: If they mention health issues (like diabetes, weight loss goals, eating habits), acknowledge their specific problem empathetically and explain how BBD can solve it BEFORE dumping prices.
 6. CLOSING THE SALE: When they choose a plan, do NOT just dump the bank account. Confirm their choice, build excitement, ask for delivery details, and then provide payment info elegantly.
 7. HUMAN HANDOVER: If they ask complex questions not in the Knowledge Base, or seem frustrated, set intent to "needs_human" and reply gracefully: "ဒီအချက်လေးကို ပိုပြီး တိတိကျကျ ရှင်းပြပေးနိုင်ဖို့ ကျွန်တော်တို့ရဲ့ Consultant နဲ့ ခဏလေး ချိတ်ဆက်ပေးပါမယ် ခင်ဗျာ။"
 
