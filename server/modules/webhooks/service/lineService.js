@@ -292,6 +292,15 @@ export async function sendCustomerDeliveryAlertToLine(lineUserId, orderData) {
             }
           ]
         },
+        ...(isDelivered ? {
+          hero: {
+            type: 'image',
+            url: orderData.proofUrl || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=800&auto=format&fit=crop',
+            size: 'full',
+            aspectRatio: '20:13',
+            aspectMode: 'cover'
+          }
+        } : {}),
         body: {
           type: 'box',
           layout: 'vertical',
