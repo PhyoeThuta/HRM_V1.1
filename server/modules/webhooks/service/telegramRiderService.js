@@ -215,7 +215,7 @@ export async function sendCustomerDeliveryAlertToTelegram(telegramChatId, orderD
     const feedbackLink = `${frontendUrl}/feedback/${orderData.customerId}`;
     
     const bannerUrl = isDelivered 
-      ? 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=800&auto=format&fit=crop' 
+      ? (orderData.proofUrl || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=800&auto=format&fit=crop')
       : 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=800&auto=format&fit=crop';
 
     const text = isDelivered 
