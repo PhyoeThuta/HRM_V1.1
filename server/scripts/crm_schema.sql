@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS crm.customer_health (
   medicine_taking    TEXT DEFAULT 'None',
   special_requests   TEXT DEFAULT 'None',
   allergies          TEXT DEFAULT 'None',
+  bmi_at_enrollment  NUMERIC,
+  recommended_weight_min NUMERIC,
+  recommended_weight_max NUMERIC,
   updated_at         TIMESTAMPTZ DEFAULT NOW()
 );
 
