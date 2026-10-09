@@ -18,7 +18,7 @@ export async function triggerAIAnalysis(inquiryId, conversationId = null) {
         .order('created_at', { ascending: true })
         .limit(20),
       supabaseAdmin.schema('crm').from('packages').select('*'),
-      supabaseAdmin.schema('public').from('ai_knowledge_base').select('question, answer').limit(50).catch(() => ({ data: [] })) // Optional RAG table
+      supabaseAdmin.schema('public').from('ai_knowledge_base').select('question, answer').limit(50) // Supabase returns {data, error}, no need to catch()
     ]);
 
     const existingInq = inqRes.data;
@@ -127,7 +127,7 @@ CRITICAL RULES FOR "recommended_action" (AI INSIGHTS FOR ADMIN):
     if (updated) emitInquiryUpdated(updated);
 
     // Auto-Reply Logic - ONLY IF AI IS ENABLED
-    if (existingInq?.is_ai_enabled !== false && aiJson.auto_reply_text && conversationId && process.env.ZERNIO_API_KEY) {
+    if (existingInq?.is_ai_enabled !== false && aiJson.auto_reply_text) {
       
       // Implement Human-Like Random Delay (30 to 60 seconds)
       const delayMs = Math.floor(Math.random() * (60000 - 30000 + 1) + 30000);
@@ -142,26 +142,30 @@ CRITICAL RULES FOR "recommended_action" (AI INSIGHTS FOR ADMIN):
             return;
           }
 
-          const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-          await fetch(zernioUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
-            },
-            body: JSON.stringify({
-              accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-              message: aiJson.auto_reply_text
-            })
-          });
+          // Send to Zernio if it's a real webhook (has conversationId and API Key)
+          if (conversationId && process.env.ZERNIO_API_KEY) {
+            const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+            await fetch(zernioUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
+              },
+              body: JSON.stringify({
+                accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+                message: aiJson.auto_reply_text
+              })
+            }).catch(e => console.error('[CRM AI ZERNIO ERROR]', e));
+          }
           
+          // Always save to database so it shows up in CRM
           const { data: newMsg } = await supabaseAdmin.schema('crm')
             .from('inquiries_messages')
             .insert({
               inquiry_id: inquiryId,
               message_text: aiJson.auto_reply_text,
               sender_type: 'ai_bot',
-              metadata: { auto_reply: true, conversationId }
+              metadata: { auto_reply: true, conversationId: conversationId || null }
             })
             .select().single();
             
