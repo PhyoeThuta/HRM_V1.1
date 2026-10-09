@@ -30,6 +30,21 @@ export default function Inquiries() {
 
   useEffect(() => {
     loadInquiries();
+    
+    // Fallback polling for Serverless environments (Vercel) where WebSockets cross-communication fails
+    const pollInterval = setInterval(() => {
+      crmApi.getInquiries().then(data => {
+        setInquiries(prev => {
+          const hasChanges = data.some(d => {
+             const existing = prev.find(p => p.id === d.id);
+             return !existing || existing.updated_at !== d.updated_at;
+          });
+          return hasChanges ? data : prev;
+        });
+      }).catch(() => {});
+    }, 7000);
+    
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Realtime: customer (Zernio webhook) + agent replies + AI updates
@@ -110,7 +125,24 @@ export default function Inquiries() {
     const id = selectedInquiry?.id;
     if (!id) return undefined;
     joinInquiryRoom(id);
-    return () => leaveInquiryRoom(id);
+    
+    // Fallback polling for active chat messages
+    const msgInterval = setInterval(() => {
+      crmApi.getInquiryMessages(id).then(msgs => {
+        setMessages(prev => {
+          if (prev.length !== msgs.length) {
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+            return msgs;
+          }
+          return prev;
+        });
+      }).catch(() => {});
+    }, 5000);
+
+    return () => {
+      leaveInquiryRoom(id);
+      clearInterval(msgInterval);
+    };
   }, [selectedInquiry?.id]);
 
   const location = useLocation();
