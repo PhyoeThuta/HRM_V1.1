@@ -418,13 +418,13 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     
     if (daysLeft < 0) {
       // Past expiry
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေး ကုန်သွားတာ ${Math.abs(daysLeft)} ရက် ရှိသွားပါပြီရှင်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လားရှင်။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${packageName} လေး ကုန်သွားတာ ${Math.abs(daysLeft)} ရက် ရှိသွားပါပြီ ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လား ခင်ဗျာ။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါ Boss။`;
     } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
       // Monthly plan renewal reminder
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss။`;
     } else {
       // Default / Weekly plan renewal reminder
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss။`;
     }
 
     // 3. Send message via Zernio API 
@@ -1543,7 +1543,7 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
     const token = inquiry.onboarding_token;
     const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
     const link = `${frontendUrl}/enroll?token=${token}`;
-    const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီရှင်။ 🎉\n\nအစ်ကို/အစ်မအတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော်။\n\n${link}`;
+    const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီ ခင်ဗျာ။ 🎉\n\nBoss အတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦး ခင်ဗျာ။\n\n${link}`;
 
     // Insert message into history so it sends to Facebook
     const { data: newMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')

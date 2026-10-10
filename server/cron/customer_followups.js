@@ -90,18 +90,18 @@ export async function checkAndNotifyFollowups() {
       if (diffDays < 0) {
         // Past expiry
         shouldNotify = true;
-        messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေး ကုန်သွားတာ ${Math.abs(diffDays)} ရက် ရှိသွားပါပြီရှင်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လားရှင်။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါရှင် 🥗✨`;
+        messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${pkg.name} လေး ကုန်သွားတာ ${Math.abs(diffDays)} ရက် ရှိသွားပါပြီ ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လား ခင်ဗျာ။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါ Boss 🥗✨`;
       } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
         // 30-day plans: Reminder at 5 days and 1 day
         if (diffDays === 5 || diffDays === 1) {
           shouldNotify = true;
-          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+          messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss 🥗✨`;
         }
       } else {
         // Weekly/Default plans: Reminder at 3 days and 1 day
         if (diffDays === 3 || diffDays === 1) {
           shouldNotify = true;
-          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+          messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss 🥗✨`;
         }
       }
 
@@ -176,7 +176,7 @@ export async function checkAndNotifyFormReminders() {
     for (const inq of inquiries) {
       const frontendUrl = process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
       const link = `${frontendUrl}/enroll?token=${inq.onboarding_token}`;
-      const messageText = `မင်္ဂလာပါ ${inq.prospect_name} ရှင်၊ မနေ့က ပို့ထားတဲ့ ဖောင်လေး ဖြည့်ဖို့ ကျန်နေသေးလို့ပါရှင်။ \n\nအောက်က လင့်ခ်လေးကို နှိပ်ပြီး အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော် ✨\n${link}`;
+      const messageText = `မင်္ဂလာပါ Boss ${inq.prospect_name}၊ မနေ့က ပို့ထားတဲ့ ဖောင်လေး ဖြည့်ဖို့ ကျန်နေသေးလို့ပါ ခင်ဗျာ။ \n\nအောက်က လင့်ခ်လေးကို နှိပ်ပြီး အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦး Boss ✨\n${link}`;
 
       // Insert message into DB to track it
       const newMsg = await crmModule.logFormReminderAttempt(inq.id, messageText);
