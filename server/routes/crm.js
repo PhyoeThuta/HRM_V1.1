@@ -1288,13 +1288,14 @@ router.post('/inquiries', verifyToken, async (req, res) => {
 router.put('/inquiries/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes, ai_analysis_result, service_interest_confidence } = req.body;
+    const { status, notes, ai_analysis_result, service_interest_confidence, is_ai_enabled } = req.body;
 
     const updateData = { updated_at: new Date().toISOString() };
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (ai_analysis_result) updateData.ai_analysis_result = ai_analysis_result;
     if (service_interest_confidence !== undefined) updateData.service_interest_confidence = service_interest_confidence;
+    if (is_ai_enabled !== undefined) updateData.is_ai_enabled = is_ai_enabled;
 
     const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
       .update(updateData)
