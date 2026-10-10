@@ -200,3 +200,47 @@ CRITICAL RULES FOR "recommended_action" (AI INSIGHTS FOR ADMIN):
     throw aiErr;
   }
 }
+
+export async function learnFromAdminReply(question, answer) {
+  if (!question || !answer || answer.length < 10) return;
+  try {
+    const prompt = `
+      Analyze this Customer Question and Admin Answer pair.
+      Customer: "${question}"
+      Admin: "${answer}"
+      
+      Does the Admin's answer contain useful, factual company knowledge (e.g., about Halal food, menus, policies, locations, unlisted prices) that an AI should learn for future customers? 
+      If YES, extract a concise, generalized Question and Answer pair for a Knowledge Base FAQ.
+      If NO (it's just small talk, asking for receipts, personal chit-chat, order confirmation, or generic greetings), return exactly "null" for the fields.
+      
+      Return ONLY JSON:
+      {
+        "is_useful": boolean,
+        "extracted_question": "string or null",
+        "extracted_answer": "string or null"
+      }
+    `;
+    
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash", 
+      generationConfig: { responseMimeType: "application/json" }
+    });
+    
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const json = JSON.parse(text);
+    
+    if (json.is_useful && json.extracted_question && json.extracted_answer) {
+      console.log(`[AI Auto-Learner] Learned new FAQ: Q: ${json.extracted_question} -> A: ${json.extracted_answer}`);
+      await supabaseAdmin.from('ai_knowledge_base').insert({
+        question: json.extracted_question,
+        answer: json.extracted_answer,
+        source_table: 'inquiries_messages',
+        content: json.extracted_question + " " + json.extracted_answer
+      });
+    }
+  } catch (err) {
+    console.error('[AI Auto-Learner Error]', err);
+  }
+}

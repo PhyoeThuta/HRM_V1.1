@@ -1131,6 +1131,24 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
     // 2. Run AI Analysis in the background
     setTimeout(() => triggerAIAnalysis(id).catch(err => console.error('[CRM AI BACKGROUND ERROR]', err)), 100);
 
+    // 2.5 Auto-Learn from Admin reply
+    if (!sender_type || sender_type === 'admin') {
+      setTimeout(async () => {
+        try {
+          const { data: lastProspectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+            .select('message_text')
+            .eq('inquiry_id', id)
+            .eq('sender_type', 'prospect')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (lastProspectMsgs && lastProspectMsgs.length > 0) {
+            const { learnFromAdminReply } = await import('../modules/ai/service/webhookAiService.js');
+            await learnFromAdminReply(lastProspectMsgs[0].message_text, message_text);
+          }
+        } catch (e) { console.error('[Auto-Learn Init Error]', e); }
+      }, 200);
+    }
+
     // 3. Send message to Facebook via Zernio (or direct FB fallback) if it's an admin reply
     if ((!sender_type || sender_type === 'admin') && (process.env.ZERNIO_API_KEY || process.env.FACEBOOK_PAGE_ACCESS_TOKEN)) {
       try {
