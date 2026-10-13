@@ -76,9 +76,20 @@ export default function Attendance() {
   });
 
 
+  // Convert a check_in timestamp (UTC or local) to Bangkok YYYY-MM-DD date string
+  const toBkkDate = (isoString) => {
+    if (!isoString) return '';
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(isoString));
+    } catch { return ''; }
+  };
+
   const records = (data?.records || []).filter(r => {
     const nameMatch = !filter.name || (r.Full_name || '').toLowerCase().includes(filter.name.toLowerCase());
-    const dateMatch = !filter.date || String(r.check_in || '').startsWith(filter.date);
+    // BUG FIX: Convert check_in to Bangkok local date before comparing.
+    // Without this, UTC-stored records (Photo/QR) for early AM check-ins
+    // (e.g. 5:56 AM BKK = previous day UTC) would be excluded from Today filter.
+    const dateMatch = !filter.date || toBkkDate(r.check_in) === filter.date;
     const statusMatch = filter.status === 'all' || (filter.status === 'late' ? r.is_late : !r.is_late);
     return nameMatch && dateMatch && statusMatch;
   });

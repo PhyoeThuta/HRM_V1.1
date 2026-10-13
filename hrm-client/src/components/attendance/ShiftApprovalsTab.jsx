@@ -60,14 +60,22 @@ export default function ShiftApprovalsTab() {
     });
   };
 
+  // Convert check_in UTC timestamp to Bangkok local date
+  const toBkkDate = (isoString) => {
+    if (!isoString) return '';
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(isoString));
+    } catch { return ''; }
+  };
+
   // Pending records should ALWAYS show up regardless of the selected date (so nothing is forgotten)
   const pendingRecords = records.filter(r => r.shift_approval_status === 'Pending');
   
   // Processed records are filtered by the selected date for clean history viewing
+  // BUG FIX: Use Bangkok timezone date conversion instead of UTC string startsWith
   const processedRecords = records.filter(r => 
     r.shift_approval_status !== 'Pending' && 
-    r.check_in && 
-    r.check_in.startsWith(filterDate)
+    toBkkDate(r.check_in) === filterDate
   );
 
   if (isLoading) return <div className="p-4 text-slate-400">{t('hrm.attendance.roster.approvals.loading')}</div>;

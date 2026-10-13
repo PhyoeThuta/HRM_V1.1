@@ -366,10 +366,16 @@ export const attendanceService = {
 
   photoCheckin: async (employee_id, claimed_shift_id, special_shift_reason) => {
     const now = new Date().toISOString();
-    const today = now.split('T')[0];
+    // BUG FIX: Use Bangkok date string for today comparison (not UTC)
+    const todayBkk = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(now));
 
     const openRecords = await attendanceRepository.getAttendanceRecords({ employee_id }, { order: 'check_in', ascending: false, limit: 10 });
-    const todayRecords = openRecords.filter(r => r.check_in && r.check_in.startsWith(today));
+    // Use Bangkok date to find today's records (fixes UTC timezone mismatch)
+    const todayRecords = openRecords.filter(r => {
+      if (!r.check_in) return false;
+      const recDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(r.check_in));
+      return recDate === todayBkk;
+    });
     const todayOpen = todayRecords.find(r => !r.check_out);
     const todayCompleted = todayRecords.find(r => r.check_out);
 
@@ -389,18 +395,21 @@ export const attendanceService = {
       throw new Error('Attendance already completed for today.');
     } else {
       let isLate = false;
-      let shiftAppStatus = 'Approved';
+      let shiftAppStatus = 'Approved'; // AUTO-APPROVE by default
       let claimedId = null;
       let specialReason = null;
       
       if (claimed_shift_id === 'special') {
+        // Only truly special (out-of-roster) shifts still need HR review
         isLate = false;
         shiftAppStatus = 'Pending';
         specialReason = special_shift_reason || 'No reason provided';
       } else if (claimed_shift_id) {
+        // AUTO-APPROVE: Regular claimed shifts are approved immediately
+        // so employees appear in Today's records without waiting for HR
         claimedId = claimed_shift_id;
         isLate = await checkIsLate(employee_id, now, claimedId);
-        shiftAppStatus = 'Pending';
+        shiftAppStatus = 'Approved'; // Changed from 'Pending' to 'Approved'
       } else {
         isLate = await checkIsLate(employee_id, now);
       }
@@ -418,8 +427,8 @@ export const attendanceService = {
       if (shiftAppStatus === 'Pending') {
         const { dbInsert } = await import('../../../lib/supabase.js');
         const notiPayload = {
-          title: 'Shift Approval Required',
-          message: 'An employee self-declared a shift during Check-in.',
+          title: 'Special Shift Approval Required',
+          message: 'An employee self-declared a special (out-of-roster) shift during Check-in.',
           link_url: '/attendance',
           is_read: false,
           created_at: new Date().toISOString()
