@@ -95,7 +95,7 @@ jobs:
           host:     ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_USERNAME }}
           key:      ${{ secrets.GCP_SSH_KEY }}
-          source:   "docker-compose.yml"
+          source:   "docker-compose.yml,nginx/"
           target:   "/opt/bbd"
 
       - name: Deploy via SSH to GCP VM
@@ -153,22 +153,73 @@ jobs:
             # Rolling replace: start new container, old one is stopped automatically
             IMAGE_TAG="${IMAGE_TAG}" docker compose up -d --pull never
 
-            # Wait for health check to pass (max 60s)
-            echo "=== Waiting for health check ==="
-            for i in $(seq 1 12); do
+            # Wait for health check to pass
+            # Docker healthcheck: start_period=20s, interval=30s, retries=3
+            # Worst case to reach "healthy": 20 + (3 × 30) = 110s
+            # We poll for up to 300s (30 attempts × 10s) to be safe
+            echo "=== Waiting for health check (up to 300s) ==="
+            HEALTHY=false
+            for i in $(seq 1 30); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' bbd_hrm_app 2>/dev/null || echo "starting")
-              echo "Health: ${STATUS} (attempt ${i}/12)"
+              echo "Health: ${STATUS} (attempt ${i}/30)"
               if [ "${STATUS}" = "healthy" ]; then
-                echo "=== Deployment successful! ==="
-                exit 0
+                HEALTHY=true
+                echo "=== Container is healthy! ==="
+                break
               fi
-              sleep 5
+              sleep 10
             done
 
-            echo "=== ERROR: Container failed health check. Rolling back. ==="
-            # Rollback: find the previously running image and restart it
-            PREVIOUS_IMAGE=$(docker ps -a --filter "name=bbd_hrm_app" --format "{{.Image}}" | tail -n 2 | head -n 1 || true)
-            if [ -n "${PREVIOUS_IMAGE}" ]; then
-              IMAGE_TAG=$(echo "${PREVIOUS_IMAGE}" | cut -d: -f2) docker compose up -d --pull never
+            if [ "${HEALTHY}" = "false" ]; then
+              echo "=== ERROR: Container failed health check. Rolling back. ==="
+              PREVIOUS_IMAGE=$(docker ps -a --filter "name=bbd_hrm_app" --format "{{.Image}}" | tail -n 2 | head -n 1 || true)
+              if [ -n "${PREVIOUS_IMAGE}" ]; then
+                IMAGE_TAG=$(echo "${PREVIOUS_IMAGE}" | cut -d: -f2) docker compose up -d --pull never
+              fi
+              exit 1
             fi
-            exit 1
+
+            # ── Nginx: sync config + symlink + reload ────────────────────────
+            # 1. Copy latest nginx config from repo
+            # 2. Remove legacy static-file configs (old PM2 era)
+            # 3. Ensure correct symlink is active
+            # 4. Validate + reload nginx
+            NGINX_CONF_SRC="/opt/bbd/nginx/hrm.conf"
+            NGINX_CONF_DST="/etc/nginx/sites-available/bbd-hrm.aiautono.io"
+            NGINX_ENABLED="/etc/nginx/sites-enabled/bbd-hrm.aiautono.io"
+            NGINX_OLD_LINK="/etc/nginx/sites-enabled/hrm_react"
+
+            if [ -f "${NGINX_CONF_SRC}" ]; then
+              echo "=== Syncing nginx config from repo ==="
+              sudo cp "${NGINX_CONF_SRC}" "${NGINX_CONF_DST}"
+            fi
+
+            # Remove legacy static-file nginx config (old PM2 setup)
+            if [ -L "${NGINX_OLD_LINK}" ]; then
+              echo "=== Removing legacy nginx config: hrm_react ==="
+              sudo rm -f "${NGINX_OLD_LINK}"
+            fi
+
+            # Remove retired old domain symlink
+            if [ -L "/etc/nginx/sites-enabled/hrm.duolinkmm.com" ]; then
+              echo "=== Removing retired domain nginx config ==="
+              sudo rm -f "/etc/nginx/sites-enabled/hrm.duolinkmm.com"
+            fi
+
+            # Create symlink if not already enabled
+            if [ ! -L "${NGINX_ENABLED}" ]; then
+              echo "=== Creating nginx symlink for bbd-hrm.aiautono.io ==="
+              sudo ln -s "${NGINX_CONF_DST}" "${NGINX_ENABLED}"
+            fi
+
+            if sudo nginx -t 2>&1; then
+              echo "=== Nginx config valid — reloading nginx ==="
+              sudo systemctl reload nginx
+              echo "=== Nginx reloaded — new container is now live ==="
+            else
+              echo "=== WARNING: nginx -t failed — skipping reload to prevent downtime ==="
+              echo "=== The app container is healthy but nginx config has an error. Fix manually. ==="
+            fi
+            # ─────────────────────────────────────────────────────────────────
+
+            echo "=== Deployment complete! Image: ${IMAGE_NAME}:${IMAGE_TAG} ==="

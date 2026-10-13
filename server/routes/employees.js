@@ -5,6 +5,10 @@ import { validate } from '../middleware/validate.js';
 import { createEmployeeSchema } from '../schemas/index.js';
 import { supabase } from '../lib/supabase.js';
 import multer from 'multer';
+import { hrmModule } from '../modules/hrm/index.js';
+import { payrollModule } from '../modules/payroll/index.js';
+import { identityModule } from '../modules/identity/index.js';
+import { generateBotLinkingCode } from '../modules/webhooks/service/lineService.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
@@ -37,10 +41,34 @@ router.get('/', async (req, res) => {
       .from('Employees')
       .select('*', { count: 'exact' })
       .is('deleted_at', null)
+      .eq('employment_status', 'Active')
       .order('created_at', { ascending: false })
       .range(from, to);
       
-    const { data: employees, count, error } = await q;
+    let { data: employees, count, error } = await q;
+
+    // Fallback if the employment_status column doesn't exist yet (migration not run)
+    if (error && error.code === '42703' && error.message.includes('employment_status')) {
+      const fallbackQuery = supabase
+        .from('Employees')
+        .select('*', { count: 'exact' })
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      const res = await fallbackQuery;
+      employees = res.data;
+      count = res.count;
+      error = res.error;
+      
+      // Inject dummy fields so the UI doesn't crash
+      if (employees) {
+        employees = employees.map(e => ({
+          ...e,
+          employment_status: e.employment_status || 'Active'
+        }));
+      }
+    }
+
     if (error) throw error;
 
     const enriched = await enrichEmployees(employees || []);
@@ -64,6 +92,40 @@ router.get('/recycle-bin', requireAdmin, async (req, res) => {
 
     const enriched = await enrichEmployees(employees || []);
     return res.json({ employees: enriched, total: count });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/employees/former
+router.get('/former', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let q = supabase
+      .from('Employees')
+      .select('*', { count: 'exact' })
+      .is('deleted_at', null)
+      .eq('employment_status', 'Resigned')
+      .order('resign_date', { ascending: false })
+      .range(from, to);
+      
+    let { data: employees, count, error } = await q;
+
+    // Fallback if the employment_status column doesn't exist yet
+    if (error && error.code === '42703' && error.message.includes('employment_status')) {
+      employees = [];
+      count = 0;
+      error = null;
+    }
+
+    if (error) throw error;
+
+    const enriched = await enrichEmployees(employees || []);
+    return res.json({ employees: enriched, total: count, page, limit });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -94,61 +156,74 @@ router.get('/form-data', async (req, res) => {
 // GET /api/employees/:id
 router.get('/:id', async (req, res) => {
   try {
-    const emp = await dbFetchOne('Employees', '*', { id: req.params.id });
-    if (!emp) return res.status(404).json({ error: 'Employee not found' });
+    const profile = await hrmModule.getEmployeeProfile(req.params.id);
+    if (!profile) return res.status(404).json({ error: 'Employee not found' });
+    return res.json(profile);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
-    const [depts, positions, allEmps, leaveBals, leaveTypes, leaveReqs, attRecs, payrolls, kpis, votes, onboarding] = await Promise.all([
-      dbFetch('Departments', 'id,Department_name'),
-      dbFetch('positions', 'id,title'),
-      dbFetch('Employees', 'id,Full_name'),
-      dbFetch('Leave_balances', '*', { employee_id: req.params.id }),
-      dbFetch('Leave_type', 'id,type_name'),
-      dbFetch('Leave_Request', '*', { employee_id: req.params.id }),
-      dbFetch('attendance_records', '*', { employee_id: req.params.id }, { order: 'check_in', ascending: false }),
-      dbFetch('payrolls', '*', { employee_id: req.params.id }, { order: 'month', ascending: true }),
-      dbFetch('kpis', '*', { employee_id: req.params.id }),
-      dbFetch('peer_voting_records', '*', { nominee_id: req.params.id }),
-      dbFetchOne('employee_onboarding', '*', { employee_id: req.params.id }),
-    ]);
+// GET /api/employees/:id/line-status
+router.get('/:id/line-status', async (req, res) => {
+  try {
+    const eid = req.params.id;
+    const isAdmin = ['boss', 'hr_manager', 'general_manager'].includes(req.user.role);
+    if (!isAdmin && req.user.employee_id !== parseInt(eid) && req.user.employee_id !== eid) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
-    const deptMap = Object.fromEntries(depts.map(d => [d.id, d.Department_name]));
-    const posMap = Object.fromEntries(positions.map(p => [p.id, p.title]));
-    const mgrMap = Object.fromEntries(allEmps.map(e => [e.id, e.Full_name]));
-    const ltMap = Object.fromEntries(leaveTypes.map(lt => [lt.id, lt.type_name]));
+    const sysUser = await dbFetchOne('sys_users', 'bot_linking_code, line_user_id, telegram_chat_id', { employee_id: eid });
+    if (!sysUser) return res.json({ isLinked: false, isTelegramLinked: false, code: null });
 
-    emp.dept_name = deptMap[emp.Dept_id] || '—';
-    emp.pos_title = posMap[emp.position_id] || '—';
-    emp.manager_name = mgrMap[emp.Manager_id] || null;
-
-    leaveBals.forEach(b => { b.type_name = ltMap[b.leave_type_id] || '—'; });
-    leaveReqs.forEach(r => { r.type_name = ltMap[r.leave_type_id] || '—'; });
-
-    // Work hours calc
-    attRecs.forEach(r => {
-      if (r.check_in && r.check_out) {
-        try {
-          const diff = (new Date(r.check_out) - new Date(r.check_in)) / 3600000;
-          r.work_hours_calc = Math.max(0, Math.round(diff * 100) / 100);
-        } catch { r.work_hours_calc = 0; }
-      } else { r.work_hours_calc = null; }
+    return res.json({ 
+      isLinked: !!sysUser.line_user_id, 
+      isTelegramLinked: !!sysUser.telegram_chat_id,
+      code: sysUser.bot_linking_code 
     });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
 
-    const voteCount = votes.length;
-    const voteTotal = votes.reduce((s, v) => s + parseInt(v.score || 0), 0);
-    const voteAvg = voteCount > 0 ? Math.round((voteTotal / voteCount) * 10) / 10 : 0;
-    const totalPaid = payrolls.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + parseFloat(p.net_salary || 0), 0);
+// POST /api/employees/:id/line-link-code
+router.post('/:id/line-link-code', async (req, res) => {
+  try {
+    const eid = req.params.id;
+    // Allow if user is admin, boss, or the employee themselves
+    const isAdmin = ['boss', 'hr_manager', 'general_manager'].includes(req.user.role);
+    if (!isAdmin && req.user.employee_id !== parseInt(eid) && req.user.employee_id !== eid) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
-    return res.json({
-      emp,
-      attendance_records: attRecs,
-      leave_balances: leaveBals,
-      leave_requests: leaveReqs,
-      payroll_records: payrolls,
-      total_paid: totalPaid,
-      kpi_records: kpis,
-      vote_stats: { votes: voteCount, total: voteTotal, avg: voteAvg },
-      onboarding,
-    });
+    // Find the corresponding sys_user id for this employee
+    const sysUser = await dbFetchOne('sys_users', 'id, full_name, bot_linking_code, line_user_id, telegram_chat_id', { employee_id: eid });
+    if (!sysUser) {
+      return res.status(404).json({ error: 'System user account not found for this employee' });
+    }
+
+    // If already has a code, just return it
+    if (sysUser.bot_linking_code) {
+      return res.json({ success: true, code: sysUser.bot_linking_code, isLinked: !!sysUser.line_user_id, isTelegramLinked: !!sysUser.telegram_chat_id });
+    }
+
+    const newCode = await generateBotLinkingCode(sysUser.id);
+    return res.json({ success: true, code: newCode, isLinked: !!sysUser.line_user_id, isTelegramLinked: !!sysUser.telegram_chat_id });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/employees/:id/timeline
+router.get('/:id/timeline', async (req, res) => {
+  try {
+    let items = [];
+    try {
+      items = await dbFetch('employee_career_timeline', '*', { employee_id: req.params.id }, { order: 'effective_date', ascending: false });
+    } catch (e) {
+      items = [];
+    }
+    return res.json({ timeline: items });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -157,68 +232,8 @@ router.get('/:id', async (req, res) => {
 // POST /api/employees
 router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) => {
   try {
-    const d = req.body;
-    
-    // Clean data (remove empty strings)
-    const cleanData = Object.fromEntries(
-      Object.entries({
-        employee_id: d.employee_id, Full_name: d.Full_name,
-        email: d.email || null, phone: d.phone || null,
-        Dept_id: d.Dept_id || null, position_id: d.position_id || null,
-        Manager_id: d.Manager_id || null,
-        hire_date: d.hire_date || null, date_of_birth: d.date_of_birth || null,
-        national_id: d.national_id || null, address: d.address || null,
-        employment_type: d.employment_type || 'Full-Time',
-        status: d.status || 'Active',
-        salary: d.salary ? parseFloat(d.salary) : null,
-        created_at: new Date().toISOString(),
-      }).filter(([, v]) => v !== null && v !== undefined && v !== '')
-    );
-
-    const { data: resultData, error: insertError } = await supabase.from('Employees').insert(cleanData).select();
-    
-    if (insertError) {
-      console.error('[EMPLOYEE INSERT ERROR]', insertError);
-      return res.status(400).json({ error: insertError.message || 'Failed to add employee' });
-    }
-    
-    const result = resultData?.[0];
-
-    // Audit log
-    await dbInsert('sys_audit_logs', {
-      user_id: req.user.id,
-      user_name: req.user.full_name || req.user.username,
-      action: 'CREATE',
-      module: 'Employees',
-      details: `Created employee ${d.Full_name} (${d.employee_id})`,
-      created_at: new Date().toISOString()
-    }).catch(console.error);
-
-    // Auto-create sys_users
-    try {
-      const username = d.employee_id.toLowerCase();
-      let role = 'employee';
-      if (d.position_id) {
-        const pos = await dbFetchOne('positions', '*', { id: d.position_id });
-        if (pos) {
-          const title = (pos.title || '').toLowerCase();
-          const team = (pos.team || '').toLowerCase();
-          if (team.includes('finance') || title.includes('finance')) role = 'finance';
-          else if (title.includes('hr manager') || team.includes('human resources')) role = 'hr_manager';
-          else if (title.includes('boss') || title.includes('executive') || title.includes('general manager')) role = 'boss';
-        }
-      }
-      await dbInsert('sys_users', {
-        username, password_hash: 'MUST_CHANGE:' + hashPassword('123456'),
-        role, employee_id: result.id, full_name: d.Full_name,
-      });
-      return res.json({ success: true, employee: result, message: `Employee added! Login: ${username} / 123456` });
-    } catch (userErr) {
-      console.error('Auto-create user failed:', userErr);
-      // Rollback employee insertion to maintain data consistency
-      await dbDelete('Employees', result.id).catch(e => console.error('Rollback failed:', e));
-      return res.status(500).json({ error: 'Failed to create user login account. Employee creation rolled back. Reason: ' + userErr.message });
-    }
+    const { result, credentials } = await hrmModule.createEmployee(req.body, req.user);
+    return res.json({ success: true, employee: result, message: `Employee added! Login: ${credentials.username} / ${credentials.defaultPassword}` });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -227,32 +242,135 @@ router.post('/', requireAdmin, validate(createEmployeeSchema), async (req, res) 
 // PUT /api/employees/:id
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
-    const d = req.body;
-    const ok = await dbUpdate('Employees', req.params.id, {
-      employee_id: d.employee_id, Full_name: d.Full_name, email: d.email || null, phone: d.phone || null,
-      Dept_id: d.Dept_id || null, position_id: d.position_id || null,
-      Manager_id: d.Manager_id || null,
-      hire_date: d.hire_date || null, date_of_birth: d.date_of_birth || null,
-      national_id: d.national_id || null, address: d.address || null,
-      employment_type: d.employment_type || 'Full-Time',
-      status: d.status || 'Active',
-      salary: d.salary ? parseFloat(d.salary) : null,
-      salary: d.salary ? parseFloat(d.salary) : null,
-      updated_at: new Date().toISOString(),
-    });
-    if (!ok) return res.status(500).json({ error: 'Update failed' });
-
-    // Audit log
-    await dbInsert('sys_audit_logs', {
-      user_id: req.user.id,
-      user_name: req.user.full_name || req.user.username,
-      action: 'UPDATE',
-      module: 'Employees',
-      details: `Updated employee ${d.Full_name} (${d.employee_id})`,
-      created_at: new Date().toISOString()
-    }).catch(console.error);
-
+    await hrmModule.updateEmployee(req.params.id, req.body, req.user);
     return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/employees/bulk-import (Bulk Upload/Update Employee Numbers & Base Salaries via JSON or Excel/CSV)
+router.post('/bulk-import', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    let rows = [];
+    if (req.file) {
+      const wb = (await import('xlsx')).default.read(req.file.buffer, { type: 'buffer' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      rows = (await import('xlsx')).default.utils.sheet_to_json(sheet);
+    } else if (Array.isArray(req.body.employees)) {
+      rows = req.body.employees;
+    } else {
+      return res.status(400).json({ error: 'No Excel file or employee payload provided.' });
+    }
+
+    if (!rows.length) return res.status(400).json({ error: 'Payload or Excel sheet is empty.' });
+
+    let updatedCount = 0;
+    let createdCount = 0;
+    const errors = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const empId = String(row.employee_id || row['Employee ID'] || row['EmployeeID'] || row.id || '').trim();
+      const name = String(row.Full_name || row['Full Name'] || row.name || row['Name'] || '').trim();
+      const salaryVal = row.salary !== undefined ? row.salary : (row['Salary'] !== undefined ? row['Salary'] : row['Base Salary']);
+      const parsedSalary = salaryVal !== undefined && salaryVal !== '' && !isNaN(salaryVal) ? parseFloat(salaryVal) : null;
+      const email = row.email || row['Email'] || null;
+      const phone = row.phone || row['Phone'] || null;
+      const dbId = row.db_id || row.id;
+
+      if (!empId && !name && !dbId) continue;
+
+      try {
+        let existing = null;
+        if (dbId) existing = await dbFetchOne('Employees', '*', { id: dbId });
+        if (!existing && empId) existing = await dbFetchOne('Employees', '*', { employee_id: empId });
+
+        if (existing) {
+          // UPDATE
+          const newEmpId = empId || existing.employee_id;
+          const oldSal = existing.salary ? parseFloat(existing.salary) : 0;
+          const updateObj = {
+            employee_id: newEmpId,
+            updated_at: new Date().toISOString()
+          };
+          if (name) updateObj.Full_name = name;
+          if (parsedSalary !== null) updateObj.salary = parsedSalary;
+          if (email) updateObj.email = email;
+          if (phone) updateObj.phone = phone;
+
+          await dbUpdate('Employees', existing.id, updateObj);
+
+          if (newEmpId && newEmpId !== existing.employee_id) {
+            const sysUser = await dbFetchOne('sys_users', 'id', { employee_id: existing.id });
+            if (sysUser) {
+              await dbUpdate('sys_users', sysUser.id, { username: newEmpId.toLowerCase() });
+            }
+          }
+
+          if (parsedSalary !== null && oldSal !== parsedSalary) {
+            const diff = parsedSalary - oldSal;
+            await dbInsert('employee_career_timeline', {
+              employee_id: existing.id,
+              event_type: diff > 0 ? 'SALARY_RAISE' : 'OTHER',
+              title: diff > 0 ? `Salary Increased by $${diff.toLocaleString()}` : `Salary Adjusted to $${parsedSalary.toLocaleString()}`,
+              description: `Bulk update: Base salary changed from $${oldSal.toLocaleString()} to $${parsedSalary.toLocaleString()}`,
+              previous_salary: oldSal,
+              new_salary: parsedSalary,
+              effective_date: new Date().toISOString().split('T')[0],
+              created_at: new Date().toISOString(),
+            }).catch(console.error);
+          }
+
+          updatedCount++;
+        } else {
+          // CREATE
+          if (!name || !empId) {
+            errors.push(`Row ${i + 1}: Name and Employee ID are required for new records.`);
+            continue;
+          }
+          const { data: createdData } = await supabase.from('Employees').insert({
+            employee_id: empId,
+            Full_name: name,
+            salary: parsedSalary,
+            email, phone,
+            created_at: new Date().toISOString(),
+          }).select();
+
+          const created = createdData?.[0];
+          if (created) {
+            await identityModule.provisionAccountForEmployee(
+              created.id,
+              empId,
+              name,
+              null
+            ).catch(console.error);
+
+            await dbInsert('employee_career_timeline', {
+              employee_id: created.id,
+              event_type: 'HIRED',
+              title: `Joined Company`,
+              description: `Bulk imported with base salary $${parsedSalary || 0}`,
+              new_salary: parsedSalary,
+              effective_date: new Date().toISOString().split('T')[0],
+              created_at: new Date().toISOString(),
+            }).catch(console.error);
+
+            createdCount++;
+          }
+        }
+      } catch (err) {
+        errors.push(`Row ${i + 1} error: ${err.message}`);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Bulk update completed! Updated: ${updatedCount}, Created: ${createdCount}`,
+      updatedCount,
+      createdCount,
+      errors
+    });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -310,9 +428,8 @@ router.post('/:id/avatar', upload.single('avatar'), async (req, res) => {
 // DELETE /api/employees/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    // Check if sys_user exists
-    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
-    if (user) await dbUpdate('sys_users', user.id, { is_active: false });
+    // Deactivate sys_user via Identity Module
+    await identityModule.deactivateAccountForEmployee(req.params.id);
 
     // Soft delete employee
     await dbUpdate('Employees', req.params.id, { status: 'Inactive', deleted_at: new Date().toISOString() });
@@ -338,9 +455,8 @@ router.put('/:id/restore', requireAdmin, async (req, res) => {
   try {
     await dbUpdate('Employees', req.params.id, { status: 'Active', deleted_at: null });
     
-    // Reactivate sys_user if exists
-    const user = await dbFetchOne('sys_users', 'id', { employee_id: req.params.id });
-    if (user) await dbUpdate('sys_users', user.id, { is_active: true });
+    // Reactivate sys_user via Identity Module
+    await identityModule.reactivateAccountForEmployee(req.params.id);
 
     // Audit log
     await dbInsert('sys_audit_logs', {
@@ -373,7 +489,7 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     };
 
     // Delete all related records across modules first to prevent foreign key errors
-    await cascade('sys_users');
+    await identityModule.deleteAccountForEmployee(eid);
     await cascade('Leave_balances');
     await cascade('Leave_Request');
     await cascade('attendance_records');
@@ -387,6 +503,11 @@ router.delete('/:id/hard', requireAdmin, async (req, res) => {
     await cascade('peer_voting_records', 'voter_id');
     await cascade('employee_daily_schedules');
     await cascade('employee_onboarding');
+    await cascade('handovers');
+    await cascade('handovers', 'successor_id');
+    await cascade('employee_career_timeline');
+    await cascade('corporate_offboarding');
+    await cascade('daily_sops');
 
     // Also nullify Manager_id in Employees where this user is the manager
     await supabase.from('Employees').update({ Manager_id: null }).eq('Manager_id', eid);

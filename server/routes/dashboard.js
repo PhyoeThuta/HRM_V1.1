@@ -1,6 +1,8 @@
 import express from 'express';
-import { dbFetch } from '../lib/supabase.js';
-import { verifyToken } from '../middleware/auth.js';
+import { dbFetch } from '../shared/db/index.js';
+import { verifyToken } from '../shared/auth/index.js';
+import { payrollModule } from '../modules/payroll/index.js';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 
@@ -11,36 +13,39 @@ router.get('/', verifyToken, async (req, res) => {
     const user = req.user;
     const role = user?.role || '';
 
-    const { supabase } = await import('../lib/supabase.js');
+    const { supabase } = await import('../shared/db/index.js');
 
     const [
       employeesRes,
-      attendanceRes,
-      leaveReqsRes,
+      attendanceData,
+      leaveReqsData,
       offboardingRes,
       onboardingRes,
       candidatesRes,
       payrollsRes,
-      announcementsRes
+      announcementsRes,
+      positionsRes
     ] = await Promise.all([
       supabase.from('Employees').select('id,employee_id,Full_name,status,Dept_id'),
-      supabase.from('attendance_records').select('id,employee_id,check_in,check_out,is_late').gte('check_in', `${today}T00:00:00`),
-      supabase.from('Leave_Request').select('id,status'),
+      hrmModule.getAttendanceSummaryForPayroll(today),
+      hrmModule.getAllLeaveRequests(),
       supabase.from('corporate_offboarding').select('id,settlement_status'),
       supabase.from('employee_onboarding').select('id,status'),
       supabase.from('recruitment_candidates').select('id,status'),
-      supabase.from('payrolls').select('id,payment_status,net_salary').eq('payment_status', 'Paid'),
+      payrollModule.getPaidPayrolls(),
       supabase.from('announcements').select('*'),
+      supabase.from('positions').select('id,is_hiring'),
     ]);
 
     const employees = employeesRes.data || [];
-    const attendance = attendanceRes.data || [];
-    const leaveReqs = leaveReqsRes.data || [];
+    const attendance = attendanceData || [];
+    const leaveReqs = leaveReqsData || [];
     const offboarding = offboardingRes.data || [];
     const onboarding = onboardingRes.data || [];
     const candidates = candidatesRes.data || [];
-    const payrolls = payrollsRes.data || [];
+    const payrolls = payrollsRes;
     const rawAnnouncements = announcementsRes.data || [];
+    const positionsData = positionsRes.data || [];
 
     const totalStaff = employees.length;
     const activeStaff = employees.filter(e => String(e.status || '').toLowerCase() === 'active').length;
@@ -52,7 +57,7 @@ router.get('/', verifyToken, async (req, res) => {
     const rejectedLeaves = leaveReqs.filter(l => String(l.status || '').toLowerCase() === 'rejected').length;
     const pendingClear = offboarding.filter(o => String(o.settlement_status || '').toLowerCase().startsWith('hold')).length;
     const activeOnboard = onboarding.filter(o => ['Pre-boarding', 'In Progress'].includes(o.status)).length;
-    const openPositions = new Set(candidates.filter(c => ['Applied', 'Screening', 'Interview'].includes(c.status)).map(c => c.status)).size;
+    const openPositions = positionsData.filter(p => p.is_hiring === true).length;
     const totalPayroll = payrolls.filter(p => p.payment_status === 'Paid').reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
     const offboardedCount = offboarding.length;
     const turnoverRate = totalStaff > 0 ? ((offboardedCount / totalStaff) * 100).toFixed(1) : '0.0';

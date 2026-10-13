@@ -1,6 +1,8 @@
 import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabase.js';
 import fetch from 'node-fetch';
+import { crmModule } from '../modules/crm/index.js';
+import { notificationRouter } from '../modules/webhooks/service/notificationRouter.js';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.CHEF_CHAT_ID || process.env.TELEGRAM_CHAT_ID; // Fallback to Chef/General chat ID if Admin ID is not set
@@ -88,18 +90,18 @@ export async function checkAndNotifyFollowups() {
       if (diffDays < 0) {
         // Past expiry
         shouldNotify = true;
-        messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေး ကုန်သွားတာ ${Math.abs(diffDays)} ရက် ရှိသွားပါပြီရှင်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လားရှင်။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါရှင် 🥗✨`;
+        messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${pkg.name} လေး ကုန်သွားတာ ${Math.abs(diffDays)} ရက် ရှိသွားပါပြီ ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လား ခင်ဗျာ။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါ Boss 🥗✨`;
       } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
         // 30-day plans: Reminder at 5 days and 1 day
         if (diffDays === 5 || diffDays === 1) {
           shouldNotify = true;
-          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+          messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss 🥗✨`;
         }
       } else {
         // Weekly/Default plans: Reminder at 3 days and 1 day
         if (diffDays === 3 || diffDays === 1) {
           shouldNotify = true;
-          messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+          messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${pkg.name} လေးက နောက် ${diffDays === 1 ? 'မနက်ဖြန်' : diffDays + ' ရက်နေရင်'} ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss 🥗✨`;
         }
       }
 
@@ -107,76 +109,32 @@ export async function checkAndNotifyFollowups() {
         let sentViaZernio = false;
         let zernioError = null;
 
-        // Try to send via Zernio automatically
-        if (zernioApiKey && pkg.customer_id) {
+        if (pkg.customer_id) {
           try {
-            // Find inquiries for this customer to get conversationId
-            const { data: inquiries } = await supabaseAdmin.schema('crm')
-              .from('inquiries')
-              .select('id')
-              .eq('customer_id', pkg.customer_id);
-
-            if (inquiries && inquiries.length > 0) {
-              const inquiryIds = inquiries.map(i => i.id);
-              const { data: prospectMsgs } = await supabaseAdmin.schema('crm')
-                .from('inquiries_messages')
-                .select('metadata')
-                .in('inquiry_id', inquiryIds)
-                .eq('sender_type', 'prospect')
-                .not('metadata', 'is', null)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-              if (prospectMsgs && prospectMsgs.length > 0) {
-                const meta = prospectMsgs[0].metadata;
-                const conversationId = meta?.message?.conversationId || meta?.conversationId;
-
-                if (conversationId) {
-                  const zernioResponse = await fetch(`https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${zernioApiKey}`
-                    },
-                    body: JSON.stringify({
-                      accountId: zernioAccountId,
-                      message: messageText
-                    })
-                  });
-
-                  if (zernioResponse.ok) {
-                    sentViaZernio = true;
-                    // Save this automated message into the chat history (inquiries_messages) so it appears in the CRM Dashboard
-                    try {
-                      await supabaseAdmin.schema('crm')
-                        .from('inquiries_messages')
-                        .insert({
-                          inquiry_id: inquiryIds[0],
-                          message_text: messageText,
-                          sender_type: 'admin', // or 'ai_bot'
-                          metadata: { automated_reminder: true, conversationId }
-                        });
-                    } catch (saveErr) {
-                      console.error('[CRON] Failed to save automated message to inquiries_messages:', saveErr.message);
-                    }
-                  } else {
-                    const errObj = await zernioResponse.json();
-                    zernioError = errObj.error || 'Zernio API Error';
-                  }
-                } else {
-                  zernioError = 'No Conversation ID found in metadata';
-                }
-              } else {
-                zernioError = 'No prospect messages found to reply to';
+            const expireDateStr = expiresAt.toISOString().split('T')[0];
+            await notificationRouter.sendRenewalNotification(pkg.customer_id, customer.full_name, expireDateStr);
+            sentViaZernio = true; // Still using this var name for the success message below
+            
+            // Try to log it in inquiries_messages for CRM Dashboard history
+            try {
+              const { data: inqs } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', pkg.customer_id).limit(1);
+              if (inqs && inqs.length > 0) {
+                await supabaseAdmin.schema('crm').from('inquiries_messages').insert({
+                  inquiry_id: inqs[0].id,
+                  message_text: messageText,
+                  sender_type: 'admin',
+                  metadata: { automated_reminder: true, multi_channel: true }
+                });
               }
-            } else {
-              zernioError = 'No CRM inquiries found for customer';
+            } catch (e) {
+              console.error('[CRON] Failed to save automated log', e.message);
             }
+            
           } catch (e) {
             zernioError = e.message;
           }
         } else {
-          zernioError = 'Zernio API Key missing or no customer_id';
+          zernioError = 'No customer_id available for notification';
         }
 
         const fbLink = customer.facebook_name ? `https://m.me/${encodeURIComponent(customer.facebook_name)}` : 'No FB Link';
@@ -207,16 +165,8 @@ export async function checkAndNotifyFollowups() {
 
 export async function checkAndNotifyFormReminders() {
   try {
-    const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
+    const inquiries = await crmModule.getFormReminderCandidates(24);
 
-    const { data: inquiries, error } = await supabaseAdmin.schema('crm')
-      .from('inquiries')
-      .select('id, prospect_name, onboarding_token, updated_at')
-      .eq('onboarding_status', 'form_sent')
-      .lt('updated_at', yesterday.toISOString());
-
-    if (error) throw error;
     if (!inquiries || inquiries.length === 0) return { checked: 0, notified: 0 };
 
     let notifiedCount = 0;
@@ -224,51 +174,30 @@ export async function checkAndNotifyFormReminders() {
     const zernioAccountId = process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230';
 
     for (const inq of inquiries) {
-      const link = `https://hrm.duolinkmm.com/enroll?token=${inq.onboarding_token}`;
-      const messageText = `မင်္ဂလာပါ ${inq.prospect_name} ရှင်၊ မနေ့က ပို့ထားတဲ့ ဖောင်လေး ဖြည့်ဖို့ ကျန်နေသေးလို့ပါရှင်။ \n\nအောက်က လင့်ခ်လေးကို နှိပ်ပြီး အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော် ✨\n${link}`;
+      const frontendUrl = process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
+      const link = `${frontendUrl}/enroll?token=${inq.onboarding_token}`;
+      const messageText = `မင်္ဂလာပါ Boss ${inq.prospect_name}၊ မနေ့က ပို့ထားတဲ့ ဖောင်လေး ဖြည့်ဖို့ ကျန်နေသေးလို့ပါ ခင်ဗျာ။ \n\nအောက်က လင့်ခ်လေးကို နှိပ်ပြီး အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦး Boss ✨\n${link}`;
 
       // Insert message into DB to track it
-      const { data: newMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-        .insert({ 
-          inquiry_id: inq.id, 
-          message_text: messageText, 
-          sender_type: 'ai_bot', 
-          metadata: { is_reminder: true } 
-        })
-        .select()
-        .single();
+      const newMsg = await crmModule.logFormReminderAttempt(inq.id, messageText);
 
       if (newMsg && zernioApiKey) {
-        // Find conversation ID
-        const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-          .select('metadata')
-          .eq('inquiry_id', inq.id)
-          .eq('sender_type', 'prospect')
-          .not('metadata', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (prospectMsgs && prospectMsgs.length > 0) {
-          const meta = prospectMsgs[0].metadata;
-          const conversationId = meta?.message?.conversationId || meta?.conversationId;
-          
-          if (conversationId) {
-            try {
-              await fetch(`https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`, {
-                method: 'POST',
-                headers: { 
-                  'Authorization': `Bearer ${zernioApiKey}`,
-                  'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify({ accountId: zernioAccountId, message: messageText })
-              });
-              notifiedCount++;
-              
-              // Update inquiry updated_at to prevent spamming every minute if cron runs often
-              await supabaseAdmin.schema('crm').from('inquiries').update({ updated_at: new Date().toISOString() }).eq('id', inq.id);
-            } catch (e) {
-              console.error('[ZERNIO REMINDER ERROR]', e);
-            }
+        if (inq.conversation_id) {
+          try {
+            await fetch(`https://zernio.com/api/v1/inbox/conversations/${inq.conversation_id}/messages`, {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${zernioApiKey}`,
+                'Content-Type': 'application/json' 
+              },
+              body: JSON.stringify({ accountId: zernioAccountId, message: messageText })
+            });
+            notifiedCount++;
+            
+            // Update inquiry updated_at to prevent spamming every minute if cron runs often
+            await crmModule.markFormReminderCooldown(inq.id);
+          } catch (e) {
+            console.error('[ZERNIO REMINDER ERROR]', e);
           }
         }
       }
@@ -283,25 +212,7 @@ export async function checkAndNotifyFormReminders() {
 
 export async function autoMarkLostProspects() {
   try {
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-    // Find inquiries that are NOT 'converted' and NOT 'lost', whose updated_at is older than 3 days ago.
-    const { data: inquiries, error } = await supabaseAdmin.schema('crm')
-      .from('inquiries')
-      .select('id, prospect_name, status')
-      .not('status', 'eq', 'converted')
-      .not('status', 'ilike', 'lost')
-      .lt('updated_at', threeDaysAgo.toISOString());
-
-    if (error) throw error;
-    if (!inquiries || inquiries.length === 0) return { marked: 0 };
-
-    let markedCount = 0;
-    for (const inq of inquiries) {
-      await supabaseAdmin.schema('crm').from('inquiries').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', inq.id);
-      markedCount++;
-    }
+    const markedCount = await crmModule.markInactiveProspectsAsLost(3);
 
     console.log(`[CRON] Auto-marked ${markedCount} prospects as Lost due to 3 days of inactivity.`);
     return { marked: markedCount };

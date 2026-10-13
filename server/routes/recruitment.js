@@ -54,6 +54,52 @@ router.put('/:id', requireAdmin, async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/recruitment/bulk-move-talent-pool
+router.post('/bulk-move-talent-pool', requireAdmin, async (req, res) => {
+  try {
+    const { position_id, stage, candidate_ids } = req.body;
+    let candidatesToMove = [];
+
+    if (candidate_ids && Array.isArray(candidate_ids) && candidate_ids.length > 0) {
+      candidatesToMove = candidate_ids;
+    } else {
+      let allCandidates = await dbFetch('recruitment_candidates', 'id, status, position_id');
+      let targetCandidates = allCandidates.filter(c => ['Applied', 'Screening', 'Interview', 'Offer'].includes(c.status));
+
+      if (position_id && String(position_id).trim() !== '') {
+        targetCandidates = targetCandidates.filter(c => String(c.position_id) === String(position_id));
+      }
+      if (stage && stage !== 'All') {
+        targetCandidates = targetCandidates.filter(c => c.status === stage);
+      }
+
+      candidatesToMove = targetCandidates.map(c => c.id);
+    }
+
+    if (candidatesToMove.length === 0) {
+      return res.json({ success: true, count: 0, message: 'No active pipeline candidates found matching criteria.' });
+    }
+
+    const now = new Date().toISOString();
+    await Promise.all(candidatesToMove.map(id => dbUpdate('recruitment_candidates', id, {
+      status: 'Rejected',
+      updated_at: now
+    })));
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'UPDATE_BULK',
+      module: 'Recruitment',
+      details: `Moved ${candidatesToMove.length} candidate(s) to Talent Pool`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, count: candidatesToMove.length, message: `Moved ${candidatesToMove.length} candidate(s) to Talent Pool!` });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // DELETE /api/recruitment/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {

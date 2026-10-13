@@ -8,6 +8,8 @@ import { emitInquiryMessage, emitInquiryUpdated, emitInquiryCreated } from '../l
 import { packageBodySchema, resumePackageSchema } from '../schemas/crmPackagesSchema.js';
 import { crmPackagesService } from '../services/crmPackagesService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import * as crmController from '../modules/crm/controller/index.js';
+import { triggerAIAnalysis } from '../modules/ai/service/webhookAiService.js';
 
 const router = express.Router();
 
@@ -78,78 +80,13 @@ const customerCreationMutex = new Mutex();
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/level-settings
-router.get('/level-settings', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .schema('crm')
-      .from('level_settings')
-      .select('*')
-      .order('required_spend', { ascending: true });
-
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    console.error('[CRM GET LEVEL SETTINGS]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/level-settings', verifyToken, crmController.getLevelSettings);
 
 // POST /api/crm/level-settings
-router.post('/level-settings', verifyToken, async (req, res) => {
-  try {
-    const { id, level_name, required_spend, color } = req.body;
-    
-    if (!level_name || required_spend === undefined) {
-      return res.status(400).json({ error: 'level_name and required_spend are required' });
-    }
-
-    let result;
-    if (id) {
-      // Update
-      const { data, error } = await supabaseAdmin
-        .schema('crm')
-        .from('level_settings')
-        .update({ level_name, required_spend: parseInt(required_spend), color })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    } else {
-      // Insert
-      const { data, error } = await supabaseAdmin
-        .schema('crm')
-        .from('level_settings')
-        .insert({ level_name, required_spend: parseInt(required_spend), color })
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    }
-
-    return res.json(result);
-  } catch (e) {
-    console.error('[CRM POST LEVEL SETTING]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/level-settings', verifyToken, crmController.upsertLevelSetting);
 
 // DELETE /api/crm/level-settings/:id
-router.delete('/level-settings/:id', verifyToken, async (req, res) => {
-  try {
-    const { error } = await supabaseAdmin
-      .schema('crm')
-      .from('level_settings')
-      .delete()
-      .eq('id', req.params.id);
-      
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    console.error('[CRM DELETE LEVEL SETTING]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/level-settings/:id', verifyToken, crmController.deleteLevelSetting);
 
 // ──────────────────────────────────────────────────────────────────
 // CUSTOMERS
@@ -163,38 +100,92 @@ router.get('/customers', verifyToken, async (req, res) => {
       .from('customers')
       .select(`
         *,
-        customer_packages (amount)
+        customer_packages (
+          id,
+          name,
+          status,
+          amount,
+          start_date,
+          expires_at
+        )
       `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     // Fetch level settings to calculate levels
-    const { data: levelSettings } = await supabaseAdmin
+    const { data: rawLevelSettings } = await supabaseAdmin
       .schema('crm')
       .from('level_settings')
       .select('*')
       .order('required_spend', { ascending: false });
 
+    const levelSettings = (rawLevelSettings || []).map(item => {
+      let color = item.color || 'blue';
+      let max_spend = null;
+      if (color && color.includes('|max_spend:')) {
+        const parts = color.split('|max_spend:');
+        color = parts[0];
+        max_spend = parseInt(parts[1], 10);
+      }
+      return {
+        ...item,
+        min_spend: item.min_spend !== undefined && item.min_spend !== null ? item.min_spend : (item.required_spend || 0),
+        max_spend,
+        color
+      };
+    }).sort((a, b) => b.min_spend - a.min_spend);
+
     // Flatten package amounts and calculate level
     const result = data.map(c => {
-      // Calculate total spend by summing up the amount of all packages
-      const totalSpend = c.customer_packages?.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
+      const rawPackages = c.customer_packages || [];
+      const totalSpend = rawPackages.reduce((sum, pkg) => sum + (pkg.amount || 0), 0) || 0;
+      const packageCount = rawPackages.length;
       
-      // Determine level based on totalSpend
+      // Determine "is_active" using BOTH status and expiry date.
+      // This ensures the Customer List page is always consistent with the Dashboard count.
+      const _today = new Date();
+      _today.setHours(0, 0, 0, 0);
+
+      const activePkg = rawPackages.find(p => {
+        const hasValidStatus = ['Active', 'Paused', 'Booking Confirmed', 'Upcoming'].includes(p.status);
+        if (!hasValidStatus) return false;
+
+        // A package is only truly active if it has NOT expired yet
+        const expiresAtDate = p.expires_at ? new Date(p.expires_at) : null;
+        if (!expiresAtDate) return false; // No expiry date = treat as not active (data integrity)
+        expiresAtDate.setHours(0, 0, 0, 0);
+
+        return expiresAtDate >= _today;
+      });
+
+      const isActive = !!activePkg;
+      // Only show package names for active packages to avoid confusing expired plan names
+      const packageNames = rawPackages.map(p => p.name).filter(Boolean);
+
+      // Determine level based on totalSpend range
       let calculatedLevel = null;
       if (levelSettings && levelSettings.length > 0) {
         for (const setting of levelSettings) {
-          if (totalSpend >= setting.required_spend) {
-            calculatedLevel = setting;
-            break; // found the highest level since it's ordered descending
+          const min = setting.min_spend;
+          const max = setting.max_spend;
+
+          if (totalSpend >= min) {
+            calculatedLevel = { ...setting, min_spend: min, max_spend: max };
+            break;
           }
         }
       }
-      
-      const packageCount = c.customer_packages?.length || 0;
-      delete c.customer_packages;
-      return { ...c, level: calculatedLevel, total_spend: totalSpend, packages: packageCount };
+
+      return { 
+        ...c, 
+        level: calculatedLevel, 
+        total_spend: totalSpend, 
+        packages: packageCount,
+        is_active: isActive,
+        package_names: packageNames,
+        customer_packages: rawPackages
+      };
     });
 
     return res.json(result);
@@ -427,13 +418,13 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
     
     if (daysLeft < 0) {
       // Past expiry
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေး ကုန်သွားတာ ${Math.abs(daysLeft)} ရက် ရှိသွားပါပြီရှင်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လားရှင်။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${packageName} လေး ကုန်သွားတာ ${Math.abs(daysLeft)} ရက် ရှိသွားပါပြီ ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေခဲ့ရဲ့လား ခင်ဗျာ။\n\nနောက်ရက်တွေအတွက် Plan လေးများ ပြန်စဖို့ အစီအစဉ်ရှိမလား သိချင်လို့ပါ Boss။`;
     } else if (durationLower.includes('month') || durationLower.includes('30 day')) {
       // Monthly plan renewal reminder
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft} ရက်နေရင် ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်လအတွက် Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss။`;
     } else {
       // Default / Weekly plan renewal reminder
-      messageText = `မင်္ဂလာပါ ${customer.full_name} ရှင်၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ်။\n\nညီမတို့ BBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လားရှင်။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါရှင် 🥗✨`;
+      messageText = `မင်္ဂလာပါ Boss ${customer.full_name}၊ ယူထားတဲ့ ${packageName} လေးက နောက် ${daysLeft === 0 ? 'ဒီနေ့' : daysLeft + ' ရက်နေရင်'} ကုန်ပါတော့မယ် ခင်ဗျာ။\n\nBBD က meal plan လေးကို စားရတာ အဆင်ပြေရဲ့လား ခင်ဗျာ။\n\nနောက်ပြီး Plan လေး ဆက်ယူဖြစ်မလား သိချင်လို့ပါ Boss။`;
     }
 
     // 3. Send message via Zernio API 
@@ -446,20 +437,39 @@ router.post('/customers/:id/zernio-remind', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Conversation ID not found for this customer.' });
     }
 
-    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-    const zernioResponse = await fetch(zernioUrl, {
+    const quickReplies = [
+      { content_type: 'text', title: '🥗 Plan ဆက်ယူမည်', payload: 'RENEW_PLAN' },
+      { content_type: 'text', title: '💬 မေးမြန်းမည်', payload: 'INQUIRE_MORE' }
+    ];
+
+    // Try standard send first (works when recipient in 24h window)
+    let zernioResponse = await fetch(zernioUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${zernioApiKey}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
       body: JSON.stringify({
         accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-        message: messageText
+        message: messageText,
+        quickReplies,
+        quick_replies: quickReplies
       })
     });
+    let zernioResult = await zernioResponse.json();
 
-    const zernioResult = await zernioResponse.json();
+    // If standard send failed, try tagged payload fallback for outside 24h window
+    if (!zernioResponse.ok || zernioResult.error) {
+      zernioResponse = await fetch(zernioUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
+        body: JSON.stringify({
+          accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+          messagingType: 'MESSAGE_TAG',
+          messageTag: 'POST_PURCHASE_UPDATE',
+          message: messageText
+        })
+      });
+      zernioResult = await zernioResponse.json();
+    }
+
     if (!zernioResponse.ok || zernioResult.error) {
       const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
       console.error('[ZERNIO SEND ERROR]', errorDetail);
@@ -624,172 +634,10 @@ router.post('/customer-packages/:id/renew', verifyToken, asyncHandler(async (req
 }));
 
 // POST /api/crm/kitchen-dashboard/deduct-meals
-router.post('/kitchen-dashboard/deduct-meals', verifyToken, async (req, res) => {
-  try {
-    // We fetch all active packages that have meal_count > 0 and deduct 1
-    const { data: packages, error: fetchErr } = await supabaseAdmin.schema('crm')
-      .from('customer_packages')
-      .select('id, meal_count')
-      .eq('status', 'Active')
-      .gt('meal_count', 0);
-      
-    if (fetchErr) throw fetchErr;
-    
-    let deductedCount = 0;
-    
-    // Group packages by their current meal_count to perform bulk updates
-    const groups = {};
-    for (const pkg of packages) {
-      if (!groups[pkg.meal_count]) groups[pkg.meal_count] = [];
-      groups[pkg.meal_count].push(pkg.id);
-    }
-    
-    for (const [mealCountStr, ids] of Object.entries(groups)) {
-      const mealCount = parseInt(mealCountStr, 10);
-      const { error } = await supabaseAdmin.schema('crm')
-        .from('customer_packages')
-        .update({ meal_count: mealCount - 1 })
-        .in('id', ids);
-        
-      if (!error) {
-        deductedCount += ids.length;
-      }
-    }
-    
-    return res.json({ success: true, message: `Deducted 1 meal from ${deductedCount} active packages.` });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/kitchen-dashboard/deduct-meals', verifyToken, crmController.deductKitchenMeals);
 
 // GET /api/crm/kitchen-dashboard
-router.get('/kitchen-dashboard', verifyToken, async (req, res) => {
-  try {
-    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
-    
-    // Get all active packages today with customer info
-    const { data: packages, error } = await supabaseAdmin.schema('crm')
-      .from('customer_packages')
-      .select(`
-        *,
-        customers:customer_id ( 
-          full_name, phone, address, delivery_address, delivery_notes,
-          customer_health ( allergies, medical_condition, special_requests ),
-          customer_lifestyle ( food_restriction )
-        )
-      `)
-      .eq('status', 'Active')
-      .gt('meal_count', 0)
-      .gte('expires_at', targetDate);
-
-    if (error) throw error;
-    
-    let totalLunch = 0;
-    let totalDinner = 0;
-    const specialRequests = [];
-
-    // Parse the data for kitchen view
-    const deliveryList = packages.map(pkg => {
-      let isLunch = pkg.meal_type.toLowerCase().includes('lunch');
-      let isDinner = pkg.meal_type.toLowerCase().includes('dinner');
-      
-      if (isLunch) totalLunch++;
-      if (isDinner) totalDinner++;
-      
-      const restrictions = [];
-      const health = pkg.customers?.customer_health?.[0] || pkg.customers?.customer_health || {};
-      const lifestyle = pkg.customers?.customer_lifestyle?.[0] || pkg.customers?.customer_lifestyle || {};
-      
-      if (health.allergies && health.allergies !== 'None') restrictions.push(health.allergies);
-      if (health.special_requests && health.special_requests !== 'None') restrictions.push(health.special_requests);
-      if (lifestyle.food_restriction && lifestyle.food_restriction !== 'None') restrictions.push(lifestyle.food_restriction);
-      
-      const restrictionStr = restrictions.join(', ');
-      if (restrictionStr) {
-        specialRequests.push({ customer: pkg.customers.full_name, request: restrictionStr, type: pkg.meal_type });
-      }
-
-      return {
-        package_id: pkg.id,
-        customer_id: pkg.customer_id,
-        name: pkg.customers.full_name,
-        phone: pkg.customers.phone,
-        delivery_address: pkg.customers.delivery_address || pkg.customers.address || 'No Address',
-        delivery_notes: pkg.customers.delivery_notes || '',
-        meal_type: pkg.meal_type,
-        restrictions: restrictionStr || 'None'
-      };
-    });
-
-    // Get date filter (default to today)
-    // targetDate already declared at top
-
-    // Fetch Daily Menus for the target date
-    const { data: dailyMenus } = await supabaseAdmin
-      .from('operations_daily_menus')
-      .select('*')
-      .eq('date', targetDate);
-
-    // Fetch associated menu_types and menus
-    const { data: menuTypes } = await supabaseAdmin.from('operations_menu_types').select('*');
-    const { data: menus } = await supabaseAdmin.from('operations_menus').select('*');
-    const { data: recipes } = await supabaseAdmin.from('operations_recipes').select('*');
-    const { data: inventoryItems } = await supabaseAdmin.from('inventory_items').select('*');
-
-    const enrichedDailyMenus = (dailyMenus || []).map(dm => {
-      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
-      const enrichedTypes = types.map(mt => ({
-        ...mt,
-        menu: menus?.find(m => m.id === mt.menu_id) || { name_en: 'Uncosted Item', name_mm: '' }
-      }));
-      return { ...dm, menu_types: enrichedTypes };
-    }).filter(dm => dm.menu_types && dm.menu_types.length > 0);
-
-    // Aggregate BOM
-    const bomMap = new Map();
-    
-    enrichedDailyMenus.forEach(dm => {
-      const multiplier = dm.meal_type === 'LUNCH' ? totalLunch : totalDinner;
-      if (multiplier === 0) return;
-      
-      dm.menu_types.forEach(mt => {
-        if (!mt.menu_id) return;
-        const menuRecipes = recipes?.filter(r => r.menu_id === mt.menu_id) || [];
-        
-        menuRecipes.forEach(recipe => {
-          const item = inventoryItems?.find(i => i.id === recipe.inventory_item_id);
-          if (!item) return;
-          
-          if (!bomMap.has(item.id)) {
-            bomMap.set(item.id, {
-              id: item.id,
-              name: item.name_eng,
-              name_mm: item.name_mm,
-              uom: item.unit_of_measure,
-              qty: 0
-            });
-          }
-          const current = bomMap.get(item.id);
-          current.qty += (recipe.qty * multiplier);
-        });
-      });
-    });
-
-    const aggregatedBOM = Array.from(bomMap.values()).sort((a, b) => b.qty - a.qty);
-
-    return res.json({
-      headcount: { totalLunch, totalDinner },
-      specialRequests,
-      deliveryList,
-      dailyMenus: enrichedDailyMenus,
-      aggregatedBOM,
-      targetDate
-    });
-  } catch (e) {
-    console.error('[CRM KITCHEN DASHBOARD]', e);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/kitchen-dashboard', verifyToken, crmController.getKitchenDashboard);
 
 // ──────────────────────────────────────────────────────────────────
 // GALLERY PHOTOS
@@ -904,7 +752,7 @@ router.get('/inquiries', verifyToken, async (req, res) => {
         *,
         inquiries_messages ( id, message_text, sender_type, created_at )
       `)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (req.query.unlinked === 'true') {
       query = query.is('customer_id', null);
@@ -1002,116 +850,7 @@ router.put('/inquiries/:id/link-customer', verifyToken, async (req, res) => {
   }
 });
 
-// AI Analysis Helper
-async function triggerAIAnalysis(inquiryId, conversationId = null) {
-  if (!process.env.GEMINI_API_KEY) {
-    await supabaseAdmin.schema('crm').from('inquiries').update({ updated_at: new Date() }).eq('id', inquiryId);
-    return;
-  }
-  
-  try {
-    const { data: history } = await supabaseAdmin.schema('crm').from('inquiries_messages')
-      .select('sender_type, message_text')
-      .eq('inquiry_id', inquiryId)
-      .order('created_at', { ascending: true })
-      .limit(15);
-      
-    if (!history || history.length === 0) return;
-      
-    const chatHistory = history.map(m => `${m.sender_type.toUpperCase()}: ${m.message_text}`).join('\n');
-    const paymentInfo = process.env.PAYMENT_INFO_TEXT || 'KBZ Pay: 09XXXXXXX';
-    
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
-    const prompt = `
-You are an expert CRM AI Assistant for a Diet & Meal Delivery service. 
-Analyze the following conversation history between a PROSPECT and our ADMIN.
-
-Our Payment Details for customers to transfer:
-${paymentInfo}
-
-Chat History:
-${chatHistory}
-
-Task:
-Provide a JSON response analyzing the prospect's intent, sentiment, recommended action for the admin, a confidence score (0-100) of how likely they are to purchase a diet package, and the determined pipeline_status.
-The JSON must have the following exact keys:
-{
-  "intent": "string (e.g., pricing_inquiry, general_question, complaint, ready_to_buy)",
-  "sentiment": "string (e.g., positive, curious, neutral, frustrated)",
-  "recommended_action": "string (1-2 sentences of what the admin should reply. Write this strictly in Myanmar language / Burmese)",
-  "confidence_score": integer (0 to 100),
-  "pipeline_status": "string (must be EXACTLY one of: 'new', 'hot', 'pending', 'converted', 'lost').",
-  "auto_reply_text": "string or null. CRITICAL RULE: If the PROSPECT asks a question or asks for details/explanation, you MUST return a polite Burmese reply explaining the packages and do NOT send payment info yet. ONLY send Payment Details if the prospect explicitly asks 'How to pay?', 'Where to transfer?', or says they are ready to transfer money now. If they just say 'thank you' or 'ok', return null."
-}
-
-Respond ONLY with the raw JSON object. Do not include markdown formatting or backticks.
-    `;
-    
-    const result = await model.generateContent(prompt);
-    let aiText = result.response.text().trim();
-    if (aiText.startsWith('\`\`\`json')) aiText = aiText.substring(7, aiText.length - 3).trim();
-    else if (aiText.startsWith('\`\`\`')) aiText = aiText.substring(3, aiText.length - 3).trim();
-    
-    const aiJson = JSON.parse(aiText);
-    
-    const updatePayload = { 
-      updated_at: new Date().toISOString(),
-      ai_analysis_result: {
-        intent: aiJson.intent,
-        sentiment: aiJson.sentiment,
-        recommended_action: aiJson.recommended_action
-      },
-      service_interest_confidence: aiJson.confidence_score,
-      status: aiJson.pipeline_status || 'new'
-    };
-
-    const { data: updated } = await supabaseAdmin.schema('crm').from('inquiries')
-      .update(updatePayload)
-      .eq('id', inquiryId)
-      .select()
-      .single();
-
-    if (updated) emitInquiryUpdated(updated);
-
-    // Auto-Reply Logic
-    if (aiJson.auto_reply_text && conversationId && process.env.ZERNIO_API_KEY) {
-      try {
-        const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-        await fetch(zernioUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`
-          },
-          body: JSON.stringify({
-            accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-            message: aiJson.auto_reply_text
-          })
-        });
-        
-        const { data: newMsg } = await supabaseAdmin.schema('crm')
-          .from('inquiries_messages')
-          .insert({
-            inquiry_id: inquiryId,
-            message_text: aiJson.auto_reply_text,
-            sender_type: 'ai_bot',
-            metadata: { auto_reply: true, conversationId }
-          })
-          .select().single();
-          
-        if (newMsg) emitInquiryMessage(inquiryId, newMsg);
-      } catch (err) {
-        console.error('[CRM AI AUTO REPLY ERROR]', err);
-        throw err;
-      }
-    }
-  } catch (aiErr) {
-    console.error('[CRM AI ANALYSIS ERROR]', aiErr);
-    throw aiErr;
-  }
-}
+// AI Analysis Helper moved to server/modules/ai/service/webhookAiService.js
 
 // GET /api/crm/webhooks/zernio (For Webhook Verification Pings)
 router.get('/webhooks/zernio', (req, res) => {
@@ -1126,7 +865,7 @@ router.post('/webhooks/zernio', async (req, res) => {
 
     // 1. Ignore irrelevant events immediately
     const eventType = payload.event;
-    if (eventType && eventType !== 'message.received') {
+    if (eventType && eventType !== 'message.received' && eventType !== 'message_created') {
       console.log('[WEBHOOK IGNORED EVENT]', eventType);
       return res.status(200).json({ ok: true, ignored_event: eventType });
     }
@@ -1170,7 +909,13 @@ router.post('/webhooks/zernio', async (req, res) => {
       prospectName = 'FB User ' + payload.entry[0].messaging[0].sender.id;
     }
 
-    const conversationId = payload.message?.conversationId || payload.conversationId;
+    const conversationId = 
+      payload.message?.conversationId || 
+      payload.conversationId || 
+      payload.conversation_id || 
+      payload.data?.conversationId || 
+      payload.data?.conversation_id || 
+      null;
     let inquiryId = null;
 
     // 1. Try to find existing inquiry by conversationId (most accurate for active chats)
@@ -1247,11 +992,12 @@ router.post('/webhooks/zernio', async (req, res) => {
       .limit(10);
 
     if (recentMsgs && recentMsgs.length > 0) {
-      const match = recentMsgs.find(m => m.message_text?.trim() === text.trim());
+      // Only deduplicate prospect messages (same sender within 10 seconds).
+      // NEVER skip an incoming prospect message just because an admin sent the same text.
+      const match = recentMsgs.find(m => m.message_text?.trim() === text.trim() && m.sender_type === 'prospect');
       if (match) {
         const timeDiff = Math.abs(new Date() - new Date(match.created_at));
-        const isEcho = (match.sender_type === 'prospect' && timeDiff < 10000) || 
-                       (match.sender_type !== 'prospect' && timeDiff < 900000); // 15 mins for admin echoes
+        const isEcho = timeDiff < 10000; // only 10s dedup for prospect echoes
                        
         if (isEcho) {
           console.log('[WEBHOOK ECHO IGNORED]', text.substring(0, 50));
@@ -1266,6 +1012,89 @@ router.post('/webhooks/zernio', async (req, res) => {
       .single();
 
     if (newMsg) emitInquiryMessage(inquiryId, newMsg);
+
+    // Auto-Reply with Feedback Form Link if customer tapped "Feedback ပေးရန်" or typed Feedback / Complain / တိုင်ကြား / အကြံပြု
+    const lowerText = (text || '').toLowerCase();
+    const rawPayloadStr = JSON.stringify(payload || {}).toLowerCase();
+    const isFeedbackTrigger = 
+      lowerText.includes('feedback') || 
+      lowerText.includes('တိုင်ကြား') || 
+      lowerText.includes('complain') || 
+      lowerText.includes('အကြံပြု') ||
+      rawPayloadStr.includes('complaint_feedback') ||
+      rawPayloadStr.includes('feedback') ||
+      payload.message?.quick_reply?.payload === 'COMPLAINT_FEEDBACK' ||
+      payload.postback?.payload === 'COMPLAINT_FEEDBACK';
+
+    if (isFeedbackTrigger) {
+      try {
+        const { data: currentInq } = await supabaseAdmin.schema('crm').from('inquiries').select('customer_id').eq('id', inquiryId).single();
+        const targetCustId = currentInq?.customer_id || inquiryId;
+        const frontendUrl = process.env.FRONTEND_ONBOARDING_URL || process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
+        const feedbackUrl = `${frontendUrl}/feedback/${targetCustId}`;
+
+        const autoFeedbackText = `အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackUrl}`;
+
+        // Resolve conversationId if missing from current webhook payload
+        let activeConvId = conversationId;
+        if (!activeConvId && inquiryId) {
+          const { data: prevMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+            .select('metadata')
+            .eq('inquiry_id', inquiryId)
+            .not('metadata', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+          if (prevMsgs && prevMsgs.length > 0) {
+            for (const pm of prevMsgs) {
+              const cid = pm.metadata?.message?.conversationId || pm.metadata?.conversationId;
+              if (cid) { activeConvId = cid; break; }
+            }
+          }
+        }
+
+        if (activeConvId && process.env.ZERNIO_API_KEY) {
+          const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${activeConvId}/messages`;
+          // 1. Try standard message send first (valid inside 24h window)
+          let autoRes = await fetch(zernioUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}` },
+            body: JSON.stringify({
+              accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+              message: autoFeedbackText
+            })
+          });
+          let autoResult = await autoRes.json();
+
+          // 2. Fallback to tagged message send if standard send failed
+          if (!autoRes.ok || autoResult.error) {
+            await fetch(zernioUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}` },
+              body: JSON.stringify({
+                accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+                messagingType: 'MESSAGE_TAG',
+                messageTag: 'POST_PURCHASE_UPDATE',
+                message: autoFeedbackText
+              })
+            });
+          }
+        }
+
+        const { data: botMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+          .insert({
+            inquiry_id: inquiryId,
+            message_text: autoFeedbackText,
+            sender_type: 'ai_bot',
+            metadata: { auto_reply: true, conversationId }
+          })
+          .select().single();
+
+        if (botMsg) emitInquiryMessage(inquiryId, botMsg);
+      } catch (fbAutoErr) {
+        console.error('[ZERNIO AUTO FEEDBACK LINK ERROR]', fbAutoErr);
+      }
+    }
 
     setTimeout(() => triggerAIAnalysis(inquiryId, conversationId).catch(err => console.error('[CRM AI BACKGROUND ERROR]', err)), 100);
 
@@ -1302,6 +1131,24 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
     // 2. Run AI Analysis in the background
     setTimeout(() => triggerAIAnalysis(id).catch(err => console.error('[CRM AI BACKGROUND ERROR]', err)), 100);
 
+    // 2.5 Auto-Learn from Admin reply
+    if (!sender_type || sender_type === 'admin') {
+      setTimeout(async () => {
+        try {
+          const { data: lastProspectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages')
+            .select('message_text')
+            .eq('inquiry_id', id)
+            .eq('sender_type', 'prospect')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (lastProspectMsgs && lastProspectMsgs.length > 0) {
+            const { learnFromAdminReply } = await import('../modules/ai/service/webhookAiService.js');
+            await learnFromAdminReply(lastProspectMsgs[0].message_text, message_text);
+          }
+        } catch (e) { console.error('[Auto-Learn Init Error]', e); }
+      }, 200);
+    }
+
     // 3. Send message to Facebook via Zernio (or direct FB fallback) if it's an admin reply
     if ((!sender_type || sender_type === 'admin') && (process.env.ZERNIO_API_KEY || process.env.FACEBOOK_PAGE_ACCESS_TOKEN)) {
       try {
@@ -1311,15 +1158,48 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
           .eq('sender_type', 'prospect')
           .not('metadata', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(1);
+          .limit(100);
 
+        let conversationId = null;
+        let prospectMeta = null;
         if (prospectMsgs && prospectMsgs.length > 0) {
-          const meta = prospectMsgs[0].metadata;
-          const conversationId = meta?.message?.conversationId || meta?.conversationId;
-          
-          if (conversationId && process.env.ZERNIO_API_KEY) {
-            const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-            const zernioResponse = await fetch(zernioUrl, {
+          for (const pm of prospectMsgs) {
+            const cid = pm.metadata?.message?.conversationId || pm.metadata?.conversationId;
+            if (cid) {
+              conversationId = cid;
+              prospectMeta = pm.metadata;
+              break;
+            }
+          }
+        }
+
+        if (conversationId && process.env.ZERNIO_API_KEY) {
+          const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
+          const quickReplies = [
+            { content_type: 'text', title: '🍱 Meal ရရှိပါပြီ', payload: 'DELIVERY_RECEIVED' },
+            { content_type: 'text', title: '📝 Feedback ပေးရန်', payload: 'COMPLAINT_FEEDBACK' }
+          ];
+
+          // 1. Try standard message send first (valid when recipient in 24h window)
+          let zernioResponse = await fetch(zernioUrl, {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`,
+              'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+              accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+              message: message_text,
+              quickReplies,
+              quick_replies: quickReplies
+            })
+          });
+          let zernioResult = await zernioResponse.json();
+
+          // 2. Fallback to tagged message if standard send failed (outside 24h window)
+          if (!zernioResponse.ok || zernioResult.error) {
+            console.warn('[ZERNIO] Standard send failed, retrying with Message Tag...', zernioResult.error || zernioResult.message);
+            zernioResponse = await fetch(zernioUrl, {
               method: 'POST',
               headers: { 
                 'Authorization': `Bearer ${process.env.ZERNIO_API_KEY}`,
@@ -1327,34 +1207,45 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
               },
               body: JSON.stringify({
                 accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
+                messagingType: 'MESSAGE_TAG',
+                messageTag: 'POST_PURCHASE_UPDATE',
                 message: message_text
               })
             });
-            const zernioResult = await zernioResponse.json();
-            if (!zernioResponse.ok || zernioResult.error) {
-              const errorDetail = zernioResult.error || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult);
-              console.error('[ZERNIO SEND ERROR]', errorDetail);
-              throw new Error(errorDetail);
+            zernioResult = await zernioResponse.json();
+          }
+
+          if (!zernioResponse.ok || zernioResult.error) {
+            const errorDetail = typeof zernioResult.error === 'string'
+              ? zernioResult.error 
+              : (zernioResult.error?.message || zernioResult.message || zernioResult.detail || JSON.stringify(zernioResult));
+            console.error('[ZERNIO SEND ERROR]', errorDetail);
+            throw new Error(errorDetail);
+          }
+        } else {
+          // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
+          let psid = null;
+          if (prospectMsgs && prospectMsgs.length > 0) {
+            for (const pm of prospectMsgs) {
+              const p = pm.metadata?.sender?.id || pm.metadata?.message?.sender?.id || pm.metadata?.entry?.[0]?.messaging?.[0]?.sender?.id;
+              if (p) { psid = p; break; }
             }
-          } else {
-            // Fallback to direct FB if Zernio API key is missing or not a Zernio webhook
-            let psid = meta?.sender?.id || meta?.message?.sender?.id || meta?.entry?.[0]?.messaging?.[0]?.sender?.id;
-            if (psid && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
-              const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
-              const fbResponse = await fetch(fbUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  recipient: { id: psid },
-                  message: { text: message_text },
-                  messaging_type: 'RESPONSE'
-                })
-              });
-              const fbResult = await fbResponse.json();
-              if (fbResult.error) {
-                console.error('[FB SEND ERROR]', fbResult.error);
-                throw new Error(fbResult.error.message || JSON.stringify(fbResult.error));
-              }
+          }
+          if (psid && process.env.FACEBOOK_PAGE_ACCESS_TOKEN) {
+            const fbUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.FACEBOOK_PAGE_ACCESS_TOKEN}`;
+            const fbResponse = await fetch(fbUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: { id: psid },
+                message: { text: message_text },
+                messaging_type: 'RESPONSE'
+              })
+            });
+            const fbResult = await fbResponse.json();
+            if (fbResult.error) {
+              console.error('[FB SEND ERROR]', fbResult.error);
+              throw new Error(fbResult.error.message || JSON.stringify(fbResult.error));
             }
           }
         }
@@ -1365,7 +1256,8 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
         const updatedMeta = { 
           ...(newMsg.metadata || {}), 
           delivery_status: 'failed', 
-          delivery_error: fbErr.message 
+          delivery_error: fbErr.message,
+          zernio_failed: true 
         };
         
         await supabaseAdmin.schema('crm').from('inquiries_messages')
@@ -1373,6 +1265,7 @@ router.post('/inquiries/:id/messages', verifyToken, async (req, res) => {
           .eq('id', newMsg.id);
           
         newMsg.metadata = updatedMeta;
+        emitInquiryMessage(id, newMsg);
       }
     }
 
@@ -1413,13 +1306,14 @@ router.post('/inquiries', verifyToken, async (req, res) => {
 router.put('/inquiries/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes, ai_analysis_result, service_interest_confidence } = req.body;
+    const { status, notes, ai_analysis_result, service_interest_confidence, is_ai_enabled } = req.body;
 
     const updateData = { updated_at: new Date().toISOString() };
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
     if (ai_analysis_result) updateData.ai_analysis_result = ai_analysis_result;
     if (service_interest_confidence !== undefined) updateData.service_interest_confidence = service_interest_confidence;
+    if (is_ai_enabled !== undefined) updateData.is_ai_enabled = is_ai_enabled;
 
     const { data, error } = await supabaseAdmin.schema('crm').from('inquiries')
       .update(updateData)
@@ -1452,321 +1346,26 @@ router.delete('/inquiries/:id', verifyToken, async (req, res) => {
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/packages
-router.get('/packages', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .schema('crm')
-      .from('packages')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/packages', verifyToken, crmController.getPackages);
 
 // POST /api/crm/packages
-router.post('/packages', verifyToken, async (req, res) => {
-  try {
-    const { name, duration, price } = req.body;
-    const { data, error } = await supabaseAdmin.schema('crm').from('packages')
-      .insert({ name, duration, price })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.status(201).json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/packages', verifyToken, crmController.createPackage);
 
 // PUT /api/crm/packages/:id
-router.put('/packages/:id', verifyToken, async (req, res) => {
-  try {
-    const { name, duration, price } = req.body;
-    const { error } = await supabaseAdmin.schema('crm').from('packages')
-      .update({ name, duration, price })
-      .eq('id', req.params.id);
-
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/packages/:id', verifyToken, crmController.updatePackage);
 
 // DELETE /api/crm/packages/:id
-router.delete('/packages/:id', verifyToken, async (req, res) => {
-  try {
-    const { error } = await supabaseAdmin.schema('crm').from('packages').delete().eq('id', req.params.id);
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/packages/:id', verifyToken, crmController.deletePackage);
 
 // ──────────────────────────────────────────────────────────────────
 // DASHBOARD STATS
 // ──────────────────────────────────────────────────────────────────
 
 // GET /api/crm/dashboard
-router.get('/dashboard', verifyToken, async (req, res) => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
-    const sevenMonthsAgo = new Date();
-    sevenMonthsAgo.setMonth(sevenMonthsAgo.getMonth() - 6);
-    sevenMonthsAgo.setDate(1);
-    const sevenMonthsAgoStr = sevenMonthsAgo.toISOString().split('T')[0];
-
-    const [
-      { count: totalCustomers },
-      { data: allPackages },
-      { data: allInquiriesForStatus },
-      { data: convertedLeads },
-      { count: upcomingBookings },
-      { data: upcomingRenewals },
-      { data: recentLeads },
-      { data: recentCustomers },
-      { data: allInquiriesForSource },
-      { data: recentFeedbacks },
-    ] = await Promise.all([
-      supabaseAdmin.schema('crm').from('customers').select('*', { count: 'exact', head: true }),
-      supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, amount, payment_status'),
-      supabaseAdmin.schema('crm').from('inquiries').select('id, status, notes, updated_at, customer_id'),
-      supabaseAdmin.schema('crm').from('inquiries').select('*', { count: 'exact' }).eq('status', 'converted').gte('created_at', thisMonthStart),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*', { count: 'exact', head: true }).eq('status', 'Upcoming'),
-      supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, facebook_name)').gte('expires_at', today).lte('expires_at', thirtyDaysLater).order('expires_at', { ascending: true }).limit(5),
-      supabaseAdmin.schema('crm').from('inquiries').select('*').order('created_at', { ascending: false }).limit(5),
-      supabaseAdmin.schema('crm').from('customers').select('created_at').gte('created_at', sevenMonthsAgoStr),
-      supabaseAdmin.schema('crm').from('inquiries').select('source'),
-      supabaseAdmin.schema('crm').from('feedbacks').select('*, customers!inner(full_name)').order('created_at', { ascending: false }).limit(30),
-    ]);
-
-    // Calculate 8 Dashboard Metrics
-    const pkgs = allPackages || [];
-    let totalRevenue = 0;
-    let activeCustomersSet = new Set();
-    let hasExpiredPackagesSet = new Set();
-    let hasAnyPackageSet = new Set();
-
-    pkgs.forEach(pkg => {
-      hasAnyPackageSet.add(pkg.customer_id);
-      if (pkg.payment_status === 'Paid') {
-        totalRevenue += (Number(pkg.amount) || 0);
-      }
-      
-      const expiresAtDate = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
-      expiresAtDate.setHours(0,0,0,0);
-      const todayDate = new Date();
-      todayDate.setHours(0,0,0,0);
-
-      const isActive = (expiresAtDate >= todayDate) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
-
-      if (isActive) {
-        activeCustomersSet.add(pkg.customer_id);
-      } else {
-        hasExpiredPackagesSet.add(pkg.customer_id);
-      }
-    });
-
-    let churnedCustomers = 0;
-    hasExpiredPackagesSet.forEach(cid => {
-      if (!activeCustomersSet.has(cid)) churnedCustomers++;
-    });
-
-    let hotProspects = 0, followUpProspects = 0, pendingProspects = 0, lostProspects = 0;
-    (allInquiriesForStatus || []).forEach(inq => {
-      const s = (inq.status || '').toLowerCase();
-      
-      // Best Practice: If an inquiry is linked to a customer, it is fundamentally "converted", regardless of its status string.
-      if (inq.customer_id || s === 'converted') {
-        // Already converted, do not count as pending/followup
-        return;
-      }
-
-      if (s === 'hot') hotProspects++;
-      else if (s === 'pending') pendingProspects++;
-      else if (s === 'lost') lostProspects++;
-      else followUpProspects++;
-    });
-
-    const mappedRenewals = (upcomingRenewals || []).map(pkg => {
-      const daysLeft = Math.ceil((new Date(pkg.expires_at) - new Date(today)) / (1000 * 60 * 60 * 24));
-      return {
-        customerId: pkg.customer_id,
-        customerName: pkg.customers?.full_name || 'Unknown',
-        packageName: pkg.name,
-        daysLeft: daysLeft
-      };
-    });
-
-    const customerGrowth = [0, 0, 0, 0, 0, 0, 0];
-    const currM = new Date().getMonth();
-    const currY = new Date().getFullYear();
-
-    (recentCustomers || []).forEach(c => {
-      const d = new Date(c.created_at);
-      const diff = (currY - d.getFullYear()) * 12 + (currM - d.getMonth());
-      if (diff >= 0 && diff <= 6) {
-        customerGrowth[6 - diff] += 1;
-      }
-    });
-
-    const sourceCounts = {
-      'Facebook': 0, 'Telegram': 0, 'Website': 0, 'Referral': 0, 'Other': 0
-    };
-    (allInquiriesForSource || []).forEach(inq => {
-      let src = inq.source?.toLowerCase() || '';
-      if (src === 'messenger' || src === 'facebook') sourceCounts['Facebook']++;
-      else if (src === 'telegram') sourceCounts['Telegram']++;
-      else if (src === 'website') sourceCounts['Website']++;
-      else if (src === 'referral') sourceCounts['Referral']++;
-      else sourceCounts['Other']++;
-    });
-
-    const flaggedFeedback = (recentFeedbacks || [])
-      .filter(fb => {
-        const comment = fb.comment || '';
-        if (comment.includes('[RESOLVED]')) return false;
-        return fb.rating <= 2 || comment.includes('[COMPLAIN]') || comment.includes('[REQUEST]');
-      })
-      .map(fb => {
-        let type = 'Issue';
-        if (fb.comment?.includes('[REQUEST]')) type = 'Request';
-        else if (fb.comment?.includes('[COMPLAIN]')) type = 'Complaint';
-        else if (fb.rating <= 2) type = 'Low Rating';
-        
-        let cleanText = (fb.comment || '')
-          .replace(/\[GENERAL\]/g, '')
-          .replace(/\[MENU\]/g, '')
-          .replace(/\[FEEDBACK\]/g, '')
-          .replace(/\[COMPLAIN\]/g, '')
-          .replace(/\[REQUEST\]/g, '')
-          .trim();
-
-        return {
-          id: fb.id,
-          customerName: fb.customers?.full_name || 'Unknown',
-          date: new Date(fb.created_at).toLocaleDateString(),
-          text: cleanText,
-          type: type,
-          rating: fb.rating
-        };
-      });
-
-    return res.json({
-      // The 8 new metrics
-      totalRevenue,
-      totalCustomers: totalCustomers || 0,
-      activeCustomers: activeCustomersSet.size,
-      churnedCustomers,
-      hotProspects,
-      followUpProspects,
-      pendingProspects,
-      lostProspects,
-      // Legacy metrics for charts/bottom UI
-      upcomingRenewals: mappedRenewals,
-      recentLeads: recentLeads || [],
-      customerGrowth: customerGrowth,
-      sourceCounts: sourceCounts,
-      flaggedFeedback: flaggedFeedback
-    });
-  } catch (e) {
-    console.error('[CRM DASHBOARD]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/dashboard', verifyToken, crmController.getDashboard);
 
 // GET /api/crm/segments/:segment
-router.get('/segments/:segment', verifyToken, async (req, res) => {
-  try {
-    const { segment } = req.params;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    if (segment === 'revenue') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages').select('*, customers!inner(full_name, phone, customer_code)').eq('payment_status', 'Paid').order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else if (segment === 'customers') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('customers').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else if (segment === 'active') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('customer_packages')
-        .select('*, customers!inner(full_name, phone, customer_code)')
-        .in('status', ['Active', 'Paused', 'Upcoming'])
-        .order('expires_at', { ascending: false });
-      if (error) throw error;
-      
-      const filtered = data.filter(pkg => {
-        const exp = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
-        exp.setHours(0,0,0,0);
-        return (exp >= today) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
-      });
-      return res.json(filtered);
-    } 
-    else if (segment === 'churned') {
-      const { data: allPackages, error: pkgErr } = await supabaseAdmin.schema('crm').from('customer_packages').select('customer_id, status, expires_at, customers!inner(*)');
-      if (pkgErr) throw pkgErr;
-
-      let activeSet = new Set();
-      let hasExpiredSet = new Set();
-      let customerMap = new Map();
-
-      (allPackages || []).forEach(pkg => {
-        customerMap.set(pkg.customer_id, pkg.customers);
-        const exp = pkg.expires_at ? new Date(pkg.expires_at) : new Date();
-        exp.setHours(0,0,0,0);
-        
-        const isActive = (exp >= today) && ['Active', 'Paused', 'Upcoming'].includes(pkg.status);
-
-        if (isActive) {
-          activeSet.add(pkg.customer_id);
-        } else {
-          hasExpiredSet.add(pkg.customer_id);
-        }
-      });
-
-      let churned = [];
-      hasExpiredSet.forEach(cid => {
-        if (!activeSet.has(cid)) churned.push(customerMap.get(cid));
-      });
-      return res.json(churned);
-    } 
-    else if (segment === 'hot' || segment === 'pending' || segment === 'lost') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('inquiries').select('*').eq('status', segment).order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else if (segment === 'follow_up') {
-      const { data, error } = await supabaseAdmin.schema('crm').from('inquiries').select('*')
-        .is('customer_id', null)
-        .not('status', 'eq', 'converted')
-        .not('status', 'eq', 'hot')
-        .not('status', 'eq', 'pending')
-        .not('status', 'eq', 'lost')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return res.json(data);
-    } 
-    else {
-      return res.json([]);
-    }
-  } catch (e) {
-    console.error('[CRM GET SEGMENT]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/segments/:segment', verifyToken, crmController.getSegment);
 
 // DELETE /api/crm/inquiries/:id
 router.delete('/inquiries/:id', verifyToken, async (req, res) => {
@@ -1796,7 +1395,7 @@ router.post('/inquiries/:id/generate-link', verifyToken, async (req, res) => {
       
     if (error) throw error;
     
-    const baseUrl = process.env.DIET_BUDDY_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const baseUrl = req.headers.origin || process.env.DIET_BUDDY_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const link = `${baseUrl}/enroll?token=${data.onboarding_token}`;
     
     return res.json({ link });
@@ -1922,69 +1521,20 @@ router.post('/onboarding/submit', async (req, res) => {
 });
 
 // GET All Feedbacks (For Customer Voices)
-router.get('/feedbacks', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin.schema('crm')
-      .from('feedbacks')
-      .select('*, customers!inner(full_name)')
-      .order('created_at', { ascending: false });
-      
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    console.error('[CRM GET ALL FEEDBACKS]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/feedbacks', verifyToken, crmController.getAllFeedbacks);
 
 // DELETE Feedback (Boss only)
-router.delete('/feedbacks/:id', verifyToken, requireBoss, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { error } = await supabaseAdmin.schema('crm').from('feedbacks').delete().eq('id', id);
-    if (error) throw error;
-    return res.json({ success: true, message: 'Feedback deleted successfully' });
-  } catch (e) {
-    console.error('[CRM DELETE FEEDBACK]', e.message);
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/feedbacks/:id', verifyToken, requireBoss, crmController.deleteFeedback);
 
 // -----------------------------------------
 // CUSTOMER ONBOARDING (DYNAMIC FORMS & MARK PAID)
 // -----------------------------------------
 
 // GET /api/crm/settings/form
-router.get('/settings/form', verifyToken, async (req, res) => {
-  try {
-    const { data: formSettings } = await supabaseAdmin.schema('crm').from('form_settings')
-      .select('*')
-      .eq('form_name', 'enrollment')
-      .single();
-
-    res.json(formSettings || { schema: [] });
-  } catch (err) {
-    console.error('[GET FORM SETTINGS ERROR]', err);
-    res.status(500).send('Internal Error');
-  }
-});
+router.get('/settings/form', verifyToken, crmController.getFormSettings);
 
 // PUT /api/crm/settings/form
-router.put('/settings/form', verifyToken, async (req, res) => {
-  try {
-    const { schema } = req.body;
-    const { data, error } = await supabaseAdmin.schema('crm').from('form_settings')
-      .upsert({ form_name: 'enrollment', schema, updated_at: new Date().toISOString() }, { onConflict: 'form_name' })
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('[PUT FORM SETTINGS ERROR]', err);
-    res.status(500).send('Internal Error');
-  }
-});
+router.put('/settings/form', verifyToken, crmController.upsertFormSettings);
 
 // POST /api/crm/inquiries/:id/mark-paid
 router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
@@ -2009,9 +1559,9 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
 
     // 2. Auto-send the form link via AI Bot (or admin)
     const token = inquiry.onboarding_token;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://hrm.duolinkmm.com';
     const link = `${frontendUrl}/enroll?token=${token}`;
-    const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီရှင်။ 🎉\n\nအစ်ကို/အစ်မအတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦးနော်။\n\n${link}`;
+    const text = `ငွေလွှဲပြေစာ လက်ခံရရှိပါပြီ ခင်ဗျာ။ 🎉\n\nBoss အတွက် Diet Plan ဆွဲပေးနိုင်ဖို့ အောက်က လင့်ခ်လေးကိုနှိပ်ပြီး ကျန်းမာရေးနဲ့ အချက်အလက်လေးတွေ ဖြည့်ပေးပါဦး ခင်ဗျာ။\n\n${link}`;
 
     // Insert message into history so it sends to Facebook
     const { data: newMsg } = await supabaseAdmin.schema('crm').from('inquiries_messages')
@@ -2064,47 +1614,21 @@ router.post('/inquiries/:id/mark-paid', verifyToken, async (req, res) => {
     res.status(500).send('Internal Error');
   }
 });
-// GET /api/crm/weekly-feedbacks
-router.get('/weekly-feedbacks', verifyToken, async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin.from('crm_menu_feedbacks')
-      .select('*, customers(full_name)')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('[GET WEEKLY FEEDBACKS ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+// GET /api/crm/weekly-feedbacks (Daily & Weekly Menu Feedbacks)
+router.get('/weekly-feedbacks', verifyToken, crmController.getWeeklyFeedbacks);
 
 // POST /api/crm/feedback/:id/resolve
-router.post('/feedback/:id/resolve', verifyToken, async (req, res) => {
+router.post('/feedback/:id/resolve', verifyToken, crmController.resolveFeedback);
+
+// POST /api/crm/ai-assistant - Universal Agentic Admin CRM AI Copilot
+router.post('/ai-assistant', async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Get current comment
-    const { data: fb, error: fetchErr } = await supabaseAdmin.schema('crm')
-      .from('feedbacks')
-      .select('comment')
-      .eq('id', id)
-      .single();
-      
-    if (fetchErr) throw fetchErr;
-    
-    const updatedComment = fb.comment + '\n[RESOLVED]';
-    
-    const { error: updateErr } = await supabaseAdmin.schema('crm')
-      .from('feedbacks')
-      .update({ comment: updatedComment })
-      .eq('id', id);
-      
-    if (updateErr) throw updateErr;
-    
-    res.json({ success: true });
+    const { processAiAssistantQuery } = await import('../modules/ai/service/copilotAiService.js');
+    const result = await processAiAssistantQuery(req.body.query, req.user);
+    return res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[CRM AI ASSISTANT ERROR]', err);
+    return res.status(500).json({ error: err.message || 'Failed to process request' });
   }
 });
 

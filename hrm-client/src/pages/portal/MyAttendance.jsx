@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
 import Layout from '../../components/layout/Layout';
 import MyOvertimeTab from './MyOvertimeTab';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function MyAttendance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('records');
   const [expandedMonths, setExpandedMonths] = useState({});
   
@@ -49,9 +51,10 @@ export default function MyAttendance() {
   };
 
   const methodBadge = (m) => {
-    const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-purple-400 bg-purple-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
-    return cfg[m] ? <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg[m]}`}>🪄 {m}</span>
-      : <span className="text-xs font-medium px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ Manual</span>;
+    const cfg = { QR: 'text-cyan-400 bg-cyan-400/10', Biometric: 'text-orange-400 bg-orange-400/10', Photo: 'text-pink-400 bg-pink-400/10' };
+    const label = m ? (t(`hrm.attendance.methods.${m.toLowerCase()}`) || m) : t('hrm.attendance.methods.manual');
+    return cfg[m] ? <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg[m]}`}>🪄 {label}</span>
+      : <span className="text-xs font-medium px-2 py-0.5 rounded-full text-slate-400 bg-slate-400/10">✏️ {label}</span>;
   };
 
   const formatMonthTitle = (yyyy_mm) => {
@@ -61,7 +64,7 @@ export default function MyAttendance() {
   };
 
   return (
-    <Layout title="My Attendance" subtitle="Your complete attendance history">
+    <Layout title={t('portal.attendance.title')} subtitle={t('portal.attendance.subtitle')}>
       
       {/* Tabs */}
       <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-2">
@@ -69,27 +72,27 @@ export default function MyAttendance() {
           onClick={() => setActiveTab('records')}
           className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${activeTab === 'records' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
         >
-          📅 My Records
+          📅 {t('portal.attendance.tabs.records')}
         </button>
         <button 
           onClick={() => setActiveTab('overtime')}
           className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${activeTab === 'overtime' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
         >
-          ⏱️ Overtime
+          ⏱️ {t('portal.attendance.tabs.overtime')}
         </button>
       </div>
 
       {activeTab === 'records' && (
         <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h3 className="text-sm font-bold text-white">Attendance Records</h3>
-          <p className="text-xs text-slate-400">{records.length} records total</p>
+          <h3 className="text-sm font-bold text-white">{t('portal.attendance.recordsTitle')}</h3>
+          <p className="text-xs text-slate-400">{records.length} {t('portal.attendance.recordsTotal')}</p>
         </div>
         
         {isLoading ? (
           <div className="py-12 flex justify-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : records.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 text-sm">No attendance records found.</div>
+          <div className="py-16 text-center text-slate-500 text-sm">{t('portal.attendance.noRecords')}</div>
         ) : (
           <div className="flex flex-col">
             {sortedMonths.map(month => {
@@ -104,7 +107,7 @@ export default function MyAttendance() {
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-indigo-400 font-bold">📅 {formatMonthTitle(month)}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-lg bg-white/5 text-slate-400">{monthRecords.length} days</span>
+                      <span className="text-xs px-2 py-0.5 rounded-lg bg-white/5 text-slate-400">{monthRecords.length} {t('portal.attendance.days')}</span>
                     </div>
                     <span className="text-slate-400 text-xs transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : '' }}>▼</span>
                   </div>
@@ -114,8 +117,8 @@ export default function MyAttendance() {
                       <table className="w-full text-sm">
                         <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
                           <tr>
-                            {['Date', 'Check In', 'Check Out', 'Hours', 'Method', 'Status'].map(h => (
-                              <th key={h} className="text-left py-2 px-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>
+                            {[t('hrm.attendance.columns.date'), t('hrm.attendance.columns.checkIn'), t('hrm.attendance.columns.checkOut'), t('hrm.attendance.columns.hours'), t('hrm.attendance.columns.method'), t('hrm.attendance.columns.status')].map((h, i) => (
+                              <th key={i} className="text-left py-2 px-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -133,10 +136,10 @@ export default function MyAttendance() {
                                 <td className="py-3 px-5">{methodBadge(r.attendance_method)}</td>
                                 <td className="py-3 px-5">
                                   {r.is_early_leave
-                                    ? <span className="text-xs font-semibold text-rose-400">Early Leave</span>
+                                    ? <span className="text-xs font-semibold text-rose-400">{t('hrm.attendance.status.earlyLeave')}</span>
                                     : r.is_late
-                                    ? <span className="text-xs font-semibold text-amber-400">Late</span>
-                                    : <span className="text-xs text-emerald-400">On time</span>}
+                                    ? <span className="text-xs font-semibold text-amber-400">{t('hrm.attendance.status.late')}</span>
+                                    : <span className="text-xs text-emerald-400">{t('hrm.attendance.status.onTime')}</span>}
                                 </td>
                               </tr>
                             );

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 import { getCrmSocket, joinInquiryRoom, leaveInquiryRoom, disconnectCrmSocket } from '../../lib/crmSocket';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function Inquiries() {
   const { user } = useAuth();
@@ -20,6 +21,8 @@ export default function Inquiries() {
   const [packages, setPackages] = useState([]);
   const [showPaidModal, setShowPaidModal] = useState(false);
   const [selectedPackageForPaid, setSelectedPackageForPaid] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [inquiryToDelete, setInquiryToDelete] = useState(null);
 
   useEffect(() => {
     selectedIdRef.current = selectedInquiry?.id || null;
@@ -27,6 +30,21 @@ export default function Inquiries() {
 
   useEffect(() => {
     loadInquiries();
+    
+    // Fallback polling for Serverless environments (Vercel) where WebSockets cross-communication fails
+    const pollInterval = setInterval(() => {
+      crmApi.getInquiries().then(data => {
+        setInquiries(prev => {
+          const hasChanges = data.some(d => {
+             const existing = prev.find(p => p.id === d.id);
+             return !existing || existing.updated_at !== d.updated_at;
+          });
+          return hasChanges ? data : prev;
+        });
+      }).catch(() => {});
+    }, 7000);
+    
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Realtime: customer (Zernio webhook) + agent replies + AI updates
@@ -107,7 +125,24 @@ export default function Inquiries() {
     const id = selectedInquiry?.id;
     if (!id) return undefined;
     joinInquiryRoom(id);
-    return () => leaveInquiryRoom(id);
+    
+    // Fallback polling for active chat messages
+    const msgInterval = setInterval(() => {
+      crmApi.getInquiryMessages(id).then(msgs => {
+        setMessages(prev => {
+          if (prev.length !== msgs.length) {
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+            return msgs;
+          }
+          return prev;
+        });
+      }).catch(() => {});
+    }, 5000);
+
+    return () => {
+      leaveInquiryRoom(id);
+      clearInterval(msgInterval);
+    };
   }, [selectedInquiry?.id]);
 
   const location = useLocation();
@@ -160,13 +195,18 @@ export default function Inquiries() {
     }
   };
 
-  const handleDeleteInquiry = async (id, e) => {
+  const triggerDeleteInquiry = (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this lead forever?')) return;
+    setInquiryToDelete(id);
+    setShowConfirm(true);
+  };
+
+  const handleDeleteInquiry = async () => {
+    if (!inquiryToDelete) return;
     try {
-      await crmApi.deleteInquiry(id);
+      await crmApi.deleteInquiry(inquiryToDelete);
       toast.success('Lead deleted');
-      if (selectedInquiry?.id === id) {
+      if (selectedInquiry?.id === inquiryToDelete) {
         setSelectedInquiry(null);
         setMessages([]);
       }
@@ -176,18 +216,20 @@ export default function Inquiries() {
     }
   };
 
+  const [sendAs, setSendAs] = useState('admin');
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedInquiry) return;
     setIsSending(true);
     try {
-      const msg = await crmApi.postInquiryMessage(selectedInquiry.id, {
+      await crmApi.postInquiryMessage(selectedInquiry.id, {
         message_text: newMessage,
-        sender_type: 'admin'
+        sender_type: sendAs
       });
       setNewMessage('');
     } catch (err) {
-      toast.error('Failed to send message');
+      toast.error(err.response?.data?.error || 'Failed to send message');
     } finally {
       setIsSending(false);
     }
@@ -203,6 +245,31 @@ export default function Inquiries() {
       }
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'Failed to generate link');
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!selectedInquiry) return;
+    try {
+      await crmApi.updateInquiry(selectedInquiry.id, { status: newStatus });
+      setSelectedInquiry(prev => ({ ...prev, status: newStatus }));
+      setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status: newStatus } : i));
+      toast.success('Stage updated');
+    } catch (e) {
+      toast.error('Failed to update stage');
+    }
+  };
+
+  const handleToggleAi = async () => {
+    if (!selectedInquiry) return;
+    const newState = selectedInquiry.is_ai_enabled === false ? true : false;
+    try {
+      await crmApi.updateInquiry(selectedInquiry.id, { is_ai_enabled: newState });
+      setSelectedInquiry(prev => ({ ...prev, is_ai_enabled: newState }));
+      setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, is_ai_enabled: newState } : i));
+      toast.success(newState ? 'AI Auto-Reply Enabled' : 'AI Auto-Reply Disabled');
+    } catch (e) {
+      toast.error('Failed to toggle AI');
     }
   };
 
@@ -262,7 +329,28 @@ export default function Inquiries() {
             {inquiries.length === 0 ? (
               <p className="text-slate-500 text-sm p-4 text-center">No leads yet.</p>
             ) : (
-              inquiries.map(inq => (
+              inquiries.map(inq => {
+                const s = (inq.status || 'new').toLowerCase();
+                const isEnrolled = !!inq.customer_id || s === 'converted';
+
+                let badgeLabel = 'Hot Prospect';
+                let badgeStyle = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+
+                if (isEnrolled) {
+                  badgeLabel = 'Enrolled';
+                  badgeStyle = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                } else if (s === 'pending' || s === 'payment_pending') {
+                  badgeLabel = 'Pending';
+                  badgeStyle = 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
+                } else if (s === 'in_progress' || s === 'followup' || s === 'contacted' || s === 'chatting') {
+                  badgeLabel = 'Follow-up';
+                  badgeStyle = 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+                } else if (s === 'lost' || s === 'closed') {
+                  badgeLabel = 'Lost';
+                  badgeStyle = 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+                }
+
+                return (
                 <div 
                   key={inq.id} 
                   onClick={() => handleSelectInquiry(inq)}
@@ -280,7 +368,7 @@ export default function Inquiries() {
                       <h4 className="font-bold text-white text-sm">{inq.prospect_name}</h4>
                     </div>
                     <button 
-                      onClick={(e) => handleDeleteInquiry(inq.id, e)}
+                      onClick={(e) => triggerDeleteInquiry(inq.id, e)}
                       className="text-slate-600 hover:text-rose-500 transition-colors px-1"
                       title="Delete Lead"
                     >
@@ -291,12 +379,8 @@ export default function Inquiries() {
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded-md">
                       {inq.source}
                     </span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                      inq.status === 'New' ? 'bg-rose-500/20 text-rose-400' :
-                      inq.status === 'Chatting' ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      {inq.status}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${badgeStyle}`}>
+                      {badgeLabel}
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 truncate">
@@ -305,7 +389,8 @@ export default function Inquiries() {
                       : 'No messages yet...'}
                   </p>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -318,7 +403,7 @@ export default function Inquiries() {
             {selectedInquiry ? (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b border-white/5 bg-surface-850 flex justify-between items-center">
+                <div className="p-4 border-b border-white/5 bg-surface-850 flex justify-between items-center flex-wrap gap-2">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-lg border border-indigo-500/30">
                       {selectedInquiry.prospect_name.charAt(0).toUpperCase()}
@@ -328,18 +413,44 @@ export default function Inquiries() {
                       <p className="text-xs text-slate-400">{selectedInquiry.prospect_contact || 'No contact provided'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* AI Toggle Button */}
+                    <button
+                      onClick={handleToggleAi}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                        selectedInquiry.is_ai_enabled !== false
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
+                      }`}
+                      title="Toggle AI Auto-Reply for this chat"
+                    >
+                      🤖 AI: {selectedInquiry.is_ai_enabled !== false ? 'ON' : 'OFF'}
+                    </button>
+
+                    {/* Stage Selector Dropdown */}
+                    <select
+                      value={selectedInquiry.customer_id ? 'converted' : (selectedInquiry.status || 'new').toLowerCase()}
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      className="bg-surface-900 border border-white/10 text-white rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-none focus:border-brand-green"
+                    >
+                      <option value="new">Hot Prospect</option>
+                      <option value="in_progress">Follow-up</option>
+                      <option value="pending">Pending Payment</option>
+                      <option value="lost">Lost</option>
+                      <option value="converted">Enrolled Customer</option>
+                    </select>
+
                     {selectedInquiry.customer_id ? (
                       <button 
                         onClick={() => navigate(`/crm/customers/${selectedInquiry.customer_id}`)} 
                         className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
                       >
-                        ✓ Form Completed — View Profile
+                        ✓ View Profile
                       </button>
                     ) : selectedInquiry.onboarding_status === 'form_sent' ? (
                       <div className="flex gap-2">
                         <span className="px-3 py-1.5 bg-amber-500/20 text-amber-400 rounded-lg text-xs font-bold flex items-center gap-1">
-                          ⏳ Waiting for Form
+                          ⏳ Form Sent
                         </span>
                         <button 
                           onClick={handleGenerateLink} 
@@ -352,14 +463,11 @@ export default function Inquiries() {
                     ) : (
                       <button 
                         onClick={() => setShowPaidModal(true)} 
-                        className="px-4 py-1.5 bg-brand-green text-black hover:scale-105 rounded-lg text-sm font-black transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1"
+                        className="px-3.5 py-1.5 bg-brand-green text-black hover:scale-105 rounded-lg text-xs font-black transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1"
                       >
-                        💰 Mark as Paid
+                        💰 Mark Paid
                       </button>
                     )}
-                    <button onClick={handleSimulateProspect} className="px-3 py-1.5 bg-white/5 text-slate-300 hover:text-white rounded-lg text-xs font-bold border border-white/10 transition-colors">
-                      Simulate Reply 🤖
-                    </button>
                   </div>
                 </div>
 
@@ -370,8 +478,16 @@ export default function Inquiries() {
                   ) : (
                     messages.map((msg, idx) => {
                       const isAdmin = msg.sender_type === 'admin' || msg.sender_type === 'ai_bot';
-                      const hasImage = msg.metadata?.imageUrl;
+                      const imgUrl = msg.metadata?.imageUrl || (msg.metadata?.proof_url?.startsWith('data:image') || msg.metadata?.proof_url?.startsWith('http') ? msg.metadata.proof_url : null);
+                      const hasImage = !!imgUrl;
                       const showAvatar = !isAdmin;
+
+                      let cleanText = msg.message_text || '';
+                      if (cleanText.includes('data:image/')) {
+                        cleanText = cleanText.replace(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/g, '').trim();
+                      } else if (/^[A-Za-z0-9+/=]{50,}$/.test(cleanText.trim())) {
+                        cleanText = '';
+                      }
                       
                       return (
                         <div key={msg.id || idx} className={`flex w-full ${isAdmin ? 'justify-end' : 'justify-start'}`}>
@@ -391,16 +507,29 @@ export default function Inquiries() {
                               }`}>
                                 {hasImage && (
                                   <img 
-                                    src={msg.metadata.imageUrl} 
+                                    src={imgUrl} 
                                     alt="attachment" 
                                     className="max-w-full rounded-[14px] mb-2 object-cover max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
-                                    onClick={() => window.open(msg.metadata.imageUrl, '_blank')}
+                                    onClick={() => window.open(imgUrl, '_blank')}
                                   />
                                 )}
-                                {msg.message_text && !msg.message_text.includes('[Zernio Msg]') && !msg.message_text.startsWith('{"id":') && !msg.message_text.startsWith('{"event":') && !msg.message_text.includes('"event":"message.received"') && (
-                                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.message_text}</p>
+                                {cleanText && !cleanText.includes('[Zernio Msg]') && !cleanText.startsWith('{"id":') && !cleanText.startsWith('{"event":') && !cleanText.includes('"event":"message.received"') && (
+                                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{cleanText}</p>
                                 )}
                               </div>
+
+                              {(msg.metadata?.delivery_status === 'failed' || msg.metadata?.zernio_failed) && (
+                                <div className="text-[11px] font-bold text-rose-300 bg-rose-950/80 border border-rose-500/40 rounded-xl px-3 py-1.5 mt-0.5 flex items-start gap-1.5 shadow-md">
+                                  <span className="text-rose-400 font-extrabold text-xs">⚠️</span>
+                                  <div>
+                                    <div className="font-bold text-rose-200">Delivery Failed (Facebook Messenger)</div>
+                                    <div className="text-[10px] text-rose-300/80 font-normal leading-tight mt-0.5">
+                                      {msg.metadata.delivery_error || 'Outside 24-hour Meta messaging window'}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                               <div className={`text-[10px] text-slate-500 px-1 flex items-center gap-1.5 ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                                 <span className="uppercase font-semibold opacity-70">
                                   {msg.sender_type === 'ai_bot' ? '🤖 AI' : msg.sender_type}
@@ -418,15 +547,27 @@ export default function Inquiries() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Message Input */}
+                {/* Message Input with Customer / Admin Sender Toggle */}
                 <div className="p-4 border-t border-white/5 bg-surface-850">
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => setSendAs(prev => prev === 'admin' ? 'prospect' : 'admin')}
+                      className={`px-3 py-2.5 rounded-full text-xs font-black border transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                        sendAs === 'prospect' 
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
+                          : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                      }`}
+                      title="Click to toggle sender role (Customer vs Admin)"
+                    >
+                      {sendAs === 'prospect' ? '👤 Customer' : '👔 Admin'}
+                    </button>
                     <input 
                       type="text" 
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..." 
-                      className="flex-1 bg-surface-900 border border-white/10 rounded-full px-5 py-3 text-white focus:outline-none focus:border-brand-green transition-colors"
+                      placeholder={sendAs === 'prospect' ? "Type as Customer (e.g. 30 Days Plan ရဲ့ Menu တွေ...)" : "Type reply as Admin..."} 
+                      className="flex-1 bg-surface-900 border border-white/10 rounded-full px-5 py-3 text-white focus:outline-none focus:border-brand-green transition-colors text-sm"
                     />
                     <button 
                       type="submit" 
@@ -549,6 +690,18 @@ export default function Inquiries() {
         </div>
       )}
 
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setInquiryToDelete(null);
+        }}
+        onConfirm={handleDeleteInquiry}
+        title="Delete Lead?"
+        message="Are you sure you want to delete this lead forever? This action cannot be undone."
+        confirmText="Yes, Delete Lead"
+        confirmStyle="danger"
+      />
     </Layout>
   );
 }

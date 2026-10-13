@@ -9,7 +9,17 @@ const KitchenDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeducting, setIsDeducting] = useState(false);
-  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const getBkkDate = () => {
+    const d = new Date();
+    const bkkStr = d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+    const bkkDate = new Date(bkkStr);
+    const yyyy = bkkDate.getFullYear();
+    const mm = String(bkkDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(bkkDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const [targetDate, setTargetDate] = useState(getBkkDate());
 
   const fetchDashboard = async () => {
     setIsLoading(true);
@@ -51,7 +61,7 @@ const KitchenDashboard = () => {
     toast(
       (t) => (
         <div className="flex flex-col gap-4">
-          <p className="font-bold text-slate-800">Send this alert to the Chef via Telegram?</p>
+          <p className="font-bold text-slate-800">Chef Alert ကို Telegram Group နှင့် Messenger နှစ်ခုလုံးသို့ ပေးပို့မည်လား?</p>
           <div className="flex justify-end gap-2">
             <button 
               className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors"
@@ -90,6 +100,15 @@ const KitchenDashboard = () => {
             <span>←</span> Back to Ops Hub
           </button>
         </div>
+
+        {/* Auto-Alert Schedule Banner */}
+        <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-3">
+          <span className="text-xl">⏰</span>
+          <div className="text-xs">
+            <p className="font-black text-emerald-400">နေ့စဉ် Auto-Alert: ထိုင်းစံတော်ချိန် မနက် 05:00 နာရီတိုင်း အလိုအလျောက် ပေးပို့ရန် စီစဉ်ထားပါသည်</p>
+            <p className="text-slate-400 mt-0.5">Telegram Group နှင့် Facebook Messenger (Chef များ) နှစ်ခုလုံးထံ တစ်ပြိုင်နက်တည်း Auto-send ဆောင်ရွက်ပေးပါသည်။ Manual နှိပ်၍လည်း မည်သည့်အချိန်မဆို ပေးပို့နိုင်ပါသည်။</p>
+          </div>
+        </div>
         
         {/* Date Filter & Headcount summary */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface-800 p-6 rounded-3xl border border-white/5 shadow-xl">
@@ -122,7 +141,7 @@ const KitchenDashboard = () => {
             disabled={isDeducting || (!dashboardData?.dailyMenus?.length && !dashboardData?.deliveryList?.length)}
             className="bg-brand-green text-black font-black px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
           >
-            <span>✈️</span> {isDeducting ? 'Sending Alert...' : 'Send Alert to Chef (Telegram)'}
+            <span>✈️</span> {isDeducting ? 'Alert ပို့နေပါသည်...' : 'Chef ထံ Alert ပို့မည် (Telegram & Messenger)'}
           </button>
         </div>
 

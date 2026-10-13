@@ -1,6 +1,6 @@
 import express from 'express';
 import bcryptjs from 'bcryptjs';
-import { dbFetchOne, dbUpdate } from '../lib/supabase.js';
+import { supabase, dbFetchOne, dbUpdate } from '../lib/supabase.js';
 import { generateToken, generateRefreshToken, verifyToken, hashPassword, JWT_SECRET } from '../middleware/auth.js';
 import jwt from 'jsonwebtoken';
 
@@ -28,7 +28,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    const user = await dbFetchOne('sys_users', '*', { username });
+    const cleanUsername = String(username).trim();
+    const { data: userList, error: queryError } = await supabase
+      .from('sys_users')
+      .select('*')
+      .ilike('username', cleanUsername)
+      .limit(1);
+
+    if (queryError) {
+      console.error('[AUTH DB QUERY ERROR]', queryError);
+      return res.status(500).json({ error: `Database error: ${queryError.message}` });
+    }
+
+    const user = userList?.[0] || null;
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -63,6 +75,15 @@ router.post('/login', async (req, res) => {
     const token = generateToken(payload);
     const refreshToken = generateRefreshToken(user);
 
+    const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+    if (isMobile) {
+      return res.json({
+        user: payload,
+        accessToken: token,
+        refreshToken: refreshToken
+      });
+    }
+
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -82,22 +103,27 @@ router.post('/login', async (req, res) => {
     });
   } catch (e) {
     console.error('[AUTH LOGIN]', e);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: e.message || 'Server error' });
   }
 });
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('token', { sameSite: 'strict' });
-  res.clearCookie('refresh_token', { sameSite: 'strict' });
+  const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+  if (!isMobile) {
+    res.clearCookie('token', { sameSite: 'strict' });
+    res.clearCookie('refresh_token', { sameSite: 'strict' });
+  }
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // POST /api/auth/refresh
 router.post('/refresh', async (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
+  const isMobile = req.headers['x-client']?.toLowerCase() === 'mobile';
+  const refreshToken = isMobile ? req.body.refreshToken : req.cookies.refresh_token;
+
   if (!refreshToken) {
-    console.log('[AUTH REFRESH] Failed: No refresh token cookie found in req.cookies');
+    console.log('[AUTH REFRESH] Failed: No refresh token found');
     return res.status(401).json({ error: 'No refresh token' });
   }
 
@@ -127,6 +153,10 @@ router.post('/refresh', async (req, res) => {
 
     const newToken = generateToken(payload);
     
+    if (isMobile) {
+      return res.json({ user: payload, accessToken: newToken });
+    }
+
     res.cookie('token', newToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -145,6 +175,55 @@ router.post('/refresh', async (req, res) => {
 router.get('/me', verifyToken, (req, res) => {
   return res.json({ user: req.user });
 });
+
+// GET /api/auth/magic-link
+router.get('/magic-link', async (req, res) => {
+  try {
+    const { token, redirect } = req.query;
+    if (!token) return res.status(400).send('Missing token');
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.purpose !== 'magic_link') return res.status(401).send('Invalid token purpose');
+    
+    const user = await dbFetchOne('sys_users', '*', { id: decoded.id });
+    if (!user || !user.is_active) return res.status(401).send('Invalid or inactive user');
+    
+    let stored = user.password_hash || '';
+    let mustChange = stored.startsWith('MUST_CHANGE:');
+    
+    const payload = {
+      id: String(user.id),
+      username: user.username,
+      role: user.role,
+      full_name: user.full_name || user.username,
+      employee_id: String(user.employee_id || ''),
+      must_change_password: mustChange,
+    };
+    
+    const newToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(user);
+    
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+    
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+    
+    res.redirect(redirect || '/');
+  } catch (e) {
+    console.error('[AUTH MAGIC LINK]', e);
+    return res.status(401).send('Magic link expired or invalid. Please login normally.');
+  }
+});
+
 
 
 // POST /api/auth/change-password

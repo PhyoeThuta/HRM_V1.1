@@ -1,7 +1,7 @@
 import express from 'express';
 import { dbFetch, dbFetchOne, dbInsert, dbUpdate, dbDelete } from '../lib/supabase.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
-import { supabase } from '../lib/supabase.js';
+import { supabase, supabaseAdmin } from '../lib/supabase.js';
 import {
   getActiveHandoversForOutgoing,
   getActiveHandoversForIncoming,
@@ -11,9 +11,120 @@ import {
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import PDFDocument from 'pdfkit';
+import { payrollModule } from '../modules/payroll/index.js';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
+
+async function generateOfficialDocumentPDF({ doc_type, title, empName, empId, newPosition, newDepartment, newSalary, effectiveDate, description }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const filename = `doc_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`;
+      const publicDir = path.join(process.cwd(), '../hrm-client/public/generated_docs');
+      if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+
+      const filePath = path.join(publicDir, filename);
+      const writeStream = fs.createWriteStream(filePath);
+
+      doc.pipe(writeStream);
+
+      // Header Banner
+      const isWarning = (doc_type || '').toLowerCase().includes('warning') || (title || '').toLowerCase().includes('warning');
+      const headerColor = isWarning ? '#9f1239' : '#1e1b4b';
+
+      doc.rect(0, 0, 595.28, 90).fill(headerColor);
+      doc.fillColor('#ffffff').fontSize(20).font('Helvetica-Bold').text((doc_type || 'OFFICIAL LETTER').toUpperCase(), 50, 32);
+      doc.fontSize(9).font('Helvetica').fillColor('#e0e7ff').text('HUMAN RESOURCES & TALENT MANAGEMENT DIVISION', 50, 58);
+
+      // Metadata
+      doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold');
+      doc.text('DATE:', 50, 110);
+      doc.font('Helvetica').text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), 100, 110);
+
+      doc.font('Helvetica-Bold').text('REF NO:', 350, 110);
+      doc.font('Helvetica').text(`HR/${(doc_type || 'DOC').replace(/\s+/g, '_').toUpperCase()}/${Date.now().toString().slice(-6)}`, 410, 110);
+
+      doc.font('Helvetica-Bold').text('TO:', 50, 130);
+      doc.font('Helvetica').text(`${empName || 'Employee'} (${empId || 'N/A'})`, 100, 130);
+
+      doc.font('Helvetica-Bold').text('SUBJECT:', 50, 150);
+      doc.font('Helvetica-Bold').fillColor(isWarning ? '#be123c' : '#4338ca').text((title || 'Official Notice').toUpperCase(), 115, 150);
+
+      doc.moveTo(50, 172).lineTo(545, 172).strokeColor('#cbd5e1').lineWidth(1).stroke();
+
+      // Body text
+      doc.moveDown(2);
+      doc.fillColor('#334155').fontSize(11).font('Helvetica');
+      doc.text(`Dear ${empName || 'Employee'},`, 50, 190);
+
+      doc.text(
+        description || `This official communication confirms your details and employment adjustments with our organization. Please review the highlighted specifications below.`,
+        50,
+        210,
+        { align: 'justify', lineGap: 4 }
+      );
+
+      // Details Box
+      const boxY = 270;
+      doc.roundedRect(50, boxY, 495, 120, 8).fillAndStroke('#f8fafc', '#cbd5e1');
+
+      let currentY = boxY + 15;
+      if (newPosition) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('POSITION TITLE:', 70, currentY);
+        doc.font('Helvetica').fillColor('#4338ca').text(newPosition, 210, currentY);
+        currentY += 22;
+      }
+      if (newDepartment) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('DEPARTMENT:', 70, currentY);
+        doc.font('Helvetica').fillColor('#334155').text(newDepartment, 210, currentY);
+        currentY += 22;
+      }
+      if (newSalary) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('NEW BASE SALARY:', 70, currentY);
+        doc.font('Helvetica-Bold').fillColor('#15803d').text(`$${Number(newSalary).toLocaleString()} USD / Month`, 210, currentY);
+        currentY += 22;
+      }
+      if (effectiveDate) {
+        doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold').text('EFFECTIVE DATE:', 70, currentY);
+        doc.font('Helvetica').fillColor('#334155').text(effectiveDate, 210, currentY);
+      }
+
+      // Closing
+      doc.fillColor('#334155').fontSize(11).font('Helvetica');
+      doc.text('We appreciate your dedication and commitment to company excellence.', 50, boxY + 145);
+
+      // Signatures
+      const sigY = 580;
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b');
+      doc.text('EXECUTIVE / BOSS E-SIGNATURE', 50, sigY);
+      doc.font('Helvetica-Oblique').fillColor('#64748b').fontSize(9).text('(Pending Executive Approval)', 50, sigY + 14);
+      doc.rect(50, sigY + 30, 220, 45).dash(4, { space: 4 }).strokeColor('#cbd5e1').stroke();
+      doc.undash();
+
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b');
+      doc.text('HR MANAGER AUTHORIZATION', 325, sigY);
+      doc.font('Helvetica-Oblique').fillColor('#64748b').fontSize(9).text('(Pending HR Seal)', 325, sigY + 14);
+      doc.rect(325, sigY + 30, 220, 45).dash(4, { space: 4 }).strokeColor('#cbd5e1').stroke();
+      doc.undash();
+
+      // Footer
+      doc.rect(0, 780, 595.28, 60).fill('#f1f5f9');
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica').text('Confidential - Corporate HR Internal Document', 50, 795, { align: 'center' });
+
+      doc.end();
+
+      writeStream.on('finish', () => {
+        resolve(`/generated_docs/${filename}`);
+      });
+      writeStream.on('error', reject);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 // Multer config for SOP video uploads to Supabase
 const storage = multer.memoryStorage();
@@ -89,11 +200,11 @@ router.get('/portal', async (req, res) => {
 
     const [emp, attRecs, leaveReqs, payslips, votes, leaveBals, announcements, leaveTypes, qr_token_records, shifts, schedules, rosters] = await Promise.all([
       dbFetchOne('Employees', '*', { id: empId }),
-      dbFetch('attendance_records', '*', { employee_id: empId }, { order: 'check_in', ascending: false }),
-      dbFetch('Leave_Request', '*', { employee_id: empId }, { order: 'created_at', ascending: false }),
-      dbFetch('payrolls', '*', { employee_id: empId }, { order: 'month', ascending: false }),
+      hrmModule.getAttendanceHistory(empId),
+      hrmModule.getEmployeeLeaveRequests(empId),
+      payrollModule.getEmployeePayrolls(empId, false),
       dbFetch('peer_voting_records', '*', { nominee_id: empId }),
-      dbFetch('Leave_balances', '*', { employee_id: empId }),
+      hrmModule.getEmployeeLeaveBalances(empId),
       dbFetch('announcements', '*'),
       dbFetch('Leave_type', '*'),
       dbFetch('qr_attendance_tokens', '*', { employee_id: empId, used: false }, { order: 'created_at', ascending: false, limit: 1 }),
@@ -641,9 +752,9 @@ router.get('/peer-voting', async (req, res) => {
 router.post('/peer-voting/submit', async (req, res) => {
   try {
     const { nominee_id, attendance, punctuality, sops, peer, initiative, comment } = req.body;
-    const voter_id = req.user.employee_id;
+    const voter_id = req.user.employee_id || req.user.id;
     
-    if (!voter_id) return res.status(400).json({ error: 'You must be linked to an employee profile to vote' });
+    if (!voter_id) return res.status(400).json({ error: 'Voter profile or account is required' });
     if (!nominee_id) return res.status(400).json({ error: 'Nominee required' });
     if (voter_id == nominee_id) return res.status(400).json({ error: 'You cannot vote for yourself' });
 
@@ -781,17 +892,570 @@ router.put('/boss/announcements/:id/publish', requireAdmin, async (req, res) => 
 // GET /api/documents
 router.get('/documents', async (req, res) => {
   try {
-    const [docs, employees] = await Promise.all([
-      dbFetch('employee_documents', '*', {}, { order: 'created_at', ascending: false }),
-      dbFetch('Employees', 'id,Full_name,employee_id'),
-    ]);
+    let docs = [];
+    let requests = [];
+    let employees = [];
+
+    try {
+      docs = await dbFetch('employee_documents', '*', {}, { order: 'created_at', ascending: false });
+    } catch (e) {
+      console.error('Error fetching employee_documents:', e.message);
+    }
+
+    try {
+      requests = await dbFetch('doc_approval_requests', '*', {}, { order: 'created_at', ascending: false });
+    } catch (e) {
+      console.warn('doc_approval_requests table missing or error, checking fallback on employee_documents:', e.message);
+      // Fallback: Filter docs that have pending/approval status
+      requests = docs.filter(d => d.status && d.status !== 'COMPLETED_AND_ISSUED');
+    }
+
+    try {
+      const [empList, depts, positions] = await Promise.all([
+        dbFetch('Employees', 'id,Full_name,employee_id,position_id,Dept_id'),
+        dbFetch('Departments', 'id,Department_name'),
+        dbFetch('positions', 'id,title'),
+      ]);
+      const deptMap = Object.fromEntries((depts || []).map(d => [d.id, d.Department_name]));
+      const posMap = Object.fromEntries((positions || []).map(p => [p.id, p.title]));
+      employees = (empList || []).map(e => ({
+        ...e,
+        Position: posMap[e.position_id] || 'Staff',
+        Department: deptMap[e.Dept_id] || 'General',
+      }));
+    } catch (e) {
+      console.error('Error fetching Employees:', e.message);
+    }
+
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
+
     docs.forEach(d => {
       const emp = empMap[d.employee_id] || {};
-      d.employee_name = emp.Full_name || '—';
+      d.employee_name = emp.Full_name || 'General Blank Template';
     });
-    return res.json({ documents: docs, employees });
-  } catch (e) { return res.status(500).json({ error: e.message }); }
+
+    requests.forEach(r => {
+      const emp = empMap[r.employee_id] || {};
+      r.employee_name = emp.Full_name || 'General Blank Template';
+    });
+
+    return res.json({ documents: docs, requests, employees });
+  } catch (e) { 
+    return res.status(500).json({ error: e.message }); 
+  }
+});
+
+// GET /api/documents/download/:id
+router.get('/documents/download/:id', verifyToken, async (req, res) => {
+  try {
+    let doc = await dbFetchOne('employee_documents', '*', { id: req.params.id });
+    if (!doc) doc = await dbFetchOne('doc_approval_requests', '*', { id: req.params.id });
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    
+    const adminRoles = ['boss', 'hr_manager', 'general_manager', 'admin'];
+    const isAdmin = req.user && adminRoles.includes(req.user.role);
+    if (!isAdmin) {
+      if (doc.employee_id !== null && doc.employee_id !== req.user.employee_id) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to view this document.' });
+      }
+    }
+
+    if (doc.file_url && doc.file_url.startsWith('company_documents/')) {
+      const path = doc.file_url.replace('company_documents/', '');
+      const { data, error } = await supabaseAdmin.storage
+        .from('company_documents')
+        .createSignedUrl(path, 60);
+      if (error) throw error;
+      return res.redirect(data.signedUrl);
+    } else {
+      return res.redirect(doc.file_url);
+    }
+  } catch (e) {
+    return res.status(500).json({ error: 'Internal server error processing document link' });
+  }
+});
+
+// POST /api/documents
+router.post('/documents', requireAdmin, upload.single('document_file'), async (req, res) => {
+  try {
+    const { title, category, description, employee_id } = req.body;
+    let file_url = req.body.file_url;
+    let uploadedFilename = null;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+    if (!req.file) return res.status(400).json({ error: 'A PDF document file is strictly required for vault uploads' });
+
+    if (req.file) {
+      if (req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({ error: 'Only PDF files are allowed' });
+      }
+      const buffer = req.file.buffer;
+      if (buffer.length < 5 || buffer.toString('utf8', 0, 5) !== '%PDF-') {
+        return res.status(400).json({ error: 'Invalid PDF file signature' });
+      }
+      if (req.file.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: 'File size must be under 10MB' });
+      }
+      const safeName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}_${safeName}`;
+      const { error } = await supabaseAdmin.storage
+        .from('company_documents')
+        .upload(filename, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+      if (error) throw new Error('Failed to upload secure document: ' + error.message);
+      file_url = `company_documents/${filename}`;
+      uploadedFilename = filename;
+    }
+
+    try {
+      const doc = await dbInsert('employee_documents', {
+        title,
+        category: category || 'General',
+        doc_type: category || 'General',
+        file_url: file_url,
+        description: description || '',
+        employee_id: (employee_id && employee_id !== 'GENERAL') ? employee_id : null,
+        uploaded_by_user_id: req.user.id,
+        created_at: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, document: doc });
+    } catch (dbError) {
+      if (uploadedFilename) {
+        try {
+          await supabaseAdmin.storage.from('company_documents').remove([uploadedFilename]);
+        } catch (cleanupError) {
+          console.error('[STORAGE CLEANUP FAILED]', cleanupError);
+        }
+      }
+      throw dbError; // Handled by outer catch
+    }
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/documents/request-approval (HR -> Boss Request)
+router.post('/documents/request-approval', requireAdmin, async (req, res) => {
+  try {
+    const { title, category, doc_type, description, file_url, employee_id, effective_date, new_position, new_department, new_salary } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'Document Title is required' });
+    }
+
+    // Lookup employee name & details or use General Bulk Template
+    let empName = 'General Blank Template (Bulk Use)';
+    let empIdStr = 'BULK-TEMPLATE';
+    let targetEmpId = null;
+
+    if (employee_id && employee_id !== 'GENERAL' && employee_id !== 'BULK') {
+      const emp = await dbFetchOne('Employees', '*', { id: employee_id });
+      if (emp) {
+        empName = emp.Full_name;
+        empIdStr = emp.employee_id;
+        targetEmpId = emp.id;
+      }
+    }
+
+    let finalFileUrl = (file_url || '').trim();
+    if (!finalFileUrl) {
+      // Auto-generate official PDF letter with dynamic fillable blanks merged
+      try {
+        finalFileUrl = await generateOfficialDocumentPDF({
+          doc_type,
+          title,
+          empName,
+          empId: empIdStr,
+          newPosition: new_position,
+          newDepartment: new_department,
+          newSalary: new_salary,
+          effectiveDate: effective_date,
+          description
+        });
+      } catch (pdfErr) {
+        console.error('PDF auto generation failed:', pdfErr);
+        finalFileUrl = '/sample_promotion_letter.pdf';
+      }
+    }
+
+    const payload = {
+      employee_id: targetEmpId,
+      title,
+      doc_type: doc_type || category || 'Official Letter',
+      category: category || 'General',
+      description: description || '',
+      file_url: finalFileUrl,
+      effective_date: effective_date || new Date().toISOString().split('T')[0],
+      status: 'PENDING_BOSS',
+      requested_by_user_id: req.user.id,
+      created_at: new Date().toISOString(),
+    };
+
+    let createdRequest;
+    try {
+      createdRequest = await dbInsert('doc_approval_requests', payload);
+    } catch (err) {
+      // Fallback: If doc_approval_requests table does not exist in Supabase, insert into employee_documents with status PENDING_BOSS
+      createdRequest = await dbInsert('employee_documents', {
+        ...payload,
+        status: 'PENDING_BOSS'
+      });
+    }
+
+    // Notify Boss
+    await dbInsert('system_notifications', {
+      recipient_role: 'boss',
+      title: `📄 New Document Approval Requested`,
+      message: `HR requested approval for "${title}" (${empName}).`,
+      link_url: '/documents',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'CREATE_REQUEST',
+      module: 'Document Vault',
+      details: `Requested approval for document "${title}" targeting ${empName}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, request: createdRequest });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/documents/boss-sign/:id (Boss E-Signature & Approval)
+router.post('/documents/boss-sign/:id', async (req, res) => {
+  try {
+    const { action, boss_signature, rejection_reason } = req.body;
+    const reqId = req.params.id;
+
+    let targetReq;
+    let isApprovalTable = true;
+    try {
+      targetReq = await dbFetchOne('doc_approval_requests', '*', { id: reqId });
+    } catch (e) {
+      isApprovalTable = false;
+      targetReq = await dbFetchOne('employee_documents', '*', { id: reqId });
+    }
+
+    if (!targetReq) {
+      return res.status(404).json({ error: 'Document request not found' });
+    }
+
+    if (action === 'REJECT') {
+      const updateData = {
+        status: 'REJECTED_BY_BOSS',
+        rejection_reason: rejection_reason || 'Rejected by Executive',
+      };
+      if (isApprovalTable) {
+        await dbUpdate('doc_approval_requests', reqId, updateData);
+      } else {
+        await dbUpdate('employee_documents', reqId, updateData);
+      }
+
+      await dbInsert('system_notifications', {
+        recipient_role: 'hr_manager',
+        title: `❌ Document Request Rejected`,
+        message: `Boss rejected document "${targetReq.title}". Reason: ${rejection_reason || 'None provided'}`,
+        link_url: '/documents',
+        is_read: false,
+        created_at: new Date().toISOString()
+      });
+
+      return res.json({ success: true, status: 'REJECTED_BY_BOSS' });
+    }
+
+    // APPROVE
+    const updateData = {
+      status: 'APPROVED_BY_BOSS',
+      boss_signature: boss_signature || 'Executive Approved & Signed',
+      boss_signed_at: new Date().toISOString(),
+    };
+
+    if (isApprovalTable) {
+      await dbUpdate('doc_approval_requests', reqId, updateData);
+    } else {
+      await dbUpdate('employee_documents', reqId, updateData);
+    }
+
+    // Notify HR
+    await dbInsert('system_notifications', {
+      recipient_role: 'hr_manager',
+      title: `✅ Document Approved by Boss`,
+      message: `Boss signed "${targetReq.title}". Final HR signature required to issue to employee.`,
+      link_url: '/documents',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'BOSS_SIGN',
+      module: 'Document Vault',
+      details: `Boss signed and approved document request "${targetReq.title}"`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, status: 'APPROVED_BY_BOSS' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/documents/hr-sign/:id (HR Final Signature & Publish to Employee Vault)
+router.post('/documents/hr-sign/:id', requireAdmin, async (req, res) => {
+  try {
+    const { hr_signature } = req.body;
+    const reqId = req.params.id;
+
+    let targetReq;
+    let isApprovalTable = true;
+    try {
+      targetReq = await dbFetchOne('doc_approval_requests', '*', { id: reqId });
+    } catch (e) {
+      isApprovalTable = false;
+      targetReq = await dbFetchOne('employee_documents', '*', { id: reqId });
+    }
+
+    if (!targetReq) {
+      return res.status(404).json({ error: 'Document request not found' });
+    }
+
+    const hrSignTime = new Date().toISOString();
+
+    // 1. Mark request as completed
+    const updateReqData = {
+      status: 'COMPLETED_AND_ISSUED',
+      hr_signature: hr_signature || 'HR Authorized & Signed',
+      hr_signed_at: hrSignTime,
+    };
+
+    if (isApprovalTable) {
+      await dbUpdate('doc_approval_requests', reqId, updateReqData);
+
+      // 2. Publish to employee_documents table
+      await dbInsert('employee_documents', {
+        title: targetReq.title,
+        category: targetReq.category || 'General',
+        description: targetReq.description || '',
+        file_url: targetReq.file_url || '',
+        employee_id: targetReq.employee_id,
+        boss_signature: targetReq.boss_signature || 'Signed',
+        boss_signed_at: targetReq.boss_signed_at,
+        hr_signature: hr_signature || 'Signed',
+        hr_signed_at: hrSignTime,
+        status: 'COMPLETED_AND_ISSUED',
+        created_at: new Date().toISOString(),
+      });
+    } else {
+      await dbUpdate('employee_documents', reqId, updateReqData);
+    }
+
+    // 3. Notify Employee
+    if (targetReq.employee_id) {
+      const user = await dbFetchOne('sys_users', 'id', { employee_id: targetReq.employee_id });
+      if (user) {
+        await dbInsert('system_notifications', {
+          recipient_user_id: user.id,
+          title: `📄 Official Document Issued: ${targetReq.title}`,
+          message: `Your official ${targetReq.category || 'document'} "${targetReq.title}" has been approved, signed, and published to your Document Vault.`,
+          link_url: '/portal/documents',
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // 4. Auto-log Career Timeline Event
+      try {
+        const titleLower = (targetReq.title || '').toLowerCase();
+        const categoryLower = (targetReq.category || '').toLowerCase();
+
+        let eventType = 'OTHER';
+        if (titleLower.includes('promotion') || categoryLower.includes('promotion')) {
+          eventType = 'PROMOTION';
+        } else if (titleLower.includes('warning') || titleLower.includes('disciplinary') || categoryLower.includes('warning')) {
+          eventType = 'WARNING';
+        } else if (titleLower.includes('commendation') || titleLower.includes('award') || titleLower.includes('appreciation')) {
+          eventType = 'COMMENDATION';
+        } else if (titleLower.includes('transfer')) {
+          eventType = 'DEPARTMENT_TRANSFER';
+        }
+
+        await dbInsert('employee_career_timeline', {
+          employee_id: targetReq.employee_id,
+          event_type: eventType,
+          title: `Official Document Issued: ${targetReq.title}`,
+          description: targetReq.description || `Official document "${targetReq.title}" approved and signed by Executive & HR.`,
+          effective_date: targetReq.effective_date || new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+        });
+      } catch (timelineErr) {
+        console.warn('Auto timeline update on document issue failed:', timelineErr.message);
+      }
+    }
+
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'HR_FINAL_SIGN',
+      module: 'Document Vault',
+      details: `HR finalized and issued document "${targetReq.title}"`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+
+    return res.json({ success: true, status: 'COMPLETED_AND_ISSUED' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/documents/request/:id
+router.delete('/documents/request/:id', requireAdmin, async (req, res) => {
+  try {
+    let doc = await dbFetchOne('doc_approval_requests', '*', { id: req.params.id });
+    if (!doc) doc = await dbFetchOne('employee_documents', '*', { id: req.params.id });
+    
+    if (doc && doc.file_url && doc.file_url.startsWith('company_documents/')) {
+      const path = doc.file_url.replace('company_documents/', '');
+      try {
+        await supabaseAdmin.storage.from('company_documents').remove([path]);
+      } catch (cleanupError) {
+        console.error('[STORAGE DELETE FAILED]', cleanupError);
+      }
+    }
+
+    try {
+      await dbDelete('doc_approval_requests', req.params.id);
+    } catch (e) {
+      await dbDelete('employee_documents', req.params.id);
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/documents/:id
+router.delete('/documents/:id', requireAdmin, async (req, res) => {
+  try {
+    const doc = await dbFetchOne('employee_documents', '*', { id: req.params.id });
+    if (doc && doc.file_url && doc.file_url.startsWith('company_documents/')) {
+      const path = doc.file_url.replace('company_documents/', '');
+      try {
+        await supabaseAdmin.storage.from('company_documents').remove([path]);
+      } catch (cleanupError) {
+        console.error('[STORAGE DELETE FAILED]', cleanupError);
+      }
+    }
+
+    await dbDelete('employee_documents', req.params.id);
+    await dbInsert('sys_audit_logs', {
+      user_id: req.user.id,
+      action: 'DELETE',
+      module: 'Document Vault',
+      details: `Deleted document ID: ${req.params.id}`,
+      ip_address: req.ip || '0.0.0.0'
+    });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── PEER VOTING ──────────────────────────────────────────────────────────────
+
+// GET /api/peer-voting — Admin: get all votes with voter/nominee names
+router.get('/peer-voting', async (req, res) => {
+  try {
+    const { data: votes, error } = await supabase
+      .from('peer_votes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      // Table might not exist yet — return empty gracefully
+      if (error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        return res.json({ votes: [] });
+      }
+      throw error;
+    }
+
+    // Enrich with names
+    const empList = await dbFetch('Employees', 'id,Full_name,employee_id');
+    const empMap = Object.fromEntries(empList.map(e => [e.id, e]));
+
+    const enriched = (votes || []).map(v => ({
+      ...v,
+      voter_name:   empMap[v.voter_id]?.Full_name   || v.voter_id   || '—',
+      nominee_name: empMap[v.nominee_id]?.Full_name || v.nominee_id || '—',
+    }));
+
+    return res.json({ votes: enriched });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/peer-voting/submit — Employee submits a peer vote
+router.post('/peer-voting/submit', async (req, res) => {
+  try {
+    const { nominee_id, attendance, punctuality, sops, peer, initiative, comment } = req.body;
+    const voter_id = req.user.employee_id;
+
+    if (!nominee_id) return res.status(400).json({ error: 'Please select a colleague to evaluate.' });
+    if (voter_id === nominee_id) return res.status(400).json({ error: 'You cannot vote for yourself.' });
+
+    // Calculate average score (1–5)
+    const scores = [attendance, punctuality, sops, peer, initiative].map(Number).filter(n => !isNaN(n));
+    const avg_score = scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : 3;
+
+    // Check for existing vote this month (one vote per peer per month)
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { data: existing } = await supabase
+      .from('peer_votes')
+      .select('id')
+      .eq('voter_id', voter_id)
+      .eq('nominee_id', nominee_id)
+      .gte('created_at', monthStart)
+      .lte('created_at', monthEnd)
+      .single();
+
+    if (existing) {
+      return res.status(409).json({ error: 'You have already submitted a peer vote for this colleague this month.' });
+    }
+
+    const voteData = {
+      voter_id,
+      nominee_id,
+      score: avg_score,
+      attendance_score: Number(attendance) || 3,
+      punctuality_score: Number(punctuality) || 3,
+      sop_score: Number(sops) || 3,
+      peer_score: Number(peer) || 3,
+      initiative_score: Number(initiative) || 3,
+      comment: comment || null,
+      created_at: new Date().toISOString(),
+    };
+
+    const { data: vote, error } = await supabase.from('peer_votes').insert([voteData]).select().single();
+    if (error) {
+      // If table doesn't exist, auto-create and retry
+      if (error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        return res.status(503).json({ error: 'Peer voting table not set up yet. Please contact your administrator to run the database migration.' });
+      }
+      throw error;
+    }
+
+    return res.json({ success: true, vote });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

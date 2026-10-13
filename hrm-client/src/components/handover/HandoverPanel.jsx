@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import HandoverChecklistReadOnly from './HandoverChecklistReadOnly';
+import { useLanguage } from '../../context/LanguageContext';
 
 const STATUS_COLORS = {
   draft: 'text-slate-400 bg-slate-500/10',
@@ -23,20 +24,21 @@ export default function HandoverPanel({
   readOnly = false,
   allowSuccessorEdit = true,
 }) {
+  const { t, tDyn } = useLanguage();
   const [successorId, setSuccessorId] = useState('');
   const [waiveReason, setWaiveReason] = useState('');
   const [showWaive, setShowWaive] = useState(false);
 
   const successorMutation = useMutation({
     mutationFn: (body) => api.put(`/handover/${handover.id}/successor`, body),
-    onSuccess: () => { onRefresh?.(); toast.success('Successor assigned'); },
-    onError: (e) => toast.error(e.response?.data?.error || 'Failed to assign successor'),
+    onSuccess: () => { onRefresh?.(); toast.success(t('hrm.handovers.toast.succAssigned') || 'Successor assigned'); },
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.handovers.toast.succError') || 'Failed to assign successor'),
   });
 
   const approveMutation = useMutation({
     mutationFn: () => api.post(`/handover/${handover.id}/approve`),
-    onSuccess: () => { onRefresh?.(); toast.success('Handover approved'); },
-    onError: (e) => toast.error(e.response?.data?.error || 'Failed to approve'),
+    onSuccess: () => { onRefresh?.(); toast.success(t('hrm.handovers.toast.approved') || 'Handover approved'); },
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.handovers.toast.approveError') || 'Failed to approve'),
   });
 
   const waiveMutation = useMutation({
@@ -44,12 +46,12 @@ export default function HandoverPanel({
     onSuccess: () => {
       setShowWaive(false);
       onRefresh?.();
-      toast.success('Handover waived');
+      toast.success(t('hrm.handovers.toast.waived') || 'Handover waived');
       if (handover.leave_request_id || handover.trigger_type === 'temporary_coverage') {
-        toast('You can start a new coverage handover from Leave Requests if needed.', { icon: 'ℹ️', duration: 6000 });
+        toast(t('hrm.handovers.toast.waiveInfo') || 'You can start a new coverage handover from Leave Requests if needed.', { icon: 'ℹ️', duration: 6000 });
       }
     },
-    onError: (e) => toast.error(e.response?.data?.error || 'Failed to waive'),
+    onError: (e) => toast.error(e.response?.data?.error || t('hrm.handovers.toast.waiveError') || 'Failed to waive'),
   });
 
   if (!handover) return null;
@@ -64,47 +66,47 @@ export default function HandoverPanel({
   const canApprove = !readOnly && isSubmitted && (!needsSuccessorAck || allAcked);
   const isDone = ['completed', 'waived'].includes(handover.status);
   const successorOptions = employees.filter(e => e.id !== excludeEmployeeId);
-  const title = handover.handover_label || 'Employee Handover';
+  const title = tDyn('hrm.handovers.kinds', handover.handover_label || handover.handover_kind) || t('hrm.handovers.panel.defaultTitle') || 'Employee Handover';
   const closedDate = (handover.approved_at || handover.waived_at || '').slice(0, 10);
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="handover-panel-card rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-sm font-bold text-white">{title}</h3>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${statusClass}`}>
-                {handover.status?.replace(/_/g, ' ')}
+              <h3 className="handover-panel-title text-sm font-bold text-white">{title}</h3>
+              <span className={`handover-panel-status handover-panel-status-${handover.status || 'draft'} text-xs font-bold px-2 py-0.5 rounded-lg ${statusClass}`}>
+                {tDyn("hrm.offboarding.statusEnum", handover.status) || handover.status?.replace(/_/g, ' ')}
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Outgoing: <span className="text-white font-semibold">{handover.outgoing_name}</span>
-              {' · '}Successor: <span className="text-white font-semibold">{handover.successor_name || 'Not assigned yet'}</span>
+            <p className="handover-panel-meta text-xs text-slate-400">
+              {t('hrm.handovers.panel.outgoing')}: <span className="handover-panel-meta-val text-white font-semibold">{handover.outgoing_name}</span>
+              {' · '}{t('hrm.handovers.panel.successor')}: <span className="handover-panel-meta-val text-white font-semibold">{handover.successor_name || t('hrm.handovers.panel.notAssigned')}</span>
               {handover.leave_start && (
-                <> · Leave: <span className="text-amber-400">{handover.leave_start}</span> → <span className="text-amber-400">{handover.leave_end}</span></>
+                <> · {t('hrm.handovers.panel.leave')}: <span className="handover-panel-meta-val text-amber-400">{handover.leave_start}</span> → <span className="handover-panel-meta-val text-amber-400">{handover.leave_end}</span></>
               )}
-              {handover.handover_deadline && <> · Deadline: <span className="text-amber-400">{handover.handover_deadline}</span></>}
+              {handover.handover_deadline && <> · {t('hrm.handovers.panel.deadline')}: <span className="handover-panel-meta-val text-amber-400">{handover.handover_deadline}</span></>}
             </p>
           </div>
           <div className="text-right">
-            <p className={`text-2xl font-black ${isDone ? 'text-emerald-400' : 'text-indigo-400'}`}>{pct}%</p>
-            <p className="text-xs text-slate-500">checklist complete</p>
+            <p className={`handover-panel-pct-num text-2xl font-black ${isDone ? 'text-emerald-400' : 'text-indigo-400'}`}>{pct}%</p>
+            <p className="handover-panel-pct-label text-xs text-slate-500">{t('hrm.handovers.panel.checklistComplete')}</p>
           </div>
         </div>
 
-        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mt-4">
-          <div className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${pct}%` }} />
+        <div className="handover-panel-progress-bg w-full h-2 bg-white/5 rounded-full overflow-hidden mt-4">
+          <div className={`handover-panel-progress-fill h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${pct}%` }} />
         </div>
 
         {needsSuccessorAck && !isDone && (
-          <div className="mt-3 rounded-xl px-3 py-2 text-xs" style={{ background: allAcked && isSubmitted ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${allAcked && isSubmitted ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
-            <span className={allAcked && isSubmitted ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+          <div className={`handover-panel-alert mt-3 rounded-xl px-3 py-2 text-xs ${allAcked && isSubmitted ? 'handover-panel-alert-success' : 'handover-panel-alert-warning'}`} style={{ background: allAcked && isSubmitted ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${allAcked && isSubmitted ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
+            <span className={`handover-panel-alert-text ${allAcked && isSubmitted ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}`}>
               {!isSubmitted
-                ? 'Waiting for outgoing employee to complete and submit the checklist (Portal → My Handovers)'
+                ? t('hrm.handovers.panel.waitingOutgoing')
                 : ackItems.length === 0
-                  ? 'No completed items yet — outgoing must submit first'
-                  : `Successor acknowledgment: ${ackCount}/${ackItems.length}${allAcked ? ' — ready for HR approval' : ' — successor must acknowledge each item in Portal → Incoming Handover'}`}
+                  ? t('hrm.handovers.panel.noCompletedItems')
+                  : `${t('hrm.handovers.panel.successorAck')}: ${ackCount}/${ackItems.length}${allAcked ? ' — ' + t('hrm.handovers.panel.readyForHR') : ' — ' + t('hrm.handovers.panel.mustAck')}`}
             </span>
           </div>
         )}
@@ -112,13 +114,13 @@ export default function HandoverPanel({
         {!readOnly && !isDone && allowSuccessorEdit && (
           <div className="mt-4 flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[200px]">
-              <label className="text-xs text-slate-400 block mb-1">Assign successor</label>
+              <label className="handover-panel-meta text-xs text-slate-400 block mb-1">{t('hrm.handovers.panel.assignSuccessor')}</label>
               <select
                 value={successorId || handover.successor_employee_id || ''}
                 onChange={e => setSuccessorId(e.target.value)}
-                className="w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2 outline-none focus:border-indigo-500"
+                className="handover-panel-select w-full bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2 outline-none focus:border-indigo-500"
               >
-                <option value="">— Select successor —</option>
+                <option value="">— {t('hrm.handovers.panel.selectSuccessor')} —</option>
                 {successorOptions.map(e => (
                   <option key={e.id} value={e.id}>{e.Full_name} ({e.employee_id})</option>
                 ))}
@@ -127,10 +129,8 @@ export default function HandoverPanel({
             <button
               onClick={() => successorMutation.mutate({ successor_employee_id: successorId || handover.successor_employee_id, successor_type: handover.successor_type || 'existing' })}
               disabled={successorMutation.isPending || !(successorId || handover.successor_employee_id)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-            >
-              Save Successor
-            </button>
+              className="handover-panel-btn-primary px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+            >{t('hrm.handovers.panel.saveSuccessor')}</button>
           </div>
         )}
 
@@ -140,24 +140,20 @@ export default function HandoverPanel({
               <button
                 onClick={() => approveMutation.mutate()}
                 disabled={approveMutation.isPending}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-              >
-                Approve Handover
-              </button>
+                className="handover-panel-btn-approve px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+              >{t('hrm.handovers.panel.approveHandover')}</button>
             )}
             {needsSuccessorAck && isSubmitted && !allAcked && (
-              <span className="text-xs text-amber-400 self-center">Waiting for successor acknowledgment</span>
+              <span className="handover-panel-meta text-xs text-amber-400 self-center">{t('hrm.handovers.panel.waitingSuccessor')}</span>
             )}
             {!isSubmitted && !isDone && (
-              <span className="text-xs text-amber-400 self-center">Waiting for outgoing employee to submit</span>
+              <span className="handover-panel-meta text-xs text-amber-400 self-center">{t('hrm.handovers.panel.waitingOutgoingSubmit')}</span>
             )}
             {!isDone && (
               <button
                 onClick={() => setShowWaive(!showWaive)}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-semibold rounded-xl"
-              >
-                Waive Handover
-              </button>
+                className="handover-panel-btn-waive px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-semibold rounded-xl"
+              >{t('hrm.handovers.panel.waiveHandover')}</button>
             )}
           </div>
         )}
@@ -165,33 +161,29 @@ export default function HandoverPanel({
         {!readOnly && showWaive && (
           <div className="mt-3 space-y-2">
             {(handover.leave_request_id || handover.trigger_type === 'temporary_coverage') && (
-              <p className="text-xs text-slate-400">
-                After waiving, you can start a new coverage handover from Leave Requests (for coverage handovers only).
-              </p>
+              <p className="handover-panel-meta text-xs text-slate-400">{t('hrm.handovers.panel.waiveDesc')}</p>
             )}
             <div className="flex gap-2">
             <input
               value={waiveReason}
               onChange={e => setWaiveReason(e.target.value)}
-              placeholder="Reason for waiving handover..."
-              className="flex-1 bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2 outline-none"
+              placeholder={t('hrm.handovers.panel.waiveReason')}
+              className="handover-panel-input flex-1 bg-[#0f121b] border border-slate-700 text-white text-sm rounded-xl px-3 py-2 outline-none"
             />
             <button
               onClick={() => waiveMutation.mutate(waiveReason)}
               disabled={!waiveReason.trim() || waiveMutation.isPending}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl disabled:opacity-50"
-            >
-              Confirm Waive
-            </button>
+              className="handover-panel-btn-danger px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl disabled:opacity-50"
+            >{t('hrm.handovers.panel.confirmWaive')}</button>
             </div>
           </div>
         )}
 
         {readOnly && closedDate && (
-          <p className="mt-3 text-xs text-slate-500">Closed {closedDate}</p>
+          <p className="handover-panel-bottom-text mt-3 text-xs text-slate-500">{t('hrm.handovers.panel.closed')} {closedDate}</p>
         )}
         {handover.waived_reason && (
-          <p className="mt-3 text-xs text-slate-400">Waived: {handover.waived_reason}</p>
+          <p className="handover-panel-bottom-text mt-3 text-xs text-slate-400">{t('hrm.handovers.panel.waived')}: {handover.waived_reason}</p>
         )}
       </div>
 

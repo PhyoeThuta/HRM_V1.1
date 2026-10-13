@@ -11,6 +11,9 @@ export const crmApi = {
   // List all customers
   getCustomers: () => api.get('/crm/customers').then(r => r.data),
 
+  // Ask Admin AI Copilot
+  askAiAssistant: (query) => api.post('/crm/ai-assistant', { query }).then(r => r.data),
+
   // Get single customer with full details
   getCustomer: (id) => api.get(`/crm/customers/${id}`).then(r => r.data),
 
@@ -149,6 +152,7 @@ export const crmApi = {
   
   getSalesAnalytics: () => api.get('/crm/analytics/sales').then(r => r.data),
   getLeadAnalytics: () => api.get('/crm/analytics/leads').then(r => r.data),
+  getFullAnalyticsReport: (params) => api.get('/crm/analytics/full-report', { params }).then(r => r.data),
   
   resolveFeedback: (id) => api.post(`/crm/feedback/${id}/resolve`).then(r => r.data),
   

@@ -8,6 +8,7 @@ import bcryptjs from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
+import { hrmModule } from '../modules/hrm/index.js';
 
 const router = express.Router();
 router.use(verifyToken);
@@ -36,7 +37,8 @@ router.get('/overview', async (req, res) => {
   try {
     const employees = await dbFetch('Employees', 'id', { status: 'Active' });
     const positions = await dbFetch('positions', 'id, title');
-    const leaveRequests = await dbFetch('Leave_Request', 'id, status', { status: 'Pending' });
+    const allLeaves = await hrmModule.getAllLeaveRequests();
+    const leaveRequests = allLeaves.filter(l => l.status === 'Pending');
     
     // In a real scenario we would aggregate payroll, here we mock some basic stats
     const total_employees = employees.length;
@@ -123,11 +125,12 @@ router.post('/chat', async (req, res) => {
       employees, kpiAssigns, leaves
     ] = await Promise.all([
       dbFetch('Employees', 'id, Full_name, status, Dept_id', { status: 'Active' }),
-      dbFetch('boss_kpi_assignments', 'id, title, status, employee_id'),
-      dbFetch('Leave_Request', 'id, employee_id, status, total_days', {}, { order: 'created_at', ascending: false })
+      dbFetch('boss_kpi_assignments', 'id, title, status, assigned_to_id'),
+      hrmModule.getAllLeaveRequests()
     ]);
 
-    let contextStr = `BASIC HR OVERVIEW:\nActive Employees: ${employees.length}\n`;
+    let employeeListStr = employees ? employees.map(e => `${e.Full_name} (ID: ${e.id})`).join(', ') : '';
+    let contextStr = `BASIC HR OVERVIEW:\nActive Employees (${employees?.length || 0}): ${employeeListStr}\n`;
 
     // --- RAG (Retrieval-Augmented Generation) SEMANTIC SEARCH ---
     // Generate embedding for the user's message
@@ -138,7 +141,6 @@ router.post('/chat', async (req, res) => {
       queryEmbedding = embedResult.embedding.values;
     } catch (embErr) {
       console.error('[BOSS CHAT] Embedding failed:', embErr);
-      throw embErr;
     }
 
     let extraKnowledge = "";
@@ -166,12 +168,9 @@ router.post('/chat', async (req, res) => {
       .order('created_at', { ascending: true })
       .limit(10); // Provide some history
 
-    let historyStr = "";
-    if (pastMessages && pastMessages.length > 0) {
-      historyStr = "\n\nPAST CONVERSATION HISTORY:\n" + pastMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
-    }
-
     const prompt = `You are Busy Boss Diet AI, an omniscient and ACTION-TAKING AI executive assistant for the Boss.
+    CURRENT DATE: ${new Date().toISOString().split('T')[0]}
+
     BILINGUAL INSTRUCTION: You are fully bilingual in English and Myanmar (Burmese).
     - If the user asks in Myanmar, YOU MUST REPLY IN MYANMAR (Burmese script).
     - If the user asks in English, reply in English.
@@ -186,9 +185,10 @@ router.post('/chat', async (req, res) => {
     - crm.feedbacks (id, customer_id, rating, comment, created_at) — Use this to read customer feedbacks.
     - public.Employees (id, Full_name, Dept_id, phone, status)
     - public.Leave_Request (id, employee_id, status, total_days, start_date, end_date)
-    - public.boss_kpi_assignments (id, title, description, assigned_to_emp, status, due_date)
+    - public.boss_kpi_assignments (id, title, description, assigned_to_id, status, deadline)
     - public.attendance_records (id, employee_id, check_in, check_out, is_late, created_at) — Use this to check who is late (is_late=true) or who forgot to check out (check_out=null).
     - public.operations_orders (id, date, customer_id, daily_menu_id, count, delivery_status, created_at) — Use this to check delivery statuses for orders on a specific date.
+    - public.payrolls (id, employee_id, month, basic_salary, net_salary, payment_status, calculation_source, created_at) — Use this to check employee salaries.
     
     AVAILABLE ACTIONS (you can take these when the Boss commands you):
     - approve_leave_requests: Approve all pending leave requests or a specific one
@@ -205,18 +205,11 @@ router.post('/chat', async (req, res) => {
     
     Context Data (Includes retrieved facts from RAG):
     ${contextStr}
-    ${historyStr}
     
-    2. When writing SQL for 'execute_analytics_query', ensure it is purely READ-ONLY (SELECT).
-    3. If 'execute_analytics_query' returns a SQL error, analyze the error and try again with a corrected SQL query.
-    4. For simple record lookups (e.g., "What is John's phone number?"), you may use 'fetch_table_records'.
-    5. HUMAN-IN-THE-LOOP REQUIRED: Before executing ANY action tools (e.g. approve_leave_requests, extend_customer_package, create_kpi_task, send_team_announcement, etc.), YOU MUST explicitly ask the user for confirmation and WAIT for their "Yes" or "Confirm" response. Do NOT execute actions on your own initiative or based on assumptions.
+    2. Try to answer using 'fetch_table_records' if specific statistics, records, or aggregations are asked (e.g., total salaries, attendance counts). The limit has been increased to 5000 so you can fetch large datasets and aggregate them yourself.
+    3. HUMAN-IN-THE-LOOP REQUIRED: Before executing ANY action tools (e.g. approve_leave_requests, extend_customer_package, create_kpi_task, send_team_announcement, etc.), YOU MUST explicitly ask the user for confirmation and WAIT for their "Yes" or "Confirm" response. Do NOT execute actions on your own initiative or based on assumptions.
     
-    Answer concisely in the Boss's language.
-    
-    === UNTRUSTED USER INPUT ===
-    The boss asks: <user_input>${message}</user_input>
-    === END UNTRUSTED USER INPUT ===`;
+    Answer concisely in the Boss's language.`;
 
     const tools = [{
       functionDeclarations: [
@@ -241,17 +234,6 @@ router.post('/chat', async (req, res) => {
               limit: { type: "NUMBER", description: "Max records (default 10, max 50)" }
             },
             required: ["schema", "table", "columns"]
-          }
-        },
-        {
-          name: "execute_analytics_query",
-          description: "Execute a dynamic Read-Only SQL (PostgreSQL) query to get EXACT analytical data, aggregations, counts, sums, or complex joins.",
-          parameters: {
-            type: "OBJECT",
-            properties: {
-              sql_query: { type: "STRING", description: "The raw PostgreSQL SELECT query to execute. MUST be read-only." }
-            },
-            required: ["sql_query"]
           }
         },
         {
@@ -353,7 +335,11 @@ router.post('/chat', async (req, res) => {
       ]
     }];
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", tools });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash", 
+      tools,
+      systemInstruction: prompt 
+    });
     
     const generateWithRetry = async (req) => {
       let retries = 3;
@@ -371,7 +357,14 @@ router.post('/chat', async (req, res) => {
       }
     };
 
-    let history = [{ role: 'user', parts: [{ text: prompt }] }];
+    let history = [];
+    if (pastMessages && pastMessages.length > 0) {
+      history = pastMessages.map(m => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+    }
+    history.push({ role: 'user', parts: [{ text: message }] });
     let finalResponseText = "";
     let toolCallCount = 0;
 
@@ -395,6 +388,7 @@ router.post('/chat', async (req, res) => {
       }
       
       const call = functionCalls[0];
+      console.log('\n[BOSS CHAT] AI called tool:', call.name, '\n[BOSS CHAT] Args:', JSON.stringify(call.args, null, 2));
       let apiRes = {};
       
       try {
@@ -424,7 +418,7 @@ router.post('/chat', async (req, res) => {
           };
         } else if (call.name === "fetch_table_records") {
           const { schema, table, columns, filter_column, filter_value, limit, date_filter_column, date_filter_value } = call.args;
-          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 50, 200));
+          let q = supabaseAdmin.schema(schema || 'public').from(table).select(columns).limit(Math.min(limit || 500, 5000));
           if (filter_column && filter_value !== undefined) {
             const valLower = String(filter_value).toLowerCase();
             if (valLower === 'true') {
@@ -457,15 +451,6 @@ router.post('/chat', async (req, res) => {
           const { data, error } = await q;
           if (error) throw error;
           apiRes = { records: data || [] };
-
-        } else if (call.name === "execute_analytics_query") {
-          const { sql_query } = call.args;
-          const { data, error } = await supabaseAdmin.rpc('execute_read_only_sql', { query_text: sql_query });
-          if (error) {
-            apiRes = { error: "SQL Execution Failed", details: error.message || error, suggestion: "Check your SQL syntax and try again." };
-          } else {
-            apiRes = { data: data || [] };
-          }
 
         } else if (call.name === "approve_leave_requests") {
           const { employee_id } = call.args;
@@ -519,8 +504,8 @@ router.post('/chat', async (req, res) => {
           const { title, description, employee_id, due_date } = call.args;
           const { data: task, error } = await supabaseAdmin.from('boss_kpi_assignments').insert({
             title, description: description || null,
-            assigned_to_emp: employee_id,
-            due_date: due_date || null,
+            assigned_to_id: employee_id,
+            deadline: due_date || null,
             status: 'Assigned',
             created_at: new Date().toISOString()
           }).select().single();
@@ -750,9 +735,9 @@ router.post('/kpi', async (req, res) => {
     const d = req.body;
     await dbInsert('boss_kpi_assignments', {
       title: d.title, description: d.description || null,
-      assigned_to_role: d.assigned_to_role || null,
-      assigned_to_emp: d.assigned_to_emp || null,
-      due_date: d.due_date || null,
+      assigned_to_name: d.assigned_to_role || null,
+      assigned_to_id: d.assigned_to_emp || null,
+      deadline: d.due_date || null,
       status: 'Assigned',
       created_at: new Date().toISOString()
     });

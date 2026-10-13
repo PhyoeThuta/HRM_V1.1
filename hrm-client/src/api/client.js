@@ -6,21 +6,22 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// API Interceptor for future use, credentials are automatically handled by browser
+// Passthrough for request
 api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 — attempt silent refresh
+// Handle 401 — attempt silent refresh once, then redirect
 let isRefreshing = false;
 let failedQueue = [];
+let hasRedirected = false; // Prevent redirect loop
 
-const processQueue = (error, token = null) => {
+const processQueue = (error) => {
   failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
   failedQueue = [];
@@ -31,12 +32,18 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Only intercept 401 errors, and skip if already retried or it's a 429
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Skip redirect/retry logic for auth endpoints themselves — avoids infinite loop
+      const isAuthEndpoint = originalRequest.url?.includes('/auth/');
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise(function(resolve, reject) {
           failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers['Authorization'] = 'Bearer ' + token;
+        }).then(() => {
           return api(originalRequest);
         }).catch(err => {
           return Promise.reject(err);
@@ -47,22 +54,22 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        // No need to store token in localStorage, it's in httpOnly cookie now.
-        localStorage.setItem('hrm_user', JSON.stringify(data.user));
-        
-        // Remove manual Authorization header injection
-        // Cookies are sent automatically with `withCredentials: true`
-        
-        processQueue(null, 'cookie'); // token is irrelevant now
+        await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        processQueue(null);
+        isRefreshing = false;
         return api(originalRequest);
       } catch (err) {
-        processQueue(err, null);
-        localStorage.removeItem('hrm_user');
-        window.location.href = '/login';
-        return Promise.reject(err);
-      } finally {
+        processQueue(err);
         isRefreshing = false;
+
+        // Only redirect once, and only if not already on login page
+        if (!hasRedirected && window.location.pathname !== '/login') {
+          hasRedirected = true;
+          // Reset flag after navigation so future sessions work
+          setTimeout(() => { hasRedirected = false; }, 3000);
+          window.location.href = '/login';
+        }
+        return Promise.reject(err);
       }
     }
 

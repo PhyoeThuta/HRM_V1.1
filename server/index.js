@@ -1,3 +1,5 @@
+process.env.TZ = 'Asia/Bangkok';
+
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -7,12 +9,15 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import { auditMiddleware } from './middleware/auditContext.js';
 dotenv.config();
-// Trigger restart for AI Arabic bug fix
+process.env.TZ = 'Asia/Bangkok'; // Ensure Bangkok (UTC+7) timezone across all server operations
+
 
 import { startBirthdayCron, checkAndNotifyBirthdays } from './cron/birthdays.js';
 import { startFollowupCron, checkAndNotifyFollowups } from './cron/customer_followups.js';
 import { startDailyFeedbackCron, checkAndNotifyDailyFeedback } from './cron/daily_feedback.js';
+import { startKitchenAlertCron, checkAndSendKitchenAlert } from './cron/kitchen_alerts.js';
 import { initCrmRealtime } from './lib/crmRealtime.js';
 import { startVectorSyncCron } from './services/vectorSync.js';
 
@@ -26,6 +31,7 @@ import overtimeRouter from './routes/overtime.js';
 import leaveRouter from './routes/leave.js';
 import payrollRouter from './routes/payroll.js';
 import payrollEngineRouter from './routes/payroll_engine.js';
+import payrollPolicyRouter from './routes/payroll_policy.js';
 import bossRouter from './routes/api_boss.js';
 import orgRouter from './routes/org.js';
 import recruitmentRouter from './routes/recruitment.js';
@@ -35,12 +41,16 @@ import miscRouter from './routes/misc.js';
 import publicRouter from './routes/public.js';
 import financeRouter from './routes/finance.js';
 import crmRouter from './routes/crm.js';
+import rewardsRouter from './routes/rewards.js';
 import analyticsRouter from './routes/analytics.js';
 import enrollRouter from './routes/enroll.js';
 import inventoryRoutes from './routes/inventory.js';
 import operationsRoutes from './routes/operations.js';
 import telegramRouter from './routes/telegram.js';
 import dailyFeedbackRouter from './routes/daily_feedback.js';
+import performanceRouter from './routes/performance.js';
+import manualRouter from './routes/manual.js';
+import webhooksRouter from './routes/webhooks.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -48,50 +58,85 @@ const PORT = process.env.PORT || 8080;
 
 // ── Security & Middleware ──────────────────────────────────────
 app.set('trust proxy', 1); // Trust the first proxy to get real client IPs
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://maps.googleapis.com"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://maps.googleapis.com", "https://*.cloudflareinsights.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "https://*.supabase.co"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:", "https://*.supabase.co"],
+      mediaSrc: ["'self'", "data:", "blob:", "https:"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+    },
+  },
+}));
+
+const defaultAllowedOrigins = [
+  'https://bbd-hrm.aiautono.io',
+  'http://bbd-hrm.aiautono.io',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8080'
+];
 
 app.use(cors({
   origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    let allowedOrigins = defaultAllowedOrigins;
     if (process.env.ALLOWED_ORIGINS) {
-      const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
+      const customOrigins = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
+      allowedOrigins = Array.from(new Set([...allowedOrigins, ...customOrigins]));
     }
-    
-    // Fallback if ALLOWED_ORIGINS is missing
-    if (process.env.NODE_ENV === 'production') {
-      console.error('CRITICAL WARNING: ALLOWED_ORIGINS is not set in production. Blocking cross-origin request.');
-      return callback(new Error('Not allowed by CORS'));
-    } else {
-      // Development fallback
-      const devOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
-      if (!origin || devOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
+
+    if (allowedOrigins.includes(origin) || origin.includes('duolinkmm.com') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
     }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 }));
+
+// Webhooks (Must be before express.json() to allow raw body for signature verification)
+app.use('/api/webhooks', webhooksRouter);
 
 app.use(express.json({ limit: '50mb' })); // Increased for video
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
-
+app.use(auditMiddleware);
 app.use('/api/uploads', express.static('uploads')); // Serve safely under /api path
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
 // DEBUG ROUTE REMOVED — Never expose stack traces or internal tooling in production.
 
-const limiter = rateLimit({
+// Auth-specific rate limiter: stricter, applied only to login/refresh
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500,
+  max: 100, // Allow login attempts
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  skip: (req) => req.path === '/me', // /api/auth/me is never rate-limited (it's read-only)
+});
+
+// General API rate limiter: generous, excludes auth routes (they have their own)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false },
+  skip: (req) => req.path.includes('auth'), // Auth has its own limiter
 });
 app.use('/api/', limiter);
 
@@ -101,11 +146,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
 });
 
+// Auth routes get their own rate limiter — NOT the general one
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/public', publicRouter); // /api/public/jobs, /api/public/apply
 app.use('/api/crm/analytics', analyticsRouter);
 app.use('/api/crm', crmRouter);       // Must be before orgRouter to prevent verifyToken leakage to public webhooks
 app.use('/api/telegram', telegramRouter);
-app.use('/api/auth', authRouter);
 app.use('/api/enroll', enrollRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/employees', employeesRouter);
@@ -113,7 +159,9 @@ app.use('/api/attendance', attendanceRouter);
 app.use('/api/overtime', overtimeRouter);
 app.use('/api/leave', leaveRouter);
 app.use('/api/payroll', payrollRouter);
+app.use('/api/rewards', rewardsRouter);
 app.use('/api/payroll-engine', payrollEngineRouter);
+app.use('/api/payroll-policy', payrollPolicyRouter);
 app.use('/api', orgRouter);           // /api/departments, /api/positions
 app.use('/api/recruitment', recruitmentRouter);
 app.use('/api', lifecycleRouter);     // /api/onboarding, /api/offboarding
@@ -124,6 +172,8 @@ app.use('/api', miscRouter);          // /api/notifications, /api/portal, /api/s
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/operations', operationsRoutes);
 app.use('/api/daily-feedback', dailyFeedbackRouter);
+app.use('/api/performance', performanceRouter);
+app.use('/api/manual', manualRouter);
 // ── Test Endpoints (Admin-Only) ─────────────────────────────────────────────
 // These endpoints are protected by requireAdmin to prevent unauthorized Cron triggering.
 app.post('/api/test/trigger-birthdays', requireAdmin, async (req, res) => {
@@ -139,6 +189,16 @@ app.post('/api/test/trigger-followups', requireAdmin, async (req, res) => {
 app.post('/api/test/trigger-daily-feedback', requireAdmin, async (req, res) => {
   const result = await checkAndNotifyDailyFeedback();
   res.json(result);
+});
+
+app.post('/api/test/trigger-kitchen-alert', requireAdmin, async (req, res) => {
+  try {
+    const targetDate = req.body?.targetDate || null;
+    const result = await checkAndSendKitchenAlert(targetDate);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Serve React Frontend (Single-Container Deployment) ───────────
@@ -180,7 +240,7 @@ app.use((err, req, res, next) => {
 
   // Always log the full error server-side for debugging.
   console.error(`[SERVER ERROR] ${req.method} ${req.originalUrl}`, err.stack || err);
-  
+
   // Only send a safe, generic message to the client.
   const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json({ error: err.message || 'Internal server error' });
@@ -198,4 +258,7 @@ server.listen(PORT, () => {
   startVectorSyncCron();
   startFollowupCron();
   startDailyFeedbackCron();
+  startKitchenAlertCron(); // 05:00 AM ICT Kitchen Daily Alert (Telegram + Messenger)
 });
+
+// Triggered restart to load new .env variables

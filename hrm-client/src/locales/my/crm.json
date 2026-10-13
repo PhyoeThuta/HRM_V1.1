@@ -1,0 +1,1022 @@
+{
+  "dashboard": {
+    "title": "ခွဲခြမ်းစိတ်ဖြာခြင်း ဒက်ရှ်ဘုတ်",
+    "subtitle": "အရောင်း၊ ပစ်မှတ်များနှင့် လုပ်ဆောင်ချက်မှတ်တမ်းများ (အချိန်နှင့်တစ်ပြေးညီ)",
+    "stats": {
+      "totalRevenue": "စုစုပေါင်း ဝင်ငွေ",
+      "totalCustomers": "စုစုပေါင်း ဝယ်ယူသူများ",
+      "activeCustomers": "လက်ရှိ ဝယ်ယူသူများ",
+      "churnedCustomers": "ရပ်နားသွားသော ဝယ်ယူသူများ",
+      "hotProspects": "ဝယ်ယူရန်များသောသူများ",
+      "followUpProspects": "ဆက်လက် ဆက်သွယ်ရန်",
+      "pendingProspects": "ဆိုင်းငံ့ထားသော ပစ်မှတ်များ",
+      "lostProspects": "ဆုံးရှုံးသွားသော ပစ်မှတ်များ"
+    },
+    "linkModal": {
+      "title": "Facebook Chat ကို ချိတ်ဆက်ရန်",
+      "desc1": "စကားပြောဆိုမှုကို အလိုအလျောက်ရှာမတွေ့ပါ",
+      "desc2": "ကျေးဇူးပြု၍ မှန်ကန်သော Facebook Chat ကို အောက်တွင် ရွေးချယ်ချိတ်ဆက်ပါ။",
+      "selectChat": "ချိတ်ဆက်ရန် Chat ကို ရွေးပါ",
+      "noChats": "တက်ကြွသော Chat များ မတွေ့ပါ။ ဝယ်ယူသူကို Page သို့ စာတိုပေးပို့ရန် အရင်တောင်းဆိုပါ။",
+      "linking": "ချိတ်ဆက်နေသည်...",
+      "linkBtn": "ချိတ်ဆက်ပြီး သတိပေးရန်"
+    },
+    "nav": {
+      "crmPortal": "CRM ပေါ်တယ်",
+      "leads": "ပစ်မှတ်များ (Leads)",
+      "overviewPipeline": "လုပ်ငန်းစဉ် ခြုံငုံသုံးသပ်ချက်",
+      "manageLeads": "ပစ်မှတ်များ စီမံရန် (Inbox)",
+      "customers": "ဝယ်ယူသူများ",
+      "totalCustomers": "စုစုပေါင်း ဝယ်ယူသူများ",
+      "customerLevel": "ဝယ်ယူသူ အဆင့်",
+      "packages": "ပက်ကေ့ချ်များ",
+      "managePackages": "ပက်ကေ့ချ်များကို စီမံရန်",
+      "reportAnalytics": "အစီရင်ခံစာများ",
+      "salesAnalytics": "အရောင်း အစီရင်ခံစာ",
+      "leadConversions": "ပစ်မှတ် အောင်မြင်မှု",
+      "settings": "ဆက်တင်များ",
+      "learnBBD": "BBD ကို လေ့လာရန်",
+      "adminEnroll": "Admin Manual စာရင်းသွင်းရန်",
+      "formBuilder": "ဖောင် တည်ဆောက်ရန်",
+      "customerVoices": "ဝယ်ယူသူများ၏ အသံ",
+      "dailyFeedback": "နေ့စဉ် မီနူး အကြံပြုချက်များ"
+    },
+    "btn": {
+      "running": "လုပ်ဆောင်နေသည်...",
+      "testFollowUps": "အလိုအလျောက် သတိပေးမှု စမ်းသပ်ရန်",
+      "addLead": "ပစ်မှတ်သစ် ထည့်ရန်"
+    },
+    "charts": {
+      "growth": {
+        "title": "ဝယ်ယူသူ တိုးတက်မှု",
+        "desc": "လွန်ခဲ့သော ၇ လအတွင်း အသစ်ပြောင်းလဲမှုများ",
+        "thisYear": "ဒီနှစ်",
+        "last6Months": "လွန်ခဲ့သော ၆ လ"
+      },
+      "sources": {
+        "title": "ပစ်မှတ် ရင်းမြစ်များ",
+        "desc": "စုံစမ်းမေးမြန်းမှုများ လာရာလမ်းကြောင်း",
+        "total": "စုစုပေါင်း ပစ်မှတ်များ"
+      }
+    },
+    "prospects": {
+      "title": "လတ်တလော တက်ကြွသော ပစ်မှတ်များ",
+      "viewAll": "အားလုံးကြည့်ရန်",
+      "empty": "တက်ကြွသော ပစ်မှတ်များ မရှိပါ။ အလွန်ကောင်းပါတယ်။",
+      "badges": {
+        "hot": "ဝယ်ယူရန်များသောသူ",
+        "pending": "ငွေပေးချေမှု ဆိုင်းငံ့",
+        "followup": "ဆက်လက် ဆက်သွယ်ရန်",
+        "lost": "ဆုံးရှုံး"
+      }
+    },
+    "renewals": {
+      "title": "သက်တမ်းတိုးရန်များ",
+      "actionNeeded": "ဆောင်ရွက်ရန် လိုအပ်",
+      "noDue": "သက်တမ်းတိုးရန် မရှိပါ",
+      "allCaughtUp": "အကုန်ရှင်းလင်းပါသည်။ လာမည့် ၇ ရက်အတွင်း သက်တမ်းကုန်ဆုံးမည့် ပက်ကေ့ချ် မရှိပါ။",
+      "expiredDaysAgo": "{days} ရက်က သက်တမ်းကုန်ခဲ့သည်",
+      "expiresToday": "ယနေ့ သက်တမ်းကုန်မည်",
+      "inDays": "{days} ရက် အတွင်း",
+      "sending": "ပေးပို့နေသည်...",
+      "remind": "Chat မှတစ်ဆင့် သတိပေးရန်"
+    },
+    "aiFeedback": {
+      "title": "AI ခံစားချက် ခွဲခြမ်းစိတ်ဖြာမှု",
+      "issuesDetected": "ပြဿနာ တွေ့ရှိချက်",
+      "allClear": "အားလုံးရှင်းလင်းသည်",
+      "excellent": "အလွန်ကောင်းမွန်သော အခြေအနေ",
+      "healthDesc": "လူမှုကွန်ရက်တစ်ခွင်ရှိ ဝယ်ယူသူများ၏ အကြံပြုချက်များကို AI က စစ်ဆေးပြီးဖြစ်သည်။ ယနေ့တွင် ကြီးမားသော တိုင်ကြားမှု မတွေ့ရပါ။",
+      "resolving": "ဖြေရှင်းနေသည်...",
+      "resolveCase": "အမှုကိစ္စ ဖြေရှင်းမည်"
+    }
+  },
+  "listView": {
+    "subtitle": "{title} အတွက် အသေးစိတ်စာရင်းကို ကြည့်နေသည်",
+    "back": "ဒက်ရှ်ဘုတ် သို့ ပြန်သွားရန်",
+    "segments": {
+      "revenue": "ဝင်ငွေ အသေးစိတ်",
+      "customers": "စုစုပေါင်း ဝယ်ယူသူများ",
+      "active": "လက်ရှိ ဝယ်ယူသူများ",
+      "churned": "ရပ်နားသွားသော ဝယ်ယူသူများ",
+      "hot": "ဝယ်ယူရန်များသောသူများ",
+      "follow_up": "ဆက်လက် ဆက်သွယ်ရန်",
+      "pending": "ဆိုင်းငံ့ထားသော ပစ်မှတ်များ",
+      "lost": "ဆုံးရှုံးသွားသော ပစ်မှတ်များ"
+    },
+    "toast": {
+      "loadError": "ဒေတာရယူရန် အဆင်မပြေပါ",
+      "statusUpdated": "အခြေအနေ အောင်မြင်စွာ ပြောင်းလဲပြီးပါပြီ",
+      "statusUpdateError": "အခြေအနေ ပြောင်းလဲရန် အဆင်မပြေပါ"
+    },
+    "cols": {
+      "customer": "ဝယ်ယူသူ",
+      "contact": "ဆက်သွယ်ရန်",
+      "gender": "ကျား/မ",
+      "actions": "လုပ်ဆောင်ချက်များ",
+      "package": "ပက်ကေ့ချ်",
+      "status": "အခြေအနေ",
+      "amount": "ပမာဏ",
+      "prospectName": "ပစ်မှတ် အမည်",
+      "source": "ရင်းမြစ်"
+    },
+    "viewProfile": "ပရိုဖိုင် ကြည့်ရန်",
+    "expires": "သက်တမ်းကုန်မည့်ရက်",
+    "since": "စတင်သည့်ရက်",
+    "moveToHot": "Hot သို့ ပြောင်းရန်",
+    "moveToPending": "ဆိုင်းငံ့ သို့ ပြောင်းရန်",
+    "moveToFollowUp": "Follow-up သို့ ပြောင်းရန်",
+    "moveToLost": "Lost သို့ ပြောင်းရန်",
+    "convertToCustomer": "ဝယ်ယူသူအဖြစ် ပြောင်းရန်",
+    "chat": "စကားပြောရန်"
+  },
+  "customers": {
+    "toast": {
+      "loadError": "ဒေတာရယူရန် အဆင်မပြေပါ",
+      "deleted": "ဝယ်ယူသူကို ဖျက်လိုက်ပါပြီ",
+      "deleteError": "ဖျက်ရန် အဆင်မပြေပါ"
+    },
+    "title": "စုစုပေါင်း ဝယ်ယူသူများ",
+    "subtitle": "ပက်ကေ့ချ်နှင့် အဆင့်အလိုက် စစ်ထုတ်နိုင်သော ဝယ်ယူသူများ စာရင်း",
+    "deleteModal": {
+      "title": "ဝယ်ယူသူကို ဖျက်မည်လား?",
+      "desc": "ဝယ်ယူသူနှင့် သူ၏ အချက်အလက်များ အပြီးအပိုင် ပျက်သွားပါမည်။"
+    },
+    "back": "ဒက်ရှ်ဘုတ် သို့ ပြန်သွားရန်",
+    "searchPlaceholder": "အမည်၊ ကုဒ် သို့မဟုတ် ဖုန်းနံပါတ်ဖြင့် ရှာဖွေပါ...",
+    "addNew": "ဝယ်ယူသူသစ် ထည့်ရန်",
+    "filters": {
+      "status": "အကောင့် အခြေအနေ",
+      "all": "အားလုံး",
+      "active": "လက်ရှိ",
+      "inactive": "ရပ်နား",
+      "package": "ပက်ကေ့ချ်ဖြင့် စစ်ထုတ်ရန်",
+      "allPackages": "ပက်ကေ့ချ် အားလုံး",
+      "days": "ရက်",
+      "level": "အဆင့်ဖြင့် စစ်ထုတ်ရန်",
+      "allLevels": "အဆင့် အားလုံး",
+      "tier": "အဆင့်"
+    },
+    "emptyFiltered": "ရှာဖွေမှုနှင့် ကိုက်ညီသော ဝယ်ယူသူ မရှိပါ။",
+    "empty": "ဝယ်ယူသူ မရှိသေးပါ။",
+    "cols": {
+      "customerTier": "ဝယ်ယူသူ နှင့် အဆင့်",
+      "contact": "ဆက်သွယ်ရန်",
+      "status": "အခြေအနေ",
+      "assignedPackages": "ဝယ်ယူထားသော ပက်ကေ့ချ်များ",
+      "actions": "လုပ်ဆောင်ချက်များ"
+    },
+    "member": "အဖွဲ့ဝင်",
+    "active": "လက်ရှိ",
+    "inactive": "ရပ်နား",
+    "noActivePlan": "ဝယ်ယူထားခြင်း မရှိ",
+    "viewProfile": "ပရိုဖိုင် ကြည့်ရန်"
+  },
+  "leads": {
+    "title": "ပစ်မှတ်များ လုပ်ငန်းစဉ်",
+    "subtitle": "ပစ်မှတ်များကို ရွှေ့ပြောင်းနိုင်ပြီး ဆိုင်းငံ့ပစ်မှတ်များကို ဝယ်ယူသူအဖြစ် ပြောင်းလဲနိုင်သည်",
+    "toast": {
+      "loadError": "ဒေတာရယူရန် အဆင်မပြေပါ",
+      "moved": "{status} သို့ ပြောင်းလိုက်ပါပြီ",
+      "updateError": "အခြေအနေ ပြောင်းရန် အဆင်မပြေပါ",
+      "enrolled": "{name} အား ဝယ်ယူသူစာရင်းသို့ ထည့်သွင်းပြီးပါပြီ! 🎉",
+      "convertError": "ဝယ်ယူသူအဖြစ် ပြောင်းလဲရန် အဆင်မပြေပါ"
+    },
+    "modal": {
+      "title": "ငွေပေးချေမှု အတည်ပြုပြီး စာရင်းသွင်းရန်",
+      "desc1": "ဤလုပ်ဆောင်ချက်သည်",
+      "desc2": "ကို ဆိုင်းငံ့ပစ်မှတ်မှ",
+      "totalCust": "စုစုပေါင်း ဝယ်ယူသူများ",
+      "activeCust": "လက်ရှိ ဝယ်ယူသူများ",
+      "selectPackage": "သတ်မှတ်ပေးမည့် ပက်ကေ့ချ် ရွေးပါ",
+      "customPrice": "စိတ်ကြိုက် ဈေးနှုန်း",
+      "confirmBtn": "အတည်ပြု၍ စာရင်းသွင်းမည်"
+    },
+    "nav": {
+      "crm": "CRM",
+      "leads": "ပစ်မှတ်များ",
+      "overview": "လုပ်ငန်းစဉ် ခြုံငုံသုံးသပ်ချက်",
+      "inbox": "ပစ်မှတ်များ စီမံရန် (Inbox)",
+      "totalCustomers": "စုစုပေါင်း ဝယ်ယူသူများ",
+      "packages": "ပက်ကေ့ချ်များ",
+      "kitchen": "မီးဖိုချောင်"
+    },
+    "stats": {
+      "hot": "ဝယ်ယူရန်များသောသူများ",
+      "followUp": "ဆက်လက် ဆက်သွယ်ရန်",
+      "pending": "ဆိုင်းငံ့ထားသော ပစ်မှတ်များ",
+      "lost": "ဆုံးရှုံးသွားသော ပစ်မှတ်များ"
+    },
+    "cols": {
+      "new": "ဝယ်ယူရန်များသောသူများ",
+      "in_progress": "ဆက်လက် ဆက်သွယ်ရန်",
+      "pending": "ဆိုင်းငံ့ထားသော ပစ်မှတ်များ",
+      "lost": "ဆုံးရှုံးသွားသော ပစ်မှတ်များ"
+    },
+    "dropHere": "ဤနေရာသို့ ရွှေ့ပါ",
+    "unknownProspect": "အမည်မသိ ပစ်မှတ်",
+    "chat": "စကားပြောရန်",
+    "purchaseConfidence": "ဝယ်ယူနိုင်ခြေ အတိုင်းအတာ",
+    "confirmPayment": "ငွေပေးချေမှု အတည်ပြုပြီး စာရင်းသွင်းရန်"
+  },
+  "inquiries": {
+    "title": "စာတိုက်ပုံး နှင့် ပစ်မှတ်များ",
+    "toast": {
+      "newCustMsg": "ဝယ်ယူသူထံမှ စာအသစ်ဝင်ထားပါသည်",
+      "newLeadMsg": "ပစ်မှတ်ထံမှ စာအသစ်ဝင်ထားပါသည်",
+      "newLead": "ပစ်မှတ်အသစ်: {name}",
+      "loadError": "ပစ်မှတ်များ ရယူရန် အဆင်မပြေပါ",
+      "testLeadCreated": "စမ်းသပ် ပစ်မှတ် ဖန်တီးပြီးပါပြီ",
+      "testLeadError": "စမ်းသပ် ပစ်မှတ် ဖန်တီးရန် အဆင်မပြေပါ",
+      "loadMsgsError": "မက်ဆေ့ချ်များ ရယူရန် အဆင်မပြေပါ",
+      "deleted": "ပစ်မှတ်ကို ဖျက်လိုက်ပါပြီ",
+      "deleteError": "ပစ်မှတ်ကို ဖျက်ရန် အဆင်မပြေပါ",
+      "sendError": "မက်ဆေ့ချ် ပို့ရန် အဆင်မပြေပါ",
+      "linkCopied": "လင့်ခ်ကို ကော်ပီကူးယူပြီးပါပြီ",
+      "linkError": "လင့်ခ်ဖန်တီးရန် အဆင်မပြေပါ",
+      "stageUpdated": "အဆင့် ပြောင်းလဲပြီးပါပြီ",
+      "stageUpdateError": "အဆင့် ပြောင်းလဲရန် အဆင်မပြေပါ",
+      "selectPackageFirst": "ကျေးဇူးပြု၍ ပက်ကေ့ချ် ရွေးချယ်ပါ",
+      "markedPaid": "ငွေပေးချေပြီးအဖြစ် သတ်မှတ်လိုက်ပါပြီ! AI ဘော့တ်မှ ဖောင်လင့်ခ်ကို ပို့ပေးပါလိမ့်မည်။",
+      "markPaidError": "ငွေပေးချေပြီးအဖြစ် သတ်မှတ်ရန် အဆင်မပြေပါ"
+    },
+    "confirmDelete": "ဤပစ်မှတ်ကို အပြီးအပိုင် ဖျက်မည်လား?",
+    "inbox": "စာတိုက်ပုံး",
+    "testLead": "စမ်းသပ် ပစ်မှတ်",
+    "noLeads": "ပစ်မှတ် မရှိသေးပါ။",
+    "badges": {
+      "hot": "ဝယ်ယူရန်များသောသူ",
+      "enrolled": "စာရင်းသွင်းပြီး",
+      "pending": "ဆိုင်းငံ့",
+      "followup": "ဆက်သွယ်ရန်",
+      "lost": "ဆုံးရှုံး"
+    },
+    "noMsgsYet": "မက်ဆေ့ချ် မရှိသေးပါ...",
+    "noContact": "ဆက်သွယ်ရန် မရှိပါ",
+    "status": {
+      "hot": "ဝယ်ယူရန်များသောသူ",
+      "followup": "ဆက်လက် ဆက်သွယ်ရန်",
+      "pending": "ငွေပေးချေမှု ဆိုင်းငံ့",
+      "lost": "ဆုံးရှုံး",
+      "enrolled": "စာရင်းသွင်းပြီး ဝယ်ယူသူ"
+    },
+    "viewProfile": "ပရိုဖိုင် ကြည့်ရန်",
+    "formSent": "ဖောင် ပို့ပြီး",
+    "copyLink": "လင့်ခ် ကူးရန်",
+    "markPaid": "ငွေပေးချေပြီး မှတ်ရန်",
+    "startConv": "စကားပြောဆိုမှုကို စတင်ပါ...",
+    "deliveryFailed": "ပို့ဆောင်မှု မအောင်မြင်ပါ (Facebook Messenger)",
+    "outside24h": "Meta ၏ ၂၄ နာရီ ကန့်သတ်ချက် ကျော်လွန်နေပါသည်",
+    "roleCustomer": "👤 ဝယ်ယူသူ",
+    "roleAdmin": "👔 အက်ဒမင်",
+    "placeholderCust": "ဝယ်ယူသူအနေဖြင့် စာရိုက်ပါ (ဥပမာ - 30 Days Plan ရဲ့ Menu တွေ...)",
+    "placeholderAdmin": "အက်ဒမင်အနေဖြင့် အကြောင်းပြန်ပါ...",
+    "selectToView": "စကားပြောဆိုမှုကို ကြည့်ရန် ပစ်မှတ်တစ်ခုကို ရွေးပါ",
+    "ai": {
+      "title": "AI လေ့လာတွေ့ရှိချက်များ",
+      "confidence": "ဝယ်ယူနိုင်ခြေ အတိုင်းအတာ",
+      "intent": "ရည်ရွယ်ချက်",
+      "unknown": "မသိရှိပါ",
+      "sentiment": "ဖောက်သည် ခံစားချက်",
+      "neutral": "သာမန်",
+      "recommended": "အကြံပြုချက်",
+      "continueAssist": "ဆက်လက်၍ အကူအညီပေးပါ။",
+      "waiting": "လုံလောက်သော မက်ဆေ့ချ် ရရှိရန် စောင့်ဆိုင်းနေပါသည်..."
+    },
+    "paidModal": {
+      "title": "ငွေပေးချေမှု အတည်ပြုရန်",
+      "desc": "ဝယ်ယူသူ ဝယ်ယူထားသော ပက်ကေ့ချ်ကို ရွေးပါ။ ဝယ်ယူသူထံသို့ Messenger မှတစ်ဆင့် စာရင်းသွင်းဖောင်ကို အလိုအလျောက် ပို့ပေးပါမည်။",
+      "label": "ဝယ်ယူမည့် ပက်ကေ့ချ်",
+      "selectPkg": "-- ပက်ကေ့ချ် ရွေးပါ --",
+      "sending": "ပေးပို့နေသည်...",
+      "confirm": "ငွေပေးချေမှု အတည်ပြုမည်"
+    }
+  },
+  "packages": {
+    "toast": {
+      "loadError": "ပက်ကေ့ချ်များ ရယူရန် အဆင်မပြေပါ",
+      "updated": "ပက်ကေ့ချ် ပြင်ဆင်ပြီးပါပြီ",
+      "added": "ပက်ကေ့ချ် အသစ်ထည့်ပြီးပါပြီ",
+      "saveError": "သိမ်းဆည်းရန် အဆင်မပြေပါ",
+      "deleted": "ပက်ကေ့ချ်ကို ဖျက်လိုက်ပါပြီ",
+      "deleteError": "ဖျက်ရန် အဆင်မပြေပါ"
+    },
+    "title": "Diet ပက်ကေ့ချ်များ",
+    "subtitle": "ဝန်ဆောင်မှုများနှင့် ဈေးနှုန်းများကို စီမံပါ",
+    "back": "ဒက်ရှ်ဘုတ် သို့ ပြန်သွားရန်",
+    "available": "ရရှိနိုင်သော ပက်ကေ့ချ်များ",
+    "addBtn": "ပက်ကေ့ချ် ထည့်ရန်",
+    "customPricing": "စိတ်ကြိုက် ဈေးနှုန်း",
+    "deleteModal": {
+      "title": "ပက်ကေ့ချ်ကို ဖျက်မည်လား?",
+      "desc": "ဤပက်ကေ့ချ်ကို ဖျက်ရန် သေချာပါသလား? ဖျက်ပြီးပါက ပြန်ယူ၍မရပါ။"
+    },
+    "modal": {
+      "editTitle": "ပက်ကေ့ချ် ပြင်ဆင်ရန်",
+      "addTitle": "ပက်ကေ့ချ်သစ် ထည့်ရန်",
+      "name": "ပက်ကေ့ချ် အမည် *",
+      "namePlaceholder": "ဥပမာ - Boss Diet, Keto Plan",
+      "duration": "ကြာချိန် *",
+      "price": "ဈေးနှုန်း (THB) - ရွေးချယ်နိုင်",
+      "updateBtn": "ပြင်ဆင်မည်",
+      "saveBtn": "သိမ်းမည်"
+    },
+    "duration": {
+      "w1": "၁ ပတ်",
+      "d14": "၁၄ ရက်",
+      "m1": "၁ လ",
+      "m2": "၂ လ",
+      "m3": "၃ လ",
+      "m6": "၆ လ",
+      "y1": "၁ နှစ်",
+      "custom": "စိတ်ကြိုက် ကြာချိန်"
+    }
+  },
+  "customerDetail": {
+    "title": "ဝယ်ယူသူ ပရိုဖိုင်",
+    "subtitle": "{name} ၏ အသေးစိတ် အချက်အလက်များ",
+    "upload": "ပုံတင်ရန်",
+    "noLevel": "အဆင့်မရှိ",
+    "totalSpent": "စုစုပေါင်း ဝယ်ယူမှု",
+    "toast": {
+      "avatarUpdated": "ပရိုဖိုင် ပုံ ပြင်ဆင်ပြီးပါပြီ",
+      "avatarError": "ပုံတင်ရန် အဆင်မပြေပါ",
+      "loadError": "ပရိုဖိုင် ရယူရန် အဆင်မပြေပါ",
+      "unlinkedError": "မချိတ်ဆက်ရသေးသော ပစ်မှတ်များ ရယူရန် အဆင်မပြေပါ",
+      "linked": "ချိတ်ဆက်မှု အောင်မြင်ပါသည်",
+      "linkError": "ချိတ်ဆက်ရန် အဆင်မပြေပါ",
+      "unlinked": "ချိတ်ဆက်မှု ဖြုတ်ပြီးပါပြီ",
+      "unlinkError": "ချိတ်ဆက်မှု ဖြုတ်ရန် အဆင်မပြေပါ",
+      "custUpdated": "အချက်အလက် ပြင်ဆင်ပြီးပါပြီ",
+      "custUpdateError": "ပြင်ဆင်ရန် အဆင်မပြေပါ",
+      "fbDeleted": "တုံ့ပြန်ချက် ဖျက်လိုက်ပါပြီ",
+      "fbDeleteError": "ဖျက်ရန် အဆင်မပြေပါ",
+      "metricsUpdated": "ကျန်းမာရေး အချက်အလက် ပြင်ဆင်ပြီးပါပြီ",
+      "metricsError": "ပြင်ဆင်ရန် အဆင်မပြေပါ",
+      "selectFileUrl": "ဖိုင် သို့မဟုတ် ပုံလင့်ခ် ထည့်ပါ",
+      "photoAdded": "ပုံ အသစ်ထည့်ပြီးပါပြီ",
+      "photoUploadError": "ပုံတင်ရန် အဆင်မပြေပါ",
+      "fileTooLarge": "ဖိုင်အရွယ်အစား ကြီးလွန်းပါသည်။ (အများဆုံး 5MB)",
+      "photoDeleted": "ပုံ ဖျက်လိုက်ပါပြီ",
+      "photoDeleteError": "ဖျက်ရန် အဆင်မပြေပါ",
+      "referralCopied": "မိတ်ဆက် လင့်ခ် ကူးယူပြီးပါပြီ",
+      "reviewCopied": "လစဥ် သုံးသပ်ချက် လင့်ခ် ကူးယူပြီးပါပြီ",
+      "welcomeCopied": "ကြိုဆိုရေး လင့်ခ် ကူးယူပြီးပါပြီ",
+      "churnCopied": "ထွက်ခွာ မေးခွန်းဖောင် လင့်ခ် ကူးယူပြီးပါပြီ"
+    },
+    "bmi": {
+      "unknown": "မသိရှိပါ",
+      "underweight": "ပိန်လွန်းသည်",
+      "normal": "ပုံမှန်",
+      "overweight": "ဝသည်",
+      "obese": "အဝလွန်သည်"
+    },
+    "tabs": {
+      "overview": "ခြုံငုံသုံးသပ်ချက်",
+      "metrics": "ကျန်းမာရေး",
+      "gallery": "တိုးတက်မှု ဓာတ်ပုံများ",
+      "lifestyle": "နေထိုင်မှုပုံစံ",
+      "packages": "ပက်ကေ့ချ် နှင့် အစားအစာ",
+      "communications": "စကားပြောဆိုမှုများ",
+      "feedback": "တုံ့ပြန်ချက်များ"
+    },
+    "actions": {
+      "back": "ဝယ်ယူသူများသို့ ပြန်သွားရန်",
+      "exportPdf": "PDF ဖြင့် ထုတ်ယူရန်",
+      "copyReferral": "မိတ်ဆက် လင့်ခ် ကူးရန်",
+      "copyReview": "၁-လ သုံးသပ်ချက် လင့်ခ် ကူးရန်",
+      "copyWelcome": "ကြိုဆိုရေး လင့်ခ် ကူးရန်",
+      "editCustomer": "ဝယ်ယူသူ အချက်အလက် ပြင်ရန်"
+    },
+    "overview": {
+      "basicTitle": "အခြေခံ အချက်အလက် နှင့် ပို့ဆောင်ရမည့် နေရာ",
+      "ageGender": "အသက် နှင့် လိင်",
+      "phone": "ဖုန်းနံပါတ်",
+      "deliveryNotes": "ပို့ဆောင်ရေး အထူးမှာကြားချက်",
+      "dropoffPhoto": "ပစ္စည်းချထားရမည့် နေရာ ပုံ",
+      "clickToView": "အပြည့်အစုံ ကြည့်ရန် နှိပ်ပါ",
+      "healthTitle": "ကျန်းမာရေး နှင့် နေထိုင်မှုပုံစံ",
+      "weight": "ကိုယ်အလေးချိန်",
+      "goalWeight": "ရည်မှန်းချက် အလေးချိန်",
+      "heightBmi": "အရပ် / BMI",
+      "activity": "လှုပ်ရှားမှု",
+      "medicalConditions": "ရောဂါအခံများ",
+      "allergies": "မတည့်သော အစားအစာ",
+      "lifestyleTitle": "နေထိုင်မှု နှင့် အစာရှောင်ခြင်း",
+      "activityLevel": "လှုပ်ရှားမှု ပုံစံ",
+      "fasting": "အစာရှောင်နိုင်မှု",
+      "foodRestrictions": "ရှောင်ကြဉ်ရမည့် အစားအစာ",
+      "pkgTitle": "ပက်ကေ့ချ် နှင့် အစားအစာ မှတ်တမ်း",
+      "noPackages": "ပက်ကေ့ချ် မှတ်တမ်း မရှိသေးပါ။",
+      "feedbackTitle": "ဝယ်ယူသူ၏ သုံးသပ်ချက် နှင့် တုံ့ပြန်ချက်များ",
+      "noFeedback": "တုံ့ပြန်ချက် မရှိသေးပါ။"
+    },
+    "editModal": {
+      "title": "ဝယ်ယူသူ အချက်အလက် ပြင်ရန်",
+      "fullName": "အမည်အပြည့်အစုံ *",
+      "fbName": "Facebook အမည်",
+      "phone": "ဖုန်းနံပါတ်",
+      "email": "အီးမေးလ်",
+      "age": "အသက်",
+      "gender": "လိင်",
+      "female": "မ",
+      "male": "ကျား",
+      "other": "အခြား",
+      "address": "လိပ်စာ",
+      "deliveryAddress": "ပို့ဆောင်ရမည့် လိပ်စာ"
+    },
+    "metricsModal": {
+      "title": "ကျန်းမာရေး အချက်အလက် ပြင်ရန်",
+      "currentWeight": "လက်ရှိ အလေးချိန် (lbs/kg)",
+      "targetWeight": "ရည်မှန်းချက် အလေးချိန် (lbs/kg)",
+      "height": "အရပ် (cm)",
+      "medicalConditions": "ရောဂါအခံများ",
+      "allergies": "မတည့်သော အစားအစာများ",
+      "save": "သိမ်းမည်"
+    },
+    "galleryModal": {
+      "title": "တိုးတက်မှု ဓာတ်ပုံ ထည့်ရန်",
+      "type": "ဓာတ်ပုံ အမျိုးအစား",
+      "upload": "ဓာတ်ပုံ တင်ရန်",
+      "url": "ဓာတ်ပုံ လင့်ခ်",
+      "addBtn": "ဓာတ်ပုံ ထည့်မည်",
+      "clickToChange": "ပြောင်းလဲရန် နှိပ်ပါ",
+      "orPaste": "သို့မဟုတ် လင့်ခ် ထည့်ပါ",
+      "before": "မတိုင်မီ",
+      "after": "ပြီးနောက်"
+    },
+    "deletePhoto": {
+      "title": "ဓာတ်ပုံ ဖျက်မည်လား?",
+      "desc": "ဤဓာတ်ပုံကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရပါ။"
+    },
+    "deleteFb": {
+      "title": "တုံ့ပြန်ချက် ဖျက်မည်လား?",
+      "desc": "ဤတုံ့ပြန်ချက်ကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရပါ။"
+    },
+    "unlinkModal": {
+      "title": "ချိတ်ဆက်မှု ဖြုတ်ရန်",
+      "desc": "ဤစကားပြောဆိုမှုကို ဝယ်ယူသူ၏ ပရိုဖိုင်မှ ဖြုတ်ရန် သေချာပါသလား? စကားပြောဆိုမှုသည် ပစ်မှတ်အသစ်များ စာရင်းသို့ ရောက်သွားပါမည်။",
+      "btn": "ဖြုတ်မည်"
+    },
+    "linkModal": {
+      "title": "စကားပြောဆိုမှု ချိတ်ဆက်ရန်",
+      "desc": "{name} ၏ ပရိုဖိုင်သို့ ချိတ်ဆက်ရန် အောက်ပါမှ ရွေးချယ်ပါ။",
+      "notFound": "ချိတ်ဆက်စရာ မရှိပါ။",
+      "linkBtn": "ချိတ်ဆက်မည်"
+    },
+    "lifestyleTab": {
+      "activity": "လှုပ်ရှားမှု ပုံစံ",
+      "fasting": "အစာရှောင်နိုင်မှု"
+    },
+    "metricsTab": {
+      "title": "ခန္ဓာကိုယ် နှင့် ကျန်းမာရေး",
+      "editBtn": "အချက်အလက် ပြင်ရန်",
+      "currentWeight": "လက်ရှိ အလေးချိန်",
+      "targetWeight": "ရည်မှန်းချက် အလေးချိန်",
+      "height": "အရပ်",
+      "bmiStatus": "BMI အခြေအနေ",
+      "conditions": "ရောဂါအခံများ",
+      "allergies": "မတည့်သော အစားအစာများ",
+      "requests": "စားဖိုမှူးအတွက် အထူးမှာကြားချက်"
+    },
+    "galleryTab": {
+      "title": "တိုးတက်မှု ဓာတ်ပုံများ",
+      "addBtn": "ဓာတ်ပုံ ထည့်ရန်",
+      "noPhotos": "ဓာတ်ပုံ မရှိသေးပါ",
+      "uploadDesc": "တိုးတက်မှုကို နှိုင်းယှဉ်ပြသရန် Before & After ဓာတ်ပုံများ တင်ပါ။"
+    },
+    "communicationsTab": {
+      "title": "ချိတ်ဆက်ထားသော စကားပြောဆိုမှုများ",
+      "linkBtn": "ချိတ်ဆက်ရန်",
+      "noLinked": "ချိတ်ဆက်ထားမှု မရှိပါ",
+      "desc": "ဤဝယ်ယူသူနှင့် ချိတ်ဆက်ထားသော စကားပြောဆိုမှုများ မရှိသေးပါ။",
+      "openThread": "စကားပြောဆိုရန်"
+    },
+    "feedbackTab": {
+      "noFeedback": "ဤဝယ်ယူသူ၏ တုံ့ပြန်ချက်များ မရှိသေးပါ။"
+    }
+  },
+  "customerPackages": {
+    "toast": {
+      "paused": "ပက်ကေ့ချ် ခဏရပ်ထားပါသည်",
+      "pauseError": "ခဏရပ်ရန် အဆင်မပြေပါ",
+      "resumed": "ပက်ကေ့ချ် ပြန်စ၍ သက်တမ်းတိုးပြီးပါပြီ!",
+      "resumeError": "ပြန်စရန် အဆင်မပြေပါ",
+      "deleted": "ပက်ကေ့ချ် ဖျက်လိုက်ပါပြီ",
+      "deleteError": "ဖျက်ရန် အဆင်မပြေပါ"
+    },
+    "empty": {
+      "title": "ပက်ကေ့ချ် မရှိပါ",
+      "desc": "ဤဝယ်ယူသူအတွက် ပက်ကေ့ချ် သတ်မှတ်ထားခြင်း မရှိသေးပါ။",
+      "assignBtn": "ပထမဆုံး ပက်ကေ့ချ် ထည့်ရန်"
+    },
+    "card": {
+      "duration": "ကြာချိန်",
+      "start": "စတင်ရက်",
+      "expires": "ကုန်ဆုံးရက်",
+      "meals": "နပ်"
+    },
+    "status": {
+      "paused": "PAUSED (ရပ်နားထားသည်)",
+      "expired": "EXPIRED (သက်တမ်းကုန်)",
+      "upcoming": "UPCOMING",
+      "active": "ACTIVE (လက်ရှိ ပို့ဆောင်နေဆဲ)"
+    },
+    "paymentStatus": {
+      "unpaid": "ငွေမရှင်းရသေး",
+      "partial": "တစ်စိတ်တစ်ပိုင်း",
+      "paid": "ငွေရှင်းပြီး"
+    },
+    "actions": {
+      "resume": "Click to Resume (ပြန်စရန်)",
+      "pause": "Click to Pause (ခဏရပ်မည်)",
+      "renew": "ပက်ကေ့ချ် အသစ်ထပ်ယူမည်"
+    },
+    "assignAnother": "နောက်ထပ် ပက်ကေ့ချ် ထည့်ရန်",
+    "deleteModal": {
+      "title": "ပက်ကေ့ချ်ကို ဖျက်မည်လား?",
+      "desc": "သေချာပါသလား? ဖျက်ပြီးပါက ပြန်ယူ၍မရပါ။"
+    },
+    "resumeModal": {
+      "title": "ပက်ကေ့ချ် ပြန်စရန်",
+      "desc": "ပက်ကေ့ချ်ကို မည်မျှကြာ ရပ်နားခဲ့ပါသလဲ? စနစ်မှ သက်တမ်းကုန်ဆုံးရက်ကို အလိုအလျောက် ထပ်တိုးပေးပါမည်။",
+      "days": "ရပ်နားခဲ့သော ရက်အရေအတွက်",
+      "confirmBtn": "ပြန်စမည်"
+    }
+  },
+  "assignPackage": {
+    "toast": {
+      "updated": "ပက်ကေ့ချ် ပြင်ဆင်ပြီးပါပြီ!",
+      "assigned": "ပက်ကေ့ချ် သတ်မှတ်ပြီးပါပြီ!",
+      "saveError": "သိမ်းဆည်းရန် အဆင်မပြေပါ။ အချက်အလက်ပုံစံကို စစ်ဆေးပါ။"
+    },
+    "editTitle": "Diet ပက်ကေ့ချ် ပြင်ဆင်ရန်",
+    "assignTitle": "Diet ပက်ကေ့ချ် သတ်မှတ်ရန်",
+    "fields": {
+      "packageName": "ပက်ကေ့ချ် အမည်",
+      "selectPackage": "-- ပက်ကေ့ချ် ရွေးပါ --",
+      "noPackages": "ပက်ကေ့ချ် မရှိပါ",
+      "totalMeals": "စုစုပေါင်း အစားအစာ (နပ်)",
+      "amount": "ကျသင့်ငွေ (THB)",
+      "startDate": "စတင်မည့် ရက်",
+      "expiryDate": "သက်တမ်းကုန်ဆုံးမည့် ရက်တိကျ",
+      "mealType": "အစားအစာ ပို့မည့် အချိန်ဇယား",
+      "paymentStatus": "ငွေပေးချေမှု အခြေအနေ"
+    },
+    "paymentStatus": {
+      "unpaid": "ငွေမရှင်းရသေး",
+      "partial": "တစ်စိတ်တစ်ပိုင်း",
+      "paid": "ငွေရှင်းပြီး"
+    },
+    "updateBtn": "ပြင်ဆင်မည်",
+    "assignBtn": "သတ်မှတ်မည်"
+  },
+  "kitchen": {
+    "toast": {
+      "loadError": "မီးဖိုချောင် ဒက်ရှ်ဘုတ် ရယူရန် အဆင်မပြေပါ",
+      "alertSent": "စားဖိုမှူးထံ Alert အောင်မြင်စွာ ပို့ပြီးပါပြီ!",
+      "alertError": "စားဖိုမှူးထံ Alert ပို့ရန် အဆင်မပြေပါ"
+    },
+    "confirmAlert": {
+      "desc": "Chef Alert ကို Telegram Group နှင့် Messenger နှစ်ခုလုံးသို့ ပေးပို့မည်လား?",
+      "sendBtn": "ပို့မည်"
+    },
+    "title": "မီးဖိုချောင် ဒက်ရှ်ဘုတ်",
+    "subtitle": "နေ့စဉ် လုပ်ငန်းဆောင်ရွက်မှု ဒက်ရှ်ဘုတ်",
+    "back": "Ops Hub သို့ ပြန်သွားရန်",
+    "banner": {
+      "autoAlertTitle": "နေ့စဉ် Auto-Alert: ထိုင်းစံတော်ချိန် မနက် 05:00 နာရီတိုင်း အလိုအလျောက် ပေးပို့ရန် စီစဉ်ထားပါသည်",
+      "autoAlertDesc": "Telegram Group နှင့် Facebook Messenger (Chef များ) နှစ်ခုလုံးထံ တစ်ပြိုင်နက်တည်း Auto-send ဆောင်ရွက်ပေးပါသည်။ Manual နှိပ်၍လည်း မည်သည့်အချိန်မဆို ပေးပို့နိုင်ပါသည်။"
+    },
+    "lunch": "နေ့လည်စာ",
+    "dinner": "ညစာ",
+    "sendAlertBtn": "Chef ထံ Alert ပို့မည် (Telegram & Messenger)",
+    "chefAlerts": {
+      "title": "စားဖိုမှူး Alert: {date} အတွက် မီနူးများ",
+      "noMenus": "ယနေ့အတွက် မီနူး မရှိပါ။",
+      "withRice": "ထမင်းပါသည်"
+    },
+    "bom": {
+      "title": "လိုအပ်သော ကုန်ကြမ်းပစ္စည်းများ (BOM)",
+      "noIngredients": "ယနေ့အတွက် ကုန်ကြမ်း လိုအပ်မှု မရှိပါ။",
+      "ingredient": "ကုန်ကြမ်းအမည်",
+      "requiredQty": "လိုအပ်သော ပမာဏ"
+    },
+    "specialRequests": {
+      "title": "အထူး မှာကြားချက်များ",
+      "noRequests": "ယနေ့အတွက် အထူးမှာကြားချက် မရှိပါ။",
+      "type": "အမျိုးအစား"
+    }
+  },
+  "customerVoices": {
+    "toast": {
+      "loadError": "ဝယ်ယူသူ၏ အသံများ ရယူရန် အဆင်မပြေပါ"
+    },
+    "title": "ဝယ်ယူသူ၏ အသံများ",
+    "subtitle": "ဝယ်ယူသူများ၏ တုံ့ပြန်ချက်၊ တောင်းဆိုချက်နှင့် တိုင်ကြားချက်များ",
+    "filters": {
+      "all": "အားလုံး",
+      "allShort": "ALL",
+      "feedback": "FEEDBACK",
+      "request": "REQUEST",
+      "complain": "COMPLAIN"
+    },
+    "searchPlaceholder": "အမည် သို့မဟုတ် မှတ်ချက် ရှာရန်...",
+    "activeOnly": "လက်ရှိဝယ်ယူနေသူများသာ",
+    "empty": {
+      "title": "ဝယ်ယူသူ၏ အသံများ မတွေ့ပါ",
+      "desc": "ရှာဖွေမှုစနစ်ကို ပြောင်းလဲစစ်ဆေးကြည့်ပါ။"
+    },
+    "status": {
+      "active": "ACTIVE",
+      "inactive": "INACTIVE"
+    },
+    "noPhone": "ဖုန်းနံပါတ် မရှိပါ",
+    "totalVoices": "စုစုပေါင်း အသံ",
+    "expand": "ဖြန့်ကြည့်ရန်",
+    "collapse": "ခေါက်ရန်",
+    "filterVoices": "စစ်ထုတ်ရန်",
+    "showing": "{total} ခုအနက် {display} ခု ပြသထားသည်",
+    "noItems": "ရွေးချယ်ထားသော စစ်ထုတ်မှုနှင့် ကိုက်ညီမှုမရှိပါ။",
+    "noComments": "မှတ်ချက်ရေးသားထားခြင်း မရှိပါ။"
+  },
+  "customerForm": {
+    "toast": {
+      "success": "ဝယ်ယူသူ ပရိုဖိုင် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!",
+      "error": "ပရိုဖိုင် ဖန်တီးရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားကြည့်ပါ။"
+    },
+    "title": "ဝယ်ယူသူ အသစ်ထည့်ရန်",
+    "subtitle": "ဝယ်ယူသူ၏ အသေးစိတ် အချက်အလက်များကို ထည့်သွင်းပါ",
+    "back": "ဝယ်ယူသူများစာရင်းသို့ ပြန်သွားရန်",
+    "formTitle": "ဝယ်ယူသူ အချက်အလက် ဖြည့်စွက်ရန်",
+    "basicInfo": {
+      "title": "အခြေခံ အချက်အလက်",
+      "fullName": "အမည်အပြည့်အစုံ *",
+      "facebookName": "Facebook အမည်",
+      "age": "အသက် *",
+      "gender": "လိင် *",
+      "male": "ကျား",
+      "female": "မ",
+      "other": "အခြား",
+      "phone": "ဖုန်းနံပါတ် *",
+      "homeAddress": "နေရပ်လိပ်စာ",
+      "deliveryAddress": "ပို့ဆောင်ရမည့် လိပ်စာ *",
+      "deliveryNotes": "ပို့ဆောင်ရေး အထူးမှာကြားချက် (ရှိလျှင်)"
+    },
+    "healthInfo": {
+      "title": "ခန္ဓာကိုယ် နှင့် ကျန်းမာရေး အချက်အလက်",
+      "currentWeight": "လက်ရှိ အလေးချိန် (kg) *",
+      "goalWeight": "ရည်မှန်းချက် အလေးချိန် (kg) *",
+      "height": "အရပ် (cm) *",
+      "medicalCondition": "ရောဂါအခံများ",
+      "medicineTaking": "သောက်နေသော ဆေးဝါးများ"
+    },
+    "lifestyleInfo": {
+      "title": "နေထိုင်မှုပုံစံ နှင့် အစားအသောက် ပြင်ဆင်မှု",
+      "foodRestriction": "မတည့်သော အစားအစာ / ရှောင်ကြဉ်ရမည့် အစားအစာ",
+      "specialRequests": "စားဖိုမှူးအတွက် အထူးမှာကြားချက်",
+      "activityLevel": "လှုပ်ရှားမှု ပုံစံ",
+      "fastingWillingness": "အစာရှောင်နိုင်မှု"
+    },
+    "placeholders": {
+      "fullName": "ဥပမာ- အောင်အောင်",
+      "facebookName": "ဥပမာ- Aung (Gamer)",
+      "age": "ဥပမာ- 28",
+      "phone": "ဥပမာ- 09123456789",
+      "homeAddress": "အိမ်လိပ်စာ",
+      "deliveryAddress": "ပို့ဆောင်ရမည့် လိပ်စာအပြည့်အစုံ",
+      "deliveryNotes": "ဥပမာ- ဂိတ်တွင်ထားခဲ့ပါ၊ ရောက်လျှင်ဖုန်းဆက်ပါ",
+      "medicalCondition": "ဥပမာ- ဆီးချို၊ သွေးတိုး",
+      "medicineTaking": "သောက်နေသော ဆေးများရှိပါက ရေးပါ",
+      "foodRestriction": "ဥပမာ- ဝက်သားမစားပါ၊ ပင်လယ်စာ မတည့်ပါ",
+      "specialRequests": "ဥပမာ- အငန်လျှော့ပါ၊ အစပ်မစားပါ"
+    },
+    "saveBtn": "ဝယ်ယူသူ ပရိုဖိုင် သိမ်းမည်"
+  },
+  "formBuilder": {
+    "toast": {
+      "loadError": "ဖောင် အချက်အလက်များ ရယူရန် အဆင်မပြေပါ",
+      "saveSuccess": "ဖောင် အချက်အလက်များ သိမ်းဆည်းပြီးပါပြီ!",
+      "saveError": "သိမ်းဆည်းရန် အဆင်မပြေပါ",
+      "reqIdLabel": "ဖီးလ် ID နှင့် Label ထည့်သွင်းရန် လိုအပ်ပါသည်",
+      "uniqueId": "ဖီးလ် ID တူညီနေပါသည်"
+    },
+    "title": "ဒိုင်းနမစ် ဖောင် တည်ဆောက်သူ",
+    "pageTitle": "ဖောင် တည်ဆောက်သူ",
+    "desc": "ဝယ်ယူသူ အချက်အလက် ဖြည့်သွင်းမည့် ဖောင်ကို ပုံစံချပါ။",
+    "saveBtn": "ဖောင် ဒီဇိုင်း သိမ်းမည်",
+    "activeFields": {
+      "title": "လက်ရှိ ဖီးလ်များ",
+      "noFields": "ဖီးလ် မရှိသေးပါ။",
+      "required": "မဖြစ်မနေ",
+      "options": "ရွေးချယ်စရာများ"
+    },
+    "addField": {
+      "title": "ဖီးလ် အသစ်ထည့်ရန်",
+      "fieldId": "ဖီးလ် ID",
+      "idPlaceholder": "ဥပမာ- first_name",
+      "idDesc": "သီးသန့် ID (Space မပါရ)",
+      "label": "အမည် (Label)",
+      "labelPlaceholder": "ဥပမာ- အမည်",
+      "inputType": "ထည့်သွင်းမည့် အမျိုးအစား",
+      "typeText": "စာတို (Text)",
+      "typeTextarea": "စာရှည် (Textarea)",
+      "typeNumber": "ဂဏန်း (Number)",
+      "typeDropdown": "ရွေးချယ်စရာ (Dropdown)",
+      "typeCheckbox": "အမှန်ခြစ် (Checkbox)",
+      "options": "ရွေးချယ်စရာများ (ကော်မာ ခြား၍ရေးပါ)",
+      "optionsPlaceholder": "ဥပမာ- လျှော့၊ သင့်တင့်၊ များ",
+      "requiredField": "မဖြစ်မနေ ဖြည့်ရမည်",
+      "addBtn": "ဖီးလ် ထည့်မည်"
+    }
+  },
+  "reportAnalytics": {
+    "toast": {
+      "loadError": "အစီရင်ခံစာ ရယူရန် အဆင်မပြေပါ"
+    },
+    "title": "အစီရင်ခံစာနှင့် သုံးသပ်ချက်",
+    "subtitle": "BBD လုပ်ငန်းဆောင်ရွက်မှု၊ ဟင်းပွဲ Ratings၊ Churn အကြောင်းရင်းများနှင့် Lead အချက်အလက်များ",
+    "headerTitle": "BBD သုံးသပ်ချက် အနှစ်ချုပ်",
+    "headerDesc": "BBD လုပ်ငန်းတစ်ခုလုံး၏ အချက်အလက်များကို အသေးစိတ် သုံးသပ်နိုင်သော Executive Dashboard",
+    "filters": {
+      "allTime": "အချိန်အားလုံး (All Time)",
+      "thisMonth": "ဒီလ (This Month)",
+      "last30Days": "လွန်ခဲ့သော ရက် ၃၀",
+      "to": "မှ",
+      "printBtn": "PDF ထုတ်ယူမည် / Print"
+    },
+    "tabs": {
+      "overview": "၁။ အထွေထွေ အနှစ်ချုပ် (Executive Overview)",
+      "menu": "၂။ ဟင်းပွဲ သုံးသပ်ချက် (Menu Analytics)",
+      "churn": "၃။ ထွက်ခွာမှု နှင့် သက်တမ်းတိုးမှု (Churn & Renewal)",
+      "leads": "၄။ Lead နှင့် Referral (Leads & Referrals)",
+      "delivery": "၅။ ပို့ဆောင်မှု Feedback (Delivery Analytics)"
+    },
+    "loading": "BBD အချက်အလက်များအား တွက်ချက် စုစည်းနေပါသည်...",
+    "overview": {
+      "totalCustomers": "စုစုပေါင်း Customer",
+      "registered": "စနစ်အတွင်း စာရင်းသွင်းထားသူ",
+      "activePackages": "လက်ရှိ Active Package များ",
+      "expiredPackages": "သက်တမ်းကုန်/ရပ်နား: {count}",
+      "leadConversion": "Lead ရောင်းအား ပြောင်းလဲမှု (Conversion %)",
+      "inquiryToActive": "Inquiry မှ Active ဖြစ်လာသူ",
+      "avgSatisfaction": "ပျှမ်းမျှ ကျေနပ်မှု Rating",
+      "satisfactionPercent": "{percent}% ကျေနပ်မှု ရှိသူများ",
+      "takeawaysTitle": "လုပ်ငန်းဆိုင်ရာ သုံးသပ်ချက် အနှစ်ချုပ်များ (Executive Takeaways)",
+      "menuTakeawayTitle": "ဟင်းပွဲ သုံးသပ်ချက် အနှစ်ချုပ်",
+      "menuTakeawayDesc": "ထိပ်တန်း ဟင်းပွဲများ ({popular} မျိုး) သည် ကျေနပ်မှု အလွန်မြင့်မားပါသည်။ သို့သော် Rating 3.0 အောက် ရရှိသော ဟင်းပွဲ {unpopular} မျိုး ရှိသဖြင့် BBD မီးဖိုချောင် အဖွဲ့မှ အငံ/အစပ် သို့မဟုတ် ချက်ပြုတ်မှု အချိုးအစားများ ပြင်ဆင်ရန် လိုအပ်ပါသည်။",
+      "churnTakeawayTitle": "Customer ထွက်ခွာမှု သုံးသပ်ချက်",
+      "churnTakeawayDesc": "Customer မဝယ်တော့သည့် အဓိက အကြောင်းရင်းများတွင် မြို့ပြောင်းသွားခြင်း နှင့် ဝန်ဆောင်မှု/အရသာ အဆင်မပြေခြင်းများ ပါဝင်ပါသည်။ သက်တမ်းမကုန်မီ ၁၄ ရက်အလိုတွင် မေးမြန်း၍ Diet Plan များကို စိတ်ကြိုက် ပြင်ဆင်ပေးရန် အကြံပြုပါသည်။"
+    },
+    "menu": {
+      "noticeTitle": "BBD Management Notice (ဟင်းပွဲ ပြင်ဆင်ရန် အသိပေးချက်):",
+      "noticeDesc": "BBD သည် စားသောက်ဆိုင် မဟုတ်ပါ သို့သော် ဖောက်သည်များ၏ Feedback ကို အခြေခံ၍ ဟင်းပွဲ ချက်ပြုတ်မှု အချိုးအစားနှင့် အရသာများကို BBD အဖွဲ့မှ ကိုယ်တိုင် သင့်တော်သလို အမြဲ ပြင်ဆင်သွားရမည်။",
+      "popularTitle": "လူကြိုက်များသော ဟင်းပွဲများ ({count})",
+      "noRatedDishes": "Rating ရရှိထားသော ဟင်းပွဲ မရှိသေးပါ",
+      "reviews": "reviews",
+      "averageTitle": "အသင့်အတင့် ကြိုက်နှစ်သက်သော ဟင်းပွဲများ ({count})",
+      "noAverageDishes": "အသင့်အတင့် အဆင့် ဟင်းပွဲ မရှိပါ",
+      "unpopularTitle": "ပြင်ဆင်ရန် လိုအပ်သော ဟင်းပွဲများ ({count})",
+      "noUnpopularDishes": "Rating နည်းသော ဟင်းပွဲ မရှိပါ။",
+      "chefAction": "BBD Chef မီးဖိုချောင်မှ အငံ/အစပ် ပြင်ဆင်ရန်",
+      "bestPicksTitle": "ဖောက်သည်များ အကြိုက်ဆုံး ဟင်းပွဲများ (Best Picks)",
+      "noWeeklyPicks": "Weekly pick အချက်အလက် မရှိသေးပါ",
+      "votes": "မဲ",
+      "worstPicksTitle": "ဖောက်သည်များ အကြိုက်နည်းဆုံး ဟင်းပွဲများ (Worst Picks)"
+    },
+    "churn": {
+      "churnTitle": "မဝယ်တော့သည့် အကြောင်းအရင်းများ (Churn Reasons)",
+      "expired": "သက်တမ်းကုန်/ထွက်ခွာ",
+      "users": "ယောက်",
+      "renewalTitle": "သက်တမ်းတိုးရသည့် အကြောင်းအရင်းများ (Renewal Drivers)",
+      "activePkgs": "Active Packages"
+    },
+    "leads": {
+      "channelsTitle": "Lead ရရှိသည့် လမ်းကြောင်းများ (Acquisition Channels)",
+      "leads": "leads",
+      "referralTitle": "Referral မိတ်ဆွေ ညွှန်းဆိုမှု စာရင်း",
+      "totalReferredDesc": "ညွှန်းဆိုမှုမှ ရရှိသော စုစုပေါင်း Customer",
+      "topReferrers": "မိတ်ဆွေ အများဆုံး ညွှန်းဆိုပေးသူများ (Top Referrers)",
+      "noReferralData": "ညွှန်းဆိုမှု အချက်အလက် မရှိသေးပါ",
+      "referralCount": "ညွှန်းဆိုမှု"
+    },
+    "delivery": {
+      "onTimeRate": "အချိန်မှန် ပို့ဆောင်နိုင်မှု ရာခိုင်နှုန်း",
+      "lateDeliveries": "နောက်ကျ ပို့ဆောင်မှု အရေအတွက်",
+      "packagingIssues": "ထုပ်ပိုးမှု ဖိတ်စင်/ပျက်စီးမှု အရေအတွက်",
+      "logsTitle": "ပို့ဆောင်ရေးဆိုင်ရာ တိုင်ကြားချက် Logs",
+      "noLogs": "တိုင်ကြားချက် မရှိပါ"
+    }
+  },
+  "leadConversions": {
+    "toast": {
+      "loadError": "Lead အချက်အလက်များ ရယူရန် အဆင်မပြေပါ"
+    },
+    "title": "Lead Conversions (အရောင်းအသွင်ပြောင်းလဲမှု)",
+    "desc": "ရောင်းအား လမ်းကြောင်းနှင့် Lead ရရှိသော လမ်းကြောင်းများကို သုံးသပ်ပါ။",
+    "pipelineTitle": "Conversion Pipeline",
+    "allTime": "အချိန်အားလုံး (All Time)",
+    "sourcesTitle": "Lead ရရှိသော လမ်းကြောင်းများ",
+    "lostTitle": "မဝယ်ဖြစ်သည့် အကြောင်းအရင်းများ"
+  },
+  "learnBbd": {
+    "toast": {
+      "copied": "ဖောင်လင့်ခ် ကူးယူပြီးပါပြီ!"
+    },
+    "title": "BBD Knowledge Hub & Operations Manual",
+    "subtitle": "BBD Business Model, Customer Care SOP, Meal Rules & Forms System ၏ အရာရာကို တစ်နေရာတည်းတွင် လေ့လာရန်",
+    "headerBadge": "BBD Master Knowledge Base",
+    "headerTitle": "BBD Knowledge Hub & Operations Manual",
+    "headerDesc": "Busy Boss Diet (BBD) ၏ Business Ecosystem တစ်ခုလုံး၊ Customer Care မူဝါဒများ၊ Kitchen & Delivery စည်းမျဉ်းများနှင့် Forms စနစ် အစရှိသော <strong className=\"text-brand-green font-bold\">BBD ၏ အရာရာ</strong> ကို တစ်နေရာတည်းတွင် အသေးစိတ် လေ့လာနိုင်သော Master Central Hub ဖြစ်ပါသည်။",
+    "backToDashboard": "CRM ဒက်ရှ်ဘုတ်သို့ ပြန်သွားရန်",
+    "viewCustomers": "ဝယ်ယူသူများ စာရင်း ကြည့်ရန်",
+    "philosophy": {
+      "whyBoss": {
+        "title": "Why We Call Them \"Boss\"",
+        "desc": "BBD တွင် Customer များကို မည်သည့်အခါမျှ ရိုးရိုး Customer ဟု မခေါ်ဆိုပါ။ ၎င်းတို့၏ ကျန်းမာရေးနှင့် Diet Plan ကို ဦးဆောင်ညွှန်းဆိုသူ ဖြစ်သောကြောင့် **\"Boss\"** ဟု လေးစားစွာ သုံးနှုန်းပါသည်။"
+      },
+      "meals": {
+        "title": "360° Personalised Meals",
+        "desc": "Boss အသီးသီး၏ မတည့်သော အစားအသောက်၊ အစားရှောင်မှု (Allergies)၊ ရောဂါအခံနှင့် အကြိုက်များကို တိုက်ရိုက် Kitchen Dashboard သို့ စနစ်တကျ ချိတ်ဆက် ပို့ဆောင်ပေးပါသည်။"
+      },
+      "rules": {
+        "title": "Meal Change Rule",
+        "desc": "<strong className=\"text-rose-400\">ဟင်းပြောင်းပေးရန် တောင်းဆို၍ မရပါ။</strong> ဆားငံလျှော့ပေးရန် သို့မဟုတ် အစပ်လျှော့ပေးရန် စသည့် အရသာ ပြင်ဆင်ချက် (Seasoning Adjustment) သာ လက်ခံပါသည်။"
+      },
+      "followups": {
+        "title": "Automated Follow-ups",
+        "desc": "နေ့စဉ် Delivery အပြီး General Form၊ ည ၉:၀၀ နာရီ Rating Form နှင့် ရက် ၃၀ ပြည့် Milestone Review Noti များကို System က အလိုအလျောက် ပို့ပေးပါသည်။"
+      }
+    },
+    "kitchen": {
+      "title": "Kitchen Daily Auto-Alert (မနက် ၅ နာရီ Automation)",
+      "desc": "Operation OpsHub > Kitchen Dashboard တွင် မနက် ၅ နာရီတိုင်း အလိုအလျောက် Chef / Kitchen Staff များထံ Dual-Channel Alert ပေးပို့သည့် Automation System",
+      "schedule": {
+        "title": "Auto Trigger Schedule",
+        "timezone": "ထိုင်းစံတော်ချိန် (Asia/Bangkok UTC+7)",
+        "time": "မနက် 05:00 AM"
+      },
+      "telegram": {
+        "title": "Telegram Group Channel",
+        "desc": "Chef အဖွဲ့ Telegram Group သို့ ဟင်းပွဲ၊ Headcount နှင့် BOM Ingredients ကို HTML Format ဖြင့် Inline Button (\"Finish Cooking\") အပါ တပ်ဆင်ပေးပို့မည်။"
+      },
+      "messenger": {
+        "title": "Facebook Messenger Channel",
+        "desc": "BBD Facebook Page ထံ မက်ဆေ့ဂျ် ဖြင့် opt-in ပြုလုပ်ထားသော Chef / Kitchen Staff တစ်ဦးစီ၏ Messenger ထံ Direct Broadcast ပေးပို့မည်။ (Zernio API မှတဆင့်)"
+      },
+      "content": {
+        "title": "Alert တွင် ပါဝင်သော အချက်အလက်များ (Alert Content)",
+        "headcount": "ထိုနေ့ Lunch / Dinner Headcount (ဦးရေ)",
+        "menus": "Scheduled Daily Menus (ဟင်းပွဲ နှင့် Meal Type)",
+        "bom": "Aggregated BOM Required Ingredients (ချက်ရမည့် ကုန်ကြမ်း + အချိုးအစား)",
+        "button": "Telegram: \"✅ ချက်ပြုတ်ပြီးစီးပါပြီ (Finish Cooking)\" Inline Button ပါဝင်မည်",
+        "override": "Admin Override: Kitchen Dashboard မှ မည်သည့်အချိန်မဆို Manual \"Chef ထံ Alert ပို့မည် (Telegram & Messenger)\" ကို နှိပ်၍ ချက်ချင်း ထပ်မံ ပေးပို့နိုင်ပါသည်။",
+        "failsafe": "Fail-Safe: Messenger ပျက်ကွက်ပါက Telegram ကို မပျက်ကွက်အောင် Promise.allSettled() ဖြင့် Channel နှစ်ခု Isolated ထားပါသည်။"
+      }
+    },
+    "forms": {
+      "title": "BBD Forms Ecosystem (Forms အမျိုးအစားများ လမ်းညွှန်)",
+      "desc": "Customer များနှင့် ထိတွေ့ဆက်ဆံရာတွင် အသုံးပြုသော Forms များနှင့် ၎င်းတို့၏ အဓိပ္ပာယ်များ",
+      "livePreview": "Live Preview",
+      "usage": "Form အသုံးပြုပုံနှင့် အဓိပ္ပာယ်",
+      "trigger": "ပို့ဆောင်ရမည့် အချိန် (Trigger Rule)",
+      "destination": "Data သိမ်းဆည်းသည့် နေရာ"
+    },
+    "formList": {
+      "onboarding": {
+        "title": "1. Customer Onboarding Enrollment Form",
+        "subtitle": "ပိုက်ဆံလွှဲပြီးလျှင် ကျန်းမာရေး၊ Target Weight နှင့် Diet Preference များ ဖြည့်ခိုင်းသည့် Form",
+        "badge": "အသစ်စတင်ချိန်",
+        "description": "Customer ဘက်မှ ပိုက်ဆံလွှဲပြီးပါက Admin သို့မဟုတ် AI Bot မှ Customer ထံသို့ ပို့ပေးရသော Form ဖြစ်ပါသည်။ အသက်၊ ကိုယ်အလေးချိန်၊ ပန်းတိုင်၊ ရောဂါအခံနှင့် မတည့်သော အစားအသောက်များကို အသေးစိတ် ဖြည့်စွက်ပေးရပါသည်။",
+        "triggerTiming": "Payment Confirm ဖြစ်ပြီးသည်နှင့် ချက်ချင်း (၁ ကြိမ်သာ)",
+        "destination": "crm.customers, crm.customer_health, crm.customer_lifestyle"
+      },
+      "general-request-complaint": {
+        "title": "2. Daily Post-Delivery Request & Complaint Form",
+        "subtitle": "နေ့စဉ် Delivery ပို့ပြီးတိုင်း အဆင်မပြေမှု၊ အချိန်နောက်ကျမှု၊ General Request / Complaint ပေးရန် Form",
+        "badge": "နေ့စဉ် Delivery အပြီး",
+        "description": "နေ့စဉ် Delivery ပို့ဆောင်ပြီးချိန်တွင် Customer များ ပို့ဆောင်ရေး သို့မဟုတ် ထုပ်ပိုးမှုနှင့် ပတ်သက်၍ အဆင်မပြေသည်များ၊ အထွေထွေ Complaint သို့မဟုတ် အထွေထွေ တောင်းဆိုမှု (General Request/Complaint) များကို ချက်ချင်း အသိပေးနိုင်သော Form ဖြစ်ပါသည်။",
+        "triggerTiming": "နေ့စဉ် Delivery ရောက်ရှိပြီးချိန်တွင် မက်ဆေ့ခ်ျနှင့်အတူ ချက်ချင်း ပို့ပေးရန်",
+        "destination": "crm.feedbacks (Customer Care & Kitchen alert)"
+      },
+      "daily-night-feedback": {
+        "title": "3. Nightly Meal Feedback & Taste Adjustment Form",
+        "subtitle": "နေ့စဉ် ည ၉ နာရီတွင် ဒီနေ့စားခဲ့သော ဟင်းများ၏ အရသာ၊ အငံ/အစပ် ပြင်ဆင်ရန် အကြံပြုချက် ပေးသည့် Form",
+        "badge": "နေ့စဉ် ည ၉:၀၀ နာရီ",
+        "description": "နေ့စဉ် ည ၉:၀၀ နာရီတွင် ဒီနေ့ စားသုံးခဲ့သော ဟင်းလျာများအတွက် 1-5 Stars Rating ပေးရန်နှင့် နောက်နေ့အတွက် အရသာ (ဥပမာ- ဆားငံလျှော့ပေးရန်၊ အစပ်လျှော့ပေးရန်) ပြင်ဆင်ချက် ရေးသားနိုင်သော Form ဖြစ်ပါသည်။ ⚠️ [အရေးကြီး စည်းမျဉ်း]: ဟင်းလျာအမျိုးအစား ပြောင်းလဲပေးရန် (Dish Swap/Change) တောင်းဆို၍ မရပါ။ အရသာနှင့် အငံ/အစပ် သာ လျှော့/တိုး တောင်းဆိုနိုင်ပါသည်။",
+        "triggerTiming": "နေ့စဉ် ည ၉:၀၀ နာရီ Auto ReminderNoti ထွက်ချိန်",
+        "destination": "crm.feedbacks (Kitchen Dashboard သို့ တိုက်ရိုက် ရောက်ရှိ)"
+      },
+      "monthly": {
+        "title": "4. 1-Month Milestone Review & Dynamic Certificate Form",
+        "subtitle": "ရက် ၃၀ ပြည့်တိုင်း Target Weight ထိမထိ စစ်ဆေးပေးပြီး Dynamic e-Certificate ထုတ်ပေးကာ Package သက်တမ်းတိုး Noti ပို့ပေးသည့် Form",
+        "badge": "ရက် ၃၀ ပြည့်တိုင်း",
+        "description": "Customer သည် ၁ လ (ရက် ၃၀) ပြည့်သွားချိန်တွင် Target Weight အတိုင်း ဖြစ်မဖြစ် ပြန်လည် ဆန်းစစ်ပေးခြင်း၊ Weight Loss Calculator ဖြင့် ဝိတ်ကျမှု ရာခိုင်နှုန်း တွက်ချက်ပေးခြင်း၊ **Dynamic VIP e-Certificate** ထုတ်ပေးခြင်းနှင့် Package သက်တမ်း ဆက်တိုးရန် / မတိုးရန် အရေးကြီး Noti ပို့ပေးသော စနစ်ဖြစ်ပါသည်။",
+        "triggerTiming": "Package စတင်သည်မှ ရက် ၃၀ ပြည့်သွားချိန်တိုင်း (သို့မဟုတ် Admin မှ Manual ပို့ချိန်)",
+        "destination": "crm.feedbacks & Customer Welcome Dossier"
+      },
+      "churn-exit": {
+        "title": "5. Churn Customer Exit Survey Form",
+        "subtitle": "မဝယ်တော့သော / သက်တမ်းကုန်သွားသော Churn Customer များထံမှ မဝယ်တော့သည့် အကြောင်းရင်း မေးမြန်းသည့် Form",
+        "badge": "Churn Customer Profile",
+        "description": "Churn customer များ (ဥပမာ- Hlyam ကဲ့သို့ မဝယ်တော့သည့် Customer များ) ၏ Profile တွင် သီးသန့် ပေါ်လာသော Form ဖြစ်ပါသည်။ ဘာကြောင့် ဆက်မဝယ်ဖြစ်တာလဲဆိုသည့် အကြောင်းအရင်းများ (ပြောင်းရွှေ့သွားခြင်း၊ အရသာ/ဝန်ဆောင်မှု၊ စျေးနှုန်း၊ ခရီးသွားခြင်း၊ ကျန်းမာရေးပြောင်းလဲခြင်း) ကို ကောက်ယူပေးပြီး Report & Analytics တွင် Auto-aggregate လုပ်ပေးပါသည်။",
+        "triggerTiming": "Customer သက်တမ်းကုန်သွားချိန် သို့မဟုတ် Status: Churned / Inactive ဖြစ်ချိန်",
+        "destination": "crm.feedbacks ([CHURN_EXIT] Tag) & Report & Analytics"
+      },
+      "referral": {
+        "title": "6. Customer Referral Program Form",
+        "subtitle": "မိတ်ဆွေ/သူငယ်ချင်းများအား BBD Dietary Plan သို့ ညွှန်းဆိုပေးနိုင်သော Referral Form",
+        "badge": "1-Month Review / Manual",
+        "description": "Customer များမှ မိတ်ဆွေများအား ညွှန်းဆိုပေးနိုင်မည့် Form ဖြစ်ပါသည်။ 1-Month Milestone Review Form အောက်ခြေတွင် ပူးတွဲပါဝင်သလို Admin မှလည်း Customer Profile မှတစ်ဆင့် Link Manual ကူးယူ ပို့ပေးနိုင်ပါသည်။ ဖြည့်လိုက်သမျှ Referral Leads များသည် crm.inquiries သို့ Lead အသစ်အဖြစ် Auto-register ဖြစ်ပါသည်။",
+        "triggerTiming": "1-Month Milestone Review ဖြည့်ပြီးချိန် သို့မဟုတ် Customer Profile မှ Link Manual ထုတ်ချိန်",
+        "destination": "crm.inquiries (Source: Referral Program)"
+      }
+    }
+  },
+  "levelSettings": {
+    "toast": {
+      "saveSuccess": "Level ဆက်တင် သိမ်းဆည်းပြီးပါပြီ",
+      "saveError": "ဆက်တင် သိမ်းဆည်းရန် အဆင်မပြေပါ",
+      "deleteSuccess": "Level ဖျက်ပြီးပါပြီ",
+      "deleteError": "ဖျက်ရန် အဆင်မပြေပါ",
+      "reqName": "Level အမည် လိုအပ်ပါသည်",
+      "invalidRange": "အနည်းဆုံး ကုန်ကျငွေသည် အများဆုံးထက် မကြီးရပါ"
+    },
+    "back": "နောက်သို့",
+    "title": "Customer အဆင့်သတ်မှတ်ချက်များ (Level Settings)",
+    "desc": "Customer များ၏ ကုန်ကျငွေ အလိုက် အဆင့်သတ်မှတ်နိုင်ရန် သတ်မှတ်ချက်များ (ဥပမာ Gold: 6,000 - 8,000 THB) ကို ပြင်ဆင်ပါ။",
+    "addBtn": "အဆင့်သစ် ထည့်မည်",
+    "spendRange": "အသုံးပြုငွေ ပမာဏ",
+    "to": "မှ",
+    "noLimit": "အကန့်အသတ်မရှိ",
+    "noSettings": "အဆင့်သတ်မှတ်ချက်များ မရှိသေးပါ။ Customer များကို စတင် ခွဲခြားနိုင်ရန် အဆင့်သစ် ထည့်သွင်းပါ။",
+    "confirmDelete": "ဤအဆင့်သတ်မှတ်ချက်ကို ဖျက်ရန် သေချာပါသလား?",
+    "modal": {
+      "editTitle": "အဆင့် ပြင်ဆင်ရန်",
+      "addTitle": "အဆင့်သစ် ထည့်ရန်",
+      "levelName": "အဆင့် အမည်",
+      "namePlaceholder": "ဥပမာ- Gold, Diamond",
+      "minSpend": "အနည်းဆုံး အသုံးပြုငွေ (THB) *",
+      "minPlaceholder": "ဥပမာ- 6000",
+      "maxSpend": "အများဆုံး အသုံးပြုငွေ (THB)",
+      "maxPlaceholder": "အများဆုံး မသတ်မှတ်ပါက လွတ်ထားပါ",
+      "example": "ဥပမာ- Gold = အနည်းဆုံး 6000 မှ အများဆုံး 8000 THB (အမြင့်ဆုံး အဆင့်အတွက် အများဆုံးကို လွတ်ထားပါ)",
+      "badgeColor": "အရောင် ရွေးချယ်ရန်",
+      "saveBtn": "ဆက်တင် သိမ်းမည်"
+    }
+  },
+  "weeklyFeedbacks": {
+    "toast": {
+      "noExportData": "Export လုပ်ရန် အချက်အလက် မရှိပါ။",
+      "exportSuccess": "ML Dataset (JSON format) ဖြင့် Export အောင်မြင်စွာ လုပ်ပြီးပါပြီ! 🤖📊"
+    },
+    "title": "ဟင်းပွဲတုံ့ပြန်ချက်နှင့် အရသာခွဲခြမ်းစိတ်ဖြာမှု",
+    "subtitle": "ဝယ်ယူသူများ၏ ဟင်းပွဲအဆင့်သတ်မှတ်ချက်များ၊ အရသာပြုပြင်ချက်များနှင့် ML Dataset သုံးသပ်ချက်များ",
+    "backToDashboard": "CRM ဒက်ရှ်ဘုတ်သို့ ပြန်သွားရန်",
+    "testFormBtn": "Daily Feedback ဖောင် စမ်းသပ်ရန်",
+    "exportBtn": "ML Dataset Export လုပ်ရန် (JSON)",
+    "analytics": {
+      "totalSubmissions": "စုစုပေါင်း တုံ့ပြန်ချက်",
+      "avgRating": "ပျှမ်းမျှ ဟင်းပွဲအဆင့်",
+      "topRatedDish": "အကြိုက်ဆုံး ဟင်းပွဲ",
+      "noData": "အချက်အလက် မရှိသေးပါ",
+      "ratingAvg": "{avg} ⭐ ပျှမ်းမျှ အဆင့်သတ်မှတ်ချက်"
+    },
+    "filters": {
+      "all": "အားလုံး",
+      "daily": "နေ့စဉ် ဟင်းပွဲ",
+      "weekly": "အပတ်စဉ် သုံးသပ်ချက်"
+    },
+    "searchPlaceholder": "ဝယ်ယူသူ၊ ဟင်းပွဲ သို့မဟုတ် မှတ်ချက် ရှာရန်...",
+    "empty": {
+      "title": "တုံ့ပြန်ချက်များ မတွေ့ပါ",
+      "desc": "ရှာဖွေမှုကို ရှင်းထုတ်ပြီး ပြန်ကြိုးစားပါ။"
+    },
+    "labels": {
+      "dailyMeal": "DAILY MEAL",
+      "weeklyReview": "WEEKLY REVIEW",
+      "anonymous": "အမည်မသိ ဝယ်ယူသူ",
+      "meal": "ဟင်းပွဲ",
+      "bestPick": "အကြိုက်ဆုံး",
+      "worstPick": "အကြိုက်နည်းဆုံး"
+    }
+  },
+  "salesAnalytics": {
+    "toast": {
+      "loadError": "အရောင်း အချက်အလက်များ ရယူရန် အဆင်မပြေပါ"
+    },
+    "title": "အရောင်း သုံးသပ်ချက်",
+    "pageTitle": "အရောင်း နှင့် ဖောက်သည် ထိန်းသိမ်းမှု",
+    "desc": "ဖောက်သည် အသစ်ရရှိမှုနှင့် ပက်ကေ့ချ် အခြေအနေများကို စောင့်ကြည့်ပါ။",
+    "cards": {
+      "activeTitle": "လက်ရှိ Active Package များ",
+      "activeDesc": "လက်ရှိ ဝယ်ယူနေသော Customer များ",
+      "expiredTitle": "သက်တမ်းကုန် Package များ",
+      "expiredDesc": "ဆက်သွယ်ရန် လိုအပ်သည်!"
+    },
+    "chart": {
+      "title": "Customer အသစ်ရရှိမှု (၆ လစာ)",
+      "newJoins": "အသစ်ဝင်ရောက်သူများ"
+    }
+  }
+}

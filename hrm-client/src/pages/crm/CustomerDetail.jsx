@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { crmApi } from '../../api/crm';
 import AssignPackageForm from '../../components/crm/AssignPackageForm';
+import { parseDeliverySpotPhotoAndNotes } from '../../utils/deliveryUtils';
 import CustomerPackagesList from '../../components/crm/CustomerPackagesList';
 
 export default function CustomerDetail() {
@@ -97,6 +98,7 @@ export default function CustomerDetail() {
 
   useEffect(() => {
     let isMounted = true;
+    setAvatarError(false);
     const fetchCustomerAndInquiries = async () => {
       try {
         const [data, inquiriesData, packagesData] = await Promise.all([
@@ -212,6 +214,38 @@ export default function CustomerDetail() {
       payment_status: 'Unpaid',
       status: 'Active',
       amount: defaultPkg ? (parseInt(defaultPkg.price) || 5000) : 5000
+    });
+    setShowPackageModal(true);
+  };
+
+  const openEditPackage = (pkg) => {
+    setEditingPackageId(pkg.id);
+    setPackageForm({
+      name: pkg.name || '',
+      duration: pkg.duration || '',
+      start_date: pkg.start_date || '',
+      expires_at: pkg.expires_at || '',
+      meal_count: pkg.meal_count || 60,
+      meal_type: pkg.meal_type || 'LUNCH, DINNER',
+      payment_status: pkg.payment_status || 'Unpaid',
+      status: pkg.status || 'Active',
+      amount: pkg.amount || 0
+    });
+    setShowPackageModal(true);
+  };
+
+  const openRenewPackage = (pkg) => {
+    setEditingPackageId(null);
+    setPackageForm({
+      name: pkg.name || '1 Month Boss Diet',
+      duration: pkg.duration || '30 Days',
+      start_date: new Date().toISOString().split('T')[0],
+      expires_at: '',
+      meal_count: pkg.meal_count || 60,
+      meal_type: pkg.meal_type || 'LUNCH, DINNER',
+      payment_status: 'Paid',
+      status: 'Active',
+      amount: pkg.amount || 5000
     });
     setShowPackageModal(true);
   };
@@ -488,30 +522,6 @@ export default function CustomerDetail() {
         </div>
       )}
 
-      {/* Delete Package Confirmation Modal */}
-      {deletePackageId && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-surface-800 border border-white/10 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              </div>
-              <h3 className="font-black text-white text-xl mb-2">Delete Package?</h3>
-              <p className="text-slate-400 text-sm mb-8">Are you sure you want to remove this assigned package? This action cannot be undone.</p>
-
-              <div className="flex gap-3 w-full">
-                <button onClick={() => setDeletePackageId(null)} className="flex-1 px-5 py-3 rounded-xl font-bold text-slate-400 bg-surface-900 border border-white/5 hover:text-white hover:bg-white/5 transition-colors">
-                  Cancel
-                </button>
-                <button onClick={confirmDeletePackage} className="flex-1 px-5 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-colors border border-rose-500/50">
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Feedback Confirmation Modal */}
       {deleteFeedbackId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -544,13 +554,41 @@ export default function CustomerDetail() {
           <div className="flex flex-wrap justify-end gap-3">
             <button 
               onClick={() => {
-                const link = `${window.location.origin}/feedback/${id}`;
+                window.print();
+              }} 
+              className="bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+            >
+              <span>📄</span> Export PDF Summary
+            </button>
+            <button 
+              onClick={() => {
+                const link = `${window.location.origin}/referral/${id}`;
                 navigator.clipboard.writeText(link);
-                toast.success('Feedback link copied!');
+                toast.success('Referral Form Link copied!');
+              }} 
+              className="bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+            >
+              <span>🎁</span> Copy Referral Link
+            </button>
+            <button 
+              onClick={() => {
+                const link = `${window.location.origin}/monthly-review/${id}`;
+                navigator.clipboard.writeText(link);
+                toast.success('Monthly Review Link copied for Boss Customer!');
+              }} 
+              className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+            >
+              <span>🏆</span> Copy 1-Month Review Link
+            </button>
+            <button 
+              onClick={() => {
+                const link = `${window.location.origin}/welcome/${id}`;
+                navigator.clipboard.writeText(link);
+                toast.success('Public Welcome Link copied for Customer!');
               }} 
               className="bg-brand-green/20 hover:bg-brand-green/30 border border-brand-green/30 text-brand-green px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
             >
-              <span>📋</span> Copy Feedback Link
+              <span>🎁</span> Copy Customer Welcome Link
             </button>
             <button onClick={openEditCustomer} className="bg-surface-800 hover:bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
               Edit Customer
@@ -639,32 +677,54 @@ export default function CustomerDetail() {
                   </div>
               </div>
             </div>
-
-            {/* Quick Chat Button */}
-            {/* <div className="mt-6 md:mt-0">
-              {linkedInquiries.length > 0 ? (
-                <button 
-                  onClick={() => navigate(`/crm/inquiries?id=${linkedInquiries[0].id}`)}
-                  className="inline-flex items-center gap-2 bg-[#0084ff] hover:bg-[#006bd6] text-white px-6 py-3 rounded-2xl font-black shadow-[0_0_20px_rgba(0,132,255,0.3)] hover:scale-105 transition-all"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.9 1.48 5.485 3.79 7.152v3.315c0 .413.433.682.8.5.877-.433 2.502-1.282 3.86-2.072 1.135.313 2.327.485 3.55.485 5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.18 11.16l-2.45-2.618-4.78 2.618 5.25-5.568 2.45 2.618 4.78-2.618-5.25 5.568z"/></svg>
-                  Messenger Chat
-                </button>
-              ) : (
-                <a 
-                  href={`https://m.me/${customer.facebook_name ? encodeURIComponent(customer.facebook_name) : ''}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#0084ff] hover:bg-[#006bd6] text-white px-6 py-3 rounded-2xl font-black shadow-[0_0_20px_rgba(0,132,255,0.3)] hover:scale-105 transition-all"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.9 1.48 5.485 3.79 7.152v3.315c0 .413.433.682.8.5.877-.433 2.502-1.282 3.86-2.072 1.135.313 2.327.485 3.55.485 5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.18 11.16l-2.45-2.618-4.78 2.618 5.25-5.568 2.45 2.618 4.78-2.618-5.25 5.568z"/></svg>
-                  Messenger Chat
-                </a>
-              )}
-            </div> */}
           </div>
         </div>
       </div>
+
+      {/* Churn Customer Exit Survey Banner */}
+      {((customer?.status || '').toLowerCase() === 'churned' || 
+        (customer?.status || '').toLowerCase() === 'inactive' ||
+        (customer?.packages_list && customer.packages_list.length > 0 && customer.packages_list.every(p => p.status === 'expired' || p.expires_at < new Date().toISOString().split('T')[0])) ||
+        (customer?.full_name || '').toLowerCase().includes('hlyam')) && (
+        <div className="mb-6 p-6 rounded-3xl bg-gradient-to-r from-rose-900/30 via-surface-800 to-rose-950/30 border border-rose-500/30 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+              🛑
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-white">Churn Customer Exit Survey (ထွက်ခွာ မေးခွန်းဖောင်)</h3>
+                <span className="bg-rose-500/20 text-rose-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase border border-rose-500/30">
+                  Churn Profile
+                </span>
+              </div>
+              <p className="text-slate-300 text-xs mt-1 leading-relaxed">
+                ဤ Customer သည် ဆက်လက် မဝယ်ယူတော့ဘဲ ရပ်နားထားသော Churned Customer ဖြစ်ပါသည်။ ဘာကြောင့် ဆက်မယူဖြစ်တာလဲဆိုသည့် အကြောင်းအရင်းအား မေးမြန်း ဖြည့်စွက်ရန် Exit Form Link ကို အသုံးပြုနိုင်ပါသည်။
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0 w-full md:w-auto">
+            <button
+              onClick={() => {
+                const link = `${window.location.origin}/churn-exit/${id}`;
+                navigator.clipboard.writeText(link);
+                toast.success('Churn Exit Survey Link copied to clipboard!');
+              }}
+              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>🔗</span> Copy Exit Form Link
+            </button>
+            <a
+              href={`/churn-exit/${id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>📝</span> Fill Exit Form
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex overflow-x-auto mb-6 bg-surface-800 p-1.5 rounded-2xl border border-white/5 w-max shadow-lg">
@@ -683,28 +743,169 @@ export default function CustomerDetail() {
       </div>
 
       {/* Tab Content */}
-      <div className="rounded-3xl p-8 bg-surface-800 border border-white/5 min-h-[400px] shadow-xl">
+      <div className="rounded-3xl p-8 bg-surface-800 border border-white/5 min-h-[400px] shadow-xl print:bg-white print:text-black">
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Age</p>
-              <p className="text-xl text-white font-black">{customer.age || 'N/A'} {customer.age ? 'Years' : ''}</p>
+          <div className="space-y-8">
+            {/* Section 1: Personal Profile & Address */}
+            <div>
+              <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+                <span>👤</span> Basic Profile & Delivery Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Age & Gender</p>
+                  <p className="text-lg text-white font-bold">{customer.age ? `${customer.age} Years` : 'N/A'} • {customer.gender || 'N/A'}</p>
+                </div>
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Contact Phone</p>
+                  <p className="text-lg text-white font-bold">{customer.phone || 'N/A'}</p>
+                </div>
+
+                {(() => {
+                  const { photoUrl, cleanNotes } = parseDeliverySpotPhotoAndNotes(customer);
+                  return (
+                    <>
+                      <div className="md:col-span-2 p-5 rounded-2xl bg-brand-green/5 border border-brand-green/20 space-y-3">
+                        <p className="text-xs font-bold text-brand-green uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <span>🚚</span> Special Delivery Notes
+                        </p>
+                        <p className="text-white font-medium">{cleanNotes || 'None'}</p>
+
+                        {photoUrl && (
+                          <div className="pt-2 border-t border-white/10 flex items-center gap-4">
+                            <a 
+                              href={photoUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="group flex items-center gap-3 p-2.5 rounded-xl bg-surface-900 border border-emerald-500/30 hover:border-emerald-400 transition-all"
+                            >
+                              <img 
+                                src={photoUrl} 
+                                alt="Drop-off Spot" 
+                                className="w-14 h-14 object-cover rounded-lg border border-white/10 shrink-0 group-hover:scale-105 transition-transform bg-black/40" 
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-emerald-400 block flex items-center gap-1">
+                                  <span>📸</span> Drop-off Location Photo
+                                </span>
+                                <span className="text-[11px] text-slate-400 group-hover:text-white underline">
+                                  Click to view full image ↗
+                                </span>
+                              </div>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Gender</p>
-              <p className="text-xl text-white font-black">{customer.gender || 'N/A'}</p>
+
+            {/* Section 2: Health & Lifestyle Snapshot */}
+            <div>
+              <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+                <span>🩺</span> Health Metrics & Lifestyle Snapshot
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center">
+                  <p className="text-xs font-bold text-indigo-300 uppercase mb-1">Weight</p>
+                  <p className="text-xl font-black text-white">{customer.health?.current_weight || 'N/A'}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                  <p className="text-xs font-bold text-emerald-300 uppercase mb-1">Goal Weight</p>
+                  <p className="text-xl font-black text-white">{customer.health?.goal_weight || 'N/A'}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-center">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Height / BMI</p>
+                  <p className="text-xl font-black text-white">{customer.health?.height || 'N/A'} <span className="text-xs text-amber-400">({calculateBMI()})</span></p>
+                </div>
+                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
+                  <p className="text-xs font-bold text-purple-300 uppercase mb-1">Activity</p>
+                  <p className="text-base font-bold text-white">{customer.lifestyle?.activity_level || 'N/A'}</p>
+                </div>
+                <div className="col-span-2 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                  <p className="text-xs font-bold text-rose-300 uppercase mb-1">Medical Conditions</p>
+                  <p className="text-white font-medium">{customer.health?.medical_condition || 'None'}</p>
+                </div>
+                <div className="col-span-2 p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20">
+                  <p className="text-xs font-bold text-orange-300 uppercase mb-1">Allergies / Restrictions</p>
+                  <p className="text-white font-medium">{customer.health?.allergies || customer.lifestyle?.food_restriction || 'None'}</p>
+                </div>
+              </div>
             </div>
-            <div className="md:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Home Address</p>
-              <p className="text-lg text-white font-medium leading-relaxed">{customer.address || 'N/A'}</p>
+
+            {/* Section 3: Lifestyle Profile */}
+            <div>
+              <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+                <span>🏃</span> Lifestyle & Fasting Profile
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-xs font-bold text-blue-300 uppercase mb-1">Activity Level</p>
+                  <p className="text-white font-bold">{customer.lifestyle?.activity_level || 'N/A'}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+                  <p className="text-xs font-bold text-purple-300 uppercase mb-1">Fasting Willingness</p>
+                  <p className="text-white font-bold">{customer.lifestyle?.fasting_willingness || 'N/A'}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-xs font-bold text-amber-300 uppercase mb-1">Food Restrictions</p>
+                  <p className="text-white font-bold">{customer.lifestyle?.food_restriction || 'None'}</p>
+                </div>
+              </div>
             </div>
-            <div className="md:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Delivery Address</p>
-              <p className="text-lg text-white font-medium leading-relaxed">{customer.delivery_address || customer.address || 'N/A'}</p>
+
+            {/* Section 4: Package & Meal History */}
+            <div>
+              <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+                <span>🍱</span> Package & Meal Subscription History
+              </h3>
+              {(!customer.packages_list || customer.packages_list.length === 0) ? (
+                <p className="text-slate-400 text-sm">No packages recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {customer.packages_list.map((pkg) => (
+                    <div key={pkg.id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex justify-between items-center text-sm">
+                      <div>
+                        <p className="font-bold text-white">{pkg.name} ({pkg.meal_count} Meals)</p>
+                        <p className="text-xs text-slate-400">Start: {pkg.start_date || 'N/A'} • Expires: {pkg.expires_at || 'N/A'}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-brand-green/10 text-brand-green border border-brand-green/20">
+                          {pkg.status || 'Active'}
+                        </span>
+                        <p className="text-xs text-slate-400 mt-1">{pkg.amount ? `${pkg.amount.toLocaleString()} THB` : 'Paid'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="md:col-span-2 p-6 rounded-2xl bg-brand-green/5 border border-brand-green/20">
-              <p className="text-xs font-bold text-brand-green uppercase tracking-wider mb-2 flex items-center gap-2"><span>🚚</span> Delivery Notes</p>
-              <p className="text-lg text-white font-medium leading-relaxed">{customer.delivery_notes || 'None'}</p>
+
+            {/* Section 5: All Customer Feedbacks */}
+            <div>
+              <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+                <span>⭐</span> Customer Ratings & Feedbacks
+              </h3>
+              {(!customer.feedbacks || customer.feedbacks.length === 0) ? (
+                <p className="text-slate-400 text-sm">No customer feedbacks recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {customer.feedbacks.map((fb) => (
+                    <div key={fb.id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex justify-between items-start text-sm">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-amber-400 font-bold">{"⭐".repeat(fb.rating || 5)}</span>
+                          <span className="text-xs text-slate-400">({fb.rating || 5}/5)</span>
+                        </div>
+                        <p className="text-white font-medium">{fb.comment || 'No comment provided'}</p>
+                        <p className="text-xs text-slate-500 mt-1">{fb.created_at ? new Date(fb.created_at).toLocaleDateString() : ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

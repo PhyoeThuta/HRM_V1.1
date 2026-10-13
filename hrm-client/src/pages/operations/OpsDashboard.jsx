@@ -5,13 +5,24 @@ import toast from 'react-hot-toast';
 import Layout from '../../components/layout/Layout';
 import api from '../../api/client';
 import OpsNavBar from './OpsNavBar';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function OpsDashboard() {
   const queryClient = useQueryClient();
   const [isPlannerOpen, setIsPlannerOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncRange, setSyncRange] = useState(() => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+    return { start_date: firstDay, end_date: lastDay };
+  });
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [planForm, setPlanForm] = useState({ date: new Date().toISOString().split('T')[0], meal_type: 'LUNCH', with_rice: true, selectedMenus: [] });
   const [editingMenuId, setEditingMenuId] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
 
   // Generate 7 days for the calendar
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
@@ -69,6 +80,17 @@ export default function OpsDashboard() {
     }
   });
 
+  const syncMutation = useMutation({
+    mutationFn: (range) => api.post('/operations/daily-menus/sync-from-plan', range).then(r => r.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['daily-menus']);
+      setSyncResult(data);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error || 'Sync failed');
+    }
+  });
+
   const closePlanner = () => {
     setIsPlannerOpen(false);
     setEditingMenuId(null);
@@ -112,9 +134,17 @@ export default function OpsDashboard() {
       
       <div className="flex justify-between items-end mb-6">
         <h2 className="text-xl font-bold text-white">Daily Menus (Schedule)</h2>
-        <button onClick={() => { closePlanner(); setIsPlannerOpen(true); }} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all">
-          + Plan Daily Menu
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setSyncResult(null); setIsSyncModalOpen(true); }}
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
+          >
+            🔄 Sync from Monthly Plan
+          </button>
+          <button onClick={() => { closePlanner(); setIsPlannerOpen(true); }} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all">
+            + Plan Daily Menu
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -186,7 +216,13 @@ export default function OpsDashboard() {
                         <button onClick={() => handleEditClick(dm)} className="text-slate-400 hover:text-indigo-400 transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
-                        <button onClick={() => { if(window.confirm('Delete this menu?')) deletePlanMutation.mutate(dm.id); }} className="text-slate-400 hover:text-rose-400 transition-colors">
+                        <button 
+                          onClick={() => {
+                            setPlanToDelete(dm.id);
+                            setShowConfirm(true);
+                          }} 
+                          className="text-slate-400 hover:text-rose-400 transition-colors"
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
@@ -292,6 +328,125 @@ export default function OpsDashboard() {
                 <button type="submit" disabled={createPlanMutation.isPending || updatePlanMutation.isPending} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50">Save Plan</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal 
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setPlanToDelete(null);
+        }}
+        onConfirm={() => deletePlanMutation.mutate(planToDelete)}
+        title="Delete Menu Plan?"
+        message="Are you sure you want to delete this menu plan? This action cannot be undone."
+        confirmText="Yes, Delete Plan"
+        confirmStyle="danger"
+      />
+
+      {/* Sync from Monthly Plan Modal */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-800 w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl p-6">
+            {!syncResult ? (
+              <>
+                <h3 className="text-xl font-bold text-white mb-2">🔄 Sync from Monthly Plan</h3>
+                <p className="text-sm text-slate-400 mb-6">
+                  Monthly Plan မှ ရွေးချယ်ထားသော ရက်အပိုင်းအခြားအတွက် Daily Menus တွေကို အလိုအလျောက် ဖန်တီးပေးပါမည်။
+                  ဟင်းနာမည်များကို Menu Catalog နှင့် တိုက်စစ်ပြီး Link ချိတ်ပေးမည်။
+                  ⚠️ ရှိပြီးသား Daily Menus ပါသော ရက်တွေကို Overwrite မလုပ်ပါ (Skip ချပေးမည်)။
+                </p>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      value={syncRange.start_date}
+                      onChange={e => setSyncRange(prev => ({ ...prev, start_date: e.target.value }))}
+                      className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={syncRange.end_date}
+                      onChange={e => setSyncRange(prev => ({ ...prev, end_date: e.target.value }))}
+                      className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsSyncModalOpen(false)}
+                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => syncMutation.mutate(syncRange)}
+                    disabled={syncMutation.isPending}
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                  >
+                    {syncMutation.isPending ? 'Syncing...' : '🔄 Start Sync'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Sync Result Summary */
+              <>
+                <h3 className="text-xl font-bold text-white mb-4">
+                  {(syncResult.synced === 0 && syncResult.skipped === 0) ? '⚠️ No Data Found' : '✅ Sync Complete'}
+                </h3>
+                <div className="space-y-3 mb-6">
+
+                  {/* Case: No monthly plan data for selected range */}
+                  {syncResult.synced === 0 && syncResult.skipped === 0 ? (
+                    <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                      <p className="text-amber-400 font-bold mb-2">⚠️ ရွေးချယ်ထားသော ကာလအတွက် Monthly Plan Data မရှိသေးပါ</p>
+                      <p className="text-amber-300 text-sm">
+                        October 2026 Menu Plan Excel ကို ဦးစွာ Import လုပ်ပါ:<br/>
+                        <strong className="text-white">Plan & Menus → Monthly Plan → Import Excel</strong><br/>
+                        ထို့နောက် ဤ Sync ကို ထပ်မံ ဆောင်ရွက်ပါ။
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                        <span className="text-emerald-400 font-bold">✅ Synced (New Daily Menus created)</span>
+                        <span className="text-2xl font-black text-emerald-400">{syncResult.synced}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-slate-400 font-bold">⏭️ Skipped (Already planned)</span>
+                        <span className="text-2xl font-black text-slate-400">{syncResult.skipped}</span>
+                      </div>
+                      {syncResult.noMatchDishes && syncResult.noMatchDishes.length > 0 ? (
+                        <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                          <p className="text-amber-400 font-bold mb-2">⚠️ Unmatched Dishes (Menu Catalog မှာ မရှိသေး — Manual ထည့်ပေးပါ)</p>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {syncResult.noMatchDishes.map((d, i) => (
+                              <p key={i} className="text-xs text-amber-300">• {d.date}: "{d.dish}"</p>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                          <p className="text-emerald-400 font-bold text-sm">🎉 All dishes matched successfully!</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setSyncResult(null); setIsSyncModalOpen(false); }}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all"
+                >
+                  Done
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -1,32 +1,10 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../lib/supabase.js';
+import { inventoryModule } from '../modules/inventory/index.js';
+import { crmModule } from '../modules/crm/index.js';
 
 // Simple in-memory Mutex to prevent race conditions during inventory deduction
-class Mutex {
-  constructor() {
-    this.queue = [];
-    this.locked = false;
-  }
-  async lock() {
-    return new Promise(resolve => {
-      if (this.locked) {
-        this.queue.push(resolve);
-      } else {
-        this.locked = true;
-        resolve();
-      }
-    });
-  }
-  unlock() {
-    if (this.queue.length > 0) {
-      const next = this.queue.shift();
-      next();
-    } else {
-      this.locked = false;
-    }
-  }
-}
-const inventoryMutex = new Mutex();
+// REMOVED: Now using central inventoryModule.deductStockForBOM which coordinates concurrency.
 
 import { verifyToken, requireOperations } from '../middleware/auth.js';
 import { emitInquiryMessage, emitOrderStatusUpdate } from '../lib/crmRealtime.js';
@@ -95,787 +73,67 @@ async function opsDelete(table, id, idCol = 'id') {
   return true;
 }
 
+import * as opsController from '../modules/operations/controller/index.js';
+import { sendDeliveryZernioMessage } from '../modules/operations/service/index.js';
+
 // ==========================================
 // MENUS
 // ==========================================
 
-router.get('/menus', async (req, res) => {
-  try {
-    const { data: menus, error } = await supabase
-      .from('operations_menus')
-      .select('*')
-      .order('name_en', { ascending: true });
-    
-    if (error) throw error;
+router.get('/menus', opsController.getMenus);
 
-    const { data: recipes } = await supabase.from('operations_recipes').select('*');
-    const { data: items } = await supabase.from('inventory_items').select('id, name_eng, unit_of_measure, item_code');
-
-    const enriched = menus.map(m => {
-      const menuRecipes = recipes?.filter(r => r.menu_id === m.id) || [];
-      const enrichedRecipes = menuRecipes.map(r => ({
-        ...r,
-        inventory_items: items?.find(i => i.id === r.inventory_item_id) || null
-      }));
-      return { ...m, recipes: enrichedRecipes };
-    });
-
-    return res.json(enriched);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/menus', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('menus', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.put('/menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-    data.updated_by = req.user.id;
-    data.updated_at = new Date().toISOString();
-    
-    const result = await opsUpdate('menus', id, data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await opsDelete('menus', id);
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/menus', opsController.createMenu);
+router.put('/menus/:id', opsController.updateMenu);
+router.delete('/menus/:id', opsController.deleteMenu);
 
 // ==========================================
 // DYNAMIC COSTING & IMPORT
 // ==========================================
 
-router.post('/import-costing', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+router.post('/import-costing', upload.single('file'), opsController.importCostingExcel);
+router.get('/menu-plans', opsController.getMenuPlans);
+router.post('/import-menu-plan', upload.single('file'), opsController.importMenuPlan);
 
-    const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-
-    const parsedMenus = [];
-    let currentMenu = null;
-
-    for (let r = 0; r < data.length; r++) {
-      const row = data[r];
-      if (!row || !row[0]) continue;
-
-      const titleRaw = row[0].toString().trim();
-      const match = titleRaw.match(/^([A-Z\s]+[0-9]{3,4})\s*-\s*([^\(]+)(?:\((.+)\))?/);
-      
-      if (match) {
-        if (currentMenu) parsedMenus.push(currentMenu);
-        currentMenu = {
-          code: match[1].trim(),
-          name_en: match[2].trim(),
-          name_mm: match[3] ? match[3].trim() : '',
-          sales_prices: 0,
-          ingredients: []
-        };
-        continue;
-      }
-
-      if (currentMenu && titleRaw.toLowerCase().includes('sales prices')) {
-        const priceMatch = titleRaw.match(/[\d.]+/);
-        if (priceMatch) currentMenu.sales_prices = parseFloat(priceMatch[0]);
-        continue;
-      }
-
-      if (currentMenu && titleRaw.toLowerCase() === 'description') {
-        continue;
-      }
-      
-      if (currentMenu && titleRaw.toLowerCase().includes('total bill of materials')) {
-        continue;
-      }
-
-      if (currentMenu && row[2] !== undefined && row[3] !== undefined) {
-        currentMenu.ingredients.push({
-          name: titleRaw,
-          qty: parseFloat(row[2]) || 0,
-          uom: row[3].toString().trim().toLowerCase()
-        });
-      }
-    }
-    
-    if (currentMenu) parsedMenus.push(currentMenu);
-
-    let menusCreated = 0;
-    let itemsCreated = 0;
-    let recipesCreated = 0;
-
-    for (const menu of parsedMenus) {
-      // 1. Insert/Update Menu
-      const { data: existingMenu } = await supabaseAdmin.from('operations_menus').select('id').eq('name_en', menu.name_en).limit(1);
-      let menuId;
-      if (existingMenu && existingMenu.length > 0) {
-        menuId = existingMenu[0].id;
-        await supabaseAdmin.from('operations_menus').update({
-          code: menu.code,
-          name_mm: menu.name_mm,
-          sales_prices: menu.sales_prices,
-          updated_at: new Date().toISOString()
-        }).eq('id', menuId);
-      } else {
-        const { data: newMenu } = await supabaseAdmin.from('operations_menus').insert({
-          code: menu.code,
-          name_en: menu.name_en,
-          name_mm: menu.name_mm,
-          sales_prices: menu.sales_prices
-        }).select('id');
-        menuId = newMenu[0].id;
-        menusCreated++;
-      }
-
-      // Clear existing recipes for this menu so we don't duplicate
-      await supabaseAdmin.from('operations_recipes').delete().eq('menu_id', menuId);
-
-      // 2. Insert/Update Ingredients & Recipes
-      for (const ing of menu.ingredients) {
-        const { data: existingItem } = await supabaseAdmin.from('inventory_items').select('id').eq('name_eng', ing.name).limit(1);
-        let itemId;
-        if (existingItem && existingItem.length > 0) {
-          itemId = existingItem[0].id;
-        } else {
-          const { data: newItem } = await supabaseAdmin.from('inventory_items').insert({
-            name_eng: ing.name,
-            category: 'RECIPE_INGREDIENT',
-            unit_of_measure: ing.uom
-          }).select('id');
-          itemId = newItem[0].id;
-          itemsCreated++;
-        }
-
-        // Add Recipe
-        await supabaseAdmin.from('operations_recipes').insert({
-          menu_id: menuId,
-          inventory_item_id: itemId,
-          quantity: ing.qty,
-          unit_of_measure: ing.uom
-        });
-        recipesCreated++;
-      }
-    }
-
-    return res.json({ success: true, menusCreated, itemsCreated, recipesCreated, parsedMenusCount: parsedMenus.length });
-  } catch (err) {
-    console.error('[IMPORT COSTING]', err);
-    return res.status(500).json({ error: err.message });
-  }
-});
-router.get('/menu-plans', async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin.from('operations_menu_plans').select('*').order('date', { ascending: true });
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/import-menu-plan', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    // Use header: "A" to force keys to be "A", "B", "C" etc. This prevents column shifting if Column A is empty.
-    const rows = xlsx.utils.sheet_to_json(sheet, { header: "A" });
-
-    let count = 0;
-    for (let r = 0; r < rows.length; r++) {
-      const row = rows[r];
-      if (!row) continue;
-
-      let dateRaw = row['B']; // Date is in Column B
-      if (!dateRaw || String(dateRaw).trim().toLowerCase() === 'date' || String(dateRaw).trim() === '') continue;
-      
-      let parsedDate;
-      if (typeof dateRaw === 'number') {
-         // Excel serial date
-         parsedDate = new Date((dateRaw - (25567 + 2)) * 86400 * 1000);
-      } else {
-         // Fix string dates like "1-Jun-26" -> node might parse as 2001 instead of 2026.
-         // Or timezone issues.
-         const strDate = String(dateRaw);
-         if (strDate.includes('-')) {
-             const parts = strDate.split('-');
-             if (parts.length === 3) {
-                 const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-                 const monthMap = {'Jan':'01', 'Feb':'02', 'Mar':'03', 'Apr':'04', 'May':'05', 'Jun':'06', 'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10', 'Nov':'11', 'Dec':'12'};
-                 const monthStr = parts[1].substring(0, 3);
-                 const month = monthMap[monthStr] || '01';
-                 const day = parts[0].padStart(2, '0');
-                 parsedDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // use midday UTC to avoid TZ issues
-             } else {
-                 parsedDate = new Date(strDate);
-             }
-         } else {
-             parsedDate = new Date(strDate);
-         }
-      }
-
-      if (isNaN(parsedDate.getTime())) continue; // Skip invalid dates
-
-      const formattedDate = parsedDate.toISOString().split('T')[0];
-      
-      // Look at the next row for night dishes (assuming 2 rows per day)
-      const nextRow = (r + 1 < rows.length) ? rows[r+1] : {};
-
-      const mainDish1 = row['E'] ? String(row['E']).trim() : null; // Column E
-      const mainDish2 = nextRow['E'] ? String(nextRow['E']).trim() : null;
-      
-      const sideDish1 = row['F'] ? String(row['F']).trim() : null; // Column F
-      const sideDish2 = nextRow['F'] ? String(nextRow['F']).trim() : null;
-      
-      const dessert = row['G'] ? String(row['G']).trim() : null; // Column G
-      const soup = row['H'] ? String(row['H']).trim() : null; // Column H
-      
-      let hasRice = null;
-      if (row['I']) hasRice = String(row['I']).trim();
-      else if (nextRow['I']) hasRice = String(nextRow['I']).trim();
-
-      const { error } = await supabaseAdmin.from('operations_menu_plans')
-        .upsert({
-          date: formattedDate,
-          main_dish_1: mainDish1,
-          main_dish_2: mainDish2,
-          side_dish_1: sideDish1,
-          side_dish_2: sideDish2,
-          soup,
-          dessert,
-          has_rice: hasRice
-        }, { onConflict: 'date' });
-
-      if (error) {
-        console.error('Menu Plan Upsert Error for date:', formattedDate, error);
-      } else {
-        count++;
-      }
-    }
-
-    if (count === 0) {
-       return res.status(400).json({ error: 'No valid dates found in the file. Ensure the Date is in Column B.' });
-    }
-
-    res.json({ success: true, count });
-  } catch (err) {
-    console.error('[IMPORT MENU PLAN ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/recalculate-bom', async (req, res) => {
-  try {
-    // Fetch all recipes with their current inventory cost
-    const { data: recipes, error: rErr } = await supabase.from('operations_recipes').select('*');
-    if (rErr) throw rErr;
-    
-    const { data: balances, error: bErr } = await supabase.from('inventory_balances').select('item_id, one_unit_cost');
-    if (bErr) throw bErr;
-    
-    // Create lookup map for costs
-    const costMap = new Map();
-    for (const b of balances) {
-      costMap.set(b.item_id, b.one_unit_cost || 0);
-    }
-    
-    // Group by menu_id and sum up
-    const menuBom = new Map();
-    for (const r of recipes) {
-      const cost = costMap.get(r.inventory_item_id) || 0;
-      const total = cost * (r.qty || 0);
-      
-      if (!menuBom.has(r.menu_id)) menuBom.set(r.menu_id, 0);
-      menuBom.set(r.menu_id, menuBom.get(r.menu_id) + total);
-    }
-    
-    // Group by totalBom to minimize DB calls
-    const groups = {};
-    for (const [menuId, totalBom] of menuBom.entries()) {
-      const roundedBom = totalBom.toFixed(2); // Group by 2 decimal places
-      if (!groups[roundedBom]) groups[roundedBom] = [];
-      groups[roundedBom].push(menuId);
-    }
-    
-    // Update menus in bulk per unique BOM value
-    for (const [bom, ids] of Object.entries(groups)) {
-      await supabase.from('operations_menus')
-        .update({ total_bill_of_materials: parseFloat(bom) })
-        .in('id', ids);
-    }
-    
-    return res.json({ success: true, updated: menuBom.size });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/recalculate-bom', opsController.recalculateAllBom);
 
 // ==========================================
 // RECIPES
 // ==========================================
 
-router.post('/recipes', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('recipes', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/recipes/:id', async (req, res) => {
-  try {
-    await opsDelete('recipes', req.params.id);
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/recipes', opsController.createRecipe);
+router.delete('/recipes/:id', opsController.deleteRecipe);
 
 // ==========================================
 // DAILY MENUS & MENU TYPES
 // ==========================================
 
-router.get('/daily-menus', async (req, res) => {
-  try {
-    const { data: dailyMenus, error } = await supabase
-      .from('operations_daily_menus')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(30);
-    
-    if (error) throw error;
-
-    const { data: menuTypes } = await supabase.from('operations_menu_types').select('*');
-    const { data: menus } = await supabase.from('operations_menus').select('*');
-
-    const enriched = dailyMenus.map(dm => {
-      const types = menuTypes?.filter(mt => mt.daily_menus_id === dm.id) || [];
-      const enrichedTypes = types.map(mt => ({
-        ...mt,
-        menus: menus?.find(m => m.id === mt.menu_id) || null
-      }));
-      return { ...dm, menu_types: enrichedTypes };
-    });
-
-    return res.json(enriched);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/daily-menus', async (req, res) => {
-  try {
-    const { date, meal_type, with_rice, menu_types } = req.body;
-    
-    const dailyMenu = await opsInsert('daily_menus', {
-      date, meal_type, with_rice, created_by: req.user.id
-    });
-    
-    if (menu_types && menu_types.length > 0) {
-      const typesToInsert = menu_types.map(mt => ({
-        daily_menus_id: dailyMenu.id,
-        menu_id: mt.menu_id,
-        is_main: mt.is_main || false,
-        created_by: req.user.id
-      }));
-      await supabase.from('operations_menu_types').insert(typesToInsert);
-    }
-    
-    return res.json(dailyMenu);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.put('/daily-menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { date, meal_type, with_rice, menu_types } = req.body;
-    
-    // Update daily menu
-    const dailyMenu = await opsUpdate('daily_menus', id, {
-      date, meal_type, with_rice, updated_by: req.user.id, updated_at: new Date().toISOString()
-    });
-    
-    if (menu_types) {
-      // Clear existing menu types for this daily menu
-      await supabase.from('operations_menu_types').delete().eq('daily_menus_id', id);
-      
-      if (menu_types.length > 0) {
-        const typesToInsert = menu_types.map(mt => ({
-          daily_menus_id: id,
-          menu_id: mt.menu_id,
-          is_main: mt.is_main || false,
-          created_by: req.user.id
-        }));
-        await supabase.from('operations_menu_types').insert(typesToInsert);
-      }
-    }
-    
-    return res.json({ success: true, dailyMenu });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.delete('/daily-menus/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    // Delete menu types first (unless there is cascade delete, but it's safer to delete here)
-    await supabase.from('operations_menu_types').delete().eq('daily_menus_id', id);
-    // Delete the daily menu
-    await opsDelete('daily_menus', id);
-    
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/daily-menus', opsController.getDailyMenus);
+router.post('/daily-menus/sync-from-plan', opsController.syncMonthlyPlan);
+router.post('/daily-menus', opsController.createDailyMenu);
+router.put('/daily-menus/:id', opsController.updateDailyMenu);
+router.delete('/daily-menus/:id', opsController.deleteDailyMenu);
 
 // ==========================================
 // ORDERS
 // ==========================================
 
-router.get('/orders', async (req, res) => {
-  try {
-    const isRider = req.user.role === 'rider';
-
-    let orders = [];
-
-    if (isRider) {
-      // ── RIDER VIEW: only show orders assigned to this rider ──
-      const { data: assignments, error: aErr } = await supabase
-        .from('operations_rider_assignments')
-        .select('order_id, status, picked_up_at')
-        .eq('rider_id', req.user.id);
-
-      if (aErr) throw aErr;
-      if (!assignments || assignments.length === 0) return res.json([]);
-
-      const assignedOrderIds = assignments.map(a => a.order_id);
-      const assignmentsMap = Object.fromEntries(assignments.map(a => [a.order_id, a]));
-
-      const { data: fetchedOrders, error } = await supabase
-        .from('operations_orders')
-        .select('*')
-        .in('id', assignedOrderIds)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      orders = fetchedOrders || [];
-
-      const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
-      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
-      let customersMap = {};
-      if (customerIds.length > 0) {
-        const { data: customers } = await supabaseAdmin.schema('crm').from('customers')
-          .select('id, full_name, phone, delivery_address, delivery_notes')
-          .in('id', customerIds);
-        if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
-      }
-
-      const enriched = orders.map(o => ({
-        ...o,
-        daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
-        customer: customersMap[o.customer_id] || { full_name: 'Unknown' },
-        rider_status: o.delivery_status === 'DELIVERED' ? 'DELIVERED' : (assignmentsMap[o.id]?.status || 'ASSIGNED'),
-      }));
-
-      return res.json(enriched);
-
-    } else {
-      // ── ADMIN VIEW: all orders + include assignment info ──
-      const { data: fetchedOrders, error } = await supabase
-        .from('operations_orders')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      orders = fetchedOrders || [];
-
-      // Fetch all assignments for these orders
-      const orderIds = orders.map(o => o.id);
-      let assignmentsMap = {};
-      if (orderIds.length > 0) {
-        const { data: assignments } = await supabase
-          .from('operations_rider_assignments')
-          .select('order_id, rider_id, status')
-          .in('order_id', orderIds);
-        if (assignments) assignmentsMap = Object.fromEntries(assignments.map(a => [a.order_id, a]));
-      }
-
-      const { data: dailyMenus } = await supabase.from('operations_daily_menus').select('*');
-      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
-      let customersMap = {};
-      if (customerIds.length > 0) {
-        const { data: customers, error: cErr } = await supabaseAdmin.schema('crm').from('customers')
-          .select('id, full_name, phone, delivery_address, delivery_notes')
-          .in('id', customerIds);
-        if (cErr) console.error('[GET /orders] Error fetching customers:', cErr);
-        if (customers) customersMap = Object.fromEntries(customers.map(c => [c.id, c]));
-      }
-
-      const enriched = orders.map(o => ({
-        ...o,
-        daily_menus: dailyMenus?.find(dm => dm.id === o.daily_menu_id) || null,
-        customer: customersMap[o.customer_id] || { full_name: 'Unknown (Please restart backend server)' },
-        rider_id: assignmentsMap[o.id]?.rider_id || null,
-        rider_status: assignmentsMap[o.id]?.status || null,
-      }));
-
-      return res.json(enriched);
-    }
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/orders', opsController.getOrders);
 
 
-router.post('/orders', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('orders', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.post('/orders', opsController.createOrder);
 
-router.post('/orders/auto-generate', async (req, res) => {
-  try {
-    const targetDate = req.body.date || new Date().toISOString().split('T')[0];
+router.post('/orders/auto-generate', opsController.autoGenerateOrders);
 
-    // 1. Fetch planned menus for target date
-    const { data: dailyMenus, error: menuErr } = await supabase
-      .from('operations_daily_menus')
-      .select('*')
-      .eq('date', targetDate);
-    
-    if (menuErr) throw menuErr;
-    if (!dailyMenus || dailyMenus.length === 0) {
-      return res.status(400).json({ error: 'No daily menus planned for this date.' });
-    }
+// POST /api/operations/upload-pod-photo - Realtime proof of delivery photo upload
+router.post('/upload-pod-photo', opsController.uploadPodPhoto);
 
-    // 2. Fetch active customer packages overlapping target date
-    const { data: packages, error: pkgErr } = await supabaseAdmin
-      .schema('crm')
-      .from('customer_packages')
-      .select('*')
-      .eq('status', 'Active')
-      .lte('start_date', targetDate)
-      .gte('expires_at', targetDate);
-      
-    if (pkgErr) throw pkgErr;
-    if (!packages || packages.length === 0) {
-      return res.json({ success: true, generatedCount: 0, message: 'No active packages found for this date.' });
-    }
 
-    // 3. Fetch existing orders to prevent duplicates
-    const { data: existingOrders, error: orderErr } = await supabase
-      .from('operations_orders')
-      .select('customer_id, daily_menu_id')
-      .eq('date', targetDate);
-      
-    if (orderErr) throw orderErr;
-    
-    const existingSet = new Set(existingOrders?.map(o => `${o.customer_id}-${o.daily_menu_id}`) || []);
 
-    const newOrders = [];
-
-    // 4. Match packages to daily menus
-    for (const pkg of packages) {
-      const pkgMeals = (pkg.meal_type || '').toUpperCase(); // e.g. "LUNCH, DINNER"
-      
-      // Track which meal types this customer already has orders for on this date
-      const customerExistingOrders = existingOrders?.filter(o => o.customer_id === pkg.customer_id) || [];
-      const fulfilledMealTypes = new Set();
-      
-      for (const eo of customerExistingOrders) {
-        const menu = dailyMenus.find(m => m.id === eo.daily_menu_id);
-        if (menu && menu.meal_type) {
-          fulfilledMealTypes.add(menu.meal_type.toUpperCase());
-        }
-      }
-      
-      for (const menu of dailyMenus) {
-        const menuType = (menu.meal_type || '').toUpperCase(); // e.g. "LUNCH"
-        
-        // If package includes this meal type AND we haven't already fulfilled it for this customer today
-        if (pkgMeals.includes(menuType) && !fulfilledMealTypes.has(menuType)) {
-          const comboKey = `${pkg.customer_id}-${menu.id}`;
-          if (!existingSet.has(comboKey)) {
-            newOrders.push({
-              customer_id: pkg.customer_id,
-              daily_menu_id: menu.id,
-              date: targetDate,
-              count: 1,
-              delivery_status: 'PENDING',
-              created_by: req.user.id
-            });
-            existingSet.add(comboKey); // Prevent exact duplicates
-            fulfilledMealTypes.add(menuType); // Mark this meal type as fulfilled!
-          }
-        }
-      }
-    }
-
-    // 5. Bulk Insert
-    if (newOrders.length > 0) {
-      const { error: insertErr } = await supabase
-        .from('operations_orders')
-        .insert(newOrders);
-        
-      if (insertErr) throw insertErr;
-      
-      // AUTO TRIGGER TELEGRAM CHEF ALERT
-      try {
-        const fetch = (await import('node-fetch')).default || globalThis.fetch;
-        const host = req.get('host');
-        const protocol = req.protocol || 'http';
-        
-        // We need to fetch the Kitchen Dashboard data to get the BOM for the chef
-        const dashRes = await fetch(`${protocol}://${host}/api/crm/kitchen-dashboard?date=${targetDate}`, {
-          headers: { 'Authorization': req.headers.authorization } // pass token
-        });
-        const dashData = await dashRes.json();
-        
-        if (dashData && dashData.dailyMenus) {
-          // Send to Chef Telegram
-          await fetch(`${protocol}://${host}/api/telegram/send-to-chef`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': req.headers.authorization 
-            },
-            body: JSON.stringify({
-              targetDate,
-              dailyMenus: dashData.dailyMenus,
-              aggregatedBOM: dashData.aggregatedBOM
-            })
-          });
-        }
-      } catch (tgErr) {
-        console.error('[AUTO GENERATE -> CHEF ALERT ERROR]', tgErr);
-        throw tgErr;
-      }
-    }
-
-    return res.json({ success: true, generatedCount: newOrders.length });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-async function sendDeliveryZernioMessage(customerId, orderId, type = 'DELIVERED') {
-  try {
-    const { data: customer } = await supabaseAdmin.schema('crm').from('customers').select('full_name, facebook_name').eq('id', customerId).single();
-    if (!customer) return;
-
-    let { data: inquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').eq('customer_id', customerId);
-    if ((!inquiries || inquiries.length === 0) && customer.facebook_name) {
-      const { data: fbInquiries } = await supabaseAdmin.schema('crm').from('inquiries').select('id').ilike('prospect_name', customer.facebook_name);
-      if (fbInquiries && fbInquiries.length > 0) inquiries = fbInquiries;
-    }
-    if (!inquiries || inquiries.length === 0) return;
-
-    const inquiryIds = inquiries.map(i => i.id);
-    const { data: prospectMsgs } = await supabaseAdmin.schema('crm').from('inquiries_messages').select('metadata').in('inquiry_id', inquiryIds).eq('sender_type', 'prospect').not('metadata', 'is', null).order('created_at', { ascending: false }).limit(1);
-
-    if (!prospectMsgs || prospectMsgs.length === 0) return;
-    const meta = prospectMsgs[0].metadata;
-    const conversationId = meta?.message?.conversationId || meta?.conversationId;
-    if (!conversationId) return;
-
-    const zernioApiKey = process.env.ZERNIO_API_KEY;
-    if (!zernioApiKey) return;
-
-    let text = '';
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    
-    if (type === 'ON_THE_WAY') {
-      const trackLink = `${frontendUrl}/track/${orderId || customerId}`;
-      text = `မင်္ဂလာပါရှင့်။ သင့် အစားအသောက်များ လာပို့နေပါပြီရှင့် 🚚\n\nဒီ Link လေးကနေတစ်ဆင့် Rider ဘယ်ရောက်နေပြီလဲဆိုတာကို Live ကြည့်လို့ရပါတယ်ရှင့် 👇\n${trackLink}`;
-    } else {
-      const feedbackLink = `${frontendUrl}/feedback/${customerId}`;
-      text = `မင်္ဂလာပါရှင့်။ ယနေ့အတွက် Busy Boss Diet ရဲ့ နေ့လယ်စာ/ညစာ လေး ပို့ဆောင်ပေးပြီးပါပြီ။ အရသာနဲ့ ပတ်သက်ပြီးဖြစ်စေ၊ Delivery နဲ့ ပတ်သက်ပြီးဖြစ်စေ အထွေထွေ ကိစ္စတွေအတွက်ဖြစ်စေ အကြံပြုလိုပါက (သို့မဟုတ်) တိုင်ကြားလိုပါက အောက်ပါ Link လေးမှတစ်ဆင့် ဝင်ရောက်ရေးသားနိုင်ပါတယ်ရှင့် 👇\n\n${feedbackLink}`;
-    }
-
-    const zernioUrl = `https://zernio.com/api/v1/inbox/conversations/${conversationId}/messages`;
-    await fetch(zernioUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zernioApiKey}` },
-      body: JSON.stringify({
-        accountId: process.env.ZERNIO_ACCOUNT_ID || '6a4c8e0e9d9472faaea1c230',
-        message: text
-      })
-    });
-    console.log(`[ZERNIO] Sent delivery feedback link to customer ${customerId}`);
-
-    // Insert locally so UI updates instantly
-    const { data: newMsg } = await supabaseAdmin.schema('crm')
-      .from('inquiries_messages')
-      .insert({
-        inquiry_id: inquiryIds[0],
-        message_text: text,
-        sender_type: 'ai_bot',
-        metadata: { auto_reply: true, conversationId, delivery_alert: true }
-      })
-      .select().single();
-      
-    if (newMsg) emitInquiryMessage(inquiryIds[0], newMsg);
-
-  } catch (err) {
-    console.error('[ZERNIO DELIVERY ERROR]', err.message);
-    throw err;
-  }
-}
-
-router.put('/orders/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { custom_delivery_address } = req.body;
-    const { data, error } = await supabaseAdmin.from('operations_orders')
-      .update({ custom_delivery_address, updated_by: req.user.id, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.json(data);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/orders/:id', opsController.updateOrder);
 
 router.put('/orders/batch-status', async (req, res) => {
   try {
-    const { order_ids, delivery_status } = req.body;
+    const { order_ids, delivery_status, proof_of_delivery_url } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
       return res.status(400).json({ error: 'order_ids array is required' });
     }
@@ -890,19 +148,19 @@ router.put('/orders/batch-status', async (req, res) => {
       updateData.delivered_at = now;
     }
     
-    // Update all orders
-    const { data: updatedOrders, error: updateErr } = await supabase
+    // Update all orders (No fallback, let it throw if error)
+    const resUpdate = await supabase
       .from('operations_orders')
       .update(updateData)
       .in('id', order_ids)
       .select();
       
-    if (updateErr) throw updateErr;
+    if (resUpdate.error) throw resUpdate.error;
+    const updatedOrders = resUpdate.data;
 
     // Process inventory deduction if DELIVERED
     if (delivery_status === 'DELIVERED' && updatedOrders && updatedOrders.length > 0) {
       for (const order of updatedOrders) {
-        // Just duplicate the single order deduction logic here for safety
         const { data: orderDetails, error: orderErr } = await supabase
           .from('operations_orders')
           .select(`
@@ -937,44 +195,23 @@ router.put('/orders/batch-status', async (req, res) => {
             }
           });
           
-          // Acquire lock to prevent race condition during deduction
-          await inventoryMutex.lock();
-          try {
-            for (const [itemId, deductQty] of Object.entries(deductions)) {
-              const { data: balData, error: balErr } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
-              if (balErr || !balData) {
-                console.error(`[BOM DEDUCTION ERROR] Missing balance for item ${itemId}`);
-                throw new Error(`Missing inventory balance for item ${itemId}`);
-              }
-              
-              const { error: txErr } = await supabase.from('inventory_transactions').insert({
-                item_id: itemId,
-                transaction_type: 'USAGE_OUT',
-                quantity_change: deductQty,
-                reference_type: 'ORDER_BATCH',
-                reference_id: order.id,
-                created_by: req.user.id
-              });
-              if (txErr) throw txErr;
-
-              const { error: updErr } = await supabase.from('inventory_balances').update({
-                current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
-                updated_by: req.user.id,
-                updated_at: now
-              }).eq('id', balData.id);
-              if (updErr) throw updErr;
-            }
-          } finally {
-            inventoryMutex.unlock();
-          }
+          await inventoryModule.deductStockForBOM(deductions, `BATCH-${order.id}`, req.user.id);
         }
       }
       
-      // TRIGGER ZERNIO DELIVERY ALERT
-      const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
+      // TRIGGER ZERNIO DELIVERY ALERT (Include proof of delivery photo)
+      const customerIds = [...new Set(updatedOrders.map(o => o.customer_id).filter(Boolean))];
+      if (proof_of_delivery_url) {
+        for (const cid of customerIds) {
+          try {
+            await crmModule.updateDeliveryProof(cid, proof_of_delivery_url);
+          } catch (e) {
+            console.warn('[DELIVERY_PROOF_UPDATE_ERR]', e.message);
+          }
+        }
+      }
       for (const cid of customerIds) {
-        // Run sequentially to ensure fail-fast behavior on delivery alert error
-        await sendDeliveryZernioMessage(cid, null, 'DELIVERED');
+        await sendDeliveryZernioMessage(cid, null, 'DELIVERED', proof_of_delivery_url);
       }
     } else if (delivery_status === 'ON_THE_WAY' && updatedOrders && updatedOrders.length > 0) {
       const customerIds = [...new Set(updatedOrders.map(o => o.customer_id))];
@@ -989,253 +226,28 @@ router.put('/orders/batch-status', async (req, res) => {
   }
 });
 
-router.delete('/orders/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await opsDelete('orders', id);
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.delete('/orders/:id', opsController.deleteOrder);
 
-router.put('/orders/:id/status', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { delivery_status } = req.body;
-    const now = new Date().toISOString();
-    
-    const updateData = {
-      delivery_status,
-      updated_by: req.user.id,
-      updated_at: now
-    };
-    
-    if (delivery_status === 'DELIVERED') {
-      updateData.delivered_at = now;
-    }
-    
-    const result = await opsUpdate('orders', id, updateData);
-    
-    if (delivery_status === 'DELIVERED' && result) {
-      const { data: orderDetails, error: orderErr } = await supabase
-        .from('operations_orders')
-        .select(`
-          count,
-          operations_daily_menus (
-            operations_menu_types (
-              operations_menus (
-                operations_recipes (inventory_item_id, quantity)
-              )
-            )
-          )
-        `)
-        .eq('id', id)
-        .single();
-        
-      if (orderErr) {
-        console.error('[BOM DEDUCTION ERROR] Could not fetch order details:', orderErr);
-        throw new Error('Failed to fetch order details for BOM deduction');
-      }
-        
-      if (orderDetails && orderDetails.operations_daily_menus) {
-        const orderCount = orderDetails.count || 1;
-        const deductions = {}; 
-        
-        orderDetails.operations_daily_menus.operations_menu_types.forEach(mt => {
-          if (mt.operations_menus && mt.operations_menus.operations_recipes) {
-            mt.operations_menus.operations_recipes.forEach(r => {
-              if (r.inventory_item_id && r.quantity) {
-                deductions[r.inventory_item_id] = (deductions[r.inventory_item_id] || 0) + (r.quantity * orderCount);
-              }
-            });
-          }
-        });
-        
-        // Acquire lock to prevent race condition during deduction
-        await inventoryMutex.lock();
-        try {
-          for (const [itemId, deductQty] of Object.entries(deductions)) {
-            const { data: balData, error: balErr } = await supabase.from('inventory_balances').select('*').eq('item_id', itemId).single();
-            if (balErr || !balData) {
-              console.error(`[BOM DEDUCTION ERROR] Missing balance for item ${itemId}`);
-              throw new Error(`Missing inventory balance for item ${itemId}`);
-            }
-            
-            const { error: txErr } = await supabase.from('inventory_transactions').insert({
-              item_id: itemId,
-              transaction_type: 'USAGE_OUT',
-              quantity_change: deductQty,
-              reference_type: 'ORDER',
-              reference_id: id,
-              created_by: req.user.id
-            });
-            if (txErr) throw txErr;
-
-            const { error: updErr } = await supabase.from('inventory_balances').update({
-              current_quantity: parseFloat(balData.current_quantity) - parseFloat(deductQty),
-              updated_by: req.user.id,
-              updated_at: now
-            }).eq('id', balData.id);
-            if (updErr) throw updErr;
-          }
-        } finally {
-          inventoryMutex.unlock();
-        }
-      }
-      
-      // TRIGGER ZERNIO DELIVERY ALERT FOR SINGLE ORDER
-      if (result && result.customer_id) {
-        await sendDeliveryZernioMessage(result.customer_id, result.id, 'DELIVERED');
-      }
-    } else if (delivery_status === 'ON_THE_WAY' && result && result.customer_id) {
-      await sendDeliveryZernioMessage(result.customer_id, result.id, 'ON_THE_WAY');
-    }
-    
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+// Move single order status below batch-status to avoid route shadowing
+router.put('/orders/:id/status', opsController.updateOrderStatus);
 
 // ==========================================
 // RIDERS (for admin assignment dropdown)
 // ==========================================
 
-router.get('/riders', async (req, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('sys_users')
-      .select('id, full_name, username')
-      .eq('role', 'rider')
-      .eq('is_active', true)
-      .order('full_name');
-    if (error) throw error;
-    return res.json(data || []);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/riders', opsController.getRiders);
 
 // Admin assigns order to a rider
-router.put('/orders/:id/assign', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rider_id } = req.body;
-
-    // Upsert into rider_assignments
-    const { data: existing } = await supabase
-      .from('operations_rider_assignments')
-      .select('id')
-      .eq('order_id', id)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await supabase
-        .from('operations_rider_assignments')
-        .update({ rider_id: rider_id || null, status: rider_id ? 'ASSIGNED' : null, updated_at: new Date().toISOString() })
-        .eq('order_id', id);
-      if (error) throw error;
-    } else if (rider_id) {
-      const { error } = await supabase
-        .from('operations_rider_assignments')
-        .insert({ order_id: id, rider_id, status: 'ASSIGNED' });
-      if (error) throw error;
-    }
-
-    return res.json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.put('/orders/:id/assign', opsController.assignRiderToOrder);
 
 // Rider updates their own delivery status
 // Flow: ASSIGNED → PICKING_UP → ON_THE_WAY → DELIVERED
-router.put('/orders/:id/rider-status', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body; // PICKING_UP | ON_THE_WAY | DELIVERED
-    const now = new Date().toISOString();
-
-    const assignmentUpdate = { status, updated_at: now };
-    if (status === 'ON_THE_WAY') assignmentUpdate.picked_up_at = now;
-
-    try {
-      const { error: aErr } = await supabaseAdmin
-        .from('operations_rider_assignments')
-        .update(assignmentUpdate)
-        .eq('order_id', id);
-      if (aErr) throw new Error('RiderAssignment Error: ' + JSON.stringify(aErr));
-    } catch (err) {
-      throw err;
-    }
-
-    // If arrived_at column exists, try to set it too (soft fail)
-    if (status === 'PICKING_UP') {
-      try {
-        await supabaseAdmin.from('operations_rider_assignments')
-          .update({ arrived_at: now })
-          .eq('order_id', id);
-      } catch (e) {
-        console.error('Failed to update arrived_at', e);
-        throw e;
-      }
-    }
-
-    // Sync delivery_status on orders table
-    let delivery_status = 'PENDING';
-    if (status === 'ON_THE_WAY') delivery_status = 'ON_THE_WAY';
-    else if (status === 'DELIVERED') delivery_status = 'DELIVERED';
-
-    const orderUpdate = { delivery_status, updated_by: req.user.id, updated_at: now };
-    if (status === 'DELIVERED') orderUpdate.delivered_at = now;
-    
-    try {
-      const { error: oErr } = await supabaseAdmin.from('operations_orders').update(orderUpdate).eq('id', id);
-      if (oErr) throw new Error('OperationsOrders Error: ' + JSON.stringify(oErr));
-    } catch (err) {
-      throw err;
-    }
-
-    // Notify admins in real-time via socket (so Dashboard refreshes without polling)
-    emitOrderStatusUpdate(id, delivery_status, req.user.id);
-
-    // Fire Zernio notification for ON_THE_WAY and DELIVERED
-    if (status === 'ON_THE_WAY' || status === 'DELIVERED') {
-      const { data: order } = await supabaseAdmin.from('operations_orders').select('customer_id').eq('id', id).single();
-      if (order?.customer_id) {
-        sendDeliveryZernioMessage(order.customer_id, id, status).catch(e => console.error('[Rider Status Zernio]', e));
-      }
-    }
-
-    return res.json({ success: true });
-  } catch (e) {
-    console.error('[Rider Status Error]:', e);
-    return res.status(500).json({ error: e.message || e });
-  }
-});
+router.put('/orders/:id/rider-status', opsController.updateRiderStatus);
 
 // ==========================================
 // SKIP DAYS
 // ==========================================
 
-router.get('/skip-days', async (req, res) => {
-  try {
-    const skips = await opsFetch('skip_days');
-    return res.json(skips);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/skip-days', async (req, res) => {
-  try {
-    const data = req.body;
-    data.created_by = req.user.id;
-    const result = await opsInsert('skip_days', data);
-    return res.json(result);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
+router.get('/skip-days', opsController.getSkipDays);
+router.post('/skip-days', opsController.createSkipDay);
 export default router;
