@@ -20,7 +20,9 @@ router.get('/', requireAdmin, async (req, res) => {
 // POST /api/attendance
 router.post('/', async (req, res) => {
   try {
-    const employee_id = req.user.employee_id;
+    // BUG FIX: Use employee_id from request body (form selection) if provided by admin.
+    // Fall back to logged-in user's own employee_id only if not specified.
+    const employee_id = req.body.employee_id || req.user.employee_id;
     if (!employee_id) return res.status(403).json({ error: 'No employee ID associated with this account' });
     const result = await attendanceService.manualCheckIn(req.body, employee_id);
     await dbInsert('sys_audit_logs', { user_id: req.user?.id || null, action: 'CREATE', module: 'Attendance', details: `Manual attendance check-in for employee ID: ${employee_id}`, ip_address: req.ip || '0.0.0.0' });

@@ -73,7 +73,13 @@ export const attendanceRepository = {
   getAttendanceRecordsCustom: async (targetDate = null) => {
     let recordsQuery = supabase.from('attendance_records').select('*').order('check_in', { ascending: false });
     if (targetDate) {
-      recordsQuery = recordsQuery.gte('check_in', `${targetDate}T00:00:00`).lte('check_in', `${targetDate}T23:59:59`);
+      // BUG FIX: Use Bangkok timezone boundaries (+07:00) so that UTC-stored records
+      // (Photo/QR method) for early-morning check-ins are not missed.
+      // e.g., Chan Myae Aung check-in at 5:56 AM BKK = 2026-10-12T22:56Z which
+      // would be excluded by a plain T00:00:00 - T23:59:59 UTC range.
+      recordsQuery = recordsQuery
+        .gte('check_in', `${targetDate}T00:00:00+07:00`)
+        .lte('check_in', `${targetDate}T23:59:59+07:00`);
     } else {
       recordsQuery = recordsQuery.limit(500);
     }
