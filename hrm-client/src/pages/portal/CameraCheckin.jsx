@@ -6,6 +6,7 @@ import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toBkkDate, getBkkToday } from '../../utils/dateUtils';
 
 export default function CameraCheckin() {
   const qc = useQueryClient();
@@ -40,10 +41,11 @@ export default function CameraCheckin() {
     queryFn: () => api.get('/portal').then(res => res.data)
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  // Business day is Bangkok. check_in is a UTC instant, so a 5:56 AM BKK check-in is the previous UTC date.
+  const today = getBkkToday();
   
   // Find today's records
-  const todayRecords = portalData?.attendance_records?.filter(r => r.check_in && r.check_in.startsWith(today)) || [];
+  const todayRecords = portalData?.attendance_records?.filter(r => r.check_in && toBkkDate(r.check_in) === today) || [];
   const todayOpenRecord = todayRecords.find(r => !r.check_out);
   const hasCompletedAttendance = todayRecords.length > 0 && todayRecords.every(r => r.check_out);
   

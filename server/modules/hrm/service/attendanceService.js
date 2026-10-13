@@ -248,9 +248,9 @@ export const attendanceService = {
       t.emp_code = emp.employee_id || '—';
     });
 
-    const statsPresent = enriched.filter(r => String(r.check_in || '').startsWith(today)).length;
-    const statsLate = enriched.filter(r => r.is_late && String(r.check_in || '').startsWith(today)).length;
-    const statsInOffice = enriched.filter(r => String(r.check_in || '').startsWith(today) && !r.check_out).length;
+    const statsPresent = enriched.filter(r => r.check_in && getBkkDateString(r.check_in) === today).length;
+    const statsLate = enriched.filter(r => r.is_late && r.check_in && getBkkDateString(r.check_in) === today).length;
+    const statsInOffice = enriched.filter(r => r.check_in && getBkkDateString(r.check_in) === today && !r.check_out).length;
 
     return {
       records: enriched, employees,
@@ -336,10 +336,10 @@ export const attendanceService = {
     await attendanceRepository.updateQrToken(qrData.id, { used: true });
 
     const now = new Date().toISOString();
-    const today = now.split('T')[0];
+    const today = getBkkDateString(now);
 
     const openRecords = await attendanceRepository.getAttendanceRecords({ employee_id: qrData.employee_id }, { order: 'check_in', ascending: false, limit: 10 });
-    const todayOpen = openRecords.find(r => r.check_in && r.check_in.startsWith(today) && !r.check_out);
+    const todayOpen = openRecords.find(r => r.check_in && getBkkDateString(r.check_in) === today && !r.check_out);
 
     const latestRecord = openRecords[0];
     if (latestRecord) {
@@ -481,7 +481,7 @@ export const attendanceService = {
   deleteBiometricMapping: async (id) => attendanceRepository.deleteBiometricMapping(id),
 
   getAvailableShifts: async (employeeId) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBkkDateString(new Date());
     const emp = await dbFetchOne('Employees', 'id, Dept_id', { id: employeeId });
 
     const schedule = await attendanceRepository.getDailySchedule(employeeId, today, false);
