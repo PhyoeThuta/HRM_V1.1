@@ -10,6 +10,7 @@ import ShiftApprovalsTab from '../../components/attendance/ShiftApprovalsTab';
 import WeeklyRosterPlanner from '../../components/attendance/WeeklyRosterPlanner';
 import OvertimeTab from './OvertimeTab';
 import { useLanguage } from '../../context/LanguageContext';
+import { toBkkDate, getBkkToday, formatBkkDateTime } from '../../utils/dateUtils';
 
 function StatCard({ label, value, color }) {
   return (
@@ -75,14 +76,6 @@ export default function Attendance() {
     onSuccess: () => qc.invalidateQueries(['attendance']),
   });
 
-
-  // Convert a check_in timestamp (UTC or local) to Bangkok YYYY-MM-DD date string
-  const toBkkDate = (isoString) => {
-    if (!isoString) return '';
-    try {
-      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(isoString));
-    } catch { return ''; }
-  };
 
   const records = (data?.records || []).filter(r => {
     const nameMatch = !filter.name || (r.Full_name || '').toLowerCase().includes(filter.name.toLowerCase());
@@ -169,10 +162,12 @@ export default function Attendance() {
       let s = isoString.replace(' ', 'T');
       if (s.split(':').length === 2) s += ':00'; 
       
-      // Photo and QR save as UTC in DB. Bio and Manual save as Local Time.
+      // Photo and QR save the true UTC instant: always display in the business timezone (Asia/Bangkok).
+      // Bio and Manual save Bangkok wall-clock time (offset is meaningless there).
       if (['Photo', 'QR'].includes(method)) {
-        if (!s.includes('Z') && !s.includes('+') && !s.includes('-0')) s += 'Z'; 
-        s = s.replace(/\+00(:00)?$/, 'Z');
+        if (!/(Z|[+-]\d{2}(:?\d{2})?)$/.test(s)) s += 'Z';
+        const inst = new Date(s);
+        return isNaN(inst.getTime()) ? isoString : formatBkkDateTime(inst);
       } else {
         // Strip any accidental UTC indicators so it parses as Local Time
         s = s.replace(/Z$/, '').replace(/\+00(:00)?$/, '');
@@ -354,8 +349,8 @@ export default function Attendance() {
                   ) : (
                     <button type="submit" disabled={photoMutation.isPending} className="att-photo-submit w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                       {photoMutation.isPending ? t('hrm.attendance.photo.submitting') : (() => {
-                        const today = new Date().toISOString().split('T')[0];
-                        const isOpen = records.find(r => r.employee_id === selectedPhotoEmpId && String(r.check_in || '').startsWith(today) && !r.check_out);
+                        const today = getBkkToday();
+                        const isOpen = records.find(r => r.employee_id === selectedPhotoEmpId && toBkkDate(r.check_in) === today && !r.check_out);
                         return isOpen ? `📸 ${t('hrm.attendance.photo.submitCheckout')}` : `📸 ${t('hrm.attendance.photo.submitCheckin')}`;
                       })()}
                     </button>
@@ -374,7 +369,7 @@ export default function Attendance() {
               <div className="flex flex-wrap items-center gap-2">
                 <input value={filter.name} onChange={e => setFilter(f => ({ ...f, name: e.target.value }))} placeholder={t('hrm.attendance.records.search')} className="att-records-filter-input form-input w-40" />
                 <input type="date" value={filter.date} onChange={e => setFilter(f => ({ ...f, date: e.target.value }))} className="att-records-filter-input form-input w-40" />
-                <button type="button" onClick={() => setFilter(f => ({ ...f, date: new Date().toISOString().split('T')[0] }))} className={`att-date-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filter.date === new Date().toISOString().split('T')[0] ? 'att-date-btn-active bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>{t('hrm.attendance.records.today')}</button>
+                <button type="button" onClick={() => setFilter(f => ({ ...f, date: getBkkToday() }))} className={`att-date-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filter.date === getBkkToday() ? 'att-date-btn-active bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>{t('hrm.attendance.records.today')}</button>
                 <button type="button" onClick={() => setFilter(f => ({ ...f, date: '' }))} className={`att-date-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${!filter.date ? 'att-date-btn-active bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-surface-900 text-slate-400 border-white/5 hover:text-white'}`}>{t('hrm.attendance.records.allDates')}</button>
                 <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))} className="att-records-filter-input form-input w-36">
                   <option value="all">{t('hrm.attendance.records.allStatus')}</option>
