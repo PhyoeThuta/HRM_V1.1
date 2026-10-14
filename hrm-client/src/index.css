@@ -331,7 +331,146 @@ html[data-theme="light"] button:disabled.bg-\[\#334155\] {
   box-shadow: none !important;
 }
 
-/* Portal Tips & Alert Banners */
+/* ======================== EMPLOYEE PORTAL DASHBOARD (LIGHT MODE) ======================== */
+/* Welcome Banner */
+html[data-theme="light"] .portal-welcome-card,
+html[data-theme="light"] [style*="rgba(99,102,241,0.2), rgba(139,92,246,0.1)"],
+html[data-theme="light"] [style*="rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1)"] {
+  background: linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F5F3FF 100%) !important;
+  border: 1px solid #C7D2FE !important;
+  box-shadow: 0 4px 20px -2px rgba(79, 70, 229, 0.08) !important;
+}
+html[data-theme="light"] .portal-welcome-card h2 {
+  color: #0F172A !important;
+  font-weight: 800 !important;
+}
+html[data-theme="light"] .portal-welcome-card p {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+html[data-theme="light"] .portal-avatar-initial {
+  color: #FFFFFF !important;
+}
+
+/* Handover & Offboarding Warning Alert Banners */
+html[data-theme="light"] .portal-alert-banner,
+html[data-theme="light"] [style*="rgba(244,63,94,0.2)"],
+html[data-theme="light"] [style*="rgba(244, 63, 94, 0.2)"] {
+  background: #FFF1F2 !important; /* Soft rose background */
+  border: 1px solid #FECDD3 !important; /* Crisp clean rose border */
+  box-shadow: 0 4px 16px -2px rgba(244, 63, 94, 0.08) !important;
+}
+html[data-theme="light"] .portal-alert-icon,
+html[data-theme="light"] [style*="rgba(244,63,94,0.2)"] .w-10.h-10,
+html[data-theme="light"] [style*="rgba(244, 63, 94, 0.2)"] .w-10.h-10 {
+  background: #FFE4E6 !important;
+  color: #E11D48 !important;
+}
+html[data-theme="light"] .portal-alert-title,
+html[data-theme="light"] [style*="rgba(244,63,94,0.2)"] h3,
+html[data-theme="light"] [style*="rgba(244, 63, 94, 0.2)"] h3 {
+  color: #9F1239 !important; /* Rose-800: deep rich burgundy bold, 100% legible */
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .portal-alert-desc,
+html[data-theme="light"] [style*="rgba(244,63,94,0.2)"] p,
+html[data-theme="light"] [style*="rgba(244, 63, 94, 0.2)"] p {
+  color: #4C0519 !important; /* Rose-950: ultra-clear, high contrast description */
+  font-weight: 500 !important;
+}
+
+/* Daily Attendance Check-In Bar */
+html[data-theme="light"] .portal-checkin-banner,
+html[data-theme="light"] [style*="rgba(99,102,241,0.15), rgba(16,185,129,0.15)"],
+html[data-theme="light"] [style*="rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.15)"] {
+  background: linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #ECFDF5 100%) !important;
+  border: 1px solid #C7D2FE !important;
+  box-shadow: 0 4px 16px -2px rgba(79, 70, 229, 0.08) !important;
+}
+html[data-theme="light"] .portal-checkin-banner h2,
+html[data-theme="light"] .portal-checkin-title {
+  color: #0F172A !important;
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .portal-checkin-banner p,
+html[data-theme="light"] .portal-checkin-desc {
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+/* Quick Stat Cards */
+html[data-theme="light"] .portal-stat-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+html[data-theme="light"] .portal-stat-card:hover {
+  border-color: #C7D2FE !important;
+  box-shadow: 0 8px 24px -4px rgba(79, 70, 229, 0.12) !important;
+}
+html[data-theme="light"] .portal-stat-card .portal-stat-num,
+html[data-theme="light"] .portal-stat-card p.text-2xl {
+  color: #0F172A !important;
+  font-weight: 900 !important;
+}
+html[data-theme="light"] .portal-stat-card:hover .portal-stat-num,
+html[data-theme="light"] .portal-stat-card:hover p.text-2xl {
+  color: #4F46E5 !important;
+}
+html[data-theme="light"] .portal-stat-card p.text-xs {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+/* General Portal Content Cards */
+html[data-theme="light"] .portal-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+html[data-theme="light"] .portal-card h2 {
+  color: #0F172A !important;
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .portal-card p {
+  color: #475569 !important;
+}
+
+/* Portal Secondary Button (e.g., Incoming Handover) */
+html[data-theme="light"] .portal-btn-secondary,
+html[data-theme="light"] a[href="/portal/handover/incoming"] {
+  background-color: #FFFFFF !important;
+  color: #1E293B !important;
+  border: 1px solid #CBD5E1 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
+  font-weight: 600 !important;
+}
+html[data-theme="light"] .portal-btn-secondary:hover,
+html[data-theme="light"] a[href="/portal/handover/incoming"]:hover {
+  background-color: #EEF2FF !important;
+  color: #4F46E5 !important;
+  border-color: #C7D2FE !important;
+}
+
+/* Leave Progress Track */
+html[data-theme="light"] .portal-progress-bg {
+  background-color: #E2E8F0 !important;
+}
+
+/* Announcement Cards */
+html[data-theme="light"] .portal-announcement-card {
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+}
+html[data-theme="light"] .portal-announcement-card p.text-xs {
+  color: #0F172A !important;
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .portal-announcement-card p.text-\[11px\] {
+  color: #475569 !important;
+}
+
+/* Portal Tips & Cards */
 html[data-theme="light"] .portal-tip-card,
 html[data-theme="light"] .bg-\[\#121421\].border-indigo-500\/20 {
   background-color: #FAFAF8 !important;
@@ -436,6 +575,20 @@ html[data-theme="light"] .text-slate-400 { color: #475569 !important; }  /* Slat
 html[data-theme="light"] .text-slate-500 { color: #64748B !important; }  /* Slate-500 (Accessible metadata, no more washed out silver) */
 html[data-theme="light"] .text-slate-600 { color: #64748B !important; }
 
+/* CRITICAL: Buttons, Badges, Dark Surfaces, and Avatars MUST retain pure white text */
+html[data-theme="light"] button.text-white,
+html[data-theme="light"] a.text-white,
+html[data-theme="light"] button[class*="text-white"],
+html[data-theme="light"] a[class*="text-white"],
+html[data-theme="light"] button .text-white,
+html[data-theme="light"] a .text-white,
+html[data-theme="light"] [role="button"].text-white,
+html[data-theme="light"] [role="button"] .text-white,
+html[data-theme="light"] .portal-avatar-initial,
+html[data-theme="light"] .text-white-force {
+  color: #FFFFFF !important;
+}
+
 /* Form Labels & Field Hints */
 html[data-theme="light"] label,
 html[data-theme="light"] .form-label {
@@ -447,21 +600,54 @@ html[data-theme="light"] ::placeholder {
 }
 
 /* Accessible High-Contrast Semantic Colors in Light Mode */
+html[data-theme="light"] .text-emerald-100,
+html[data-theme="light"] .text-emerald-200 {
+  color: #065F46 !important;
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .text-emerald-300,
+html[data-theme="light"] [class*="text-emerald-300"] {
+  color: #064E3B !important;
+  font-weight: 600 !important;
+}
 html[data-theme="light"] .text-emerald-400,
 html[data-theme="light"] .text-emerald-500 {
   color: #047857 !important; /* Deep emerald green */
   font-weight: 600 !important;
+}
+
+html[data-theme="light"] .text-rose-100,
+html[data-theme="light"] .text-rose-200 {
+  color: #9F1239 !important; /* Rose-800: deep rich burgundy, 100% readable */
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .text-rose-300,
+html[data-theme="light"] [class*="text-rose-300"] {
+  color: #4C0519 !important; /* Rose-950: crystal clear dark text */
+  font-weight: 500 !important;
 }
 html[data-theme="light"] .text-rose-400,
 html[data-theme="light"] .text-rose-500 {
   color: #DC2626 !important; /* Deep crimson/rose red */
   font-weight: 600 !important;
 }
+
+html[data-theme="light"] .text-amber-100,
+html[data-theme="light"] .text-amber-200 {
+  color: #92400E !important;
+  font-weight: 700 !important;
+}
+html[data-theme="light"] .text-amber-300,
+html[data-theme="light"] [class*="text-amber-300"] {
+  color: #78350F !important;
+  font-weight: 500 !important;
+}
 html[data-theme="light"] .text-amber-400,
 html[data-theme="light"] .text-amber-500 {
   color: #B45309 !important; /* Deep readable amber */
   font-weight: 600 !important;
 }
+
 html[data-theme="light"] .text-cyan-400,
 html[data-theme="light"] .text-cyan-500 {
   color: #0369A1 !important; /* Deep sky/cyan blue */
@@ -551,6 +737,48 @@ html[data-theme="light"] button[class*="hover:bg-indigo-700"]:hover:not(:disable
   background-color: #4338CA !important;
   border-color: #4338CA !important;
   box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35) !important;
+}
+
+/* Emerald / Success Action Buttons */
+html[data-theme="light"] button.bg-emerald-600,
+html[data-theme="light"] a.bg-emerald-600,
+html[data-theme="light"] button.bg-emerald-500,
+html[data-theme="light"] a.bg-emerald-500,
+html[data-theme="light"] .portal-btn-qr {
+  background-color: #059669 !important;
+  color: #FFFFFF !important;
+  border-color: #059669 !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
+}
+html[data-theme="light"] button.bg-emerald-600:hover,
+html[data-theme="light"] a.bg-emerald-600:hover,
+html[data-theme="light"] button.bg-emerald-500:hover,
+html[data-theme="light"] a.bg-emerald-500:hover,
+html[data-theme="light"] .portal-btn-qr:hover {
+  background-color: #047857 !important;
+  color: #FFFFFF !important;
+  border-color: #047857 !important;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35) !important;
+}
+
+/* Rose / Danger Action Buttons */
+html[data-theme="light"] button.bg-rose-500,
+html[data-theme="light"] a.bg-rose-500,
+html[data-theme="light"] button.bg-rose-600,
+html[data-theme="light"] a.bg-rose-600 {
+  background-color: #E11D48 !important;
+  color: #FFFFFF !important;
+  border-color: #E11D48 !important;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25) !important;
+}
+html[data-theme="light"] button.bg-rose-500:hover,
+html[data-theme="light"] a.bg-rose-500:hover,
+html[data-theme="light"] button.bg-rose-600:hover,
+html[data-theme="light"] a.bg-rose-600:hover {
+  background-color: #BE123C !important;
+  color: #FFFFFF !important;
+  border-color: #BE123C !important;
+  box-shadow: 0 6px 16px rgba(225, 29, 72, 0.35) !important;
 }
 
 /* Disabled state */
