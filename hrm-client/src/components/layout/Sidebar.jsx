@@ -11,18 +11,18 @@ const NavItem = ({ to, label, icon, end }) => (
       `sidebar-nav-item group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
         isActive
           ? 'sidebar-nav-item-active bg-brand-green/15 text-brand-green border border-brand-green/30'
-          : 'text-slate-400 hover:bg-white/5 hover:text-white'
+          : 'sidebar-nav-item-inactive text-slate-400'
       }`
     }
   >
     {({ isActive }) => (
       <>
-        <div className={`sidebar-nav-icon-bg w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-brand-green/20' : 'group-hover:bg-white/5'}`}>
-          <svg className={`sidebar-nav-icon w-4 h-4 ${isActive ? 'text-brand-green' : 'text-slate-500 group-hover:text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+        <div className={`sidebar-nav-icon-bg w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-brand-green/20' : ''}`}>
+          <svg className={`sidebar-nav-icon w-4 h-4 ${isActive ? 'text-brand-green' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
             <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
           </svg>
         </div>
-        <span className="sidebar-nav-label">{label}</span>
+        <span className="sidebar-nav-label font-medium">{label}</span>
       </>
     )}
   </NavLink>

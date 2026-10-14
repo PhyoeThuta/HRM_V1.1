@@ -145,50 +145,151 @@ html[data-theme="light"] .dashboard-card-secondary {
 html[data-theme="light"] .dashboard-text-primary { color: #1A1A1A !important; }
 html[data-theme="light"] .dashboard-text-secondary { color: #5C5C5C !important; }
 
-/* ======================== SIDEBAR ======================== */
+/* ======================== SIDEBAR (LIGHT MODE) ======================== */
 html[data-theme="light"] aside {
   background: #FFFFFF !important;
-  border-right: 1px solid #E8E5DE !important;
+  border-right: 1px solid #E2E8F0 !important;
   box-shadow: none !important;
 }
 /* Internal sidebar dividers (logo area, user footer) */
-html[data-theme="light"] aside [style*="rgba(255,255,255,0.05)"] { border-color: #E8E5DE !important; }
-/* Sidebar typography */
-html[data-theme="light"] aside .text-white { color: #0F172A !important; }
-html[data-theme="light"] aside p { color: #0F172A !important; }
-html[data-theme="light"] aside .text-slate-400 { color: #334155 !important; }
-html[data-theme="light"] aside .text-slate-500 { color: #64748B !important; }
-html[data-theme="light"] aside .text-\[10px\] { color: #64748B !important; }
-/* Accordion indent line */
-html[data-theme="light"] aside .border-l { border-color: #E8E5DE !important; }
-/* Icon containers */
-html[data-theme="light"] aside [class*="bg-white/5"],
-html[data-theme="light"] aside [class*="bg-white/10"] { background: rgba(0,0,0,0.04) !important; }
-html[data-theme="light"] aside [class*="bg-brand-green/20"] { background: rgba(79,70,229,0.10) !important; }
-/* Nav item — inactive */
-html[data-theme="light"] aside a { color: #334155; font-weight: 500; }
-html[data-theme="light"] aside a:hover { color: #0F172A !important; background: #F1F5F9 !important; }
-/* Nav item — active (Royal Indigo Accent) */
-html[data-theme="light"] aside a[class*="bg-brand-green"] {
+html[data-theme="light"] aside [style*="rgba(255,255,255,0.05)"],
+html[data-theme="light"] aside .sidebar-header,
+html[data-theme="light"] aside .sidebar-footer { 
+  border-color: #E2E8F0 !important; 
+}
+
+/* Sidebar Logo typography */
+html[data-theme="light"] aside .sidebar-logo-title,
+html[data-theme="light"] aside .text-white { 
+  color: #0F172A !important; 
+}
+html[data-theme="light"] aside .sidebar-logo-sub,
+html[data-theme="light"] aside .text-slate-400 { 
+  color: #64748B !important; 
+}
+
+/* Sidebar Section Headers (Attendance, HR, Profile, CRM) */
+html[data-theme="light"] aside .sidebar-section-title,
+html[data-theme="light"] aside p.text-\[10px\],
+html[data-theme="light"] aside .text-\[10px\] { 
+  color: #64748B !important; 
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+}
+
+/* Sidebar Nav Item — INACTIVE (Clear, dark Slate-700 text on transparent) */
+html[data-theme="light"] aside .sidebar-nav-item,
+html[data-theme="light"] aside a.sidebar-nav-item,
+html[data-theme="light"] aside .sidebar-nav-item-inactive,
+html[data-theme="light"] aside a:not([class*="bg-brand-green"]):not([class*="bg-emerald"]):not([class*="sidebar-nav-item-active"]) {
+  background: transparent !important;
+  color: #334155 !important;
+  font-weight: 500 !important;
+  border: 1px solid transparent !important;
+}
+
+/* Nav Item Label */
+html[data-theme="light"] aside .sidebar-nav-label,
+html[data-theme="light"] aside .sidebar-nav-item span {
+  color: #334155 !important;
+  font-weight: 500 !important;
+}
+
+/* Nav Item Icon */
+html[data-theme="light"] aside .sidebar-nav-icon,
+html[data-theme="light"] aside a:not([class*="bg-brand-green"]) svg {
+  color: #64748B !important;
+}
+
+/* Nav Item Icon Box */
+html[data-theme="light"] aside .sidebar-nav-icon-bg {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+/* Nav Item Hover State */
+html[data-theme="light"] aside a.sidebar-nav-item:hover,
+html[data-theme="light"] aside a:not([class*="bg-brand-green"]):hover {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+html[data-theme="light"] aside a.sidebar-nav-item:hover .sidebar-nav-label,
+html[data-theme="light"] aside a.sidebar-nav-item:hover span {
+  color: #0F172A !important;
+}
+html[data-theme="light"] aside a.sidebar-nav-item:hover svg {
+  color: #0F172A !important;
+}
+html[data-theme="light"] aside a.sidebar-nav-item:hover .sidebar-nav-icon-bg {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Sidebar Nav Item — ACTIVE (Royal Indigo Accent) */
+html[data-theme="light"] aside a.sidebar-nav-item-active,
+html[data-theme="light"] aside a[class*="bg-brand-green"],
+html[data-theme="light"] aside a[class*="sidebar-nav-item-active"] {
   background: #EEF2FF !important;
   color: #4F46E5 !important;
-  border-color: #C7D2FE !important;
+  border: 1px solid #C7D2FE !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.08) !important;
+}
+html[data-theme="light"] aside a.sidebar-nav-item-active .sidebar-nav-label,
+html[data-theme="light"] aside a[class*="bg-brand-green"] .sidebar-nav-label,
+html[data-theme="light"] aside a.sidebar-nav-item-active span,
+html[data-theme="light"] aside a[class*="bg-brand-green"] span {
+  color: #4F46E5 !important;
   font-weight: 600 !important;
 }
-html[data-theme="light"] aside a[class*="bg-brand-green"] svg { color: #4F46E5 !important; }
-/* Accordion header buttons */
-html[data-theme="light"] aside button { color: #5C5C5C !important; }
-html[data-theme="light"] aside button:hover { background: #F0EEE9 !important; color: #1A1A1A !important; }
-html[data-theme="light"] aside button[class*="bg-white/10"] {
-  background: #F0EEE9 !important;
-  color: #1A1A1A !important;
-  border-color: #E8E5DE !important;
+html[data-theme="light"] aside a.sidebar-nav-item-active svg,
+html[data-theme="light"] aside a[class*="bg-brand-green"] svg {
+  color: #4F46E5 !important;
 }
+html[data-theme="light"] aside a.sidebar-nav-item-active .sidebar-nav-icon-bg,
+html[data-theme="light"] aside a[class*="bg-brand-green"] .sidebar-nav-icon-bg {
+  background: #E0E7FF !important;
+  border-color: #C7D2FE !important;
+}
+
+/* Accordion category buttons (HRM, Administration) */
+html[data-theme="light"] aside .sidebar-category-btn,
+html[data-theme="light"] aside button { 
+  color: #334155 !important; 
+  background: transparent !important;
+}
+html[data-theme="light"] aside .sidebar-category-btn:hover,
+html[data-theme="light"] aside button:hover { 
+  background: #F1F5F9 !important; 
+  color: #0F172A !important; 
+}
+html[data-theme="light"] aside .sidebar-category-btn-open {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border: 1px solid #E2E8F0 !important;
+}
+html[data-theme="light"] aside .border-l { border-color: #E2E8F0 !important; }
+
 /* My Portal link (emerald) */
-html[data-theme="light"] aside a.text-emerald-400 { color: #4D8A3A !important; }
+html[data-theme="light"] aside a.text-emerald-400 { color: #047857 !important; }
 html[data-theme="light"] aside a[class*="bg-emerald-500/10"] {
-  background: rgba(77,138,58,0.07) !important;
-  border-color: rgba(77,138,58,0.18) !important;
+  background: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+  color: #047857 !important;
+}
+
+/* User Footer */
+html[data-theme="light"] aside .sidebar-user-name {
+  color: #0F172A !important;
+}
+html[data-theme="light"] aside .sidebar-user-role {
+  color: #64748B !important;
+}
+html[data-theme="light"] aside .sidebar-logout-icon-btn svg {
+  color: #64748B !important;
+}
+html[data-theme="light"] aside .sidebar-logout-icon-btn:hover svg {
+  color: #E11D48 !important;
 }
 
 /* ======================== TOP HEADER ======================== */
@@ -576,14 +677,21 @@ html[data-theme="light"] .text-slate-500 { color: #64748B !important; }  /* Slat
 html[data-theme="light"] .text-slate-600 { color: #64748B !important; }
 
 /* CRITICAL: Buttons, Badges, Dark Surfaces, and Avatars MUST retain pure white text */
-html[data-theme="light"] button.text-white,
-html[data-theme="light"] a.text-white,
-html[data-theme="light"] button[class*="text-white"],
-html[data-theme="light"] a[class*="text-white"],
-html[data-theme="light"] button .text-white,
-html[data-theme="light"] a .text-white,
-html[data-theme="light"] [role="button"].text-white,
-html[data-theme="light"] [role="button"] .text-white,
+html[data-theme="light"] .btn-primary,
+html[data-theme="light"] button.btn-primary,
+html[data-theme="light"] a.btn-primary,
+html[data-theme="light"] button.bg-indigo-600,
+html[data-theme="light"] a.bg-indigo-600,
+html[data-theme="light"] button.bg-indigo-700,
+html[data-theme="light"] a.bg-indigo-700,
+html[data-theme="light"] button.bg-emerald-600,
+html[data-theme="light"] a.bg-emerald-600,
+html[data-theme="light"] button.bg-rose-500,
+html[data-theme="light"] a.bg-rose-500,
+html[data-theme="light"] button.bg-rose-600,
+html[data-theme="light"] a.bg-rose-600,
+html[data-theme="light"] .portal-btn-photo,
+html[data-theme="light"] .portal-btn-qr,
 html[data-theme="light"] .portal-avatar-initial,
 html[data-theme="light"] .text-white-force {
   color: #FFFFFF !important;
@@ -3540,7 +3648,8 @@ html[data-theme='light'] .topbar-notif-msg-desc {
 }
 
 /* ======================== SIDEBAR (LIGHT MODE OVERRIDES) ======================== */
-html[data-theme='light'] .sidebar-root {
+html[data-theme='light'] .sidebar-root,
+html[data-theme='light'] aside {
   background: #FFFFFF !important;
   border-right: 1px solid #E2E8F0 !important;
 }
@@ -3553,92 +3662,127 @@ html[data-theme='light'] .sidebar-logo-title {
   font-weight: 800 !important;
 }
 html[data-theme='light'] .sidebar-logo-sub {
-  color: #5A6610 !important;
-  font-weight: 800 !important;
+  color: #64748B !important;
+  font-weight: 700 !important;
 }
 html[data-theme='light'] .sidebar-section-title {
-  color: #334155 !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.12em !important;
-  margin-top: 1.25rem !important;
-  padding-bottom: 0.5rem !important;
-  border-bottom: 1px solid #F1F5F9 !important;
-  margin-bottom: 0.5rem !important;
+  color: #64748B !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  margin-top: 1rem !important;
+  padding-bottom: 0.25rem !important;
+  border-bottom: none !important;
+  margin-bottom: 0.25rem !important;
 }
 
-/* Nav items */
-html[data-theme='light'] .sidebar-nav-item {
-  border-radius: 6px !important;
-  color: #475569 !important;
+/* Nav items - Inactive */
+html[data-theme='light'] .sidebar-nav-item,
+html[data-theme='light'] a.sidebar-nav-item,
+html[data-theme='light'] .sidebar-nav-item-inactive,
+html[data-theme='light'] aside a:not([class*="bg-brand-green"]):not([class*="sidebar-nav-item-active"]) {
+  border-radius: 12px !important;
+  color: #334155 !important;
   padding: 8px 12px !important;
   background: transparent !important;
-  border: none !important;
-  border-left: 3px solid transparent !important;
+  border: 1px solid transparent !important;
   margin-bottom: 2px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   transition: all 0.2s ease !important;
 }
-html[data-theme='light'] .sidebar-nav-item:hover {
-  background: #F8FAFC !important;
+html[data-theme='light'] .sidebar-nav-label,
+html[data-theme='light'] aside .sidebar-nav-label,
+html[data-theme='light'] aside a:not([class*="bg-brand-green"]) span {
+  color: #334155 !important;
+  font-weight: 500 !important;
+}
+html[data-theme='light'] .sidebar-nav-item:hover,
+html[data-theme='light'] aside a:not([class*="bg-brand-green"]):hover {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+html[data-theme='light'] .sidebar-nav-item:hover .sidebar-nav-label,
+html[data-theme='light'] aside a:not([class*="bg-brand-green"]):hover span {
   color: #0F172A !important;
 }
 html[data-theme='light'] .sidebar-nav-icon-bg {
-  background: transparent !important;
-  width: 24px !important;
-  height: 24px !important;
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 8px !important;
+  width: 28px !important;
+  height: 28px !important;
 }
-html[data-theme='light'] .sidebar-nav-icon {
+html[data-theme='light'] .sidebar-nav-item:hover .sidebar-nav-icon-bg {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+}
+html[data-theme='light'] .sidebar-nav-icon,
+html[data-theme='light'] aside a:not([class*="bg-brand-green"]) svg {
   color: #64748B !important;
-  width: 18px !important;
-  height: 18px !important;
+  width: 16px !important;
+  height: 16px !important;
   stroke-width: 2 !important;
 }
-html[data-theme='light'] .sidebar-nav-item:hover .sidebar-nav-icon {
+html[data-theme='light'] .sidebar-nav-item:hover .sidebar-nav-icon,
+html[data-theme='light'] aside a:not([class*="bg-brand-green"]):hover svg {
   color: #0F172A !important;
 }
 
-/* Active State */
-html[data-theme='light'] .sidebar-nav-item-active {
-  background: #F4F9DE !important;
-  color: #4A5510 !important;
-  font-weight: 700 !important;
-  border: none !important;
-  border-left: 3px solid #5A6610 !important;
-  box-shadow: none !important;
+/* Active State (Royal Indigo) */
+html[data-theme='light'] .sidebar-nav-item-active,
+html[data-theme='light'] aside a[class*="bg-brand-green"],
+html[data-theme='light'] aside a[class*="sidebar-nav-item-active"] {
+  background: #EEF2FF !important;
+  color: #4F46E5 !important;
+  font-weight: 600 !important;
+  border: 1px solid #C7D2FE !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.08) !important;
 }
-html[data-theme='light'] .sidebar-nav-item-active .sidebar-nav-icon {
-  color: #5A6610 !important;
-  stroke-width: 2.5 !important;
+html[data-theme='light'] .sidebar-nav-item-active .sidebar-nav-label,
+html[data-theme='light'] aside a[class*="bg-brand-green"] span {
+  color: #4F46E5 !important;
+  font-weight: 600 !important;
+}
+html[data-theme='light'] .sidebar-nav-item-active .sidebar-nav-icon,
+html[data-theme='light'] aside a[class*="bg-brand-green"] svg {
+  color: #4F46E5 !important;
+  stroke-width: 2 !important;
+}
+html[data-theme='light'] .sidebar-nav-item-active .sidebar-nav-icon-bg,
+html[data-theme='light'] aside a[class*="bg-brand-green"] .sidebar-nav-icon-bg {
+  background: #E0E7FF !important;
+  border-color: #C7D2FE !important;
 }
 
 /* Category Accordion */
 html[data-theme='light'] .sidebar-category-btn {
-  border-radius: 6px !important;
-  color: #475569 !important;
+  border-radius: 12px !important;
+  color: #334155 !important;
   padding: 8px 12px !important;
   background: transparent !important;
-  border: none !important;
-  border-left: 3px solid transparent !important;
+  border: 1px solid transparent !important;
   font-weight: 700 !important;
 }
 html[data-theme='light'] .sidebar-category-btn:hover {
-  background: #F8FAFC !important;
+  background: #F1F5F9 !important;
   color: #0F172A !important;
 }
 html[data-theme='light'] .sidebar-category-btn-open {
-  background: transparent !important;
+  background: #F8FAFC !important;
   box-shadow: none !important;
   color: #0F172A !important;
+  border: 1px solid #E2E8F0 !important;
 }
 html[data-theme='light'] .sidebar-category-icon-bg {
-  background: transparent !important;
+  background: #F1F5F9 !important;
+  border-radius: 8px !important;
   width: 24px !important;
   height: 24px !important;
 }
 html[data-theme='light'] .sidebar-category-icon-bg svg {
-  color: #5A6610 !important;
-  width: 18px !important;
-  height: 18px !important;
+  color: #4F46E5 !important;
+  width: 16px !important;
+  height: 16px !important;
   stroke-width: 2 !important;
 }
 html[data-theme='light'] .sidebar-category-title {
@@ -3653,28 +3797,27 @@ html[data-theme='light'] .sidebar-category-content {
 
 /* My Portal Btn */
 html[data-theme='light'] .sidebar-portal-btn {
-  background: #FFFFFF !important;
-  border: 1px solid #CBD5E1 !important;
-  color: #0F172A !important;
-  border-radius: 6px !important;
+  background: #ECFDF5 !important;
+  border: 1px solid #A7F3D0 !important;
+  color: #047857 !important;
+  border-radius: 12px !important;
   font-weight: 700 !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
 }
 html[data-theme='light'] .sidebar-portal-btn:hover {
-  background: #F8FAFC !important;
-  border-color: #5A6610 !important;
-  color: #5A6610 !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
+  background: #D1FAE5 !important;
+  border-color: #6EE7B7 !important;
+  color: #065F46 !important;
 }
 html[data-theme='light'] .sidebar-portal-btn .sidebar-nav-icon {
-  color: #5A6610 !important;
+  color: #047857 !important;
   stroke-width: 2 !important;
 }
 
 /* Footer */
 html[data-theme='light'] .sidebar-footer {
   border-top: 1px solid #E2E8F0 !important;
-  background: #F8FAFC !important;
+  background: #FFFFFF !important;
   padding: 12px 16px !important;
 }
 html[data-theme='light'] .sidebar-user-name {
@@ -3689,7 +3832,7 @@ html[data-theme='light'] .sidebar-logout-icon-btn {
   color: #64748B !important;
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   padding: 6px !important;
   width: 32px !important;
   height: 32px !important;
@@ -3700,7 +3843,7 @@ html[data-theme='light'] .sidebar-logout-icon-btn {
 }
 html[data-theme='light'] .sidebar-logout-icon-btn:hover {
   color: #DC2626 !important;
-  border-color: #DC2626 !important;
+  border-color: #FECDD3 !important;
   background: #FEF2F2 !important;
 }
 
