@@ -180,7 +180,7 @@ export default function SOPExecution() {
       {/* Recording Modal */}
       {isRecording && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#12141d] border border-white/10 p-6 rounded-2xl max-w-2xl w-full text-center shadow-2xl">
+          <div className="border p-6 rounded-2xl max-w-2xl w-full text-center shadow-2xl" style={{ background: 'var(--bg-800, #12141d)', borderColor: 'var(--bbd-overlay-border, rgba(255,255,255,0.1))' }}>
             <h3 className="text-white font-bold text-lg mb-4">Record Video Proof</h3>
             <div className="rounded-xl overflow-hidden bg-black mb-6 relative" style={{ aspectRatio: '16/9' }}>
               <Webcam audio={true} ref={webcamRef} className="w-full h-full object-cover" />
@@ -237,7 +237,7 @@ export default function SOPExecution() {
             const canComplete = allChecked || manualSuccess;
 
             return (
-              <div key={sop.id} className="rounded-[1.5rem] p-6 flex flex-col shadow-lg" style={{ background: '#12141d', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div key={sop.id} className="rounded-[1.5rem] p-6 flex flex-col shadow-lg" style={{ background: 'var(--bg-800, #12141d)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.03))' }}>
                 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
@@ -289,7 +289,7 @@ export default function SOPExecution() {
                       value={manualReports[sop.id] || ''}
                       onChange={(e) => setManualReports(prev => ({ ...prev, [sop.id]: e.target.value }))}
                       placeholder="Type your manual report here if you couldn't check all tasks..."
-                      className="w-full h-24 p-3 bg-[#1a1c26] border border-white/5 rounded-xl text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-colors"
+                      className="w-full h-24 p-3 bg-[#1a1c26] portal-form-control border border-white/5 rounded-xl text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-colors"
                     />
                     <p className="text-[10px] text-slate-500 mt-2">
                       * You can submit this SOP by writing a manual report and attaching proof (image or video), even if you didn't check all boxes.
@@ -303,21 +303,21 @@ export default function SOPExecution() {
                     <div className="grid grid-cols-2 gap-3">
                       <button 
                         onClick={() => handleStartRecording(sop.id)}
-                        className="py-3 rounded-xl border border-white/5 bg-[#1a1c26] hover:bg-[#222430] transition-colors flex flex-col items-center justify-center gap-2"
+                        className="py-3 rounded-xl border border-white/5 bg-[#1a1c26] portal-action-btn hover:bg-[#222430] transition-colors flex flex-col items-center justify-center gap-2"
                       >
                         <span className="text-xl text-rose-400">📹</span>
                         <span className="text-xs font-bold text-white">Live Record</span>
                       </button>
                       <button 
                         onClick={() => handleFileSelectClick(sop.id)}
-                        className="py-3 rounded-xl border border-white/5 bg-[#1a1c26] hover:bg-[#222430] transition-colors flex flex-col items-center justify-center gap-2"
+                        className="py-3 rounded-xl border border-white/5 bg-[#1a1c26] portal-action-btn hover:bg-[#222430] transition-colors flex flex-col items-center justify-center gap-2"
                       >
                         <span className="text-xl text-indigo-400">↑</span>
                         <span className="text-xs font-bold text-white">Select File</span>
                       </button>
                     </div>
                     
-                    <div className="text-center py-2 bg-[#1a1c26] rounded-lg text-xs font-medium text-slate-500">
+                    <div className="text-center py-2 bg-[#1a1c26] portal-action-btn rounded-lg text-xs font-medium text-slate-500">
                       {activeVideoFile[sop.id] ? (
                         <span className="text-emerald-400 flex items-center justify-center gap-2">
                           <span>✓</span> File attached: {activeVideoFile[sop.id].name}
@@ -330,13 +330,12 @@ export default function SOPExecution() {
                     <button 
                       onClick={() => completeMutation.mutate(sop.id)}
                       disabled={completeMutation.isPending || !canComplete}
-                      className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }}
+                      className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25 active:scale-[0.99]"
                     >
                       {uploadingSopId === sop.id ? 'Uploading...' : '↑ Upload & Complete'}
                     </button>
                     
-                    <button className="w-full py-3.5 rounded-xl font-bold text-sm text-slate-400 bg-[#1a1c26] hover:bg-[#222430] border border-white/5 transition-colors">
+                    <button className="w-full py-3.5 rounded-xl font-bold text-sm text-slate-400 bg-[#1a1c26] portal-action-btn hover:bg-[#222430] border border-white/5 transition-colors">
                       Mark as Absent
                     </button>
                   </div>
@@ -348,7 +347,7 @@ export default function SOPExecution() {
                     
                     {/* Re-upload Media Section */}
                     {activeVideoFile[sop.id] ? (
-                      <div className="space-y-2 bg-[#1a1c26] p-3 rounded-xl border border-white/5">
+                      <div className="space-y-2 bg-[#1a1c26] portal-action-btn p-3 rounded-xl border border-white/5">
                         <span className="text-xs text-amber-400 block break-words">File: {activeVideoFile[sop.id].name}</span>
                         <button 
                           onClick={() => completeMutation.mutate(sop.id)}

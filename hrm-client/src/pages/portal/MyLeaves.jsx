@@ -74,7 +74,7 @@ export default function MyLeaves() {
                   </div>
                 </div>
                 <div className="mt-5">
-                  <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden mb-2">
+                  <div className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
                     <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   <p className="text-[10px] text-slate-500 font-medium">{used}/{total} used</p>
@@ -90,7 +90,7 @@ export default function MyLeaves() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Left Column: Request Form */}
-        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl p-5" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">📝</span>
             <h3 className="text-sm font-bold text-white">Request Leave</h3>
@@ -100,7 +100,7 @@ export default function MyLeaves() {
           <form id="leave-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">LEAVE TYPE *</label>
-              <select name="leave_type_id" required className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors cursor-pointer appearance-none">
+              <select name="leave_type_id" required className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors cursor-pointer appearance-none">
                 <option value="" disabled selected>— Select Leave Type —</option>
                 {leaveTypes.map(t => (
                   <option key={t.id} value={t.id}>{t.type_name}</option>
@@ -109,26 +109,25 @@ export default function MyLeaves() {
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">FROM *</label>
-              <input type="date" name="start_date" required className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors" />
+              <input type="date" name="start_date" required className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors" />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">TO *</label>
-              <input type="date" name="end_date" required className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors" />
+              <input type="date" name="end_date" required className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors" />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">REASON</label>
-              <textarea name="reason" rows="3" className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors resize-none" placeholder="Brief reason (optional)..."></textarea>
+              <textarea name="reason" rows="3" className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors resize-none" placeholder="Brief reason (optional)..."></textarea>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">ATTACHMENT (e.g. Medical Cert)</label>
-              <input type="file" name="attachment" className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20" />
+              <input type="file" name="attachment" className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20" />
             </div>
             <div className="pt-2">
               <button
                 type="submit"
                 disabled={requestMutation.isPending}
-                className="w-full disabled:opacity-50 text-white text-sm font-bold px-4 py-3 rounded-xl transition-all hover:opacity-90"
-                style={{ background: 'linear-gradient(90deg, #8b5cf6, #c026d3)' }}
+                className="w-full disabled:opacity-50 text-white text-sm font-bold px-4 py-3.5 rounded-xl transition-all bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/25 active:scale-[0.99]"
               >
                 {requestMutation.isPending ? 'Submitting...' : 'Submit to HR →'}
               </button>
@@ -137,7 +136,7 @@ export default function MyLeaves() {
         </div>
 
         {/* Right Column: Leave History */}
-        <div className="rounded-2xl p-5 h-full min-h-[400px] flex flex-col" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl p-5 h-full min-h-[400px] flex flex-col" style={{ background: 'var(--bg-800, #1e2235)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
 
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-bold text-white">Leave History</h3>
@@ -158,7 +157,7 @@ export default function MyLeaves() {
                 {requests.map(r => {
                   const typeName = leaveTypes.find(t => t.id === r.leave_type_id)?.type_name || '—';
                   return (
-                    <div key={r.id} className="p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-white/5 bg-[#121421] transition-colors">
+                    <div key={r.id} className="p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-white/5 bg-[#121421] portal-history-card transition-colors shadow-sm">
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="text-xs font-bold text-slate-300">{typeName}</h4>

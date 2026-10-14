@@ -17,8 +17,8 @@ export default function QRCheckIn() {
       <div className="flex flex-col items-center max-w-2xl mx-auto pt-10">
         
         {/* Main QR Display Card */}
-        <div className="w-full rounded-[2rem] p-8 text-center flex flex-col items-center justify-center mb-6" 
-             style={{ background: '#1c2033', border: '1px solid rgba(255,255,255,0.02)', minHeight: '400px' }}>
+        <div className="w-full rounded-[2rem] p-8 text-center flex flex-col items-center justify-center mb-6 shadow-xl" 
+             style={{ background: 'var(--bg-800, #1c2033)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.02))', minHeight: '400px' }}>
           
           {isLoading ? (
             <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -44,11 +44,11 @@ export default function QRCheckIn() {
                 Ask your HR to generate one for you from the <span className="text-indigo-400 font-medium">Attendance module</span>.
               </p>
               
-              <div className="w-full max-w-sm rounded-xl p-5 text-left border border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+              <div className="w-full max-w-sm rounded-xl p-5 text-left border border-white/5" style={{ background: 'var(--bg-850, rgba(255,255,255,0.02))', borderColor: 'var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
                 <h4 className="text-xs font-bold text-slate-300 mb-3">Steps for HR to generate:</h4>
                 <ol className="text-xs text-slate-400 space-y-2">
-                  <li>1. Go to <span className="text-indigo-400">Attendance → QR Tokens tab</span></li>
-                  <li>2. Select your name and click <span className="text-indigo-400">Generate QR</span></li>
+                  <li>1. Go to <span className="text-indigo-400 font-semibold">Attendance → QR Tokens tab</span></li>
+                  <li>2. Select your name and click <span className="text-indigo-400 font-semibold">Generate QR</span></li>
                   <li>3. Come back here to scan or click check-in</li>
                 </ol>
               </div>
@@ -58,8 +58,8 @@ export default function QRCheckIn() {
 
         {/* Alternative Photo Check-In Card */}
         <div 
-          className="w-full rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors group"
-          style={{ background: '#1c2033', border: '1px solid rgba(255,255,255,0.02)' }}
+          className="w-full rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors group shadow-md"
+          style={{ background: 'var(--bg-800, #1c2033)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.02))' }}
           onClick={() => navigate('/portal/checkin')}
         >
           <div className="flex items-center gap-4">

@@ -20,13 +20,18 @@ export default {
           gray: '#B7B7B7',
           'gray-dark': '#9C9C9C',
         },
-        // === indigo → BBD Lime Green (for all existing indigo-xxx classes) ===
+        // === Royal Indigo (Clean, Modern Enterprise Accent) ===
         indigo: {
-          300: '#b3c64c',
-          400: '#A3B81F',
-          500: '#A3B81F',
-          600: '#829319',
-          700: '#626e13',
+          50: '#EEF2FF',
+          100: '#E0E7FF',
+          200: '#C7D2FE',
+          300: '#A5B4FC',
+          400: '#818CF8',
+          500: '#6366F1',
+          600: '#4F46E5',
+          700: '#4338CA',
+          800: '#3730A3',
+          900: '#312E81',
         },
         // === Override emerald → Orange accent ===
         // (used in some stat cards)

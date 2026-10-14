@@ -87,7 +87,6 @@ export default function MyDocuments() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="form-input text-sm pl-10 pr-4 py-2.5 rounded-xl w-full"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
           />
         </div>
         <span className="text-xs text-slate-400 font-medium">{filteredDocs.length} Document{filteredDocs.length !== 1 ? 's' : ''}</span>

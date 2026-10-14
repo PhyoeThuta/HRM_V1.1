@@ -128,10 +128,10 @@ export default function CameraCheckin() {
 
   return (
     <Layout title={isCheckingOut ? "Photo Check-Out 📸" : "Photo Check-In 📸"} subtitle="Take a selfie to record your attendance">
-      <div className="max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--bg-850, #161929)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
         
         {/* Camera Area */}
-        <div className="w-full h-[400px] flex items-center justify-center bg-[#0f111a] relative">
+        <div className="w-full h-[400px] flex items-center justify-center bg-[#0f111a] portal-camera-box relative">
           {hasCompletedAttendance ? (
             <div className="text-center text-slate-500">
               <span className="text-4xl block mb-2">🎉</span>
@@ -224,12 +224,12 @@ export default function CameraCheckin() {
               <p className="text-slate-400 text-xs mt-1">See you tomorrow.</p>
             </div>
           ) : !isCheckingOut ? (
-            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10" style={{ background: 'var(--bg-850, rgba(255,255,255,0.05))', borderColor: 'var(--bbd-overlay-border, rgba(255,255,255,0.1))' }}>
               <label className="block text-xs font-bold text-slate-400 mb-2">Selected Shift</label>
               <select 
                 value={selectedShift}
                 onChange={e => setSelectedShift(e.target.value)}
-                className="w-full bg-[#0f111a] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#0f111a] portal-form-control border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="" disabled>Select your shift...</option>
                 {shiftData?.allowed_shifts?.map(s => (
@@ -247,7 +247,7 @@ export default function CameraCheckin() {
                     placeholder="Reason (e.g. Boss asked me to come early)" 
                     value={specialReason}
                     onChange={e => setSpecialReason(e.target.value)}
-                    className="w-full bg-[#0f111a] border border-amber-500/50 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0f111a] portal-form-control border border-amber-500/50 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
                   />
                   <p className="text-[10px] text-amber-400/80 mt-1 pl-1">HR must approve special shift requests manually.</p>
                 </div>
@@ -269,7 +269,7 @@ export default function CameraCheckin() {
               disabled={isCameraStarted || hasCompletedAttendance}
               className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                 (isCameraStarted || hasCompletedAttendance)
-                  ? 'bg-[#334155] text-slate-400 cursor-not-allowed opacity-50' 
+                  ? 'bg-[#334155] portal-btn-disabled text-slate-400 cursor-not-allowed opacity-50' 
                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
               }`}
             >
@@ -280,7 +280,7 @@ export default function CameraCheckin() {
               disabled={!isCameraStarted || imgSrc || hasCompletedAttendance}
               className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                 (!isCameraStarted || imgSrc || hasCompletedAttendance)
-                  ? 'bg-[#121421] border border-white/5 text-slate-500 cursor-not-allowed' 
+                  ? 'bg-[#121421] portal-btn-disabled border border-white/5 text-slate-500 cursor-not-allowed' 
                   : (isCheckingOut ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20')
               }`}
             >
@@ -288,7 +288,7 @@ export default function CameraCheckin() {
             </button>
           </div>
 
-          <div className="bg-[#121421] border border-indigo-500/20 rounded-xl p-4 flex gap-3 items-start">
+          <div className="bg-[#121421] portal-tip-card border border-indigo-500/20 rounded-xl p-4 flex gap-3 items-start">
             <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <span className="text-indigo-400 text-xs font-bold">i</span>
             </div>

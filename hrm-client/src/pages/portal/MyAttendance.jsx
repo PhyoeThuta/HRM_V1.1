@@ -83,8 +83,8 @@ export default function MyAttendance() {
       </div>
 
       {activeTab === 'records' && (
-        <div className="rounded-2xl overflow-hidden mb-6" style={{ background: 'var(--bg-850, #161929)', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl overflow-hidden mb-6 shadow-sm" style={{ background: 'var(--bg-850, #161929)', border: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
+          <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
           <h3 className="text-sm font-bold text-white">{t('portal.attendance.recordsTitle')}</h3>
           <p className="text-xs text-slate-400">{records.length} {t('portal.attendance.recordsTotal')}</p>
         </div>
@@ -100,9 +100,9 @@ export default function MyAttendance() {
               const isExpanded = expandedMonths[month] !== false; // Default expanded to true
               
               return (
-                <div key={month} className="border-b border-white/5 last:border-0">
+                <div key={month} className="border-b border-white/5 last:border-0" style={{ borderColor: 'var(--bbd-overlay-border, rgba(255,255,255,0.05))' }}>
                   <div 
-                    className="flex justify-between items-center p-4 bg-[#121421] cursor-pointer hover:bg-white/5 transition-colors"
+                    className="flex justify-between items-center p-4 bg-[#121421] portal-accordion-header cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => toggleMonth(month)}
                   >
                     <div className="flex items-center gap-3">
@@ -115,7 +115,7 @@ export default function MyAttendance() {
                   {isExpanded && (
                     <div className="overflow-x-auto bg-surface-850">
                       <table className="w-full text-sm">
-                        <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
+                        <thead style={{ background: 'var(--bg-900, rgba(0,0,0,0.2))' }}>
                           <tr>
                             {[t('hrm.attendance.columns.date'), t('hrm.attendance.columns.checkIn'), t('hrm.attendance.columns.checkOut'), t('hrm.attendance.columns.hours'), t('hrm.attendance.columns.method'), t('hrm.attendance.columns.status')].map((h, i) => (
                               <th key={i} className="text-left py-2 px-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>

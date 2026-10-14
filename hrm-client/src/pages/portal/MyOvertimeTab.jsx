@@ -169,7 +169,7 @@ export default function MyOvertimeTab() {
                   required
                   value={formData.ot_date} 
                   onChange={e => setFormData({...formData, ot_date: e.target.value})}
-                  className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+                  className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -180,7 +180,7 @@ export default function MyOvertimeTab() {
                     required
                     value={formData.start_time} 
                     onChange={e => setFormData({...formData, start_time: e.target.value})}
-                    className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+                    className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -190,7 +190,7 @@ export default function MyOvertimeTab() {
                     required
                     value={formData.end_time} 
                     onChange={e => setFormData({...formData, end_time: e.target.value})}
-                    className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
+                    className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -200,7 +200,7 @@ export default function MyOvertimeTab() {
                   rows="3"
                   value={formData.reason} 
                   onChange={e => setFormData({...formData, reason: e.target.value})}
-                  className="w-full bg-[#121421] text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 resize-none"
+                  className="w-full bg-[#121421] portal-form-control text-slate-300 text-sm rounded-xl px-4 py-2.5 border border-white/5 outline-none focus:border-indigo-500 resize-none"
                   placeholder={t('portal.overtime.modal.reasonPlh')}
                 />
               </div>
