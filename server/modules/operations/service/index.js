@@ -400,6 +400,48 @@ export async function autoGenerateOrders(inputDate, userId, authorizationHeader,
 // SMART SYNC: Monthly Plan → Daily Menus
 // ==========================================
 
+function normalizeDishKey(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+function slugFromDishName(value) {
+  const slug = String(value || '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-+/g, '-')
+    .toUpperCase();
+  return slug;
+}
+
+function stableDishHash(value) {
+  const s = String(value || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h * 31) + s.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(36).toUpperCase();
+}
+
+function buildAutoMenuCode(dishName, usedCodes) {
+  const slug = slugFromDishName(dishName);
+  const base = `AUTO-${slug || stableDishHash(dishName)}`;
+  let code = base;
+  let suffix = 2;
+  while (usedCodes.has(code)) {
+    code = `${base}-${suffix}`;
+    suffix++;
+  }
+  usedCodes.add(code);
+  return code;
+}
+
 /**
  * Syncs a date range from operations_menu_plans into operations_daily_menus.
  * Matches plan dish names against the operations_menus catalog (case-insensitive).
@@ -421,16 +463,29 @@ export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
     throw err;
   }
 
-  // Build a normalized lookup map: lowercase name → menu object
+  // Build lookup maps for exact match + normalized auto-merge.
   const catalogMap = new Map();
+  const normalizedCatalogMap = new Map();
+  const usedCodes = new Set((catalog || []).map(m => m.code).filter(Boolean));
   for (const m of catalog) {
-    if (m.name_en) catalogMap.set(m.name_en.toLowerCase().trim(), m);
-    if (m.name_mm) catalogMap.set(m.name_mm.toLowerCase().trim(), m);
+    if (m.name_en) {
+      const exactEn = m.name_en.toLowerCase().trim();
+      catalogMap.set(exactEn, m);
+      const keyEn = normalizeDishKey(m.name_en);
+      if (keyEn && !normalizedCatalogMap.has(keyEn)) normalizedCatalogMap.set(keyEn, m);
+    }
+    if (m.name_mm) {
+      const exactMm = m.name_mm.toLowerCase().trim();
+      catalogMap.set(exactMm, m);
+      const keyMm = normalizeDishKey(m.name_mm);
+      if (keyMm && !normalizedCatalogMap.has(keyMm)) normalizedCatalogMap.set(keyMm, m);
+    }
   }
 
   let synced = 0;
   let skipped = 0;
   const noMatchDishes = [];
+  const autoCreatedMenus = [];
 
   for (const plan of plans) {
     const planDate = plan.date;
@@ -451,10 +506,45 @@ export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
       .map(f => (plan[f] || '').trim())
       .filter(n => n.length > 0);
 
-    // 6. Match dish names to catalog entries
+    // 6. Match dish names to catalog entries. If missing, auto-create menu catalog rows.
     const matchedMenuIds = [];
     for (const dish of dishNames) {
-      const match = catalogMap.get(dish.toLowerCase());
+      const exactKey = dish.toLowerCase().trim();
+      const normalizedKey = normalizeDishKey(dish);
+      let match = catalogMap.get(exactKey) || normalizedCatalogMap.get(normalizedKey);
+
+      if (!match) {
+        const code = buildAutoMenuCode(dish, usedCodes);
+        try {
+          match = await opsRepo.createMenu({
+            code,
+            name_en: dish,
+            name_mm: dish,
+            sales_prices: 0,
+            total_bill_of_materials: 0,
+            created_by: userId
+          });
+
+          autoCreatedMenus.push({ code: match.code, name_en: match.name_en });
+
+          // Update maps immediately so repeated dish names in this sync reuse the same menu.
+          if (match.name_en) {
+            const enKey = match.name_en.toLowerCase().trim();
+            const enNorm = normalizeDishKey(match.name_en);
+            catalogMap.set(enKey, match);
+            if (enNorm && !normalizedCatalogMap.has(enNorm)) normalizedCatalogMap.set(enNorm, match);
+          }
+          if (match.name_mm) {
+            const mmKey = match.name_mm.toLowerCase().trim();
+            const mmNorm = normalizeDishKey(match.name_mm);
+            catalogMap.set(mmKey, match);
+            if (mmNorm && !normalizedCatalogMap.has(mmNorm)) normalizedCatalogMap.set(mmNorm, match);
+          }
+        } catch (createErr) {
+          console.error('[OPS SYNC AUTO-CREATE MENU ERROR]', createErr.message, { dish, code });
+        }
+      }
+
       if (match) {
         if (!matchedMenuIds.includes(match.id)) {
           matchedMenuIds.push(match.id);
@@ -493,7 +583,7 @@ export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
     synced++;
   }
 
-  return { synced, skipped, noMatchDishes };
+  return { synced, skipped, noMatchDishes, autoCreatedMenus };
 }
 
 // ==========================================
