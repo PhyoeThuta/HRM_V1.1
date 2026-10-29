@@ -500,15 +500,20 @@ export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
     // 4. Determine with_rice from plan
     const withRice = plan.has_rice !== 'NO RICE';
 
-    // 5. Collect all dish names from this plan row
-    const dishFields = ['main_dish_1', 'main_dish_2', 'side_dish_1', 'side_dish_2', 'soup', 'dessert'];
-    const dishNames = dishFields
-      .map(f => (plan[f] || '').trim())
-      .filter(n => n.length > 0);
+    // 5. Split by meal type based on BBD daily format:
+    //    - Row 1 values = Lunch (main_dish_1, side_dish_1, soup, dessert)
+    //    - Row 2 values = Dinner (main_dish_2, side_dish_2)
+    // This prevents Lunch/Dinner from receiving the same mixed dish set.
+    const lunchDishNames = [plan.main_dish_1, plan.side_dish_1, plan.soup, plan.dessert]
+      .map(v => String(v || '').trim())
+      .filter(Boolean);
+    const dinnerDishNames = [plan.main_dish_2, plan.side_dish_2]
+      .map(v => String(v || '').trim())
+      .filter(Boolean);
 
-    // 6. Match dish names to catalog entries. If missing, auto-create menu catalog rows.
-    const matchedMenuIds = [];
-    for (const dish of dishNames) {
+    async function resolveMenuIdsForDishes(dishNames) {
+      const matchedMenuIds = [];
+      for (const dish of dishNames) {
       const exactKey = dish.toLowerCase().trim();
       const normalizedKey = normalizeDishKey(dish);
       let match = catalogMap.get(exactKey) || normalizedCatalogMap.get(normalizedKey);
@@ -545,22 +550,30 @@ export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
         }
       }
 
-      if (match) {
-        if (!matchedMenuIds.includes(match.id)) {
-          matchedMenuIds.push(match.id);
-        }
-      } else {
-        // Record unmatched dish for reporting, but only once
-        if (!noMatchDishes.find(d => d.dish === dish)) {
-          noMatchDishes.push({ date: planDate, dish });
+        if (match) {
+          if (!matchedMenuIds.includes(match.id)) {
+            matchedMenuIds.push(match.id);
+          }
+        } else {
+          // Record unmatched dish for reporting, but only once
+          if (!noMatchDishes.find(d => d.dish === dish)) {
+            noMatchDishes.push({ date: planDate, dish });
+          }
         }
       }
+      return matchedMenuIds;
     }
 
-    // 7. Create daily menus for LUNCH and DINNER for this date
-    // BBD serves both Lunch and Dinner by default
-    const mealTypes = ['Lunch', 'Dinner'];
-    for (const mealType of mealTypes) {
+    // 6. Resolve menu IDs independently for Lunch and Dinner.
+    const lunchMenuIds = await resolveMenuIdsForDishes(lunchDishNames);
+    const dinnerMenuIds = await resolveMenuIdsForDishes(dinnerDishNames);
+
+    // 7. Create daily menus for Lunch and Dinner.
+    const mealPlans = [
+      { mealType: 'Lunch', menuIds: lunchMenuIds },
+      { mealType: 'Dinner', menuIds: dinnerMenuIds }
+    ];
+    for (const { mealType, menuIds } of mealPlans) {
       const dailyMenu = await opsRepo.createDailyMenu({
         date: planDate,
         meal_type: mealType,
@@ -569,8 +582,8 @@ export async function syncMonthlyPlanToDailyMenus(startDate, endDate, userId) {
       });
 
       // 8. Link matched catalog menus to this daily menu
-      if (matchedMenuIds.length > 0) {
-        const menuTypes = matchedMenuIds.map((menuId, idx) => ({
+      if (menuIds.length > 0) {
+        const menuTypes = menuIds.map((menuId, idx) => ({
           daily_menus_id: dailyMenu.id,
           menu_id: menuId,
           is_main: idx === 0, // First item is main dish
