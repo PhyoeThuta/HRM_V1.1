@@ -120,15 +120,19 @@ export async function importMenuPlan(req, res) {
       const formattedDate = parsedDate.toISOString().split('T')[0];
       const nextRow = (r + 1 < rows.length) ? rows[r+1] : {};
 
-      const mainDish1 = row['E'] ? String(row['E']).trim() : null;
-      const mainDish2 = nextRow['E'] ? String(nextRow['E']).trim() : null;
-      
-      const sideDish1 = row['F'] ? String(row['F']).trim() : null;
-      const sideDish2 = nextRow['F'] ? String(nextRow['F']).trim() : null;
-      
+      // BBD October/November menu template mapping:
+      //   B = Date, D = Main Dish, E = Side Dish, F = Soup, G = Dessert
+      //   2 rows per day (row1 + row2 for main/side alternates)
+      const mainDish1 = row['D'] ? String(row['D']).trim() : null;
+      const mainDish2 = nextRow['D'] ? String(nextRow['D']).trim() : null;
+
+      const sideDish1 = row['E'] ? String(row['E']).trim() : null;
+      const sideDish2 = nextRow['E'] ? String(nextRow['E']).trim() : null;
+
+      const soup = row['F'] ? String(row['F']).trim() : null;
       const dessert = row['G'] ? String(row['G']).trim() : null;
-      const soup = row['H'] ? String(row['H']).trim() : null;
-      
+
+      // Rice marker is optional in current BBD files.
       let hasRice = null;
       if (row['I']) hasRice = String(row['I']).trim();
       else if (nextRow['I']) hasRice = String(nextRow['I']).trim();
