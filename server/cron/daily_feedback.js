@@ -57,10 +57,11 @@ export async function checkAndNotifyDailyFeedback() {
 }
 
 // Start cron job (runs every day at 21:00 / 9:00 PM Thai Time)
+// DISABLED: Turned off per BBD request to prevent sending nightly feedback notifications to customers.
 export function startDailyFeedbackCron() {
-  cron.schedule('0 21 * * *', checkAndNotifyDailyFeedback, {
-    scheduled: true,
-    timezone: 'Asia/Bangkok'
-  });
-  console.log('[CRON] Scheduled daily feedback notifications for 21:00 (Asia/Bangkok)');
+  console.log('[CRON] Daily feedback notifications (21:00 Asia/Bangkok) is DISABLED per BBD request.');
+  // cron.schedule('0 21 * * *', checkAndNotifyDailyFeedback, {
+  //   scheduled: true,
+  //   timezone: 'Asia/Bangkok'
+  // });
 }

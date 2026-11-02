@@ -257,7 +257,7 @@ server.listen(PORT, () => {
   startBirthdayCron();
   startVectorSyncCron();
   startFollowupCron();
-  startDailyFeedbackCron();
+  // startDailyFeedbackCron(); // Disabled per BBD request: stop 21:00 nightly feedback spam
   startKitchenAlertCron(); // 05:00 AM ICT Kitchen Daily Alert (Telegram + Messenger)
 });
 
